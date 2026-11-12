@@ -14,6 +14,26 @@ from cfdbender.core import registry
 from cfdbender.core.registry import RunRegistry
 
 
+def test_symlinked_mesh_output_still_plans_a_rerun(tmp_path, monkeypatch):
+    from test_matrix_rerun import cli
+    from test_p0000_su2_cgns import mesh_point
+
+    from cfdbender.core import plan
+
+    mesh_point(tmp_path, ".su2")
+    assert cli(tmp_path, "--local") == 0
+    target = tmp_path / "inputs/meshes/tiny.su2"
+    real = plan.workspace_path
+
+    def follows_links(root: Path, name: str) -> Path:
+        if name.endswith("/mesh.su2"):
+            return target.resolve()
+        return real(root, name)
+
+    monkeypatch.setattr(plan, "workspace_path", follows_links)
+    assert cli(tmp_path, "--local", "--force-rerun-all") == 0
+
+
 def test_symlinked_mesh_output_keeps_the_record_readable(tmp_path, monkeypatch):
     su2_case.workspace(tmp_path)
     folder, _config = submit(tmp_path)

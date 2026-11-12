@@ -326,9 +326,13 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 output = template.format(pol=row.pol, point=tag)
             except (KeyError, IndexError, ValueError) as error:
                 raise PlanError(f"invalid output template {template!r}: {error}") from error
-            path = workspace_path(root, output)
-            normalized = path.relative_to(root).as_posix()
-            if not normalized.startswith(("sims/", "post/")):
+            # A staged mesh output may already exist as a link to inputs/geometry: judge the
+            # output by its folder and name, never by what the link points at.
+            parent, _, leaf = output.rpartition("/")
+            folder = workspace_path(root, parent) if parent else root
+            normalized = f"{folder.relative_to(root).as_posix()}/{leaf}" if parent else leaf
+            path = folder / leaf
+            if not parent or not normalized.startswith(("sims/", "post/")):
                 raise PlanError(f"{output}: output must be under sims/ or post/")
             if path.is_dir():
                 raise PlanError(f"{output}: output is a directory")
