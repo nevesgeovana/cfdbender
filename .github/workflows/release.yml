@@ -49,6 +49,16 @@ jobs:
         with:
           name: dist
           path: dist/
+      # gmsh needs libGLU on Linux, as in ci.yml.
+      - name: Install libGLU for gmsh
+        if: runner.os == 'Linux'
+        run: |
+          if ldconfig -p | grep -q libGLU.so.1; then echo "libGLU present"; exit 0; fi
+          for attempt in 1 2 3; do
+            if sudo apt-get update && sudo apt-get install -y libglu1-mesa; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then echo "apt attempt $attempt failed; retrying"; sleep 30; fi
+          done
+          exit 1
       - name: Install the built wheel with the test extras
         shell: bash
         run: |
