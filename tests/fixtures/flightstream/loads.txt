@@ -1,0 +1,26 @@
+                              Aerodynamic loads
+
+     Angle of attack (Deg)                       2.000
+     Side-slip angle (Deg)                       .000
+     Freestream velocity (m/s)                   30.000
+     Requested solver iterations                 800
+     Solver convergence limit                     1.000E-05
+     Force solver to run all iterations           F
+     Solver model:                               Incompressible
+     Solver mode:                                Steady
+     Reference velocity (m/s)                    30.000
+     Reference length (m)                        1.200
+     Reference area (m^2)                        10.000
+     Altitude (ft)                               .000
+     Reynolds Number                             1200000.
+     Coordinate frame for analysis:              Reference
+     Current solver iteration number:            312
+     ----------------------------------------------------------------------------------------------------
+     Surface, Cx, Cy, Cz, CL, CDi, CDo, CMx, CMy, CMz
+     ----------------------------------------------------------------------------------------------------
+     wing_left,+0.0102000,+0.0000010,+0.4310000,+0.4308000,+0.0089000,+0.0061000,+0.0000020,-0.0912000,+0.0000010
+     Total,+0.0102000,+0.0000010,+0.4310000,+0.4308000,+0.0089000,+0.0061000,+0.0000020,-0.0912000,+0.0000010
+     ----------------------------------------------------------------------------------------------------
+     Force Units: Coefficients
+     Moment Units: Coefficients
+     Software : Flightstream version 26.1, build #7012026

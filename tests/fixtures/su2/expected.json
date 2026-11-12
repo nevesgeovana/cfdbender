@@ -1,0 +1,13 @@
+{
+  "coefficients": {
+    "CL": {"value": 0.3, "axis": "z", "kind": "force", "axis_system": "wind"},
+    "CD": {"value": 0.02, "axis": "x", "kind": "force", "axis_system": "wind"},
+    "CSF": {"value": 0.01, "axis": "y", "kind": "force", "axis_system": "wind"},
+    "CFx": {"value": 0.025, "axis": "x", "kind": "force", "axis_system": "body"},
+    "CMy": {"value": -0.05, "axis": "y", "kind": "moment", "axis_system": "body"}
+  },
+  "reference_area": 2.0,
+  "reference_length": 3.0,
+  "moment_origin": [1.0, 2.0, 3.0],
+  "solver_version": "8.6.0"
+}

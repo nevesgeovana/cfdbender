@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use cfdbender, please cite it using this metadata."
+title: "cfdbender: solver-agnostic Python workspaces for CFD"
+type: software
+authors:
+  - family-names: Neves
+    given-names: Geovana
+    orcid: "https://orcid.org/0009-0009-3055-5529"
+    affiliation: "Instituto Tecnológico de Aeronáutica"
+license: MIT
+version: 0.4.0
+date-released: 2026-11-12
+repository-code: "https://github.com/nevesgeovana/cfdbender"

@@ -1,0 +1,2 @@
+# Preserve the generated reference mesh's exact canonical bytes on every host.
+naca0012_small.su2 -text

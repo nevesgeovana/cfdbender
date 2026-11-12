@@ -1,0 +1,139 @@
+:root, [data-md-color-scheme="default"] {
+  --md-primary-fg-color: #3c0805;
+  --md-primary-fg-color--light: #a7100d;
+  --md-primary-fg-color--dark: #3c0805;
+  --md-primary-bg-color: #fde3a3;
+  --md-primary-bg-color--light: #fdd36d;
+  --md-accent-fg-color: #f8bb1c;
+  --md-accent-fg-color--transparent: #f8bb1c26;
+  --md-accent-bg-color: #3c0805;
+  --md-accent-bg-color--light: #3c0805;
+  --docs-link: #a7100d;
+  --docs-link-hover: #3c0805;
+  --docs-surface: #fffaf0;
+  --docs-border: #fdd36d;
+  --docs-note: #b3190e;
+  --docs-note-tint: #b3190e0d;
+  --md-typeset-a-color: var(--docs-link);
+}
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #201716;
+  --md-default-fg-color: #f8eee6;
+  --md-default-fg-color--light: #d9c8bf;
+  --md-default-fg-color--lighter: #aa9188;
+  --md-default-fg-color--lightest: #ffffff24;
+  --md-code-bg-color: #302321;
+  --md-code-fg-color: #fde3a3;
+  --md-primary-fg-color: #3c0805;
+  --md-primary-fg-color--light: #a7100d;
+  --md-primary-fg-color--dark: #3c0805;
+  --md-primary-bg-color: #fde3a3;
+  --md-primary-bg-color--light: #fdd36d;
+  --md-accent-fg-color: #f8bb1c;
+  --md-accent-fg-color--transparent: #f8bb1c26;
+  --md-accent-bg-color: #3c0805;
+  --md-accent-bg-color--light: #3c0805;
+  --docs-link: #fdd36d;
+  --docs-link-hover: #fde3a3;
+  --docs-surface: #302321;
+  --docs-border: #805240;
+  --docs-note: #f9a213;
+  --docs-note-tint: #f9a21314;
+  --md-typeset-a-color: var(--docs-link);
+}
+.md-header { border-bottom: 2px solid var(--md-accent-fg-color); }
+.md-header__button.md-logo img { width: 2rem; height: 2rem; }
+.md-tabs__link { opacity: 1; }
+.md-tabs__link:hover, .md-tabs__link--active { text-decoration: underline; text-underline-offset: .3em; }
+.md-typeset a:hover, .md-nav__link:hover { color: var(--docs-link-hover); }
+.md-typeset a:focus-visible, .md-nav__link:focus-visible { outline: 2px solid var(--docs-note); outline-offset: 3px; }
+.docs-hero { position: relative; min-height: 11rem; padding: 1.8rem 11rem 1.8rem 1.6rem; margin: .4rem 0 1.5rem; border: 1px solid var(--docs-border); border-radius: 1rem; background: var(--docs-surface); }
+.docs-hero h1 { color: var(--md-default-fg-color); font-weight: 750; letter-spacing: -.035em; margin: 0 0 .6rem; }
+.docs-hero p { margin: .4rem 0 0; }
+.docs-hero .hero-owl { position: absolute; right: 1.5rem; top: 50%; transform: translateY(-50%); width: 8rem; height: 8rem; }
+.hero-owl-light { display: none; }
+.md-typeset .grid.cards > ul > li { border: 1px solid var(--docs-border); border-radius: .7rem; background: var(--docs-surface); padding: 1.1rem; }
+.md-typeset .grid.cards > ul > li:hover { border-color: var(--docs-note); box-shadow: 0 .2rem .6rem #3c080514; }
+.md-typeset .grid.cards .twemoji { color: var(--docs-note); }
+.md-typeset .grid.cards hr { border-color: var(--docs-border); }
+.md-typeset table:not([class]) th { background: var(--docs-surface); color: var(--md-default-fg-color); border-bottom: 2px solid var(--docs-note); }
+.md-typeset .admonition.note, .md-typeset details.note { border-color: var(--docs-note); }
+.md-typeset .note > .admonition-title, .md-typeset .note > summary { background: var(--docs-note-tint); }
+.md-typeset .note > .admonition-title::before, .md-typeset .note > summary::before { background-color: var(--docs-note); }
+@media (max-width: 600px) {
+  .docs-hero { padding: 1.3rem; text-align: center; }
+  .docs-hero .hero-owl { position: static; transform: none; width: 6rem; height: 6rem; margin-bottom: .8rem; }
+  .docs-hero h1 { font-size: 1.8rem; }
+}
+
+/* Evidence-status colors of the generated reference and compatibility
+   matrix; a fixed palette shared by the reference pages. */
+.status-documented { color: #1a6e2f; }
+.status-removed { color: #a33030; }
+.status-verified { color: #14508a; }
+.status-broken { color: #a33030; font-weight: bold; }
+
+[data-md-color-scheme="slate"] .status-documented { color: #5fbf7a; }
+[data-md-color-scheme="slate"] .status-removed { color: #e08a8a; }
+[data-md-color-scheme="slate"] .status-verified { color: #7ab3e0; }
+[data-md-color-scheme="slate"] .status-broken { color: #e08a8a; font-weight: bold; }
+
+/* SRS requirement boxes: custom admonition types mirroring the
+   SRS template (requirement, non-requirement, decision). Usage:
+   !!! requirement "FR-01 (implemented)" */
+.md-typeset .admonition.requirement,
+.md-typeset details.requirement {
+  border-color: #c8681e;
+}
+.md-typeset .requirement > .admonition-title,
+.md-typeset .requirement > summary {
+  background-color: rgba(200, 104, 30, 0.08);
+}
+.md-typeset .requirement > .admonition-title::before,
+.md-typeset .requirement > summary::before {
+  background-color: #c8681e;
+  -webkit-mask-image: var(--md-admonition-icon--note);
+          mask-image: var(--md-admonition-icon--note);
+}
+
+.md-typeset .admonition.nonrequirement,
+.md-typeset details.nonrequirement {
+  border-color: #a02323;
+}
+.md-typeset .nonrequirement > .admonition-title,
+.md-typeset .nonrequirement > summary {
+  background-color: rgba(160, 35, 35, 0.08);
+}
+.md-typeset .nonrequirement > .admonition-title::before,
+.md-typeset .nonrequirement > summary::before {
+  background-color: #a02323;
+  -webkit-mask-image: var(--md-admonition-icon--note);
+          mask-image: var(--md-admonition-icon--note);
+}
+
+.md-typeset .admonition.decision,
+.md-typeset details.decision {
+  border-color: #b3841f;
+}
+.md-typeset .decision > .admonition-title,
+.md-typeset .decision > summary {
+  background-color: rgba(179, 132, 31, 0.10);
+}
+.md-typeset .decision > .admonition-title::before,
+.md-typeset .decision > summary::before {
+  background-color: #b3841f;
+  -webkit-mask-image: var(--md-admonition-icon--note);
+          mask-image: var(--md-admonition-icon--note);
+}
+
+/* Requirement status tags */
+.srs-implemented { color: #1a6e2f; font-variant: small-caps; font-weight: bold; }
+.srs-pending { color: #6b7280; font-variant: small-caps; font-weight: bold; }
+.srs-draft { color: #c8681e; font-variant: small-caps; font-weight: bold; }
+.srs-deferred { color: #14508a; font-variant: small-caps; font-weight: bold; }
+.srs-deprecated { color: #a33030; font-variant: small-caps; font-weight: bold; }
+[data-md-color-scheme="slate"] .srs-implemented { color: #5fbf7a; }
+[data-md-color-scheme="slate"] .srs-pending { color: #9ca3af; }
+[data-md-color-scheme="slate"] .srs-draft { color: #e0a06a; }
+[data-md-color-scheme="slate"] .srs-deferred { color: #7ab3e0; }
+[data-md-color-scheme="slate"] .srs-deprecated { color: #e08a8a; }

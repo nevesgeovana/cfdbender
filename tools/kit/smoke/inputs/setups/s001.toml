@@ -1,0 +1,24 @@
+mesh = "inputs/meshes/tiny.su2"
+iterations = 40
+freestream_temperature = 288.15
+SOLVER = "EULER"
+MATH_PROBLEM = "DIRECT"
+RESTART_SOL = false
+INIT_OPTION = "TD_CONDITIONS"
+CONV_NUM_METHOD_FLOW = "JST"
+NUM_METHOD_GRAD = "WEIGHTED_LEAST_SQUARES"
+CFL_NUMBER = 2.0
+MARKER_EULER = ["airfoil"]
+MARKER_FAR = ["farfield"]
+MARKER_MONITORING = ["airfoil"]
+CONV_FIELD = "RMS_DENSITY"
+CONV_RESIDUAL_MINVAL = -14
+CONV_STARTITER = 0
+OUTPUT_FILES = ["RESTART_ASCII"]
+HISTORY_OUTPUT = ["ITER", "RMS_RES", "AERO_COEFF"]
+
+[solver]
+route = "executable"
+threads = 1
+timeout_s = 120
+ram_estimate_gib = 0.25

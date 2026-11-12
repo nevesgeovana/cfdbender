@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cfdbender"
+version = "0.4.0"
+description = "Solver-agnostic Python workspace for CFD studies (SU2 first)"
+readme = "README.md"
+authors = [{name = "Geovana Neves"}]
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = []
+
+[project.scripts]
+cfd-workspace = "cfdbender.workspace.cli:main"
+cfd-matrix = "cfdbender.matrix.cli:main"
+
+[project.optional-dependencies]
+flightstream = ["pyflightstream>=0.56,<1"]
+test = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.11", "mypy>=1.15", "build>=1.2", "setuptools>=68", "gmsh==4.15.2"]
+docs = ["properdocs>=1.6,<2", "mkdocs-material>=9,<10", "mkdocs-gen-files>=0.5,<1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+files = ["src/cfdbender"]
+strict = true
+
+[[tool.mypy.overrides]]
+# The optional FlightStream support: pyflightstream ships no type information and
+# is absent from environments without the extra (hosted CI), so its imports in
+# cfdbender._pyfs are untyped either way.
+module = ["pyflightstream", "pyflightstream.*"]
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src"]
+extend-exclude = ["*.md"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "N", "D"]
+extend-select = ["D417"]
+ignore = ["N803", "N806"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["D"]

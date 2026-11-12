@@ -1,0 +1,66 @@
+site_name: cfdbender
+site_description: Solver-agnostic CFD workspace
+site_url: https://nevesgeovana.github.io/cfdbender/
+repo_url: https://github.com/nevesgeovana/cfdbender
+theme:
+  name: material
+  logo: assets/sticker_white.png
+  favicon: assets/favicon-white.png
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.indexes
+    - navigation.tabs
+    - navigation.sections
+    - navigation.instant
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - scripts/srs_generate.py
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.superfences
+  - pymdownx.emoji
+  - pymdownx.highlight
+  - toc:
+      permalink: true
+extra_css:
+  - stylesheets/extra.css
+nav:
+  - Home: index.md
+  - Start here: getting-started.md
+  - Matrix columns: matrix-columns.md
+  - FlightStream workspaces: flightstream-workspaces.md
+  - SU2 workspaces: su2-workspaces.md
+  - OpenFOAM workspaces: openfoam-workspaces.md
+  - PyFR workspaces: pyfr-workspaces.md
+  - XFOIL workspaces: xfoil-workspaces.md
+  - QPROP workspaces: qprop-workspaces.md
+  - Workspace files: workspace-files.md
+  - Workspace settings: workspace-settings.md
+  - Architecture: architecture.md
+  - Requirements: requirements/index.md
+exclude_docs: |
+  /unpublished/

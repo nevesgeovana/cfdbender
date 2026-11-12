@@ -1,0 +1,33 @@
+# TEMPLATE ONLY: no real site, host, application, version or submit program.
+# 1. application_id is your scheduler's application family; replace the fake text.
+# 2. max_walltime is the queue ceiling as HH:MM:SS; this sample is only a placeholder.
+# 3. descriptor.format chooses the scheduler descriptor syntax (json here).
+# 4. descriptor.name is a plain filename inside each point folder.
+# 5. fields.ApplicationId substitutes the application_id declared above.
+# 6. fields.version substitutes the exact version's builds alias when configured.
+# 7. fields.master_file names the translated configuration via config_path.
+# 8. fields.cpus and walltime substitute setup ncpus and the matrix WALLTIME.
+# 9. submit.command is argv, never a shell string; replace FAKE_SUBMIT_REPLACE_ME.
+# 10. builds/application_ids map exact setup solver_version values; examples stay commented.
+application_id = "FAKE_APPLICATION_REPLACE_ME"
+max_walltime = "01:00:00"
+
+[descriptor]
+format = "json"
+name = "submit.json"
+
+[descriptor.fields]
+ApplicationId = "{application_id}"
+master_file = "{config_path}"
+walltime = "{walltime}"
+# version = "{solver_version_alias}"
+# cpus = "{ncpus}"
+
+[submit]
+command = ["FAKE_SUBMIT_REPLACE_ME", "{descriptor_path}"]
+
+# Enable only after setting the real solver_version in s and these site values.
+# [builds]
+# "0.0.0-FAKE" = "FAKE_BUILD_REPLACE_ME"
+# [application_ids]
+# "0.0.0-FAKE" = "FAKE_APPLICATION_REPLACE_ME"

@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+# local tool state
+.[c]laude/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+# solver and mesh outputs never enter the repository
+*.su2
+# Public reference mesh for the solver test.
+!/tests/fixtures/su2/naca0012_small.su2
+*.msh
+*.vtk
+*.vtu
+*.cgns
+*.dat
+*.csv.gz

@@ -1,0 +1,28 @@
+# Synthetic documentation fixture, not an installed cluster profile.
+# Copy to inputs/hpc/h000.toml in an offline example workspace, then call
+# read_hpc_profile(path, solver_versions={"8.6.0"}) and plan_submission(points, profile).
+# These field names illustrate a scheduler application; actual keys are site-owned.
+# No submission is made by this API. Replace values only in a private workspace.
+application_id = "SU2"
+max_walltime = "48:00:00"
+
+[descriptor]
+format = "yaml"
+name = "submit.yaml"
+
+[descriptor.fields]
+ApplicationId = "{application_id}"
+job_name = "{job_name}"
+walltime = "{walltime}"
+ncpus = "{ncpus}"
+version = "{solver_version_alias}"
+working_directory = "{workdir}"
+config_file = "{config_path}"
+solver_type = "{solver_type}"
+cluster = "testcluster"
+
+[submit]
+command = ["submit-tool", "{descriptor_path}"]
+
+[builds]
+"8.6.0" = "8.6"
