@@ -5,6 +5,10 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-12
+
+- Release workflow installs the docs extra for the wheel tests and can run as a dry run without publishing.
+
 ## [0.4.1] - 2026-11-12
 
 - Release workflow installs libGLU for gmsh before testing the wheel, so the package reaches PyPI.

@@ -46,4 +46,4 @@ def test_readme_does_not_describe_su2_as_absent():
 
 def test_p0200_item5_release_target():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert project["version"] == "0.4.1"
+    assert project["version"] == "0.4.2"

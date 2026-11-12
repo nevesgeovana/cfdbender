@@ -4,7 +4,7 @@ Paste everything between the lines into your own assistant opened in this folder
 
 ---
 
-Set up and run this cfdbender 0.4.1 kit. Read README-FIRST.md and SMOKE-CASE.md.
+Set up and run this cfdbender 0.4.2 kit. Read README-FIRST.md and SMOKE-CASE.md.
 Treat this unzipped folder as KIT. Do these steps in order. Stop on ANY failure,
 print `STOP: step <number>: <cause and next action>`, and do not continue dependent
 steps. Ask me only for a missing executable path. Do not scan my other folders.
@@ -20,9 +20,9 @@ environments so another Python installation cannot override this kit. Do not cha
    venv's Python and CLI by their direct paths; activation is unnecessary.
    Windows uses `.venv/Scripts/python.exe` and `.venv/Scripts/cfd-matrix.exe`;
    Linux uses `.venv/bin/python` and `.venv/bin/cfd-matrix`.
-   Run venv Python `-I -m pip install --no-index ./cfdbender-0.4.1-py3-none-any.whl`
+   Run venv Python `-I -m pip install --no-index ./cfdbender-0.4.2-py3-none-any.whl`
    from KIT. This installation puts the Python package in KIT/.venv. Verify
-   installed version 0.4.1 and that its import comes from KIT/.venv. Verify wheel
+   installed version 0.4.2 and that its import comes from KIT/.venv. Verify wheel
    METADATA has no unconditional Requires-Dist entries: cfdbender has no runtime
    dependencies; its test/dev/docs extras are not needed. Stop on a failed pip
    command; do not download anything. Run both installed CLIs with `--help`.

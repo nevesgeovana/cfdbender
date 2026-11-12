@@ -1,4 +1,4 @@
-# cfdbender 0.4.1 offline kit
+# cfdbender 0.4.2 offline kit
 This folder holds an offline Python wheel and one small SU2 check case.
 Unzip the whole ZIP into a folder you can write to.
 Open your own assistant tool in that folder as you normally do.
