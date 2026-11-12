@@ -7,6 +7,8 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # A manual run builds and tests the wheel without publishing (a dry run before tagging).
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +22,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Tag equals the package version
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           VERSION=$(python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
           TAG="${GITHUB_REF_NAME#v}"
@@ -63,12 +66,13 @@ jobs:
         shell: bash
         run: |
           WHEEL=$(ls dist/*.whl)
-          python -m pip install "${WHEEL}[dev]"
+          python -m pip install "${WHEEL}[dev,docs]"
       - name: Test the installed wheel, not the checkout
         run: python -m pytest -q -o pythonpath= -p no:cacheprovider
 
   publish:
     needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
