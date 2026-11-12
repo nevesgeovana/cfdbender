@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cfdbender"
-version = "0.4.0"
+version = "0.4.1"
 description = "Solver-agnostic Python workspace for CFD studies (SU2 first)"
 readme = "README.md"
 authors = [{name = "Geovana Neves"}]

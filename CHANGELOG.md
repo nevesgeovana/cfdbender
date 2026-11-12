@@ -5,6 +5,11 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-12
+
+- Release workflow installs libGLU for gmsh before testing the wheel, so the package reaches PyPI.
+- Planning and the run registry judge an output by its folder and name, not by a mesh link target.
+
 ### Added
 
 - `cfd-matrix run --resume` skips recorded COMPLETED and SUBMITTED points and
