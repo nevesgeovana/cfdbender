@@ -45,6 +45,26 @@ def workspace_path(root: Path, name: str) -> Path:
     Path
         Contained absolute path, including symlink resolution.
     """
+    path = checked_relative(name)
+    target = (root / path).resolve()
+    if not target.is_relative_to(root) or target == root:
+        raise PlanError(f"{name!r}: path outside workspace")
+    return target
+
+
+def checked_relative(name: str) -> Path:
+    """Refuse a workspace path that escapes or is ambiguous on Windows, without resolving it.
+
+    Parameters
+    ----------
+    name : str
+        Relative POSIX path.
+
+    Returns
+    -------
+    Path
+        The unresolved relative path.
+    """
     path = Path(name)
     if not name or chr(92) in name or ":" in name or path.is_absolute() or ".." in path.parts:
         raise PlanError(f"{name!r}: path outside workspace or not a relative POSIX path")
@@ -58,10 +78,7 @@ def workspace_path(root: Path, name: str) -> Path:
             or any(ord(c) < 32 or c in '<>"|?*' for c in part)
         ):
             raise PlanError(f"{name!r}: ambiguous or invalid Windows path component")
-    target = (root / path).resolve()
-    if not target.is_relative_to(root) or target == root:
-        raise PlanError(f"{name!r}: path outside workspace")
-    return target
+    return path
 
 
 class InputFiles:
@@ -328,6 +345,7 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 raise PlanError(f"invalid output template {template!r}: {error}") from error
             # A staged mesh output may already exist as a link to inputs/geometry: judge the
             # output by its folder and name, never by what the link points at.
+            checked_relative(output)
             parent, _, leaf = output.rpartition("/")
             folder = workspace_path(root, parent) if parent else root
             normalized = f"{folder.relative_to(root).as_posix()}/{leaf}" if parent else leaf
