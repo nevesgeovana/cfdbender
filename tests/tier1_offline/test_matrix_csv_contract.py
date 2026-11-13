@@ -5,8 +5,6 @@ from __future__ import annotations
 import math
 
 import pytest
-
-
 from test_matrix_selection import three
 from test_p0000_item3c_adapter import workspace
 
@@ -40,7 +38,10 @@ def test_every_table_states_the_fixed_context_after_pol_and_point(tmp_path):
     three(tmp_path)
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
-    for path in [tmp_path / "post/study/campaign_sweep.csv", *(tmp_path / "post/study/polars").iterdir()]:
+    for path in [
+        tmp_path / "post/study/campaign_sweep.csv",
+        *(tmp_path / "post/study/polars").iterdir(),
+    ]:
         header = header_of(path)
         assert header[:2] == ["POL", "point"]
         assert header[2:18] == CONTEXT
@@ -80,7 +81,13 @@ def test_a_stated_air_state_fills_velocity_density_and_reynolds(tmp_path):
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
     path = tmp_path / "post/study/campaign_sweep.csv"
-    row = dict(zip(header_of(path), path.read_text(encoding="utf-8").splitlines()[1].split(","), strict=True))
+    row = dict(
+        zip(
+            header_of(path),
+            path.read_text(encoding="utf-8").splitlines()[1].split(","),
+            strict=True,
+        )
+    )
     assert float(row["MACH"]) == 0.2 and float(row["ALT"]) == 0.0
     assert math.isclose(float(row["RHO"]), 1.225, abs_tol=1e-3)
     assert math.isclose(float(row["VINF"]), 0.2 * 340.294, abs_tol=0.1)
