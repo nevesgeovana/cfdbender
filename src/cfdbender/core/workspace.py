@@ -43,6 +43,19 @@ def input_kinds(solver: str) -> tuple[str, ...]:
     return SOLVER_INPUT_KINDS if solver in _LIBRARY_SOLVERS else INPUT_KINDS
 
 
+def _declaration_text(solver: str) -> str:
+    """Return init.toml: QPROP states its section settings where the user can see them."""
+    if solver != "qprop":
+        return f"schema_version = 1\nsolver = {json.dumps(solver)}\n"
+    return (
+        'schema_version = 1\n\n[solver]\nname = "qprop"\n'
+        "# Seconds one XFOIL section polar may run; a setup file [solver] value overrides it.\n"
+        "section_timeout_s = 60\n"
+        "# warn: drop the angles that did not converge and run on the rest; fail: fail the point.\n"
+        'on_unconverged_section = "warn"\n'
+    )
+
+
 def init_workspace(root: str | Path, *, solver: str, available_solvers: Collection[str]) -> Path:
     """Create a workspace and bind it to one registered solver.
 
@@ -85,7 +98,7 @@ def init_workspace(root: str | Path, *, solver: str, available_solvers: Collecti
         folder.mkdir(parents=True, exist_ok=True)
     # Exclusive creation protects the one-solver binding from an overlapping init.
     with declaration.open("x", encoding="utf-8", newline="\n") as stream:
-        stream.write(f"schema_version = 1\nsolver = {json.dumps(config.solver)}\n")
+        stream.write(_declaration_text(config.solver))
     # This machine's executable paths stay out of version control.
     ignore = target / "inputs" / ".gitignore"
     if not ignore.exists():

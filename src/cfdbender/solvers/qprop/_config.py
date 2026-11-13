@@ -5,12 +5,23 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
 
 from cfdbender.core.flight import STATE_KEYS, agree, canonical_key, row_flow
 from cfdbender.geometry.blade_slicing import AXES, CUTS, ROTATIONS, SPACINGS
 from cfdbender.solvers._host._config import number
 
-_OPTIONS = {"executable", "xfoil_executable", "launcher", "timeout_s", "ram_estimate_gib"}
+_OPTIONS = {
+    "executable",
+    "xfoil_executable",
+    "launcher",
+    "timeout_s",
+    "ram_estimate_gib",
+    "section_timeout_s",
+    "on_unconverged_section",
+}
+#: What `cfd-workspace init --solver qprop` writes under [solver], and the default when absent.
+SECTION_DEFAULTS = {"section_timeout_s": 60, "on_unconverged_section": "warn"}
 _SETUP = {
     "blade",
     "n_blades",
@@ -95,7 +106,14 @@ def options(
         not isinstance(v, str) or not v.strip() or chr(0) in v for v in launcher
     ):
         raise ValueError("solver.launcher must be a list of nonempty strings")
-    for key, default in (("timeout_s", 600.0), ("ram_estimate_gib", 0.25)):
+    policy = result.setdefault("on_unconverged_section", SECTION_DEFAULTS["on_unconverged_section"])
+    if policy not in ("warn", "fail"):
+        raise ValueError(f"solver.on_unconverged_section must be 'warn' or 'fail' (got {policy!r})")
+    for key, default in (
+        ("timeout_s", 600.0),
+        ("ram_estimate_gib", 0.25),
+        ("section_timeout_s", float(cast(int, SECTION_DEFAULTS["section_timeout_s"]))),
+    ):
         if number(result.setdefault(key, default), key) <= 0:
             raise ValueError(f"solver.{key} must be positive")
     return result

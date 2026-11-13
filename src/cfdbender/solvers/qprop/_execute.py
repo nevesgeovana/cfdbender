@@ -8,10 +8,12 @@ import re
 import subprocess
 import sys
 import time
+import warnings
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import cast
 
+from cfdbender.core import progress
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
 from cfdbender.solvers import load_solver
@@ -38,7 +40,7 @@ def qprop_argv(opts: Mapping[str, object], root: Path) -> list[str]:
 def _xfoil_options(opts: Mapping[str, object]) -> dict[str, object]:
     chosen: dict[str, object] = {
         "launcher": opts["launcher"],
-        "timeout_s": opts["timeout_s"],
+        "timeout_s": opts.get("section_timeout_s", opts["timeout_s"]),
         "ram_estimate_gib": opts["ram_estimate_gib"],
     }
     if opts.get("xfoil_executable"):
@@ -51,6 +53,34 @@ def _fit_folder(folder: Path) -> Fit | None:
     if not polar.is_file():
         return None
     return fit_polar(read_polar_rows(polar.read_text(encoding="ascii", errors="replace")))
+
+
+def _missing_angles(folder: Path, setup: Setup, narrow: bool) -> list[float]:
+    """Return the requested angles of attack that the section's polar does not hold."""
+    start, end, step = (-4.0, 10.0, 0.5) if narrow else setup.alpha
+    requested = [start + k * step for k in range(int(round((end - start) / step)) + 1)]
+    polar = folder / "polar.txt"
+    found = (
+        [row[0] for row in read_polar_rows(polar.read_text(encoding="ascii", errors="replace"))]
+        if polar.is_file()
+        else []
+    )
+    return [a for a in requested if all(abs(a - f) > 1e-3 for f in found)]
+
+
+def _unconverged(opts: Mapping[str, object], label: str, missing: list[float]) -> None:
+    """Apply the workspace policy to a section whose polar lacks requested angles."""
+    angles = ", ".join(f"{a:g}" for a in missing)
+    if opts.get("on_unconverged_section") == "fail":
+        raise ValueError(
+            f"{label}: XFOIL did not converge at alpha {angles}; "
+            "on_unconverged_section is 'fail' (set it to 'warn' in init.toml to run on the rest)"
+        )
+    warnings.warn(
+        f"{label}: XFOIL did not converge at alpha {angles}; "
+        "those angles are dropped from this section's polar",
+        stacklevel=2,
+    )
 
 
 def section_fits(
@@ -79,8 +109,11 @@ def section_fits(
         else:
             assert item.spec.shape is not None
             staged = {"airfoil.dat": item.spec.shape.encode("ascii")}
+            label = f"section {item.index}/{len(planned)} (r = {item.spec.radius:.4g})"
             for narrow in (False, True):
                 where = folder / "xfoil" / (item.name + ("_narrow" if narrow else ""))
+                progress.emit(f"  {label}: XFOIL {'narrow sweep ' if narrow else ''}started")
+                began = time.monotonic()
                 xfoil.run_script(
                     point.root,
                     where,
@@ -90,6 +123,12 @@ def section_fits(
                     check_ram,
                 )
                 fit = _fit_folder(where)
+                missing = _missing_angles(where, setup, narrow)
+                took = time.monotonic() - began
+                state = "converged" if fit is not None and not missing else "did not converge"
+                progress.emit(f"  {label}: XFOIL {state} in {took:.0f} s")
+                if missing:
+                    _unconverged(opts, label, missing)
                 if fit is not None:
                     entry.update(fit=fit, source="xfoil_narrow" if narrow else "xfoil")
                     break

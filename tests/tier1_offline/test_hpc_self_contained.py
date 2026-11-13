@@ -114,9 +114,24 @@ def test_pyfr_point_folder_holds_case_and_linked_mesh(tmp_path):
 
 
 def test_qprop_point_folder_holds_prop_flight_file_and_sections(tmp_path):
-    qprop_workspace.workspace(tmp_path)
+    # Staging runs no process, so a cluster folder holds propeller.prop only when every
+    # section polar is given; a section that needs XFOIL is made by a local run.
+    qprop_workspace.workspace(
+        tmp_path,
+        setup=qprop_workspace.setup_text(blade="inputs/polars-2D/set1", n_sections=None),
+        xfoil=False,
+    )
+    qprop_workspace.table_set(
+        tmp_path,
+        rows=[
+            "0.06,0.030,50,a1.dat,p1.txt",
+            "0.12,0.026,38,a1.dat,p2.txt",
+            "0.19,0.021,22,a1.dat,p2.txt",
+        ],
+    )
     folder, config = submit(tmp_path)
-    assert config.name == "propeller.prop"
+    assert (folder / "sections.plan").is_file() and (folder / "propeller.prop").is_file()
+    config = folder / "propeller.prop"
     assert (folder / "qcon.def").is_file()
     rpm = json.loads((folder / "sections.json").read_bytes())["rpm"]
     outstanding(tmp_path)

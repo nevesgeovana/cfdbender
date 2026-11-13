@@ -5,7 +5,8 @@ CL = CL0 + 0.11 alpha with CL0 = 0.05 + 1e-7 Re, and CD = 0.01 + 0.02 (CL - CLCD
 with CLCD0 = CL0 + 0.22, the lift at alpha = 2 degrees.
 
 CFDBENDER_QPROP_FAKE_XFOIL lists failures as name=fail pairs, where name is the
-folder the process runs in (sec_02, or sec_02_narrow for the retry).
+folder the process runs in (sec_02, or sec_02_narrow for the retry). A value of partial
+prints no row at every third angle, as XFOIL does where it does not converge.
 """
 
 import os
@@ -39,7 +40,12 @@ def main():
     else:
         cl0 = 0.05 + 1e-7 * reynolds
         alpha = start
+        count = 0
         while alpha <= end + 1e-9:
+            count += 1
+            if failing.get(Path.cwd().name) == "partial" and count % 3 == 0:
+                alpha += step
+                continue
             cl = cl0 + 0.11 * alpha
             cd = 0.01 + 0.02 * (cl - (cl0 + 0.22)) ** 2
             rows.append(f" {alpha:7.3f} {cl:8.4f} {cd:9.5f}   0.00046  -0.0000   0.6870   0.6870")
