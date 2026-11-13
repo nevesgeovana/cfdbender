@@ -62,7 +62,7 @@ def read(
         window = [row for row in rows if case.window_start <= row[0] <= case.tend]
         if not window:
             return (
-                Evidence(code, (), 1, version, False, True),
+                Evidence(code, (), 1, version, True),
                 {},
                 refs,
                 (case.window_start, case.tend),
