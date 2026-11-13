@@ -4,7 +4,7 @@
 
 # QPROP Version 1.22
 # 
-# TUD XPROP isolated propeller                                                    
+# TUD sample isolated propeller                                                    
 # 
 # Speed-400 3321 (6V) direct drive                                                
 #   0.31000     R  (Ohm)                        
