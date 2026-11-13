@@ -102,6 +102,8 @@ def classify(result: ExecutionResult) -> Classification:
     """Classify from the exit code and the window evidence."""
     if result.exit_code != 0 or not isinstance(result, Evidence) or result.failed:
         return "failed"
+    if not result.history:
+        return "failed"
     if result.insufficient or not result.history or not result.history[-1].converged:
         return "iteration_limit"
     return "converged"
