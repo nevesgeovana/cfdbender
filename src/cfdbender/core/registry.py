@@ -392,6 +392,16 @@ def _encode(record: RunRecord) -> dict[str, object]:
     return row
 
 
+def encode_record(record: RunRecord) -> dict[str, object]:
+    """Return the JSON form of a record, as runs.json stores it."""
+    return _encode(record)
+
+
+def decode_record(raw: object, root: Path) -> RunRecord:
+    """Return the validated record of a stored JSON row (a record or a history entry's record)."""
+    return _decode(raw, root)
+
+
 def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
     result: dict[str, object] = {}
     for key, value in pairs:
@@ -409,9 +419,18 @@ class RunRegistry:
     the operator to establish that writer has stopped before removing it.
     """
 
-    def __init__(self, root: str | Path) -> None:
+    def __init__(self, root: str | Path, runs: str = "runs.json") -> None:
+        if (
+            "/" in runs
+            or chr(92) in runs
+            or not runs.endswith(".json")
+            or runs.startswith(".")
+            or runs.endswith(".lock.json")
+        ):
+            raise RegistryError(f"{runs!r}: a run manifest is a .json file in the workspace root")
         self.root = Path(root).resolve()
-        self.path = self.root / "runs.json"
+        self.path = self.root / runs
+        self.lock_path = self.root / f"{runs}.lock"
 
     def _history(self) -> list[object]:
         if not self.path.exists():
@@ -489,7 +508,7 @@ class RunRegistry:
             Held lock, illegal transition, changed inputs, existing output or bad evidence.
         """
         stamp = _timestamp(timestamp if timestamp is not None else datetime.now(UTC).isoformat())
-        lock = self.root / "runs.json.lock"
+        lock = self.lock_path
         try:
             lease = lock.open("x", encoding="utf-8")
         except FileExistsError as exc:
@@ -606,7 +625,7 @@ class RunRegistry:
         while target.exists():
             target = self.root / "archive" / f"{name}-{suffix}"
             suffix += 1
-        lock = self.root / "runs.json.lock"
+        lock = self.lock_path
         try:
             lease = lock.open("x", encoding="utf-8")
         except FileExistsError as error:
@@ -618,7 +637,7 @@ class RunRegistry:
                 if missing := sorted(set(point_ids) - set(chosen)):
                     raise RegistryError(f"no recorded point {missing[0]!r} to archive")
                 target.mkdir(parents=True)
-                (target / "runs.json").write_bytes(self.path.read_bytes())
+                (target / self.path.name).write_bytes(self.path.read_bytes())
                 history = self._history()
                 relative = target.relative_to(self.root).as_posix()
                 for record in chosen.values():
@@ -700,7 +719,7 @@ class RunRegistry:
         if plan.root != self.root:
             raise RegistryError("plan and registry must belong to the same workspace")
         stamp = _timestamp(created_at if created_at is not None else datetime.now(UTC).isoformat())
-        lock = self.root / "runs.json.lock"
+        lock = self.lock_path
         try:
             lease = lock.open("x", encoding="utf-8")
         except FileExistsError as error:
@@ -733,3 +752,127 @@ class RunRegistry:
             raise RegistryError(f"{self.path}: cannot register plan: {error}") from error
         finally:
             lock.unlink(missing_ok=True)
+
+    def _locked(self) -> Any:
+        try:
+            return self.lock_path.open("x", encoding="utf-8")
+        except FileExistsError as error:
+            raise RegistryError(
+                f"{self.lock_path}: registry is locked by another writer"
+            ) from error
+
+    def archive_manifest(self, *, stamp: str | None = None) -> Path:
+        """Copy the manifest to archive/<stamp>/ before a change, never overwriting a copy.
+
+        Returns
+        -------
+        Path
+            The archive folder that now holds the manifest as it was.
+        """
+        name = stamp or datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        target = self.root / "archive" / name
+        suffix = 1
+        while target.exists():
+            target = self.root / "archive" / f"{name}-{suffix}"
+            suffix += 1
+        target.mkdir(parents=True)
+        if self.path.exists():
+            (target / self.path.name).write_bytes(self.path.read_bytes())
+        return target
+
+    def replace_records(
+        self,
+        changes: Mapping[str, RunRecord],
+        *,
+        history_entries: tuple[Mapping[str, object], ...] = (),
+        drop: tuple[str, ...] = (),
+        archive_first: bool = True,
+    ) -> Path | None:
+        """Replace, drop or append records under the writer lock, archiving the manifest first.
+
+        Parameters
+        ----------
+        changes : mapping
+            Point id to its new record. A point id the manifest lacks is added.
+        history_entries : tuple of mapping, optional
+            Entries appended to the manifest's history list.
+        drop : tuple of str, optional
+            Point ids whose records leave the records list.
+        archive_first : bool, optional
+            Copy the manifest to archive/<stamp>/ before writing.
+
+        Returns
+        -------
+        Path or None
+            The archive folder, or None when nothing was archived.
+
+        Raises
+        ------
+        RegistryError
+            A held lock, a record that does not validate, or a path claim collision.
+        """
+        lease = self._locked()
+        try:
+            with lease:
+                previous = self.read()
+                folder = self.archive_manifest() if archive_first and self.path.exists() else None
+                kept: list[RunRecord] = []
+                seen: set[str] = set()
+                for record in previous:
+                    if record.point_id in drop:
+                        continue
+                    seen.add(record.point_id)
+                    kept.append(changes.get(record.point_id, record))
+                for point_id, record in changes.items():
+                    if point_id not in seen and point_id not in drop:
+                        kept.append(record)
+                checked = tuple(_decode(_encode(r), self.root) for r in kept)
+                check_claims(tuple(r.point for r in checked))
+                history = [*self._history(), *(dict(e) for e in history_entries)]
+                self._replace(checked, history)
+                return folder
+        except (OSError, ValueError, TypeError) as error:
+            raise RegistryError(f"{self.path}: cannot change records: {error}") from error
+        finally:
+            self.lock_path.unlink(missing_ok=True)
+
+    def restore_from(self, source: Path) -> Path:
+        """Replace the manifest by a validated archived copy, archiving the current one first.
+
+        Parameters
+        ----------
+        source : Path
+            An archived copy of a manifest, such as archive/<stamp>/runs.json.
+
+        Returns
+        -------
+        Path
+            The archive folder holding the manifest that was replaced.
+
+        Raises
+        ------
+        RegistryError
+            A held lock, or a copy that is not a valid manifest; nothing is changed then.
+        """
+        lease = self._locked()
+        try:
+            with lease:
+                document = _object(json.loads(source.read_bytes(), object_pairs_hook=_unique_pairs))
+                if document.get("schema_version") != 1 or not isinstance(
+                    document.get("records"), list
+                ):
+                    raise RegistryError("expected schema_version = 1 and records list")
+                records = tuple(
+                    _decode(raw, self.root) for raw in cast(list[object], document["records"])
+                )
+                check_claims(tuple(r.point for r in records))
+                folder = self.archive_manifest()
+                history = document.get("history", [])
+                if not isinstance(history, list):
+                    raise RegistryError("history must be a list")
+                self._replace(records, history)
+                return folder
+        except (OSError, ValueError, TypeError) as error:
+            raise RegistryError(f"{source}: cannot restore the manifest: {error}") from error
+        finally:
+            self.lock_path.unlink(missing_ok=True)
