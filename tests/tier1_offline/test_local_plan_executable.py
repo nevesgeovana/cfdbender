@@ -1,6 +1,6 @@
 """A local plan looks for the solver executable as a run does; a plan for the cluster does not.
 
-Owner decision: ``cfd-matrix plan --local`` fails with the one missing-executable sentence
+The rule: ``cfd-matrix plan --local`` fails with the one missing-executable sentence
 when the executable is absent on this machine, and a plan without ``--local`` never looks.
 Every library solver is covered, and plan and run say the same sentence.
 """
