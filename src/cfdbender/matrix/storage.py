@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import os
 import shutil
+import tempfile
 import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
@@ -296,13 +297,14 @@ def _copy_files(
                 print(f"  conflict {relative.as_posix()}: main's copy kept")
                 continue
             if args.apply:
-                backup = (
-                    base
-                    / "archive"
-                    / f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-sync"
-                    / relative
-                )
-                backup = owned_path(base, backup.relative_to(base).as_posix())
+                archive = owned_path(base, "archive")
+                archive.mkdir(exist_ok=True)
+                backup = Path(
+                    tempfile.mkdtemp(
+                        prefix=f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-sync-",
+                        dir=archive,
+                    )
+                ) / relative
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(target, backup)
                 saved.append(relative.as_posix())
