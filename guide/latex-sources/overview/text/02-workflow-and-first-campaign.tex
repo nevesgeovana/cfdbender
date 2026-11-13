@@ -1,0 +1,243 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% overview/text/02-workflow-and-first-campaign.tex
+%
+% Parts 3 to 5 of guide 1: the workflow in one picture, a first campaign on
+% the mock solver, and the map of the guides.
+
+\section{The workflow}
+
+\begin{frame}{Seven stages, one direction}
+\begin{center}
+\begin{tikzpicture}[
+  st/.style={draw=hanblue,fill=hanblue!8,rounded corners=2pt,minimum height=9mm,
+             text width=17mm,align=center,font=\scriptsize,inner sep=2pt},
+  ar/.style={-{Stealth[length=5pt]},thick,hanblue}]
+  \node[st] (a) at (0,0) {\textbf{1. Create}\\\code{init}, inputs};
+  \node[st] (b) at (2.5,0) {\textbf{2. Plan}\\\code{plan}};
+  \node[st] (c) at (5,0) {\textbf{3. Run}\\\code{run}};
+  \node[st] (d) at (7.5,0) {\textbf{4. Follow}\\\code{status}, \code{log}};
+  \node[st] (e) at (10,0) {\textbf{5. Collect}\\\code{collect}, \code{post}};
+  \node[st,text width=30mm] (f) at (7.5,-1.6) {\textbf{6. Correct the records}\\\code{mark-failed}, \code{restore}};
+  \node[st,text width=30mm] (g) at (10.9,-1.6) {\textbf{7. Manage storage}\\\code{free-space}, \code{sync}};
+  \draw[ar] (a) -- (b); \draw[ar] (b) -- (c); \draw[ar] (c) -- (d); \draw[ar] (d) -- (e);
+  \draw[ar,SoftGray,dashed] (d.south) -- (f.north);
+  \draw[ar,SoftGray,dashed] (e.south) -- (e.south|-f.north);
+\end{tikzpicture}
+\end{center}
+\begin{itemize}\small
+  \item Stages 1 to 5 are every campaign. Stages 6 and 7 are for the day a
+        record is wrong or the disk is full.
+  \item \code{cfd-workspace} does stage 1. \code{cfd-matrix} does the rest.
+  \item The cheatsheet, guide 4, has one page per stage.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{The run matrix: one row per simulation}
+\begin{lstlisting}
+POL  | RUN | FLIGHT_CONDITION                  | SWEEP_VALUES | GEOMETRY | REF | SET | PPROC
+-----|-----|-----------------------------------|--------------|----------|-----|-----|------
+5001 | 1   | MACH:0.85, REmi:5, ALPHA:sweep    | 2.5,2.75     | wb.su2   | 001 | 001 | 001
+5002 | 0   | MACH:0.85, REmi:5, ALPHA:3.0      | -            | wb.su2   | 001 | 002 | 001
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{inputs/matrices/<name>.fs}: text, columns separated by
+        \code{|}. A cell holding \code{-} states nothing.
+  \item \code{POL} names the simulation. \code{RUN} 1 runs the row, 0 keeps
+        it in the file without running it.
+  \item \code{FLIGHT_CONDITION} holds \code{KEY:value} pairs. One key may say
+        \code{sweep}; its values are in \code{SWEEP_VALUES}, one
+        \textbf{point} each.
+  \item \code{SET}, \code{REF} and \code{PPROC} name the three input files
+        of the row.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Three input files per row: s, r, p}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.12\linewidth}P{0.38\linewidth}R@{}}
+\toprule
+\textbf{Column} & \textbf{File} & \textbf{It holds} \\
+\midrule
+\code{SET} & \code{inputs/setups/s<id>.toml} & how the solver runs: model,
+  numerics, iteration limit. The keys belong to the solver. \\
+\code{REF} & \code{inputs/references/r<id>.toml} & reference area, reference
+  length and moment origin. \\
+\code{PPROC} & \code{inputs/pproc/p<id>.toml} & what to keep from each run
+  beyond the coefficients. \\
+\code{GEOMETRY} & \code{inputs/mesh/<file>} & the mesh or geometry, in the
+  format the solver reads. \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item \code{001} and \code{s001} in the \code{SET} cell both name
+        \code{s001.toml}.
+  \item Many rows may share one file. A value the row and a file both state
+        must agree.
+\end{itemize}
+\begin{takeaway}You write only under \code{inputs/}. Nothing a command writes
+goes there.\end{takeaway}
+\end{frame}
+
+\begin{frame}{Plan first, then run}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{\code{cfd-matrix plan <matrix>}}
+\begin{itemize}\small
+  \item Reads the matrix and every file it names.
+  \item Lists each point and the files its run would write.
+  \item Launches nothing.
+  \item Saves the plan receipt, \code{post/<matrix>/plan.json}.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{\code{cfd-matrix run <matrix>}}
+\begin{itemize}\small
+  \item Needs the receipt.
+  \item Refuses when an input changed after the plan: plan again.
+  \item Writes one folder per point under \code{sims/} and one record per
+        point in \code{runs.json}.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{takeaway}A mistake in an input is found by \code{plan}, in seconds,
+and not by a job that waited in a queue.\end{takeaway}
+\end{frame}
+
+\begin{frame}{Records, and nothing deleted}
+\begin{itemize}
+  \item \code{runs.json} holds one record per point: its inputs and their
+        hashes, its status, its times and the verdict on its convergence.
+  \item A point that is already recorded \textbf{refuses} a second run.
+        \code{--resume} runs only what is not recorded yet;
+        \code{--force-rerun} redoes a point you name.
+  \item Before a record or a result is replaced, the old one moves to
+        \code{archive/<stamp>/}.
+  \item The commands that correct records or manage storage only
+        \textbf{preview} until you add \code{--apply}.
+\end{itemize}
+\begin{takeaway}Finished evidence is never replaced by accident.\end{takeaway}
+\end{frame}
+
+\begin{frame}{Three verdicts}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.22\linewidth}R@{}}
+\toprule
+\textbf{Verdict} & \textbf{Meaning} \\
+\midrule
+\code{converged} & the solver ended and its own evidence of convergence is
+  there \\
+\code{iteration_limit} & the solver ended properly without that evidence;
+  the numbers exist and are not settled \\
+\code{failed} & the process failed, or its output is missing, inconsistent
+  or not a number \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item The verdict is beside every row of the collected table.
+  \item You may overrule it, with a reason on record:
+        \code{cfd-matrix mark-failed} and \code{cfd-matrix mark-converged}.
+\end{itemize}
+\end{frame}
+
+\section{A first campaign}
+
+\begin{frame}[fragile]{Four small files}
+\begin{lstlisting}
+# inputs/matrices/first.fs
+POL  | RUN | FLIGHT_CONDITION      | SWEEP_VALUES | REF | SET | PPROC
+1001 | 1   | MACH:0.2, ALPHA:sweep | 0,2,4        | 001 | 001 | 001
+\end{lstlisting}
+\begin{columns}[T]
+\begin{column}{0.36\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/setups/s001.toml
+[mock]
+outcome = "converged"
+iterations = 10
+\end{lstlisting}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/pproc/p001.toml
+history = true
+\end{lstlisting}
+\end{column}
+\begin{column}{0.6\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/references/r001.toml
+area = 1.5
+length = 1.0
+moment_origin = [0, 0, 0]
+axis_system = "body"
+axis_directions = ["aft", "right", "up"]
+\end{lstlisting}
+\end{column}
+\end{columns}
+\vspace{1mm}
+{\small One simulation, \code{1001}, with three points: angle of attack 0, 2
+and 4 degrees at Mach 0.2.\par}
+\end{frame}
+
+\begin{frame}[fragile]{Six commands}
+\begin{lstlisting}
+cfd-workspace init campaign --solver mock
+cd campaign
+   (write the four files of the previous slide)
+cfd-matrix plan first
+cfd-matrix run first
+cfd-matrix status --points
+cfd-matrix collect first
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{plan} lists three points. \code{run} runs them on this machine.
+  \item \code{status --points} shows each point with its status and verdict.
+  \item \code{collect} writes \code{post/first/campaign_sweep.csv}: one row
+        per point, with the flight condition, the air state, the verdict and
+        the coefficients.
+\end{itemize}
+\begin{takeaway}Change \code{outcome} to \code{"failed"} in a second setup
+file and run a second row: you have seen a failure before it matters.\end{takeaway}
+\end{frame}
+
+\begin{frame}{From the mock to your solver}
+\begin{enumerate}
+  \item Make a new workspace: \code{cfd-workspace init <folder> --solver
+        <name>}.
+  \item Put the mesh in \code{inputs/mesh/} and name it in the
+        \code{GEOMETRY} cell.
+  \item Write the setup file with the solver's keys: guide 3 has one worked
+        setup per solver.
+  \item Say where the solver is on this machine: in the setup's
+        \code{[solver]} table, or in \code{inputs/executables.toml} with the
+        \code{SOLVER_BUILD} column.
+  \item Plan, run, follow, collect: the same commands as on the mock.
+\end{enumerate}
+\end{frame}
+
+\section{The guides}
+
+\begin{frame}{The four guides}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.05\linewidth}P{0.37\linewidth}R@{}}
+\toprule
+ & \textbf{File} & \textbf{Read it when} \\
+\midrule
+1 & \code{cfdb-guide-01-overview.pdf} & first: the idea, the solvers, the
+  workflow \\
+2 & \code{cfdb-guide-02-workspaces.pdf} & you start a campaign: the tree,
+  the inputs, every stage, a workstation and a cluster \\
+3 & \code{cfdb-guide-03-solvers.pdf} & you write a setup file or read a
+  result: one part per solver \\
+4 & \code{cfdb-guide-04-cheatsheet.pdf} & you are at the keyboard: every
+  command and option, one page per stage \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{cfdbevidence}[FlightStream]
+A FlightStream workspace is run by \pyfsname{} [4]. Its commands, inputs and
+guides are those of \pyfsname: \url{\pyfssite}.
+\end{cfdbevidence}
+\end{frame}

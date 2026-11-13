@@ -1,0 +1,191 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% overview/text/01-idea-and-spectrum.tex
+%
+% Parts 1 and 2 of guide 1: the solver-agnostic workspace and the spectrum of
+% fidelities.
+
+\section{One workspace, many solvers}
+
+\begin{frame}{The problem a workspace solves}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{Without it}
+\begin{itemize}\small
+  \item Each solver has its own input deck, its own folder habits and its
+        own way of saying that a run ended.
+  \item The study lives in scripts that only their writer can read.
+  \item Changing solver means starting the bookkeeping again.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{With it}
+\begin{itemize}\small
+  \item A study is \textbf{one folder}, the workspace, with the same tree
+        for every solver.
+  \item A study is \textbf{one table}, the run matrix: one row per
+        simulation.
+  \item The same commands plan it, run it, follow it and collect it.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{takeaway}You learn the workflow once. The solver changes what is
+inside three input files, not how the campaign is run.\end{takeaway}
+\end{frame}
+
+\begin{frame}[fragile]{The solver is one line}
+\begin{columns}[T]
+\begin{column}{0.44\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# init.toml, in the workspace root
+schema_version = 1
+solver = "su2"
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{cfd-workspace init} writes it, once.
+  \item Every command reads it first.
+  \item A workspace keeps its solver for life.
+\end{itemize}
+\end{column}
+\begin{column}{0.52\textwidth}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.28\linewidth}R@{}}
+\toprule
+\textbf{Solver name} & \textbf{What runs} \\
+\midrule
+\code{su2} & SU2, by its executable or its Python wrapper \\
+\code{openfoam} & OpenFOAM (ESI), \code{simpleFoam} \\
+\code{pyfr} & PyFR, flux reconstruction \\
+\code{xfoil} & XFOIL, airfoil polars \\
+\code{qprop} & QPROP, an isolated propeller \\
+\code{mock} & nothing: a stand-in to learn with \\
+\code{flightstream} & FlightStream, handed to pyflightstream \\
+\bottomrule
+\end{tabularx}}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{What stays the same, what changes}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.16\linewidth}P{0.4\linewidth}R@{}}
+\toprule
+ & \textbf{The same for every solver} & \textbf{The solver's own} \\
+\midrule
+The tree & \code{inputs/}, \code{sims/}, \code{post/}, \code{archive/},
+  \code{runs.json} & the files inside one point folder \\
+The matrix & its columns and what they mean & a few flight-condition keys \\
+The commands & every command and option of \code{cfd-matrix} and
+  \code{cfd-workspace} & nothing \\
+The inputs & one setup, one reference and one post file per row & the keys
+  of the setup file, the mesh format \\
+The result & status, verdict, one table per matrix & the coefficient names,
+  what ``converged'' rests on \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{takeaway}Guide 2 teaches the left column. Guide 3 teaches the right
+one, solver by solver.\end{takeaway}
+\end{frame}
+
+\section{A spectrum of fidelities}
+
+\begin{frame}{More than one wind tunnel}
+\begin{itemize}
+  \item A laboratory runs more than one wind tunnel: a small one answers many
+        cheap questions, a large one answers a few expensive ones.
+  \item Solvers are the same. Each resolves a part of the physics and models
+        or ignores the rest.
+  \item \pkgname{} keeps them behind one workflow, so the choice of fidelity
+        is a choice of workspace and not a change of habits.
+\end{itemize}
+\begin{center}
+\begin{tikzpicture}[
+  s/.style={draw=hanblue,fill=hanblue!8,rounded corners=2pt,minimum height=11mm,
+            text width=18mm,align=center,font=\scriptsize,inner sep=1.5pt},
+  d/.style={s,dashed}]
+  \node[s] (x) at (0,0) {\textbf{XFOIL}\\2D panel and boundary layer};
+  \node[s] (q) at (2.3,0) {\textbf{QPROP}\\blade element};
+  \node[d] (f) at (4.6,0) {\textbf{FlightStream}\\3D panel method};
+  \node[s] (s) at (6.9,0) {\textbf{SU2}\\Euler, RANS};
+  \node[s] (o) at (9.2,0) {\textbf{OpenFOAM}\\RANS};
+  \node[s] (p) at (11.5,0) {\textbf{PyFR}\\high order, time resolved};
+  \draw[-{Stealth[length=6pt]},thick,SoftGray] (-1.0,-0.95) -- (12.5,-0.95)
+    node[midway,below,font=\scriptsize,text=SoftGray]
+    {more of the flow resolved, more cost per point};
+\end{tikzpicture}
+\end{center}
+{\scriptsize\color{SoftGray}Dashed: run through pyflightstream, in its own
+workspace format.\par}
+\end{frame}
+
+\begin{frame}{What each solver answers}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.13\linewidth}P{0.27\linewidth}P{0.27\linewidth}R@{}}
+\toprule
+\textbf{Solver} & \textbf{It models} & \textbf{One point is} & \textbf{It
+returns} \\
+\midrule
+XFOIL [5] & a 2D airfoil: panels coupled to an integral boundary layer & one
+  angle of attack & \code{CL}, \code{CD}, \code{CDp}, \code{CM} \\
+QPROP [6] & an isolated propeller in axial flow, from blade sections and
+  their 2D polars & one speed and rotation rate & thrust, torque, power,
+  \code{CT}, \code{CP}, efficiency \\
+SU2 [7] & compressible flow on a volume mesh, Euler or RANS & one Mach number
+  and attitude & force and moment coefficients \\
+OpenFOAM [8] & steady incompressible RANS, \code{simpleFoam}, on a 2D
+  extruded mesh & one speed and angle of attack & \code{Cd}, \code{Cl},
+  \code{CmPitch} \\
+PyFR [9] & 2D compressible Navier-Stokes, high order, marched in time & one
+  Mach, Reynolds number and angle & time-averaged \code{Cl}, \code{Cd} \\
+\bottomrule
+\end{tabularx}}
+\vspace{1mm}
+{\small\color{SoftGray}Every library solver runs \textbf{steady} points
+today. Guide 3 states the limits of each solver.\par}
+\end{frame}
+
+\begin{frame}{The mock solver}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{itemize}
+  \item \code{mock} is a solver that computes nothing and returns fixed
+        numbers.
+  \item It needs no installation, no mesh and no licence.
+  \item Its setup file can ask for a converged point, a point at the
+        iteration limit or a failed one.
+\end{itemize}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{Use it to}
+\begin{itemize}\small
+  \item learn the commands (Part 4 of this guide);
+  \item try a matrix layout before the meshes exist;
+  \item see what a failed point looks like in the records, safely.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{takeaway}Start on the mock. Move to your solver when the workflow is
+no longer the thing you are learning.\end{takeaway}
+\end{frame}
+
+\begin{frame}{A result is evidence, not validation}
+\begin{itemize}
+  \item \pkgname{} records what was run, with which inputs, and what the
+        solver reported. It keeps the hashes of the inputs beside each
+        result.
+  \item It classifies each point: \code{converged}, \code{iteration_limit}
+        or \code{failed}. What ``converged'' rests on is the solver's own
+        evidence, stated in guide 3.
+  \item It does \textbf{not} judge the mesh, the turbulence model or the
+        physics. A converged point on a poor mesh is still a converged
+        point.
+\end{itemize}
+\begin{cfdbevidence}[What you can rely on]
+The same matrix row gives the same input deck, byte for byte, and the record
+names every file the point read.
+\end{cfdbevidence}
+\end{frame}

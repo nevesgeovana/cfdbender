@@ -1,0 +1,261 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% solvers/text/02-su2-openfoam-pyfr.tex
+%
+% Parts 2 to 4 of guide 3: SU2, OpenFOAM and PyFR.
+
+\section{SU2}
+
+\begin{frame}[fragile]{SU2: mesh and setup}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/setups/s001.toml
+iterations = 2000
+SOLVER = "RANS"
+KIND_TURB_MODEL = "SA"
+MARKER_HEATFLUX = ["wing", "fuselage"]
+MARKER_FAR = ["farfield"]
+
+[solver]
+route = "executable"
+executable = "/opt/su2/bin/SU2_CFD"
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item The mesh is \code{.su2} or \code{.cgns}, named by the
+        \code{GEOMETRY} cell. A CGNS mesh needs an SU2 built with CGNS.
+  \item A key in capitals is an SU2 option and goes to \code{su2.cfg} as
+        written.
+  \item The marker names are yours to state: they are not read from the
+        mesh.
+  \item The r file gives \code{area}, \code{length} and
+        \code{moment_origin}; the p file reads \code{history = true}.
+\end{itemize}
+\end{column}
+\end{columns}
+\begin{takeaway}With the air and the mesh on the row, the setup holds only
+the numerics.\end{takeaway}
+\end{frame}
+
+\begin{frame}{SU2: what the row writes into the deck}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.42\linewidth}R@{}}
+\toprule
+\textbf{From the matrix row} & \textbf{SU2 option} \\
+\midrule
+resolved Mach number & \code{MACH_NUMBER} \\
+\code{ALPHA}, \code{BETA} & \code{AOA}, \code{SIDESLIP_ANGLE} \\
+resolved temperature, pressure, density & \code{FREESTREAM_TEMPERATURE},
+  \code{FREESTREAM_PRESSURE}, \code{FREESTREAM_DENSITY} \\
+\code{REmi} and the r file's \code{length} & \code{REYNOLDS_NUMBER},
+  \code{REYNOLDS_LENGTH} \\
+\code{MUPas} & a constant viscosity, \code{MU_CONSTANT} \\
+\code{GEOMETRY} & \code{MESH_FILENAME} \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item Without \code{REmi}, the Reynolds number written is the outcome of
+        the resolved density, velocity and viscosity over \code{length}.
+  \item Override a setup key in \code{VAR_NAMES_VALUES} under the name the
+        setup uses: \code{iterations}, not the SU2 name.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{SU2: two routes, and MPI}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{The executable route}
+\begin{itemize}\small
+  \item Runs \code{SU2_CFD su2.cfg} in the point folder.
+  \item \code{mpi_launcher} puts an MPI command in front of it.
+\end{itemize}
+\end{block}
+\begin{lstlisting}[style=cfdbtoml]
+[solver]
+route = "executable"
+executable = "/opt/su2/bin/SU2_CFD"
+mpi_launcher = ["mpirun", "-np", "192"]
+threads = 1
+\end{lstlisting}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{The Python wrapper route}
+\begin{itemize}\small
+  \item \code{route = "pysu2"} drives SU2 through its Python wrapper.
+  \item It runs serial.
+\end{itemize}
+\end{block}
+\begin{block}{Reading the result}
+\begin{itemize}\small
+  \item \code{converged}: SU2's log says its convergence criterion was met.
+  \item \code{iteration_limit}: it stopped at \code{iterations} without
+        that.
+  \item On a cluster, send the job's output to the point folder: the
+        verdict is read from the SU2 log.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+\section{OpenFOAM}
+
+\begin{frame}[fragile]{OpenFOAM: mesh and setup}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/setups/s001.toml
+mesh = "inputs/mesh/naca0012.msh"
+application = "simpleFoam"
+speed = 10.0
+nu = 1.5e-5
+turbulence = "SpalartAllmaras"
+iterations = 500
+residual_target = 1e-5
+
+[solver]
+launcher = ["wsl", "-d", "Ubuntu", "--"]
+foam_bashrc = "/home/you/OpenFOAM/etc/bashrc"
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item The ESI distribution, \code{simpleFoam}: steady and incompressible.
+  \item The mesh is a 2D extruded gmsh file, format 2.2 ASCII, with the
+        patches \code{airfoil}, \code{farfield}, \code{front} and
+        \code{back}.
+  \item \code{turbulence} is \code{laminar} or \code{SpalartAllmaras}.
+  \item \code{foam_bashrc} is the environment file of the OpenFOAM build:
+        it takes the place of an executable.
+  \item The r file gives \code{area}, \code{length} and
+        \code{moment_origin}; the p file reads \code{history = true}.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{OpenFOAM: parallel runs and other mesh formats}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+[solver]
+foam_bashrc = "/opt/OpenFOAM/etc/bashrc"
+processes = 12
+mpi_launcher = ["mpirun"]
+\end{lstlisting}
+\begin{itemize}\small
+  \item With \code{processes} above 1 the case is decomposed, run in
+        parallel and reconstructed.
+  \item Each step keeps its own \code{log.*} file, and a failed step stops
+        the run.
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{A mesh that is not gmsh}
+\begin{itemize}\small
+  \item For \code{.cgns} and \code{.ugrid}, the setup key
+        \code{mesh_converter} holds a command of yours that builds the
+        OpenFOAM mesh in the point case.
+  \item \code{\{mesh\}} and \code{\{case\}} stand for the staged file and
+        the case folder.
+  \item Without a converter, such a mesh is refused at plan.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{cfdblimit}
+One case shape: an airfoil in a 2D extruded domain. The converter widens the
+formats read, not the geometry or the boundary model.
+\end{cfdblimit}
+\end{frame}
+
+\begin{frame}{OpenFOAM: reading the result}
+\begin{itemize}
+  \item \code{Cd} is along the wind in the XY plane,
+        $(\cos\alpha, \sin\alpha, 0)$; \code{Cl} is normal to it,
+        $(-\sin\alpha, \cos\alpha, 0)$.
+  \item \code{CmPitch} keeps the solver's value and sign. Do not read it as
+        a nose-up moment about a body axis without checking the sign.
+  \item \code{converged} needs three things: a successful process, forces
+        that match the last SIMPLE iteration, and either the solver's
+        convergence message or every initial residual below
+        \code{residual_target}.
+  \item A valid run that ends at \code{iterations} without that is
+        \code{iteration_limit}.
+\end{itemize}
+\begin{cfdbpitfall}[Converged is about the iterations]
+It says nothing about whether the mesh is fine enough. Refine the mesh and
+compare before trusting a number.
+\end{cfdbpitfall}
+\end{frame}
+
+\section{PyFR}
+
+\begin{frame}[fragile]{PyFR: mesh and setup}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/setups/s001.toml
+mesh = "inputs/mesh/naca0012.msh"
+mach = 0.2
+reynolds = 10000
+order = 3
+tend = 30
+window_start = 20
+backend = "cuda"       # or "openmp"
+tolerance = 0.01
+
+[solver]
+launcher = ["wsl", "-d", "Ubuntu", "--"]
+executable = "/home/you/bin/pyfr-run"
+timeout_s = 7200
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item One 2D compressible Navier-Stokes case per row, marched in time
+        to \code{tend}.
+  \item The mesh is a gmsh file with the physical groups \code{fluid},
+        \code{wall} and \code{far}.
+  \item \code{order} is the polynomial order of the solution.
+  \item \code{backend} is \code{cuda} for a GPU or \code{openmp} for
+        processors.
+  \item The r file stays empty; the p file reads \code{history = true}.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{PyFR: a nondimensional case and a time average}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{The state is fixed}
+\begin{itemize}\small
+  \item Density 1, freestream speed 1, chord 1, dynamic pressure 0.5.
+  \item The viscosity is 1 over the Reynolds number; the pressure follows
+        from the Mach number.
+  \item The angle of attack turns the freestream, not the mesh.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{The result is a mean}
+\begin{itemize}\small
+  \item \code{Cl} and \code{Cd} are averaged from \code{window_start} to
+        \code{tend}.
+  \item No pitching moment: it is reported as not available.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{cfdbevidence}[What converged means here]
+An unsteady flow has no residual to drive to zero. The window is split in two
+halves; the point is \code{converged} when the means of the halves differ by
+less than \code{tolerance} times the window mean, for \code{Cl} and for
+\code{Cd}. Otherwise it is \code{iteration_limit}: extend \code{tend} or
+start the window later.
+\end{cfdbevidence}
+\end{frame}

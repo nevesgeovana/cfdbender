@@ -1,0 +1,26 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% shared/boxes.tex
+%
+% The boxes the decks use: takeaway, evidence and limitation.
+
+\newtcolorbox{takeaway}{
+  colback=CourseGold!10, colframe=CourseGold, boxrule=0.8pt,
+  arc=1.5mm, left=2mm, right=2mm, top=1mm, bottom=1mm,
+  title=\textbf{Takeaway}, fonttitle=\small, coltitle=black,
+  attach title to upper={\ }, fontupper=\small\itshape,
+  \cfdbboxopts}
+
+\newtcolorbox{cfdbevidence}[1][Evidence]{
+  colback=CourseBlue!5, colframe=CourseBlue, boxrule=0.6pt,
+  arc=1.5mm, left=2mm, right=2mm, top=1mm, bottom=1mm,
+  title=\textbf{#1}, fonttitle=\small, coltitle=white,
+  fontupper=\small,
+  \cfdbboxopts}
+
+\newtcolorbox{cfdblimit}[1][Limitation]{
+  colback=CourseGray!8, colframe=CourseGray, boxrule=0.6pt,
+  arc=1.5mm, left=2mm, right=2mm, top=1mm, bottom=1mm,
+  title=\textbf{#1}, fonttitle=\small, coltitle=white,
+  fontupper=\small,
+  \cfdbboxopts}

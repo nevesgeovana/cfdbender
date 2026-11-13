@@ -1,0 +1,160 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% solvers/text/01-side-by-side.tex
+%
+% Part 1 of guide 3: the six solvers side by side.
+
+\section{Side by side}
+
+\begin{frame}{What each solver reads}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.1\linewidth}P{0.24\linewidth}P{0.3\linewidth}R@{}}
+\toprule
+\textbf{Solver} & \textbf{GEOMETRY is} & \textbf{The setup file must state} &
+\textbf{r and p files} \\
+\midrule
+\code{su2} & a volume mesh, \code{.su2} or \code{.cgns} & \code{iterations},
+  the SU2 \code{SOLVER} and the boundary markers & r: \code{area},
+  \code{length}, \code{moment_origin}; p: \code{history = true} \\
+\code{openfoam} & a 2D extruded gmsh mesh, \code{.msh} &
+  \code{application}, \code{turbulence}, \code{iterations}; \code{speed} and
+  \code{nu} unless the row gives the air & as SU2 \\
+\code{pyfr} & a 2D gmsh mesh, \code{.msh} & \code{order}, \code{tend},
+  \code{window_start}; \code{mach} and \code{reynolds} unless the row gives
+  them & r: empty; p: \code{history = true} \\
+\code{xfoil} & an airfoil coordinate file, or none for a NACA name &
+  \code{airfoil} or \code{airfoil_file} & both may be empty \\
+\code{qprop} & a 3D blade, \code{.obj}, or a set of section polars &
+  \code{blade} and \code{n_blades} & both may be empty \\
+\code{mock} & nothing & \code{[mock]} with \code{outcome} and
+  \code{iterations} & r and p: as SU2 \\
+\bottomrule
+\end{tabularx}}
+\begin{takeaway}The setup keys belong to the solver. Everything else on a row
+is read the same way for all six.\end{takeaway}
+\end{frame}
+
+\begin{frame}{What the row's flight condition becomes}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.12\linewidth}P{0.5\linewidth}R@{}}
+\toprule
+\textbf{Solver} & \textbf{The resolved air becomes} & \textbf{Attitude} \\
+\midrule
+\code{su2} & \code{MACH_NUMBER}, \code{FREESTREAM_TEMPERATURE},
+  \code{FREESTREAM_PRESSURE}, \code{FREESTREAM_DENSITY},
+  \code{REYNOLDS_NUMBER}, \code{REYNOLDS_LENGTH} & \code{ALPHA} and
+  \code{BETA} \\
+\code{openfoam} & \code{speed} (the velocity) and \code{nu} (viscosity over
+  density) & \code{ALPHA}; \code{BETA} must be 0 \\
+\code{pyfr} & \code{mach} and \code{reynolds} & \code{ALPHA}; \code{BETA}
+  must be 0 \\
+\code{xfoil} & \code{mach} and \code{reynolds} & \code{ALPHA}; \code{BETA}
+  must be 0 \\
+\code{qprop} & \code{V}, \code{RHO}, \code{MU} and \code{A};
+  \code{ADVANCE_RATIO} is \code{J} & axial flow: a nonzero \code{ALPHA} or
+  \code{BETA} is refused \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item A value the setup also states must agree with the row's.
+  \item For \code{su2}, \code{pyfr} and \code{xfoil}, a row that states only
+        \code{MACH} and angles keeps the flow state of its setup file.
+        \code{openfoam} and \code{qprop} resolve a bare \code{MACH} at sea
+        level.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{What converged rests on}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.12\linewidth}P{0.47\linewidth}R@{}}
+\toprule
+\textbf{Solver} & \textbf{\code{converged} when} &
+\textbf{\code{iteration_limit} when} \\
+\midrule
+\code{su2} & SU2's own log says its convergence criterion was met & the last
+  iteration reached the limit without it \\
+\code{openfoam} & the process succeeded, the forces match the last SIMPLE
+  iteration, and either the SIMPLE convergence message is there or every
+  initial residual is below \code{residual_target} & a valid run ended at
+  the limit without that \\
+\code{pyfr} & the means of \code{Cl} and \code{Cd} over the two halves of
+  the averaging window agree within \code{tolerance} & the window is too
+  short, or the halves disagree \\
+\code{xfoil} & exit code 0 and exactly one polar row at the requested angle &
+  never: a point is converged or failed \\
+\code{qprop} & exit code 0 and an operating row that could be read & never \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{cfdbpitfall}[A successful exit is not enough]
+For every solver, \code{converged} needs numerical evidence in the output.
+Anything missing, inconsistent or not a number is \code{failed}.
+\end{cfdbpitfall}
+\end{frame}
+
+\begin{frame}{What comes back}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.12\linewidth}P{0.34\linewidth}R@{}}
+\toprule
+\textbf{Solver} & \textbf{Coefficient columns} & \textbf{Read them as} \\
+\midrule
+\code{su2} & \code{CL}, \code{CD}, \code{CSF}, \code{CFx}, \code{CMy} and
+  the others SU2 reports & SU2's own definitions, with the references of the
+  r file \\
+\code{openfoam} & \code{Cd}, \code{Cl}, \code{CmPitch} & wind axes in the
+  XY plane; \code{CmPitch} keeps the solver's sign \\
+\code{pyfr} & \code{Cl}, \code{Cd} & means over the window; chord 1,
+  dynamic pressure 0.5; no moment \\
+\code{xfoil} & \code{CL}, \code{CD}, \code{CDp}, \code{CM} & as printed;
+  unit chord, moment about the quarter chord \\
+\code{qprop} & \code{J}, \code{CT}, \code{CP}, \code{EFFICIENCY},
+  \code{T}, \code{Q}, \code{P}, \code{CT_QPROP}, \code{CP_QPROP} & two
+  normalisations; see Part 6 \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{cfdbpitfall}[The names are the solver's]
+\code{CL} of one solver and \code{Cl} of another are the same quantity under
+two names, and a pitching moment may differ in sign. Check this table before
+putting two solvers on one plot.
+\end{cfdbpitfall}
+\end{frame}
+
+\begin{frame}[fragile]{The \code{[solver]} table: where and how it launches}
+\begin{columns}[T]
+\begin{column}{0.47\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# in inputs/setups/s001.toml
+[solver]
+launcher = ["wsl", "-d", "Ubuntu", "--"]
+executable = "/home/you/bin/xfoil"
+timeout_s = 600
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{executable}: the solver on this machine.
+  \item \code{launcher}: tokens put before it. The example runs a Linux
+        build from Windows.
+  \item \code{timeout_s}: the longest one point may take.
+\end{itemize}
+\end{column}
+\begin{column}{0.49\textwidth}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.24\linewidth}R@{}}
+\toprule
+\textbf{Solver} & \textbf{Its own keys in} \code{[solver]} \\
+\midrule
+\code{su2} & \code{route}, \code{mpi_launcher}, \code{threads} \\
+\code{openfoam} & \code{foam_bashrc} (the environment file, in place of an
+  executable), \code{processes}, \code{mpi_launcher} \\
+\code{pyfr} & none \\
+\code{xfoil} & \code{ram_estimate_gib} \\
+\code{qprop} & \code{xfoil_executable}, \code{ram_estimate_gib} \\
+\bottomrule
+\end{tabularx}}\par
+\vspace{2mm}
+{\small A row that names \code{SOLVER_BUILD} takes its path from
+\code{inputs/executables.toml} instead (guide 2).\par}
+\end{column}
+\end{columns}
+\end{frame}

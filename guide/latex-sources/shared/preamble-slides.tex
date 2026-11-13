@@ -1,0 +1,71 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% shared/preamble-slides.tex
+%
+% Beamer preamble of the guide decks, 1 to 3: a plain frame with the authorship
+% and licence notice in the footer of every slide.
+%
+% Not loaded: hyperref and xcolor (beamer loads them), geometry and enumitem.
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{ragged2e}
+\usepackage{textcomp}
+\usepackage{multicol}
+\usepackage{adjustbox}
+\usepackage{microtype}
+% The typewriter face turns -- into one dash; a flag copied off a slide must
+% keep both hyphens.
+\DisableLigatures[-]{encoding=T1,family=tt*}
+
+% The common layer. The build runs with shared/ as the working directory, so
+% this ../shared/ resolves to this folder; see ../build_guides.py.
+\input{../shared/preamble-common.tex}
+
+% ------------------------------------------------------------------ theme ---
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamercolor{structure}{fg=hanblue}
+\setbeamercolor{frametitle}{fg=white,bg=hanblue}
+\setbeamercolor{title}{fg=hanblue}
+\setbeamercolor{footline}{fg=SoftGray}
+\setbeamerfont{frametitle}{size=\large,series=\bfseries}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{frametitle}{%
+  \nointerlineskip
+  \begin{beamercolorbox}[wd=\paperwidth,ht=4.2ex,dp=1.6ex,leftskip=5mm,rightskip=5mm]{frametitle}%
+    \usebeamerfont{frametitle}\insertframetitle
+  \end{beamercolorbox}}
+
+% An included image would otherwise leave the absolute path it was read
+% from in the output (the PTEX.FileName key): the machine's folders are no
+% part of a published deck.
+\ifdefined\pdfsuppressptexinfo \pdfsuppressptexinfo=-1 \fi
+% No build date and no random identifier: the same sources give the same PDF,
+% so a rebuild without a change leaves the committed file as it is.
+\ifdefined\pdfinfoomitdate \pdfinfoomitdate=1 \pdftrailerid{} \fi
+
+% The PDF's own metadata carries the author and the licence too.
+\author{Geovana Neves}
+\subject{Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)}
+
+% The deck's number and short title, set once by \guidetitleframe.
+\newcommand{\guidenumber}{}
+\newcommand{\guideshort}{}
+\setbeamertemplate{footline}{%
+  \leavevmode
+  \begin{beamercolorbox}[wd=\paperwidth,ht=2.6ex,dp=1.2ex,leftskip=5mm,rightskip=5mm]{footline}%
+    \tiny\guidefootnotice\hfill Guide \guidenumber: \guideshort, \pkgname\hfill\insertframenumber\,/\,\inserttotalframenumber
+  \end{beamercolorbox}}
+
+% A section opens with its own frame: the deck is read in order, and a reader
+% jumping in needs to see where they landed.
+\AtBeginSection[]{%
+  \begin{frame}[plain,noframenumbering]
+    \vfill
+    {\color{SoftGray}\small Part \thesection\par}
+    \vspace{2mm}
+    {\color{hanblue}\Huge\bfseries\insertsection\par}
+    \vfill
+  \end{frame}}

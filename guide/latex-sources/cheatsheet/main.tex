@@ -1,0 +1,111 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% cheatsheet/main.tex
+%
+% Guide 4 of the cfdbender guides: the cheatsheet. One document of eight
+% pages, A4 landscape, for the version shared/info.tex names. Page 1 is every
+% command and every option of cfd-matrix and cfd-workspace, by stage; pages 2
+% to 8 are the seven stages of the workflow, one page each. The pages are in
+% text/ and are read by a tier-1 test that walks both parsers
+% (tests/tier1_offline/test_guide_cheatsheet_parsers.py), so a command or an
+% option cannot ship without its line here, and a line cannot name one that
+% does not exist. Built by ../build_guides.py with this folder and ../shared/
+% as include directories.
+%
+% No em dashes and no en dashes.
+\documentclass[a4paper,landscape]{article}
+% No absolute path of the building machine in the PDF, no build date and no
+% random identifier, as in the decks.
+\ifdefined\pdfsuppressptexinfo \pdfsuppressptexinfo=-1 \fi
+\ifdefined\pdfinfoomitdate \pdfinfoomitdate=1 \pdftrailerid{} \fi
+% Page objects stay uncompressed, so the tier-1 test counts the pages
+% without a PDF library.
+\ifdefined\pdfobjcompresslevel \pdfobjcompresslevel=0 \fi
+\usepackage[margin=5mm,top=4mm,bottom=4mm]{geometry}
+\usepackage{multicol}
+\raggedcolumns
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\DisableLigatures[-]{family=tt*}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,shapes.geometric}
+\usepackage{url}
+\input{info.tex}
+\usepackage[hidelinks,pdfauthor={\pkgauthor},pdftitle={Guide 4: Cheatsheet, \pkgname},pdfsubject={Copyright (c) 2026 \pkgauthor, CC BY 4.0},pdfkeywords={\pkgname{} \pkgversion}]{hyperref}
+\urlstyle{tt}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\columnseprule}{0.2pt}
+\definecolor{acc}{HTML}{1F4E79}
+\definecolor{flag}{HTML}{7A2E00}
+\definecolor{ok}{HTML}{2E5E2E}
+\definecolor{bad}{HTML}{8B1A1A}
+\definecolor{soft}{HTML}{EEF3F8}
+\definecolor{tool}{HTML}{2E5E2E}
+% ------------------------------------------------- macros of page 1 ---------
+% An option, as typed, and a command name.
+\newcommand{\fl}[1]{\textcolor{flag}{\texttt{#1}}}
+\newcommand{\cmd}[1]{\textcolor{acc}{\textbf{\texttt{#1}}}}
+% The band of a stage.
+\newcommand{\stage}[1]{\vspace{2pt}{\color{white}\colorbox{acc}{\parbox{\dimexpr\linewidth-2\fboxsep}{\raggedright\bfseries\scriptsize #1}}}\par\vspace{0.6pt}}
+\newenvironment{flags}{\begin{itemize}[leftmargin=2.2mm,itemsep=-0.4pt,topsep=0pt,parsep=0pt,label={\tiny$\bullet$}]}{\end{itemize}}
+% One entry: \sub is a cfd-matrix command, \wsub a cfd-workspace command.
+% Its name and positional arguments, then what it does; its options follow
+% in a flags list and belong to it.
+\newcommand{\sub}[2]{\vspace{1.6pt}\cmd{#1}\ {\itshape #2}\par}
+\newcommand{\wsub}[2]{\vspace{1.6pt}{\color{white}\colorbox{tool}{\tiny\bfseries\texttt{cfd-workspace}}}\ \cmd{#1}\ {\itshape #2}\par}
+
+% -------------------------------------------- macros of pages 2 to 8 --------
+% A file or folder of the workspace; breaks after a slash.
+\newcommand{\file}[1]{{\upshape\nolinkurl{#1}}}
+\newcommand{\midsize}{\fontsize{8.4}{10}\selectfont}
+\newcommand{\hd}[1]{\par\vspace{4pt}{\color{acc}\bfseries\midsize #1}\par\vspace{1pt}}
+% One command, written as typed (<tool> <subcommand>), its positional
+% arguments and what it does; its options follow as \opt lines.
+\newenvironment{cmdblock}[3]{\par\vspace{3pt}\noindent\textcolor{acc}{\textbf{\texttt{#1}}}\ifx\relax#2\relax\else\ \texttt{\detokenize{#2}}\fi\par{\color{black!75}#3}\par}{\par}
+\newcommand{\opt}[2]{{\par\hangindent=3mm\hangafter=1\noindent\hspace*{1.2mm}\fl{#1}\ #2\par}}
+% A file the stage reads (R) or writes (W).
+\newcommand{\rd}[2]{{\par\hangindent=6mm\hangafter=1\noindent\colorbox{ok!15}{\scriptsize\bfseries R}\ \file{#1}\ #2\par}}
+\newcommand{\wf}[2]{{\par\hangindent=6mm\hangafter=1\noindent\colorbox{flag!15}{\scriptsize\bfseries W}\ \file{#1}\ #2\par}}
+% An example command line, as typed; the tier-1 test parses each one.
+\newcommand{\ex}[1]{\texttt{#1}}
+% A common mistake and its fix.
+\newcommand{\err}[2]{{\par\hangindent=3mm\hangafter=1\noindent\textcolor{bad}{\textbf{!}}\ #1\par\hangindent=3mm\hangafter=0\noindent\textcolor{ok}{Fix:} #2\par\vspace{1.5pt}}}
+% The strip of the seven stages, the current one filled.
+\newcommand{\stagestrip}[1]{%
+  \begin{tikzpicture}
+  \foreach \i/\name in {1/Create and inputs,2/Plan,3/Run,4/Follow,5/Collect and post,6/Correct the records,7/Manage storage}{
+    \ifnum\i=#1
+      \node[draw=acc,fill=acc,text=white,rounded corners=1.5pt,minimum width=3.6cm,minimum height=4.2mm,font=\scriptsize\bfseries] (s\i) at (\i*3.95,0) {\i. \name};
+    \else
+      \node[draw=acc!60,fill=soft,text=acc,rounded corners=1.5pt,minimum width=3.6cm,minimum height=4.2mm,font=\scriptsize] (s\i) at (\i*3.95,0) {\i. \name};
+    \fi
+  }
+  \foreach \i [evaluate=\i as \j using int(\i+1)] in {1,...,6}{\draw[-{Stealth[length=3pt]},acc!70] (s\i.east) -- (s\j.west);}
+  \end{tikzpicture}}
+\newcommand{\stagepage}[3]{%
+  \clearpage
+  \begin{tcolorbox}[colback=acc!8,colframe=acc,boxrule=0.4pt,left=3pt,right=3pt,top=1pt,bottom=1pt]
+  {\Large\bfseries\color{acc} #1. #2} \hfill {\midsize \pkgname{} \textbf{\pkgversion} \quad the workflow by stage, stage #1 of 7}\\[1pt]
+  {\midsize #3}
+  \end{tcolorbox}
+  \vspace{-3pt}\centerline{\stagestrip{#1}}\vspace{2pt}}
+\newcommand{\foot}{\vfill{\scriptsize \guidefootnotice. \url{\pkgrepo}. Every command and option: \texttt{cfd-matrix <cmd> -h}, or page 1 of this cheatsheet.}}
+
+\begin{document}
+\setlength{\columnsep}{3.5mm}
+\input{text/01-commands.tex}
+% The stage pages use wider margins; \newgeometry starts the next page.
+\clearpage
+\newgeometry{margin=7mm,top=6mm,bottom=6mm}
+\setlength{\columnsep}{5mm}
+\input{text/02-by-stage.tex}
+\end{document}

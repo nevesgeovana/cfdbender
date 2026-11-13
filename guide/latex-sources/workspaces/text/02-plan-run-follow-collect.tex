@@ -1,0 +1,221 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% workspaces/text/02-plan-run-follow-collect.tex
+%
+% Parts 3 to 6 of guide 2: plan, run, follow, collect and post.
+
+\section{Plan}
+
+\begin{frame}[fragile]{What plan does}
+\begin{lstlisting}
+cfd-matrix plan polar
+\end{lstlisting}
+\begin{itemize}
+  \item \code{polar} is \code{inputs/matrices/polar.fs}; the \code{.fs} is
+        optional.
+  \item Plan reads the matrix and every file it names, resolves the air of
+        each row, and asks the solver's adapter to check the inputs.
+  \item It lists each point with the files its run would write.
+  \item It \textbf{launches nothing} and creates no point folder.
+  \item It saves the plan receipt, \code{post/polar/plan.json}: the matrix
+        and every input, as planned.
+\end{itemize}
+\begin{takeaway}Plan again after every edit of an input. \code{run} refuses a
+matrix whose inputs changed since its receipt was written.\end{takeaway}
+\end{frame}
+
+\begin{frame}[fragile]{Planning part of a matrix}
+\begin{lstlisting}
+cfd-matrix plan polar --sims 1001 1002
+cfd-matrix plan polar --sims 1001,1002
+cfd-matrix plan polar --points 1001/DP-M850RE500AL+025
+\end{lstlisting}
+\begin{itemize}
+  \item \code{--sims} takes \code{POL} values, separated by spaces or commas.
+  \item \code{--points} takes point names, with or without the \code{POL/}
+        prefix.
+  \item A name the matrix does not carry is refused before anything
+        happens.
+  \item \code{run}, \code{collect} and \code{post} take the same two
+        options.
+\end{itemize}
+\begin{block}{How much a command prints}
+\code{--log-level quiet}, \code{normal} (the default) or \code{verbose};
+\code{--verbose} is the short form of the last. \code{--warning-off}, written
+before the command name, keeps warnings out of the console and in
+\code{logs/warnings.log}.
+\end{block}
+\end{frame}
+
+\section{Run}
+
+\begin{frame}[fragile]{What run does}
+\begin{lstlisting}
+cfd-matrix run polar
+\end{lstlisting}
+\begin{itemize}
+  \item Runs every active point of the planned matrix: on this machine, or
+        as cluster jobs when the workspace has an HPC profile (Part 7).
+  \item For each point it writes the folder
+        \code{sims/sim_<POL>/datapoints/DP-<point name>/} with the solver's
+        input deck, the link to the mesh, the solver's own output,
+        \code{stdout.log} and \code{stderr.log}.
+  \item A run on this machine also leaves \code{execution.json}, the record
+        of the process that ran.
+  \item It records every point in \code{runs.json}: inputs and hashes,
+        status, start and finish, verdict.
+\end{itemize}
+\begin{cfdblimit}[One solver process at a time]
+On one machine the library solvers run their points one after another, and a
+run is refused when it would leave the machine too little free memory.
+\end{cfdblimit}
+\end{frame}
+
+\begin{frame}{Running a matrix again}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.33\linewidth}R@{}}
+\toprule
+\textbf{You type} & \textbf{What happens to a point already recorded} \\
+\midrule
+\code{run polar} & it refuses the run: finished evidence is not replaced by
+  accident \\
+\code{run polar --resume} & it is skipped, and the points not yet recorded
+  run. A matrix that grew a row runs only the new row \\
+\code{run polar --force-rerun POINT} & that point is archived, then run
+  again. Repeat the option for several points \\
+\code{run polar --force-rerun-all} & every recorded point of the matrix is
+  archived, then run again \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item Archived means: \code{runs.json} is copied to
+        \code{archive/<stamp>/}, the point folder moves there, and the old
+        record joins the history of the point. Nothing is deleted.
+  \item A submitted cluster job is not cancelled by a rerun: cancel it in
+        the scheduler first.
+\end{itemize}
+\end{frame}
+
+\section{Follow}
+
+\begin{frame}{Six commands that only read}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.34\linewidth}R@{}}
+\toprule
+\textbf{Command} & \textbf{Prints} \\
+\midrule
+\code{cfd-matrix status} & each simulation with the states of its points.
+  \code{--points}: one row per point. \code{--failed}: only the simulations
+  with a failed point \\
+\code{cfd-matrix show TARGET} & one simulation, point or run record in full \\
+\code{cfd-matrix history TARGET} & the current and the earlier records of a
+  simulation or point, with their archives \\
+\code{cfd-matrix log} & the recorded events in time order.
+  \code{--problems}: the failures. \code{--since 2h}: the recent ones \\
+\code{cfd-matrix trace PRODUCT} & the runs, inputs and hashes behind a
+  product file \\
+\code{cfd-matrix diff RUN_A RUN_B} & two run records, field by field \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item All six take \code{--json} or \code{--csv}, to hand the rows to a
+        program.
+  \item They read the records in the workspace. None of them asks a
+        scheduler or touches a solver.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Status and verdict are two things}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{Status: where the point is}
+\begin{itemize}\small
+  \item \code{PLANNED}: registered, not started.
+  \item \code{SUBMITTED}: handed to a scheduler.
+  \item \code{RUNNING}: started on this machine.
+  \item \code{COMPLETED}: the run ended and was read.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{Verdict: how it ended}
+\begin{itemize}\small
+  \item \code{converged}
+  \item \code{iteration_limit}
+  \item \code{failed}
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{cfdbpitfall}[Completed is not converged]
+A completed point may have failed. Read the verdict, which every table and
+every \code{status --points} row carries, before using a number.
+\end{cfdbpitfall}
+\end{frame}
+
+\section{Collect and post}
+
+\begin{frame}[fragile]{What collect writes}
+\begin{lstlisting}
+cfd-matrix collect polar
+\end{lstlisting}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.42\linewidth}R@{}}
+\toprule
+\textbf{File under} \code{post/polar/} & \textbf{Holds} \\
+\midrule
+\code{campaign_summary.json} & every recorded point with its result \\
+\code{campaign_sweep.csv} & one row per point: flight condition, air state,
+  references, status, verdict, coefficients \\
+\code{polars/P<POL>.csv} & the same columns, one file per simulation \\
+\code{products.json}, \code{post.log} & every product written, and every one
+  skipped with the reason \\
+\bottomrule
+\end{tabularx}}
+\begin{itemize}\small
+  \item A value a point does not have is \code{NA}. No cell is quoted and
+        none holds a comma, so any CSV reader takes the table.
+  \item Without a matrix name, \code{collect} works on every recorded
+        matrix.
+  \item \code{--archive} keeps a copy of each replaced file under
+        \code{archive/<stamp>/}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Collect or post}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{\code{cfd-matrix collect}}
+\begin{itemize}\small
+  \item Reads the saved results of each point.
+  \item Picks up cluster jobs that finished.
+  \item Updates the records, then rebuilds the tables.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{\code{cfd-matrix post}}
+\begin{itemize}\small
+  \item Rebuilds the same tables from the records and the saved outputs
+        alone.
+  \item Runs nothing and asks nothing of a cluster.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\vspace{1mm}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.16\linewidth}R@{}}
+\toprule
+\textbf{Exit code} & \textbf{Meaning} \\
+\midrule
+0 & done \\
+1 & done, and at least one point failed (\code{diff}: the two runs differ) \\
+2 & refused: the message names the file and the cell or key at fault, and
+  nothing was written \\
+3 & done, and submitted work is still outstanding \\
+\bottomrule
+\end{tabularx}}
+\end{frame}

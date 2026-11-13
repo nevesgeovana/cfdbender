@@ -1,0 +1,158 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% solvers/text/03-xfoil-qprop-choosing.tex
+%
+% Parts 5 to 7 of guide 3: XFOIL, QPROP and how to choose.
+
+\section{XFOIL}
+
+\begin{frame}[fragile]{XFOIL: an airfoil polar}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/setups/s001.toml
+airfoil = "NACA 0012"
+reynolds = 1000000
+[solver]
+launcher = ["wsl", "-d", "Ubuntu", "--"]
+executable = "/home/you/bin/xfoil"
+\end{lstlisting}
+\begin{lstlisting}
+# inputs/matrices/study.fs
+POL  | RUN | SET | REF | PPROC | FLIGHT_CONDITION | SWEEP_VALUES
+1001 | 1   | 001 | 001 | 001   | ALPHA:sweep      | 0,2,4
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item \code{airfoil} is a NACA four or five digit name;
+        \code{airfoil_file} is a coordinate file in the workspace instead.
+  \item \code{reynolds} 0, the default, is inviscid. \code{mach} defaults
+        to 0, \code{ncrit} to 9, \code{iterations} to 200.
+  \item The r and p files may be empty.
+\end{itemize}
+\end{column}
+\end{columns}
+\begin{cfdbevidence}[Reading the result]
+\code{CL}, \code{CD}, \code{CDp} and \code{CM} are kept as XFOIL prints them:
+unit chord, moment about the quarter chord, nose up positive. A point is
+\code{converged} with exactly one polar row at the requested angle, and
+\code{failed} otherwise.
+\end{cfdbevidence}
+\end{frame}
+
+\section{QPROP}
+
+\begin{frame}[fragile]{QPROP: a propeller from its blade}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/setups/s001.toml
+blade = "inputs/mesh/blade.obj"
+n_blades = 3
+n_sections = 12
+spacing = "cosine"
+cut = "cylinder"
+solver_2d = "xfoil"
+
+[solver]
+launcher = ["wsl", "-d", "Ubuntu", "--"]
+executable = "/home/you/bin/qprop"
+xfoil_executable = "/home/you/bin/xfoil"
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item \code{blade} is a 3D blade as an OBJ, in metres, or a set under
+        \code{inputs/polars-2D/} with the stations and their polars.
+  \item An OBJ is sliced at \code{n_sections} radial stations: radius,
+        chord, pitch and section shape are measured.
+  \item Each section gets its polar from XFOIL, at its own Reynolds and
+        Mach number.
+  \item \code{axis}, \code{hub_center} and \code{rotation} say how the
+        blade sits in the file; the defaults are the x axis, the origin and
+        counter-clockwise seen from the front.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{QPROP: the operating point and the result}
+\begin{lstlisting}
+POL  | RUN | SET | REF | PPROC | FLIGHT_CONDITION                              | SWEEP_VALUES
+1001 | 1   | 001 | 001 | 001   | V:20, J:sweep, BETA07:30, RHO:1.2, MU:1.8e-5  | 0.6,0.8,1.0
+\end{lstlisting}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.36\linewidth}R@{}}
+\toprule
+\textbf{Key} & \textbf{Meaning} \\
+\midrule
+\code{V} & flight speed, m/s (required) \\
+\code{RPM} or \code{J} & rotation rate; $J = V/(nD)$ \\
+\code{BETA07} or \code{DBETA} & pitch at 0.7 R, or a pitch offset, degrees \\
+\code{RHO}, \code{MU}, \code{A} & the air; sea level if left out \\
+\bottomrule
+\end{tabularx}}
+\end{column}
+\begin{column}{0.48\textwidth}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.42\linewidth}R@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning} \\
+\midrule
+\code{T}, \code{Q}, \code{P} & thrust (N), torque (N m), power (W) \\
+\code{CT}, \code{CP} & $T/(\rho n^2 D^4)$, $P/(\rho n^3 D^5)$ \\
+\code{CT_QPROP}, \code{CP_QPROP} & as QPROP prints them \\
+\code{EFFICIENCY} & $TV/P$ \\
+\bottomrule
+\end{tabularx}}
+\end{column}
+\end{columns}
+\vspace{1mm}
+{\small\code{sections.json} in the point folder records each station and
+where its polar came from. Read it when a result looks odd: a station whose
+polar failed borrows its neighbour's, and the file says so.\par}
+\end{frame}
+
+\section{Choosing}
+
+\begin{frame}{Which solver for which question}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.52\linewidth}R@{}}
+\toprule
+\textbf{The question} & \textbf{Start with} \\
+\midrule
+The polar of an airfoil section, many angles, now & \code{xfoil} \\
+Thrust and power of an isolated propeller over an advance-ratio sweep &
+  \code{qprop} \\
+A 2D section where separation or the turbulence model matters &
+  \code{openfoam} or \code{su2} \\
+A 3D configuration, compressible, with a volume mesh & \code{su2} \\
+A 2D section whose unsteady flow must be resolved in time & \code{pyfr} \\
+A 3D configuration without a volume mesh, or a rotating propeller &
+  \code{flightstream}, through pyflightstream [8] \\
+\bottomrule
+\end{tabularx}}
+\begin{takeaway}Start with the cheapest solver that resolves the effect you
+are asking about.\end{takeaway}
+\end{frame}
+
+\begin{frame}{What no solver here does}
+\begin{itemize}
+  \item \textbf{Unsteady workflows.} Every library solver runs steady
+        points. PyFR marches in time, and what it returns is a mean.
+  \item \textbf{Mesh generation.} A mesh is an input. The package makes
+        none, except the slicing of a propeller blade into sections.
+  \item \textbf{A verdict on accuracy.} \code{converged} is about the run,
+        not about the mesh or the model.
+  \item \textbf{Mixing solvers in one workspace.} One workspace, one solver;
+        compare two by giving both the same matrix.
+\end{itemize}
+\begin{cfdbevidence}[Comparing two solvers]
+The matrix columns and the air resolved from a row are the same in every
+workspace, and a point has the same folder name in each. The coefficient
+names and conventions are not the same: Part 1 has the table.
+\end{cfdbevidence}
+\end{frame}

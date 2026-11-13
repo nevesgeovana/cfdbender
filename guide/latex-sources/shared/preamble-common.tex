@@ -1,0 +1,89 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% shared/preamble-common.tex
+%
+% The common layer every deck reads: packages, colours, the few macros the
+% decks use, and the listing styles. Read from preamble-slides.tex. The build
+% recipe compiles with this folder (shared/) as the working directory, so the
+% literal ../shared/ below resolves to this folder. The colours and the frame
+% design are those of the pyflightstream guides (CC BY 4.0, same author), so
+% the guides of both packages read as one collection.
+
+\newcommand{\CFDBROOT}{../}
+
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\let\Bbbk\relax
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,shapes,shapes.geometric,decorations.pathreplacing}
+
+\makeatletter
+\edef\input@path{{\CFDBROOT}{\CFDBROOT shared/}}
+\makeatother
+
+% ------------------------------------------------------------- colours -----
+\definecolor{myblue}{rgb}{0.2,0.2,0.7}
+\definecolor{darkblue}{rgb}{0,0,0.5}
+\definecolor{darkred}{rgb}{0.5,0,0}
+\definecolor{darkgreen}{rgb}{0,0.5,0}
+\definecolor{hanblue}{rgb}{0.2,0.2,0.7}
+\definecolor{WarmGold}{HTML}{C89B3C}
+\definecolor{SoftGray}{HTML}{6B7280}
+\colorlet{DeepBlue}{myblue}
+\colorlet{CourseBlue}{myblue}
+\colorlet{CourseRed}{darkred}
+\colorlet{CourseGreen}{darkgreen}
+\colorlet{CourseGray}{SoftGray}
+\colorlet{CourseGold}{WarmGold}
+\definecolor{CodeKeyword}{HTML}{1F4E79}
+\definecolor{CodeComment}{HTML}{6B7280}
+\definecolor{CodeString}{HTML}{7A5C1E}
+\definecolor{CodeBack}{HTML}{F7F7F9}
+
+% -------------------------------------------------------------- macros -----
+\newcommand{\cfdbinput}[1]{\input{\CFDBROOT shared/#1.tex}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\cfdbbs}{\textbackslash}
+\newsavebox{\cfdbfigbox}
+
+% ------------------------------------------------------ listing styles -----
+% One base style; cfdbtoml colours the comments and strings of a TOML input
+% file, cfdbtext leaves a matrix or a console line as typed.
+\lstdefinelanguage{CfdbToml}{
+  morecomment=[l]{\#},
+  morestring=[b]",
+  alsoletter={_},
+  sensitive=true
+}
+\lstdefinestyle{cfdbbase}{
+  basicstyle=\ttfamily\cfdbcodesize,
+  keywordstyle=\color{CodeKeyword}\bfseries,
+  commentstyle=\color{CodeComment}\itshape,
+  stringstyle=\color{CodeString},
+  backgroundcolor=\color{CodeBack},
+  frame=leftline,
+  framerule=1.2pt,
+  rulecolor=\color{CourseBlue!45},
+  xleftmargin=6pt,
+  framexleftmargin=6pt,
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  tabsize=2,
+  aboveskip=4pt,
+  belowskip=4pt,
+  escapeinside={(*@}{@*)}
+}
+\lstdefinestyle{cfdbtoml}{style=cfdbbase, language=CfdbToml}
+\lstdefinestyle{cfdbtext}{style=cfdbbase}
+\lstset{style=cfdbtext}
