@@ -1,0 +1,126 @@
+# Workspace layout
+
+A workspace is one folder that holds a whole campaign: the files you write, the
+files each run produces and the tables collected from them. This page names
+every folder and file, says who writes it, and marks the ones that are yours to
+edit. The layout is the same for every solver.
+
+## The tree
+
+```text
+campaign/
+  init.toml                     # cfd-workspace init: the solver of this workspace
+  inputs/                       # yours: everything a run reads
+    matrices/<name>.fs          # the run matrix, one row per simulation
+    setups/s<id>.toml           # solver setup, named by the SET column
+    references/r<id>.toml       # reference values, named by the REF column
+    pproc/p<id>.toml            # post-processing options, named by the PPROC column
+    mesh/                       # meshes and geometry files, named by the GEOMETRY column
+    hpc/h<id>.toml              # cluster profiles (optional)
+    executables.toml            # solver builds a row may name (optional)
+    executables.local.toml      # this machine's paths for those builds (optional)
+    management/<recipe>.toml    # storage recipes (optional)
+    sync-workspaces.toml        # other workspaces to sync from (optional)
+  sims/                         # cfd-matrix run: one folder per simulation
+    sim_<POL>/datapoints/DP-<point name>/
+  post/                         # cfd-matrix plan, collect and post
+    <matrix>/plan.json
+    <matrix>/campaign_summary.json
+    <matrix>/campaign_sweep.csv
+    <matrix>/polars/P<POL>.csv
+    <matrix>/products.json
+    <matrix>/post.log
+  archive/<stamp>/              # earlier evidence, moved here and never deleted
+  runs.json                     # the record of every point that was run
+  marks.json                    # verdicts you recorded with mark-failed and mark-converged
+  storage_management.json       # the record of every storage command
+  logs/warnings.log             # warnings hidden from the console by --warning-off
+```
+
+`cfd-workspace init` creates `init.toml`, the input folders, `sims/`, `post/`
+and `archive/`. Every other file appears when the command beside it first runs.
+
+## What you write
+
+You edit only `inputs/`. Nothing a command writes goes there, and nothing you
+write belongs anywhere else.
+
+| File | What it holds | Named by |
+|---|---|---|
+| `inputs/matrices/<name>.fs` | The run matrix: one row per simulation, with its flight condition and the files it uses. See [matrix columns](matrix-columns.md). | the name you give `cfd-matrix plan <name>` |
+| `inputs/setups/s<id>.toml` | How the solver runs: model, numerics, iteration limit. The keys belong to the solver; see its page. | the `SET` cell (`001` and `s001` name `s001.toml`) |
+| `inputs/references/r<id>.toml` | Reference area, reference length and moment origin, where the solver takes them from a file. | the `REF` cell |
+| `inputs/pproc/p<id>.toml` | What to keep from each run beyond the coefficients. | the `PPROC` cell |
+| `inputs/mesh/<file>` | The mesh or geometry file, in the format the solver reads. | the `GEOMETRY` cell |
+
+A matrix row names its mesh by file name, for example `wing.su2`, and the file
+is read from `inputs/mesh/`. A stem that names exactly one file there is enough.
+The folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/`
+are still read, after `inputs/mesh/`, with one warning that names the folder to
+move the files to.
+
+A mesh is never copied into a simulation folder. Each point folder holds a link
+to the file in `inputs/mesh/`, so a large mesh is stored once.
+
+## The solver declaration
+
+`init.toml` binds the workspace to one solver:
+
+```toml
+schema_version = 1
+solver = "su2"
+```
+
+Every command reads it first. A workspace keeps its solver for life: `init`
+refuses a folder that already holds an `init.toml`, and a collect refuses
+records made by another solver. The solver names are lower case: `su2`,
+`openfoam`, `pyfr`, `xfoil`, `qprop`, `mock` and `flightstream`.
+
+## What a run writes
+
+`cfd-matrix run` writes one folder per point:
+
+```text
+sims/sim_<POL>/datapoints/DP-<point name>/
+```
+
+`<POL>` is the row's `POL` cell and the point name is built from the row's
+flight condition, so the same operating point has the same folder name in every
+workspace. The folder holds the input deck written for the solver, the link to
+the mesh, the solver's own output files, `stdout.log` and `stderr.log`. A run
+on this machine also leaves `execution.json`, the record of the process that ran.
+
+`runs.json`, in the workspace root, records every point: its inputs and their
+hashes, its status, when it started and finished, and the verdict on its
+convergence. `cfd-matrix status`, `show`, `history` and `log` read this file;
+you never edit it.
+
+## What plan, collect and post write
+
+Everything derived from a matrix is under `post/<matrix>/`:
+
+| File | Written by | Holds |
+|---|---|---|
+| `plan.json` | `cfd-matrix plan` | The plan receipt: the matrix and every input as planned. A run refuses to start when an input changed after it. |
+| `campaign_summary.json` | `collect`, `post` | Every recorded point with its result. |
+| `campaign_sweep.csv` | `collect`, `post` | One row per point: flight condition, air state, references, status, verdict and coefficients. |
+| `polars/P<POL>.csv` | `collect`, `post` | The same columns, one file per simulation. |
+| `products.json` | `collect`, `post` | Every product written, and every one skipped with the reason. |
+| `post.log` | `collect`, `post` | The same, as text. |
+
+These files are rebuilt from `runs.json` and the simulation folders each time,
+so deleting them loses nothing.
+
+## What is kept
+
+Nothing is deleted without a command that says so. Running a point again moves
+its folder and its record to `archive/<stamp>/` first, where `<stamp>` is the
+UTC time of the move, and `cfd-matrix history` lists what is there.
+`cfd-matrix restore` brings a file back.
+
+## Version control
+
+`cfd-workspace init` writes `inputs/.gitignore` so that
+`executables.local.toml`, which holds paths of one machine, stays out of a
+repository. `inputs/` is small text and is worth committing. `sims/` and
+`archive/` hold solver output and are usually left out.
