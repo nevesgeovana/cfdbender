@@ -45,7 +45,8 @@ from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
-from cfdbender.core.settings import _validate
+from cfdbender.core.settings import _validate, read_init
+from cfdbender.solvers._host._config import number
 from cfdbender.solvers.xfoil._config import config, options, render
 from cfdbender.solvers.xfoil._execute import run
 from cfdbender.solvers.xfoil._execute import run_script as run_script
@@ -137,6 +138,16 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     return read(workspace_path(point.root, point.point.directory), values.alpha, values.iterations)[
         0
     ]
+
+
+def preflight(point: AdapterPoint) -> None:
+    """Refuse before any point starts: executable, host slot and free RAM."""
+    from cfdbender.solvers._host._exe import check_host_free
+    from cfdbender.solvers.xfoil._execute import argv
+
+    opts = options(point.setup, read_init(point.root, available_solvers=("xfoil",)).solver_options)
+    argv(opts, point.root)
+    check_host_free("XFOIL", number(opts["ram_estimate_gib"], "ram_estimate_gib"))
 
 
 def classify(result: ExecutionResult) -> Classification:

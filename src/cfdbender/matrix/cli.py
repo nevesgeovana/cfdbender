@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter
+from cfdbender.core.progress import sink as progress_sink
+from cfdbender.core.registry import RunRecord
 from cfdbender.core.run import execute_plan
 from cfdbender.core.settings import WorkspaceError
 from cfdbender.matrix import queries, records, storage
@@ -342,13 +344,32 @@ def _execute(
             plan = decision.plan
             jobs = submission_plans(plan, profile) if submitting and profile is not None else ()
             adapter = cast(SolverAdapter, load_solver(plan.solver))
-            records = (
-                submit_plan(plan, jobs, profile, adapter)
-                if profile is not None and not args.local
-                else execute_plan(plan, adapter)
-            )
+            live = profile is None or args.local
+            started: dict[str, float] = {}
+
+            def progress(
+                kind: str, index: int, total: int, record: RunRecord | None, point_id: str
+            ) -> None:
+                if kind == "start":
+                    started[point_id] = time.monotonic()
+                    console.say(f"[{index}/{total}] {point_id}  running")
+                elif record is not None:
+                    took = time.monotonic() - started.get(point_id, time.monotonic())
+                    console.say(
+                        f"[{index}/{total}] {point_id}  {record.status} "
+                        f"{record.classification} in {took:.0f} s"
+                    )
+
+            if live:
+                with progress_sink(console.say):
+                    records = execute_plan(plan, adapter, on_event=progress)
+            elif profile is not None:
+                records = submit_plan(plan, jobs, profile, adapter)
+            else:
+                raise WorkspaceError("no HPC profile selected")
             for record in records:
-                console.say(f"  {record.point_id}  {record.status} {record.classification}")
+                if not live:
+                    console.say(f"  {record.point_id}  {record.status} {record.classification}")
                 if record.error:
                     console.error(f"  {record.point_id}: {record.error}")
                 elif record.submission and record.submission["timed_out"]:

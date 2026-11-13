@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import time
+import warnings
 from collections.abc import Callable, Mapping
 from importlib.machinery import PathFinder
 from pathlib import Path
@@ -17,7 +18,7 @@ from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
-from cfdbender.solvers._host._exe import resolve_executable
+from cfdbender.solvers._host._exe import check_host_free, resolve_executable
 from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._single import process_lease
@@ -181,3 +182,22 @@ def _run_owned(
             ),
             encoding="ascii",
         )
+
+
+def preflight(point: AdapterPoint) -> None:
+    """Resolve the executable and ask the host for a slot and RAM, writing nothing."""
+    declaration = read_init(point.root, available_solvers=("su2",))
+    opts = options(point.setup, declaration.solver_options)
+    raw_path = opts.get("pysu2_path") or os.environ.get("CFDBENDER_PYSU2_PATH")
+    wrapper_path = None
+    if raw_path:
+        path = Path(str(raw_path)).expanduser()
+        wrapper_path = str((path if path.is_absolute() else point.root / path).resolve())
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        route = select_route(
+            str(opts["route"]) if "route" in opts else None, pysu2_path=wrapper_path
+        )
+    if route != "pysu2":
+        _argv(opts, point.root)
+    check_host_free("SU2", number(opts["ram_estimate_gib"], "ram_estimate_gib"))

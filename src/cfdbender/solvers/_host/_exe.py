@@ -6,6 +6,9 @@ import os
 import shutil
 from pathlib import Path
 
+from cfdbender.solvers._host import _ram
+from cfdbender.solvers._host._single import process_lease
+
 
 def missing_executable(solver: str, tried: object, key: str = "executable") -> ValueError:
     """Return the one refusal every adapter raises for an executable that is not there.
@@ -59,3 +62,27 @@ def resolve_executable(value: str, root: Path, solver: str, key: str = "executab
     if resolved is None or not Path(resolved).is_file():
         raise missing_executable(solver, value, key)
     return Path(resolved)
+
+
+def check_host_free(solver: str, estimate_gib: float = 0.0) -> None:
+    """Refuse up front when this machine cannot start a solver run now.
+
+    The same two guards every launch applies, asked before any point starts: the
+    machine-wide process slot must be free and the free RAM must stay above the floor.
+
+    Parameters
+    ----------
+    solver : str
+        Display name for the refusal.
+    estimate_gib : float, optional
+        Memory the solver needs before it starts.
+    """
+    _ram.require_ram(estimate_gib, solver=solver)
+    try:
+        with process_lease(solver):
+            pass
+    except ValueError as error:
+        raise ValueError(
+            "another cfdbender solver run holds this machine (one run at a time); "
+            "wait for it to end, then run again"
+        ) from error

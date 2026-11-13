@@ -175,6 +175,13 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     return read(workspace_path(point.root, point.point.directory))[0]
 
 
+def preflight(point: AdapterPoint) -> None:
+    """Refuse before any point starts: executable, host slot and free RAM (executable route)."""
+    from cfdbender.solvers.su2._execute import preflight as check
+
+    check(point)
+
+
 def classify(result: ExecutionResult) -> Classification:
     """Require solver convergence evidence independently of process success.
 

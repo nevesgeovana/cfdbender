@@ -32,6 +32,7 @@ run is required to establish physical convergence of a generated mesh.
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 
 from cfdbender.core.adapter import AdapterPoint
@@ -163,6 +164,22 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     check_ram()
     run(point, translate(point), check_ram)
     return read(workspace_path(point.root, point.point.directory), point)[0]
+
+
+def preflight(point: AdapterPoint) -> None:
+    """Refuse before any point starts: launcher or stand-in, host slot and free RAM."""
+    import shutil
+
+    from cfdbender.solvers._host._exe import check_host_free, missing_executable
+    from cfdbender.solvers.openfoam._execute import argv
+
+    opts = options(
+        point.setup, read_init(point.root, available_solvers=("openfoam",)).solver_options
+    )
+    command = argv(opts, point.root)
+    if command[0] != sys.executable and not shutil.which(command[0]):
+        raise missing_executable("OpenFOAM", command[0], "launcher")
+    check_host_free("OpenFOAM", 0.25)
 
 
 def classify(result: ExecutionResult) -> Classification:

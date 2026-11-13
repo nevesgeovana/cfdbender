@@ -82,6 +82,7 @@ def execute_plan(
     adapter: SolverAdapter,
     *,
     check_ram: Callable[[], None] = check_available_ram,
+    on_event: Callable[[str, int, int, RunRecord | None, str], None] | None = None,
 ) -> tuple[RunRecord, ...]:
     """Run every point locally, recording failures and continuing to the next point.
 
@@ -93,6 +94,9 @@ def execute_plan(
         Injected adapter; core never discovers or imports a solver.
     check_ram : callable, optional
         Guard called before writing, before every point and throughout adapter execution.
+    on_event : callable, optional
+        Called as ``on_event("start", index, total, None, point_id)`` when a point starts and
+        ``on_event("end", index, total, record, point_id)`` when it ends.
 
     Returns
     -------
@@ -126,13 +130,25 @@ def execute_plan(
                 raise RegistryError(f"{name}: existing output; refusing overwrite")
         # A row's SOLVER_BUILD selects its executable here, refusing an undeclared build.
         prepared.append(bind_executable(load_point(plan.root, point, solver=plan.solver), adapter))
+    # The environment is judged once, before any record: a missing executable, a busy host
+    # slot or a RAM floor refuses the run and leaves the records as they were.
+    preflight = getattr(adapter, "preflight", None)
+    if preflight is not None:
+        for context in prepared:
+            try:
+                preflight(context)
+            except (OSError, ValueError) as failure:
+                raise RegistryError(str(failure)) from failure
     missing = tuple(p for p in plan.points if p.point_id not in previous)
     if missing:
         registry.record(replace(plan, points=missing))
     completed = []
-    for context in prepared:
+    total = len(prepared)
+    for index, context in enumerate(prepared, 1):
         check_ram()
         registry.transition(context.point.point_id, "RUNNING")
+        if on_event is not None:
+            on_event("start", index, total, None, context.point.point_id)
         error = None
         version = None
         try:
@@ -155,13 +171,14 @@ def execute_plan(
         except (OSError, ValueError) as failure:
             classification = "failed"
             error = f"FAILED_EXECUTION: {failure}"
-        completed.append(
-            registry.transition(
-                context.point.point_id,
-                "COMPLETED",
-                classification=classification,
-                error=error,
-                solver_version=version,
-            )
+        record = registry.transition(
+            context.point.point_id,
+            "COMPLETED",
+            classification=classification,
+            error=error,
+            solver_version=version,
         )
+        completed.append(record)
+        if on_event is not None:
+            on_event("end", index, total, record, context.point.point_id)
     return tuple(completed)

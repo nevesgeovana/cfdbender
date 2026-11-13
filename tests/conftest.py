@@ -17,6 +17,7 @@ from cfdbender.solvers._host._single import process_lease
 
 _LEASE_USERS = (
     "cfdbender.matrix.rerun",
+    "cfdbender.solvers._host._exe",
     "cfdbender.solvers.openfoam._execute",
     "cfdbender.solvers.pyfr._execute",
     "cfdbender.solvers.qprop._execute",

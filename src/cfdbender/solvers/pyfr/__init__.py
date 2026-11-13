@@ -98,6 +98,16 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     return read(workspace_path(point.root, point.point.directory), point)[0]
 
 
+def preflight(point: AdapterPoint) -> None:
+    """Refuse before any point starts: executable, host slot and free RAM."""
+    from cfdbender.solvers._host._exe import check_host_free
+    from cfdbender.solvers.pyfr._execute import launch_prefix
+
+    opts = options(point.setup, read_init(point.root, available_solvers=("pyfr",)).solver_options)
+    launch_prefix(opts, point.root)
+    check_host_free("PyFR")
+
+
 def classify(result: ExecutionResult) -> Classification:
     """Classify from the exit code and the window evidence."""
     if result.exit_code != 0 or not isinstance(result, Evidence) or result.failed:
