@@ -93,6 +93,9 @@ def test_p0000_item2a_unreadable_init_is_a_named_refusal(tmp_path, kind):
         source.write_bytes(bytes([255]))
     with pytest.raises(core.WorkspaceError) as caught:
         core.read_init(tmp_path, available_solvers=("mock",))
+    if kind == "missing":
+        assert "is not a cfdbender workspace (no init.toml)" in str(caught.value)
+        return
     assert str(source) in str(caught.value)
     assert "available solvers: mock" in str(caught.value)
 

@@ -195,7 +195,7 @@ def _variables(text: str, label: str) -> Mapping[str, object]:
 
 def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
     pol = cells["POL"]
-    label = f"{path.name} data row {number}, POL {pol!r}"
+    label = f"{path.as_posix()}, data row {number} (POL {pol})"
     if re.fullmatch("[A-Za-z0-9][A-Za-z0-9_-]*", pol) is None:
         raise MatrixError(f"{label}: POL must be a non-empty filename-safe identifier")
     if cells["RUN"] not in ("0", "1"):
@@ -292,17 +292,19 @@ def parse_matrix(data: bytes, source: Path, *, active_only: bool = True) -> tupl
     try:
         lines = data.decode("utf-8-sig").splitlines()
     except UnicodeError as error:
-        raise MatrixError(f"{source}: cannot read UTF-8: {error}") from error
+        raise MatrixError(f"{source.as_posix()}: cannot read UTF-8: {error}") from error
     content = [
         line.strip()
         for line in lines
         if line.strip() and not line.lstrip().startswith("#") and set(line.strip()) - set("-:+| \t")
     ]
     if not content:
-        raise MatrixError(f"{source}: missing matrix header: {', '.join(REQUIRED_COLUMNS)}")
+        raise MatrixError(
+            f"{source.as_posix()}: missing matrix header: {', '.join(REQUIRED_COLUMNS)}"
+        )
     header = [c.strip() for c in content[0].split("|")]
     if any(not c for c in header) or len(set(header)) != len(header):
-        raise MatrixError(f"{source}: blank or duplicate matrix headers")
+        raise MatrixError(f"{source.as_posix()}: blank or duplicate matrix headers")
     missing = set(REQUIRED_COLUMNS) - set(header)
     unknown = set(header) - set(COLUMNS)
     if missing or unknown:
@@ -312,20 +314,22 @@ def parse_matrix(data: bytes, source: Path, *, active_only: bool = True) -> tupl
             for close in [difflib.get_close_matches(name, COLUMNS, n=1)]
         ]
         raise MatrixError(
-            f"{source}: missing columns: {', '.join(sorted(missing)) or '(none)'}; "
+            f"{source.as_posix()}: missing columns: {', '.join(sorted(missing)) or '(none)'}; "
             f"unsupported columns: {', '.join(hints) or '(none)'}"
         )
     if {"SOLVER_BUILD", "FS_BUILD"} <= set(header):
-        raise MatrixError(f"{source}: SOLVER_BUILD and FS_BUILD name one column; keep one")
+        raise MatrixError(
+            f"{source.as_posix()}: SOLVER_BUILD and FS_BUILD name one column; keep one"
+        )
     result: list[MatrixRow] = []
     seen: set[str] = set()
     for number, line in enumerate(content[1:], 1):
         fields = [c.strip() for c in line.split("|")]
         if len(fields) != len(header):
-            raise MatrixError(f"{source}: data row {number} needs {len(header)} columns")
+            raise MatrixError(f"{source.as_posix()}, data row {number} needs {len(header)} columns")
         row = _row(dict(zip(header, fields, strict=True)), number, source)
         if row.pol.casefold() in seen:
-            raise MatrixError(f"{source}: data row {number} repeats POL {row.pol!r}")
+            raise MatrixError(f"{source.as_posix()}, data row {number}: repeats POL {row.pol!r}")
         seen.add(row.pol.casefold())
         if row.run == 1 or not active_only:
             result.append(row)
@@ -356,5 +360,5 @@ def read_matrix(path: str | Path, *, active_only: bool = True) -> tuple[MatrixRo
     try:
         data = source.read_bytes()
     except OSError as error:
-        raise MatrixError(f"{source}: cannot read: {error}") from error
+        raise MatrixError(f"{source.as_posix()}: cannot read: {error}") from error
     return parse_matrix(data, source, active_only=active_only)

@@ -216,12 +216,32 @@ class RowInputs(InputFiles):
         self._bytes.update(common._bytes)
         self.setup = resolve_setup_paths(
             root,
-            apply_variables(self.read_toml(f"inputs/setups/{row.setup_id}.toml"), row.variables),
+            apply_variables(
+                self._named("SET", f"inputs/setups/{row.setup_id}.toml", row.setup_id),
+                row.variables,
+            ),
         )
-        self.reference = self.read_toml(f"inputs/references/{row.reference_id}.toml")
-        self.post = self.read_toml(f"inputs/pproc/{row.post_id}.toml")
+        self.reference = self._named(
+            "REF", f"inputs/references/{row.reference_id}.toml", row.reference_id
+        )
+        self.post = self._named("PPROC", f"inputs/pproc/{row.post_id}.toml", row.post_id)
         self.geometry = resolve_geometry(root, row.geometry)
         self._row = row
+
+    def _named(self, column: str, name: str, ident: str) -> Mapping[str, object]:
+        """Read the TOML a row's SET, REF or PPROC cell names, refusing a missing file by cell."""
+        if not workspace_path(self.root, name).is_file():
+            raise PlanError(f"{column} {ident} names {name}, which does not exist")
+        return self.read_toml(name)
+
+    def file_names(self) -> Mapping[str, str]:
+        """Return the words an adapter refusal uses for the row's files and the files they are."""
+        row = self._row
+        return {
+            "setup file": f"inputs/setups/{row.setup_id}.toml",
+            "REF file": f"inputs/references/{row.reference_id}.toml",
+            "PPROC file": f"inputs/pproc/{row.post_id}.toml",
+        }
 
     def warn_unread(
         self, solver: str, *, reference: Collection[str] = (), post: Collection[str] = ()
@@ -479,9 +499,11 @@ def resolve_matrix(root: str | Path, name: str) -> str:
             "never reads the wrong file"
         )
     if not found:
+        stem = homes[1].removesuffix(".fs")
+        have = sorted(p.stem for p in (target / MATRIX_HOME).glob("*.fs"))
         raise PlanError(
-            f"matrix {name!r}: no {homes[0]} in inputs/matrices/ and no {homes[1]} in the "
-            "workspace root"
+            f"no matrix {stem} in inputs/matrices/ (found: {', '.join(have) or 'none'}) and no "
+            f"{homes[1]} in the workspace root"
         )
     return found[0]
 
@@ -538,8 +560,10 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
     rows = parse_matrix(common.read_bytes(matrix), Path(matrix))
     points: list[Point] = []
     for row in rows:
+        names: Mapping[str, str] = {}
         try:
             inputs = RowInputs(target, row, common)
+            names = inputs.file_names()
             hook = validators[config.solver]
             _closed_condition_keys(row, tuple(getattr(hook, "native_condition_keys", ())))
             needs = hook(row, inputs)
@@ -554,7 +578,12 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
                 inputs.geometry = None
             points.extend(_points(target, row, inputs, needs))
         except (ValueError, OSError) as error:
-            raise PlanError(f"data row {row.row_number}, POL {row.pol}: {error}") from error
+            text = str(error)
+            for word, name in names.items():
+                text = text.replace(word, name)
+            raise PlanError(
+                f"{matrix}, data row {row.row_number} (POL {row.pol}): {text}"
+            ) from error
     result = tuple(points)
     check_claims(result)
     return RunPlan(target, matrix, config.solver, result)

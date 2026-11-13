@@ -120,6 +120,18 @@ def _open(args: argparse.Namespace) -> RunRegistry:
     return RunRegistry(Path(args.workspace).resolve(), args.runs)
 
 
+def _say_empty(rows: list[Any], records: list[RunRecord], args: argparse.Namespace) -> None:
+    """Say why a table of the console is empty, so a header alone never stands for an answer."""
+    if rows or getattr(args, "json", False) or getattr(args, "csv", False):
+        return
+    if not records:
+        print("no recorded sim yet: run a matrix first")
+    elif args.failed:
+        print("no failed point")
+    else:
+        print("no recorded point matches the selection")
+
+
 def run_status(args: argparse.Namespace) -> int:
     """List each sim of each matrix with its states, or each point with ``--points``."""
     registry = _open(args)
@@ -144,6 +156,7 @@ def run_status(args: argparse.Namespace) -> int:
             if _wanted(r, args.statuses) and (not args.failed or r.classification == "failed")
         ]
         emit_rows(rows, ["sim", "matrix", "point", "status", "classification", "error"], args)
+        _say_empty(rows, records, args)
         return 0
     groups: dict[tuple[str, str], list[RunRecord]] = {}
     for record in records:
@@ -168,6 +181,7 @@ def run_status(args: argparse.Namespace) -> int:
             }
         )
     emit_rows(rows2, ["sim", "matrix", "points", "status", "failed"], args)
+    _say_empty(rows2, records, args)
     return 0
 
 

@@ -60,6 +60,28 @@ def _validate(
     return WorkspaceConfig(schema_version=version, solver=solver, solver_options=solver_options)
 
 
+def require_workspace(root: str | Path) -> Path:
+    """Return the resolved workspace root, refusing a folder that has no init.toml.
+
+    Parameters
+    ----------
+    root : str or Path
+        Folder a command was pointed at.
+
+    Raises
+    ------
+    WorkspaceError
+        The folder is not a cfdbender workspace.
+    """
+    target = Path(root).resolve()
+    if not (target / "init.toml").exists():
+        raise WorkspaceError(
+            f"{target} is not a cfdbender workspace (no init.toml); "
+            "run cfd-workspace init or pass --workspace"
+        )
+    return target
+
+
 def read_init(root: str | Path, *, available_solvers: Collection[str]) -> WorkspaceConfig:
     """Read and validate init.toml at a workspace root.
 
@@ -80,7 +102,7 @@ def read_init(root: str | Path, *, available_solvers: Collection[str]) -> Worksp
     WorkspaceError
         If the file cannot be read, is malformed, or declares unsupported values.
     """
-    source = Path(root).resolve() / "init.toml"
+    source = require_workspace(root) / "init.toml"
     try:
         values = tomllib.loads(source.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:

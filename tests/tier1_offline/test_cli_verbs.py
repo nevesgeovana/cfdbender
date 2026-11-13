@@ -310,7 +310,7 @@ def test_runs_option_reads_another_manifest(tmp_path, capsys):
     (tmp_path / "runs.json").unlink()
     capsys.readouterr()
     assert main(["status", "--workspace", str(tmp_path)]) == 0
-    assert out(capsys).count("\n") == 1, "only the header: runs.json is absent"
+    assert "no recorded sim yet" in out(capsys), "runs.json is absent"
     assert main(["status", "--runs", "other.json", "--workspace", str(tmp_path)]) == 0
     assert "1001" in out(capsys)
     assert main(["status", "--runs", "../x.json", "--workspace", str(tmp_path)]) == 2

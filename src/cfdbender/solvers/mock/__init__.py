@@ -25,6 +25,7 @@ from cfdbender.core.results import (
     NeutralResult,
     References,
 )
+from cfdbender.solvers._host._config import steady_only, unknown_keys
 
 SOLVER_NAME = "mock"
 STAGED_CONFIG = "mock.in"
@@ -68,18 +69,20 @@ def _validate(
     unknown = sorted(set(setup) - {"mock", "solver", "solver_version", "ncpus", "solver_type"})
     if unknown:
         raise ValueError(
-            f"unsupported setup key {unknown[0]!r}; the mock setup holds [mock] and the "
+            f"setup file: unsupported key {unknown[0]!r}; the mock setup holds [mock] and the "
             "cluster keys solver_version, ncpus and solver_type"
         )
     table = setup.get("mock")
     if not isinstance(table, dict):
-        raise ValueError("setup needs a [mock] table with outcome and iterations")
+        raise ValueError("setup file needs a [mock] table with outcome and iterations")
+    if extra := set(table) - {"outcome", "iterations"}:
+        raise unknown_keys("setup file [mock]", extra, {"outcome", "iterations"})
     outcome = table.get("outcome")
     iterations = table.get("iterations")
     if outcome not in ("converged", "iteration_limit", "failed"):
-        raise ValueError("mock.outcome must be converged, iteration_limit or failed")
+        raise ValueError("setup file [mock] outcome must be converged, iteration_limit or failed")
     if type(iterations) is not int or not 2 <= iterations <= 10000:
-        raise ValueError("mock.iterations must be an integer between 2 and 10000")
+        raise ValueError("setup file [mock] iterations must be an integer between 2 and 10000")
     refs = _references(reference)
     if post.get("history") is not True:
         raise ValueError("pproc history must be true for classification")
@@ -103,7 +106,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     """
     _validate(workspace.setup, workspace.reference, workspace.post)
     if row.workflow != "steady":
-        raise ValueError("mock WORKFLOW must be steady")
+        raise steady_only("the mock solver")
     if workspace.geometry is not None:
         # The mock reads nothing from the geometry; tracking it records its digest.
         workspace.read_bytes(workspace.geometry)

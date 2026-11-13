@@ -14,7 +14,7 @@ from cfdbender.core.adapter import SolverAdapter
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.registry import RunRecord
 from cfdbender.core.run import execute_plan
-from cfdbender.core.settings import WorkspaceError
+from cfdbender.core.settings import WorkspaceError, require_workspace
 from cfdbender.matrix import queries, records, storage
 from cfdbender.matrix._console import (
     Console,
@@ -312,6 +312,7 @@ def _execute(
     console: Console,
 ) -> int:
     try:
+        require_workspace(args.workspace)
         if args.command in verbs:
             return verbs[args.command](args)
         if args.command == "post":
@@ -324,6 +325,9 @@ def _execute(
             split_ids(args.sims),
             split_ids(args.points),
         )
+        if not plan.points:
+            console.final(f"no active row: every row of {Path(plan.matrix).name} has RUN = 0")
+            return 0
         if args.command == "plan":
             receipt = write_receipt(plan)
             console.detail(f"plan receipt: {receipt}")
