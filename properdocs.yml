@@ -62,6 +62,7 @@ nav:
   - Workspace files: workspace-files.md
   - Workspace settings: workspace-settings.md
   - Architecture: architecture.md
+  - Adapter contract: adapter-contract.md
   - Requirements: requirements/index.md
 exclude_docs: |
   /unpublished/
