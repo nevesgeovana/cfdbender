@@ -18,7 +18,8 @@ POL  | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION       | FLIGHT_COND
 POL, RUN, SET, REF and PPROC are required; every other column is optional and
 may be left out of the header. **A cell holding `-` states nothing.** A column
 the layout does not know is refused before anything is planned, naming the
-closest known column.
+closest known column. A header whose columns are separated by commas is refused
+with `columns are separated by |`.
 
 | Column | Meaning |
 |---|---|

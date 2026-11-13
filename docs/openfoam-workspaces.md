@@ -58,7 +58,7 @@ iterations = 500
 | `iterations` | SIMPLE iterations (`endTime`), integer above 0 | - | required |
 | `residual_target` | initial residual that counts as converged | - | 1e-5 |
 
-Any other key is refused as `unsupported OpenFOAM setup: <keys>`.
+Any other key is refused as `<file>: unknown key '<key>' (closest known key: <name>); known keys: ...`, naming the file.
 
 **`[solver]` table**
 
@@ -96,7 +96,7 @@ Each step writes its own `log.*` file, and a failed step stops `Allrun`. ESI wri
 
 **Pproc file** `inputs/pproc/p001.toml` must hold `history = true`; otherwise `post history must be true`.
 
-**Flight condition.** The row carries `ALPHA` in degrees, or an alpha sweep. Any other condition key is refused as `unsupported OpenFOAM condition: <keys>`. The case flies at `BETA` 0: `the OpenFOAM case flies at BETA 0; remove BETA from the row`. A row that states the air (`TASmps` or `MACH`, with the other keys of [Matrix columns](matrix-columns.md)) replaces `speed` and `nu`:
+**Flight condition.** The row carries `ALPHA` in degrees, or an alpha sweep. Any other condition key is refused as `FLIGHT_CONDITION: unknown key '<key>' (closest known key: <name>); known keys: ...`. The case flies at `BETA` 0: `the OpenFOAM case flies at BETA 0; remove BETA from the row`. A row that states the air (`TASmps` or `MACH`, with the other keys of [Matrix columns](matrix-columns.md)) replaces `speed` and `nu`:
 
 | Matrix | OpenFOAM key |
 |---|---|

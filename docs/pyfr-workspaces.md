@@ -45,7 +45,7 @@ The mesh is two-dimensional, with the physical groups `fluid`, `wall` and `far`.
 | `backend` | `"cuda"` or `"openmp"` | - | `"cuda"` |
 | `tolerance` | stationarity tolerance, see below | fraction | 0.01 |
 
-`mach`, `reynolds`, `alpha`, `order`, `tend`, `window_start` and `tolerance` may also be matrix conditions; `alpha` is normally the matrix condition. A key not in this table is refused: `unsupported PyFR setup: [...]`.
+`mach`, `reynolds`, `alpha`, `order`, `tend`, `window_start` and `tolerance` may also be matrix conditions; `alpha` is normally the matrix condition. A key not in this table is refused: `<file>: unknown key '<key>' (closest known key: <name>); known keys: ...`.
 
 **`[solver]` table**
 
@@ -55,9 +55,9 @@ The mesh is two-dimensional, with the physical groups `fluid`, `wall` and `far`.
 | `launcher` | tokens placed before it, for example `["wsl", "-d", "Ubuntu", "--"]` | - | `[]` |
 | `timeout_s` | time after which cfdbender stops the run, import and solve together | s | 600 |
 
-**Reference file** `inputs/references/r001.toml` stays empty. A reference file with keys is refused: `PyFR uses unit references and requires history=true`.
+**Reference file** `inputs/references/r001.toml` may be empty: PyFR uses unit references. It reads only `length`, to turn a Reynolds number into a flow state when the row states the air with keys other than `REmi`. Any other key is skipped with a warning that names the row, the file and the key (`'area' of inputs/references/r001.toml is skipped; PyFR does not read it`); planning goes on without it.
 
-**Pproc file** `inputs/pproc/p001.toml` holds `history = true` and nothing else.
+**Pproc file** `inputs/pproc/p001.toml` holds `history = true`; without it planning refuses with `inputs/pproc/p001.toml history must be true`. Any other key is skipped with a warning.
 
 **Flight condition.** cfdbender derives the free stream from the row: the viscosity is `1/Reynolds`, the pressure is `1/(1.4 Mach^2)`, and the velocity components are the cosine and sine of the angle of attack. Translating the same row twice gives byte-identical `case.ini` text.
 
@@ -67,7 +67,7 @@ The mesh is two-dimensional, with the physical groups `fluid`, `wall` and `far`.
 | `ALPHA` | `alpha` |
 | `GEOMETRY` | `mesh` |
 
-`REmi` gives the Reynolds number, since the reference file is empty. A row that states only `MACH` and angles replaces the setup's `mach`. A row can also carry `ORDER`, `TEND`, `WINDOW_START` and `TOLERANCE`; any other key is refused as `unsupported PyFR condition: <key>`. `BETA` must be 0: `a two-dimensional case flies at BETA 0; remove BETA from the row`. A setup value that disagrees with the row is refused: `conflict: <key> is <value> in the inputs and <value> from the matrix row; state it in one place`. See [Matrix columns](matrix-columns.md).
+`REmi` gives the Reynolds number, since the reference file is empty. A row that states only `MACH` and angles replaces the setup's `mach`. A row can also carry `ORDER`, `TEND`, `WINDOW_START` and `TOLERANCE`; any other key is refused as `FLIGHT_CONDITION: unknown key '<key>' (closest known key: <name>); known keys: ...`. `BETA` must be 0: `a two-dimensional case flies at BETA 0; remove BETA from the row`. A setup value that disagrees with the row is refused: `conflict: <key> is <value> in the inputs and <value> from the matrix row; state it in one place`. See [Matrix columns](matrix-columns.md).
 
 cfdbender runs `pyfr import mesh.msh mesh.pyfrm`, then `pyfr -p run -b <backend> mesh.pyfrm case.ini`, in the point folder. The folder keeps `stdout.log`, `stderr.log`, `execution.json` and `forces.csv`. For a scheduler job, see [Cluster jobs](cluster-jobs.md).
 

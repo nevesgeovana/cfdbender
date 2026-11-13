@@ -79,7 +79,7 @@ cfd-workspace init [ROOT] [options]
 |---|---|
 | `[ROOT]` | Campaign root to create or complete (default: the current directory) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory); the positional root names the same folder |
-| `--solver SOLVER` | Solver for this workspace; available solvers: flightstream, mock, openfoam, pyfr, qprop, su2, xfoil |
+| `--solver NAME` | Solver for this workspace, one of: flightstream, mock, openfoam, pyfr, qprop, su2, xfoil |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
@@ -96,7 +96,7 @@ cfd-matrix plan MATRIX [options]
 | Argument or option | Meaning |
 |---|---|
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
@@ -117,7 +117,7 @@ cfd-matrix run MATRIX [options]
 | Argument or option | Meaning |
 |---|---|
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--resume` | Skip points already recorded COMPLETED or SUBMITTED and run the rest, so a grown matrix runs only its new points; a point left RUNNING by a crashed local run runs again when no solver process holds this host's slot. Without it a recorded point refuses the run |
 | `--force-rerun POINT` | Redo this recorded point, named POL/DP-name or DP-name; repeat for several. runs.json is copied to archive/&lt;stamp&gt;/runs.json, the point folder moves to archive/&lt;stamp&gt;/ and its record joins the runs.json history; nothing is deleted |
 | `--force-rerun-all` | Redo every recorded point of the matrix, archived as --force-rerun archives; a SUBMITTED job is not cancelled, cancel it in the scheduler first |
@@ -141,12 +141,12 @@ cfd-matrix status [options]
 
 | Argument or option | Meaning |
 |---|---|
-| `--sims POL [POL ...]` | Only these simulations |
+| `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--matrix MATRIX` | Only this recorded matrix |
 | `--status WORD` | Only sims with a point in this status or classification (repeatable; a trailing * matches every word it begins) |
 | `--failed` | Only sims with a failed point |
 | `--points` | One row per point |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--json` | Print a JSON document of the rows |
 | `--csv` | Print CSV; nested cells are JSON |
@@ -165,7 +165,7 @@ cfd-matrix show TARGET [options]
 |---|---|
 | `TARGET` | A sim (POL), a point id (POL/DP-name) or a run id |
 | `--point POINT` | Only the run of this point name within the target |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--json` | Print a JSON document of the rows |
 | `--csv` | Print CSV; nested cells are JSON |
@@ -183,7 +183,7 @@ cfd-matrix history TARGET [options]
 | Argument or option | Meaning |
 |---|---|
 | `TARGET` | A sim (POL) or a point id (POL/DP-name) |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--json` | Print a JSON document of the rows |
 | `--csv` | Print CSV; nested cells are JSON |
@@ -202,13 +202,13 @@ cfd-matrix log [options]
 |---|---|
 | `--post MATRIX` | The saved post log of a matrix |
 | `--storage` | List the recorded storage calls |
-| `--sims POL [POL ...]` | Only these simulations |
+| `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--run RUN` | Only events naming this run id |
 | `--stage STAGE` | Only this stage (storage: command) |
 | `--since SINCE` | Events since an ISO time or duration, such as 2h or 7d |
 | `--problems` | Only problems and failed outcomes |
 | `--open` | Runs started without a finish in the records; never asks a scheduler |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--json` | Print a JSON document of the rows |
 | `--csv` | Print CSV; nested cells are JSON |
@@ -227,7 +227,7 @@ cfd-matrix trace PRODUCT [options]
 |---|---|
 | `PRODUCT` | A product path in the workspace, such as post/&lt;matrix&gt;/... |
 | `--run RUN` | Trace this run id instead of looking the product up |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--json` | Print a JSON document of the rows |
 | `--csv` | Print CSV; nested cells are JSON |
@@ -246,7 +246,7 @@ cfd-matrix diff RUN_A RUN_B [options]
 |---|---|
 | `RUN_A` | A run id (see history) |
 | `RUN_B` | A run id (see history) |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--json` | Print a JSON document of the rows |
 | `--csv` | Print CSV; nested cells are JSON |
@@ -266,11 +266,11 @@ cfd-matrix collect [MATRIX] [options]
 | Argument or option | Meaning |
 |---|---|
 | `[MATRIX]` | Recorded matrix name (default: all) |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
-| `--local` | Keep work on THIS machine instead of submitting it |
+| `--local` | ==SUPPRESS== |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
@@ -291,8 +291,8 @@ cfd-matrix post [MATRIX] [options]
 | Argument or option | Meaning |
 |---|---|
 | `[MATRIX]` | Recorded matrix name (default: all) |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
-| `--sims POL [POL ...]` | Only these simulations |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
+| `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--archive` | Keep a copy of each replaced product under archive/&lt;stamp&gt;/ |
@@ -314,7 +314,7 @@ cfd-matrix mark-failed [options]
 | `--sims POL [POL ...]` | The simulations to mark, by POL |
 | `--reason REASON` | Why, recorded as given |
 | `--points NAME [NAME ...]` | Only these points of the sims |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--apply` | Change files; without it the command previews and changes nothing |
 | `--verbose` | Print details too; the same as --log-level verbose |
@@ -333,7 +333,7 @@ cfd-matrix mark-converged [options]
 | `--sims POL [POL ...]` | The simulations to mark, by POL |
 | `--reason REASON` | Why, recorded as given |
 | `--points NAME [NAME ...]` | Only these points of the sims |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--apply` | Change files; without it the command previews and changes nothing |
 | `--verbose` | Print details too; the same as --log-level verbose |
@@ -350,7 +350,7 @@ cfd-matrix restore {runs,storage,products,plan} [options]
 | Argument or option | Meaning |
 |---|---|
 | `{runs,storage,products,plan}` | The file to restore |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--stamp STAMP` | The archive stamp to restore from (default: the latest) |
 | `--matrix MATRIX` | For products and plan: the matrix whose file to restore |
 | `--apply` | Change files; without it the command previews and changes nothing |
@@ -367,7 +367,7 @@ cfd-matrix rebuild [options]
 
 | Argument or option | Meaning |
 |---|---|
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--out NAME` | Write the rebuilt records to this manifest in the workspace root |
 | `--all-sims` | Rebuild every sim folder on disk, recorded or not |
@@ -379,7 +379,7 @@ cfd-matrix rebuild [options]
 
 ### `cfd-workspace archive`
 
-Moves sims/sim_&lt;sim_id&gt;/ of a recorded simulation into archive/&lt;stamp&gt;/ and moves its records from runs.json to the manifest history, so the simulation can be run again into a clean folder while its evidence stays. Refuses a simulation the manifest does not record. It does not read the status of the runs: do not archive a simulation whose run is still going.
+Moves sims/sim_&lt;sim_id&gt;/ of a recorded simulation into archive/&lt;stamp&gt;/ and moves its records from runs.json to the manifest history, so the simulation can be run again into a clean folder while its evidence stays. Refuses a simulation the manifest does not record. It does not read the status of the runs: do not archive a simulation whose run is still going. It acts at once, with no preview, as pyflightstream's archive does; look first with cfd-matrix status --points --sims &lt;POL&gt;.
 
 ```text
 cfd-workspace archive [ROOT] SIM_ID [options]
@@ -405,7 +405,7 @@ cfd-matrix space-in-use [options]
 
 | Argument or option | Meaning |
 |---|---|
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--top TOP` | Rows shown per grouping (default: 15) |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
@@ -415,13 +415,13 @@ cfd-matrix space-in-use [options]
 Run a storage recipe inputs/management/&lt;recipe&gt;.toml (preview unless --apply).
 
 ```text
-cfd-matrix free-space RECIPE [options]
+cfd-matrix free-space [RECIPE] [options]
 ```
 
 | Argument or option | Meaning |
 |---|---|
-| `RECIPE` | The recipe id: a file stem in inputs/management/ |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `[RECIPE]` | The recipe id: a file stem in inputs/management/ (with --list alone: list them) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--apply` | Change files; without it the command previews and changes nothing |
 | `--list` | Print every path a step touches, with its size and what happens to it |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
@@ -439,7 +439,7 @@ cfd-matrix delete-sims [options]
 | Argument or option | Meaning |
 |---|---|
 | `--sims POL [POL ...]` | The simulations to delete |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--matrix-products {points-only,regenerate}` | What happens to a matrix product that also holds the deleted points |
 | `--force` | Delete a sim whatever the status of its records; without it a SUBMITTED point refuses |
 | `--apply` | Change files; without it the command previews and changes nothing |
@@ -459,7 +459,7 @@ cfd-matrix sync {runs,post,all} [options]
 | Argument or option | Meaning |
 |---|---|
 | `{runs,post,all}` | What to bring; each level adds to the one before |
-| `--workspace WORKSPACE` | Campaign workspace (default: .) |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--from SOURCE` | One workspace name from sync-workspaces.toml (default: every one) |
 | `--apply` | Change files; without it the command previews and changes nothing |
 | `--prefer-other` | On a record conflict, take the other workspace's record |

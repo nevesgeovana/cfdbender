@@ -36,10 +36,12 @@ campaign/
   logs/                         # what run, collect and post printed, and every warning
 ```
 
-`cfd-workspace init` creates `init.toml`, `sims/`, `post/`, `archive/` and the
-input folders `matrices`, `setups`, `references`, `pproc`, `mesh` and `hpc`.
-You create `inputs/management/` and the optional files when you need them.
-Every other file appears when the command beside it first runs.
+`cfd-workspace init` creates `init.toml`, `sims/`, `post/`, `archive/`, the
+input folders `matrices`, `setups`, `references`, `pproc`, `mesh` and `hpc`
+(the mock solver creates a few more), the file `inputs/INPUTS.md`, which says
+what each input file of the solver holds, and `inputs/.gitignore`. You create
+`inputs/management/` and the optional files when you need them. Every other
+file appears when the command beside it first runs.
 
 ## What you write
 
@@ -72,15 +74,27 @@ schema_version = 1
 solver = "su2"
 ```
 
+For QPROP the solver is a table, which also holds the settings of its section
+polars (see [QPROP](qprop-workspaces.md)):
+
+```toml
+schema_version = 1
+
+[solver]
+name = "qprop"
+section_timeout_s = 60
+on_unconverged_section = "warn"
+```
+
 Every command reads it first. A workspace keeps its solver for life: `init`
 refuses a folder that already holds an `init.toml`, and a collect refuses
 records made by another solver. The solver names are lower case, and
 `cfd-workspace init --help` lists them.
 
-`init` writes this file and you do not need to edit it. A key other than these
-two, a `schema_version` other than the integer `1` or a solver name that is not
-in the list is refused by every command, with the name of the file and the
-problem.
+`init` writes this file and you do not need to edit it, except for the QPROP
+section settings. A key other than these, a `schema_version` other than the
+integer `1` or a solver name that is not in the list is refused by every
+command, with the name of the file and the problem.
 
 ## What a run writes
 

@@ -83,11 +83,13 @@ the key or value at fault and, where a choice exists, the accepted values.
 The core adds the data row and the POL.
 
 **C-09.** A key of the s file that the adapter does not know is refused at
-planning, never ignored. The same holds for the r and p files wherever the
-adapter reads them.
+planning, never ignored: the refusal names the file, the key as written and the
+closest known key. A key of the r or p file that the adapter does not read is
+not refused: it is warned about once, naming the row, the file and the key, and
+skipped (`RowInputs.warn_unread`).
 
 **C-10.** `validate_row` returns at least one action (a short phrase the plan
-listing prints after "would:") and every output file the point will write, as
+listing prints after "would:" under `--verbose`) and every output file the point will write, as
 templates under `sims/sim_{pol}/datapoints/{point}/`. An adapter that declares
 no action or no output is refused by the core, as is an output outside
 `sims/` or `post/`. After a run that is not failed every declared output
@@ -217,7 +219,10 @@ iteration history; the classification; and the solver version.
 **C-38.** A coefficient keeps the name, the sign and the normalisation the
 solver prints. The adapter does not rotate a frame or renormalise a
 coefficient unless it documents it and reports both. Where a solver reports
-in two frames, each coefficient states its frame.
+in two frames, each coefficient states its frame. The tables of `collect` add
+the neutral columns `CL`, `CD` and `CM` beside the solver's own names; which
+of its names an adapter gives them is stated in one table, `core/neutral.py`,
+and a solver with no such coefficient writes `NA`.
 
 **C-39.** The references in the result are the ones the solver used: read
 from the r file, or read back from the solver's own input, or, for a solver

@@ -9,13 +9,25 @@ cfd-matrix collect polar
 ```
 
 ```text
-collected summary: /home/you/campaign/post/polar/campaign_summary.json
-collected table: /home/you/campaign/post/polar/campaign_sweep.csv
-collected table: /home/you/campaign/post/polar/polars/P1001.csv
+wrote post/polar/campaign_summary.json
+wrote post/polar/campaign_sweep.csv
+wrote post/polar/polars/P1001.csv
 collected 3, failed 0, outstanding 0
 ```
 
 Without a matrix name, `collect` does this for every matrix that has records.
+`post` prints the same `wrote` lines and ends with `post read 3, failed 0,
+outstanding 0`. Use `collect` to read the results of points that were
+submitted to a cluster; use `post` to rebuild the tables of points that
+already ran here, with no solver and no pickup.
+
+When a matrix was edited after a run, so that some recorded points are no
+longer in it, `collect` says so on its own line and does not count them among
+the failures:
+
+```text
+2 recorded points are not in polar.fs any more (1001/DP-M200AL+000, 1001/DP-M200AL+020); retire them with cfd-matrix delete-sims or cfd-workspace archive
+```
 
 ## The files
 
@@ -79,7 +91,7 @@ Every table of a matrix has the same header, in this order:
 | `MACH` | | Mach number, from the row or resolved from the air state. |
 | `RE` | millions | Reynolds number over the reference length. |
 | `VINF` | m/s | Flow speed. |
-| `ALT` | ft | Altitude, when the row states `ALTFT`. |
+| `ALT` | ft | Altitude: `ALTFT` of the row, or 0 where the air state is the standard atmosphere at sea level. |
 | `RHO`, `TEMP`, `MU` | kg/m3, K, Pa s | Density, static temperature and viscosity of the resolved air state. |
 | `J`, `RPM_CLOCK` | , rev/min | Advance ratio and rotation speed, when the row states them. |
 | `VREF`, `J_CLOCK`, `BREF` | | Kept in the header so that the tables of every campaign line up; filled only when the row states a key of that name. |
@@ -89,7 +101,8 @@ Every table of a matrix has the same header, in this order:
 | `iterations`, `residual` | | The last entry of the iteration history. |
 | `wall_time_s` | s | Time from the start to the end of the run. |
 | `solver_version` | | The version the solver printed. |
-| coefficients | | One column per coefficient the solver reported, under the name the solver gives it. |
+| `CL`, `CD`, `CM` | | The lift, drag and pitching-moment coefficients, the same on every solver; see below. |
+| coefficients | | One column per coefficient the solver reported, under the name the solver gives it, after the three above. |
 
 The air state columns are resolved from the `FLIGHT_CONDITION` of the row by
 the same rules that prepare the solver input, so the table and the solver
@@ -103,9 +116,23 @@ Three rules make the tables safe to read with any tool:
 - A point is never left out. A point that failed or could not be read keeps its
   row, with `NA` where it has no value.
 
-The coefficient names are those of the solver, so they differ between
-solvers: one reports `CL` and `CD`, another `Cl` and `Cd`. The page of each
-solver lists its names, their axes and their reference values.
+The columns after `CM` carry the solver's own names, so they differ between
+solvers. `CL`, `CD` and `CM` do not: they are filled from the solver's own
+columns by the table below, and a script that reads them works on every solver.
+A solver that reports no such coefficient writes `NA`. The page of each solver
+lists its own names, their axes and their reference values.
+
+| Solver | `CL` | `CD` | `CM` |
+|---|---|---|---|
+| SU2 | `CL` | `CD` | `CMy` |
+| OpenFOAM | `Cl` | `Cd` | `CmPitch` |
+| PyFR | `Cl` | `Cd` | `NA`, PyFR reports no moment |
+| XFOIL | `CL` | `CD` | `CM` |
+| QPROP | `NA` | `NA` | `NA`, a propeller has thrust and power instead; see its page |
+| FlightStream | `CLB` | `CDB` | `CMB25` |
+| mock | `CZ` | `CX` | `Cm` |
+
+`RE` is in millions: a Reynolds number of 500000 is `0.5`.
 
 ## Part of a matrix
 

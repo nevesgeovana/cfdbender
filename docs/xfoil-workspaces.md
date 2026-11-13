@@ -36,7 +36,7 @@ cfdbender finds XFOIL in this order:
 | 2 | the environment variable `CFDBENDER_XFOIL_EXE` |
 | 3 | `xfoil` on the PATH |
 
-With a `launcher` (for example `["wsl", "-d", "Ubuntu", "--"]`), cfdbender passes the executable path unchanged to the guest system and does not search the host. Give an absolute Linux path; `~` is not expanded. Without a launcher, a missing executable refuses: `XFOIL executable not found; set solver.executable or CFDBENDER_XFOIL_EXE`.
+With a `launcher` (for example `["wsl", "-d", "Ubuntu", "--"]`), cfdbender passes the executable path unchanged to the guest system and does not search the host. Give an absolute Linux path; `~` is not expanded. Without a launcher, a missing executable refuses `run --local` before any point is recorded: `XFOIL executable not found: 'xfoil'; set executable in the [solver] table of the setup file, or declare SOLVER_BUILD in inputs/executables.toml`.
 
 A matrix row can also pick a build by name; see [Executables](executables.md).
 
@@ -49,7 +49,7 @@ XFOIL needs no mesh. You give the airfoil in one of two ways, and exactly one:
 | `airfoil` | a NACA four- or five-digit designation, for example `"NACA 0012"` |
 | `airfoil_file` | a coordinate file `<name>.dat` in `inputs/mesh/` (or `inputs/airfoils/`) |
 
-The matrix `GEOMETRY` column names the coordinate file and becomes `airfoil_file`; the setup then states no `airfoil`. Stating both, or neither, is refused: `specify exactly one of airfoil and airfoil_file`. A designation that is not `NACA` plus four or five digits is refused: `airfoil must be a NACA 4 or 5 digit designation, e.g. NACA 0012`. A coordinate file elsewhere is refused: `airfoil_file must name inputs/mesh/<name>.dat or inputs/airfoils/<name>.dat`.
+The matrix `GEOMETRY` column names the coordinate file and becomes `airfoil_file`; the setup then states no `airfoil`. Stating both, or neither, is refused: `specify exactly one of airfoil and airfoil_file`. A designation that is not `NACA` plus four digits, or five digits starting with 1 to 6, is refused: `setup file airfoil must be a NACA 4 or 5 digit designation, e.g. NACA 0012 or NACA 23012` (with the file name in place of `setup file`). A coordinate file elsewhere is refused: `airfoil_file must name inputs/mesh/<name>.dat or inputs/airfoils/<name>.dat`.
 
 cfdbender writes the coordinate file into each point folder as `airfoil.dat`, and `xfoil.in` loads it.
 
@@ -66,7 +66,7 @@ cfdbender writes the coordinate file into each point folder as `airfoil.dat`, an
 | `iterations` | viscous iteration limit, integer from 1 | - | 200 |
 | `panels` | number of panels | - | XFOIL's own |
 
-Any other key is refused as `unsupported XFOIL setup: <keys>`.
+Any other key is refused as `<file>: unknown key '<key>' (closest known key: <name>); known keys: ...`, naming the setup file. When neither `REmi` in the row nor `reynolds` in the setup states a Reynolds number, `plan` warns that XFOIL runs inviscid.
 
 **`[solver]` table**
 

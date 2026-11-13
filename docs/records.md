@@ -16,8 +16,11 @@ read it or change it. You never edit it by hand.
 | `SUBMITTED` | The point was sent to a cluster and its result has not been collected. |
 | `COMPLETED` | The point ended. Its verdict says how: `converged`, `iteration_limit` or `failed`. |
 
-`COMPLETED failed` is a point that ended without a usable result. The record
-keeps the reason. [Results and tables](results.md) explains the verdicts.
+A point that ended without a usable result is recorded `COMPLETED` with the
+verdict `failed`, and the record keeps the reason. The commands show such a
+point by the word of its reason, `FAILED_EXECUTION` or another `FAILED_` word,
+so that it is not read as a success. [Results and tables](results.md) explains
+the verdicts.
 
 ## Running a matrix again
 
@@ -28,7 +31,7 @@ cfd-matrix run polar
 ```
 
 ```text
-matrix not run: point '1001/DP-M200AL+000' already recorded COMPLETED
+matrix not run: point '1001/DP-M200AL+000' already recorded COMPLETED; use --resume to run only the points not yet recorded, or --force-rerun POINT to redo one
 ```
 
 Nothing ran and nothing changed. Choose one of the three options below.
@@ -47,8 +50,16 @@ cfd-matrix run polar --resume
 
 `--resume` skips every point recorded `COMPLETED` or `SUBMITTED`, whatever its
 verdict, and runs the rest. Use it after adding rows or sweep values to a
-matrix, and after a run that was interrupted. To run a failed point again, name
-it with `--force-rerun`.
+matrix, and after a run that was interrupted. A skipped point whose verdict is
+`failed` says how to run it again:
+
+```text
+  1001/DP-M200AL+040  skipped: COMPLETED failed; redo it with --force-rerun 1001/DP-M200AL+040
+```
+
+Fixing the cause of a failure and typing `--resume` therefore does not run the
+failed point; name it with `--force-rerun`, or every failed point with
+`--force-rerun-all`.
 
 A point left `RUNNING` by an interrupted run on this machine runs again, as
 long as no solver process is still going on the machine. A `RUNNING` point of a
@@ -65,7 +76,8 @@ cfd-matrix run polar --force-rerun 1001/DP-M200AL+020
 archived previous evidence: /home/you/campaign/archive/20261113T135750Z
   1001/DP-M200AL+000  skipped: COMPLETED, not named by --force-rerun
   1001/DP-M200AL+040  skipped: COMPLETED, not named by --force-rerun
-  1001/DP-M200AL+020  COMPLETED converged
+[1/1] 1001/DP-M200AL+020  running
+[1/1] 1001/DP-M200AL+020  COMPLETED converged in 0 s
 ```
 
 The point is archived before it runs again, and nothing is deleted:
@@ -107,11 +119,16 @@ sim   matrix  point               status     classification  error
 | Command | Prints |
 |---|---|
 | `cfd-matrix status` | One line per sim with the count of its points in each status. `--points` gives one line per point. `--failed` keeps the sims with a failed point. `--status WORD` keeps the sims with a point in that status or verdict; `fail*` matches every word that starts with `fail`. |
-| `cfd-matrix show 1001/DP-M200AL+020` | One record in full: inputs, fingerprints, times, verdict, error. `show 1001` prints every point of the sim. |
+| `cfd-matrix show 1001/DP-M200AL+020` | The card of one point: status and verdict, solver and version, flight condition, iterations and coefficients once collected, folder, times and error if any. `show 1001` lists the points of the sim, one line each. `--verbose` prints the whole record: inputs, fingerprints, every field that has a value. |
 | `cfd-matrix history 1001` | The current and the earlier records of a sim or a point, with the archive folder of each earlier one. |
-| `cfd-matrix log` | What happened, in time order. `--problems` keeps the failures, `--since 2h` the last two hours, `--open` the runs that started and have no end. |
-| `cfd-matrix diff RUN_A RUN_B` | Two records, field by field. The exit code is 1 when they differ. |
-| `cfd-matrix trace post/polar/campaign_sweep.csv` | The runs and the input fingerprints behind a collected file. |
+| `cfd-matrix log` | What happened, in time order: the commands and, for each point, `registered`, `started` and `finished`. `--problems` keeps the failures, `--since 2h` the last two hours, `--open` the runs that started and have no end. |
+| `cfd-matrix diff RUN_A RUN_B` | Two records, field by field. The exit code is 1 when they differ. The fingerprints and output paths, which differ whenever two points do, are folded into one line; `--verbose` lists them. |
+| `cfd-matrix trace post/polar/campaign_sweep.csv` | The runs behind a collected file, with the number of input files each was made from; `--verbose` lists the fingerprints. |
+
+An empty answer says why: `no recorded sim yet: run a matrix first`, `no
+failed point`, or `no recorded point matches the selection`. The times are
+printed in the time of this machine, to the second; the records keep the full
+UTC time, which `--json` prints.
 
 An earlier record is named by its point and its archive stamp, as `history`
 prints it:
@@ -121,9 +138,9 @@ cfd-matrix history 1001/DP-M200AL+020
 ```
 
 ```text
-run                                  kind      when                              status     classification  archive
-1001/DP-M200AL+020                   current   2026-11-13T13:57:50.118099+00:00  COMPLETED  converged
-1001/DP-M200AL+020@20261113T135750Z  archived  2026-11-13T13:57:50.090667+00:00  COMPLETED  converged       archive/20261113T135750Z
+run                                  kind      when                 status     classification  archive
+1001/DP-M200AL+020                   current   2026-11-13 10:57:50  COMPLETED  converged
+1001/DP-M200AL+020@20261113T135750Z  archived  2026-11-13 10:57:50  COMPLETED  converged       archive/20261113T135750Z
 ```
 
 ## Recording your own verdict
@@ -199,13 +216,15 @@ cfd-workspace archive 1001
 ```
 
 ```text
-archived sim_1001 to /home/you/campaign/archive/20261113T140557Z; sims/sim_1001/ is removed
+archived sim 1001 (3 point(s)) to archive/20261113T140557Z; sims/sim_1001/ is removed
 ```
 
 `archive` moves the whole folder of a sim to `archive/<stamp>/` and its records
 to the history, so the sim can run again in a clean folder. Unlike the commands
-above it acts at once, without a preview. It does not look at the status of the
-runs: do not archive a sim that is still running.
+above it acts at once, without a preview, as `archive` does in pyflightstream.
+To see what it would move, look first with `cfd-matrix status --points --sims
+1001`. It does not look at the status of the runs: do not archive a sim that is
+still running.
 
 ## How a point is named
 

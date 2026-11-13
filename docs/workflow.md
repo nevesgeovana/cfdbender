@@ -34,7 +34,7 @@ shows what each one prints.
 
 | Stage | Command | Reads | Writes |
 |---|---|---|---|
-| Create | `cfd-workspace init` | the solver name | `init.toml`, the `inputs/` folders, `sims/`, `post/`, `archive/` |
+| Create | `cfd-workspace init` | the solver name | `init.toml`, the `inputs/` folders, `inputs/INPUTS.md`, `sims/`, `post/`, `archive/` |
 | Write the inputs | none: you write them | | the matrix, the setup, reference and pproc files, the mesh |
 | Plan | `cfd-matrix plan` | `init.toml`, the matrix and every file its rows name | the plan receipt `post/<matrix>/plan.json` |
 | Run | `cfd-matrix run` | the plan receipt, the inputs, `runs.json` | one folder per point under `sims/`, one record per point in `runs.json` |
@@ -50,9 +50,10 @@ cfd-workspace init campaign --solver NAME
 ```
 
 `init` creates the folder `campaign` with its empty input folders and writes
-`init.toml`, which names the solver. A workspace keeps its solver for life.
-`cfd-workspace init --help` lists the solver names. To use two solvers, create
-two workspaces.
+`init.toml`, which names the solver, and `inputs/INPUTS.md`, which says what
+each input file of that solver holds. It ends with the next step. A workspace
+keeps its solver for life. `cfd-workspace init --help` lists the solver names. To
+use two solvers, create two workspaces.
 
 [Workspace layout](workspace-layout.md) names every folder and file.
 
@@ -74,9 +75,11 @@ cfd-matrix plan polar
 ```
 
 `plan` reads the matrix `inputs/matrices/polar.fs` and every file its rows
-name. It prints each point with the files a run would write, and it launches
-nothing. A mistake in an input is refused here: the message names the row and
-the file or the cell at fault, and nothing is written.
+name. It prints one line per point and a closing line with the receipt and the
+next command; `--verbose` adds, for each point, what a run would do and every
+file it would write. It launches nothing. A mistake in an input is refused here:
+the message starts with the matrix path and the row, names the file or the cell
+at fault, and nothing is written.
 
 A plan that succeeds saves a receipt, `post/polar/plan.json`. The receipt holds
 a fingerprint of the matrix and of every input file. `run` compares the inputs
@@ -93,15 +96,19 @@ cfd-matrix run polar
 `sims/sim_<POL>/datapoints/DP-<name>/`, writes the solver input there, starts
 the solver, and records the outcome in `runs.json`.
 
-On your machine the points run one after the other. Three rules protect the
-machine and the results:
+On your machine the points run one after the other, and a line says when
+each starts and when it ends. Before the first point is recorded, `run` checks
+that the solver program exists, that no other solver run holds the machine and
+that the memory is enough; when one fails the run is refused and nothing is
+written. Three rules protect the machine and the results:
 
 - One solver process runs at a time on a machine, also across workspaces. A
   second `run` started while the first is going does not start its solver.
 - A point does not start when the free memory of the machine would fall under
   0.5 GiB.
-- A point that fails is recorded as failed and the run goes on to the next
-  point. The command then ends with exit code 2.
+- A point that fails is recorded as failed, shown as `FAILED_EXECUTION` or
+  another `FAILED_` word, and the run goes on to the next point. The command
+  then ends with exit code 2.
 
 With a cluster profile in `inputs/hpc/`, `run` submits one job per point
 instead; `--local` keeps the work on your machine. See
@@ -122,9 +129,10 @@ cfd-matrix log
 ```
 
 These commands only read the records. `status` gives one line per sim, or one
-line per point with `--points`. `show` prints one record in full. `history`
-lists the current and the earlier runs of a sim or a point. `log` lists what
-happened in time order.
+line per point with `--points`. `show` prints the card of a point, and the whole
+record with `--verbose`. `history` lists the current and the earlier runs of a
+sim or a point. `log` lists what happened in time order. Times are printed in
+the time of the machine, to the second.
 
 ## Collect
 
@@ -147,9 +155,10 @@ like, also while points are still running.
 cfd-matrix post polar
 ```
 
-`post` writes the same files as `collect`. Use `collect` while cluster jobs are
-outstanding, because `collect --watch` can wait for them. Use `post` to rebuild
-the tables of a campaign that has finished.
+`post` writes the same files as `collect` and prints them the same way. Use
+`collect` while cluster jobs are outstanding, because `collect --watch` can wait
+for them. Use `post` to rebuild the tables of a campaign that has finished, with
+no solver and no pickup.
 
 ## Keep or clean
 

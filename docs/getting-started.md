@@ -18,7 +18,7 @@ cd campaign
 ```text
 campaign workspace ready at /home/you/campaign
   init.toml (solver: mock)
-  inputs/geometries/
+  inputs/mesh/
   inputs/references/
   inputs/setups/
   inputs/pproc/
@@ -29,16 +29,24 @@ campaign workspace ready at /home/you/campaign
   inputs/fsi/
   inputs/matrices/
   inputs/management/
+  inputs/INPUTS.md (what each input file holds)
+  inputs/.gitignore (keeps this machine's executable paths out of git)
   sims/
   post/
   archive/
-existing folders and files were kept untouched
+next: write inputs/matrices/<name>.fs, then cfd-matrix plan <name>
 ```
 
 A workspace is one folder for one campaign and one solver. You write files in
 `inputs/` and nowhere else. The commands write `sims/`, `post/` and `archive/`.
 This campaign uses four of the input folders: `matrices`, `setups`,
-`references` and `pproc`.
+`references` and `pproc`. The mock solver lists more folders than the real
+solvers do, which list only the ones they read. When `init` is run on a folder
+that already holds files, it adds the line `existing folders and files were
+kept untouched` before the `next:` line.
+
+`inputs/INPUTS.md` says, for the solver of the workspace, what each input file
+holds and which keys it reads. Open it when you do not know what to write.
 
 ## 2. Write the four input files
 
@@ -101,32 +109,18 @@ cfd-matrix plan polar
 matrix: inputs/matrices/polar.fs
 solver: mock
 3 point(s)
-  1001/DP-M200AL+000: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA
-    DESCRIPTION=First polar
-    ALPHA=0, MACH=0.2
-    would: write mock ASCII input; run mock; read mock history
-    output: sims/sim_1001/datapoints/DP-M200AL+000/mock.in
-    output: sims/sim_1001/datapoints/DP-M200AL+000/history.csv
-    output: sims/sim_1001/datapoints/DP-M200AL+000/execution.json
-  1001/DP-M200AL+020: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA
-    DESCRIPTION=First polar
-    ALPHA=2, MACH=0.2
-    would: write mock ASCII input; run mock; read mock history
-    output: sims/sim_1001/datapoints/DP-M200AL+020/mock.in
-    output: sims/sim_1001/datapoints/DP-M200AL+020/history.csv
-    output: sims/sim_1001/datapoints/DP-M200AL+020/execution.json
-  1001/DP-M200AL+040: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA
-    DESCRIPTION=First polar
-    ALPHA=4, MACH=0.2
-    would: write mock ASCII input; run mock; read mock history
-    output: sims/sim_1001/datapoints/DP-M200AL+040/mock.in
-    output: sims/sim_1001/datapoints/DP-M200AL+040/history.csv
-    output: sims/sim_1001/datapoints/DP-M200AL+040/execution.json
+  1001/DP-M200AL+000: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=0, MACH=0.2
+  1001/DP-M200AL+020: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=2, MACH=0.2
+  1001/DP-M200AL+040: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=4, MACH=0.2
+3 point(s) planned; receipt post/polar/plan.json; next: cfd-matrix run polar
 ```
 
-`plan` reads the matrix and every file it names, and lists each point with the
-files a run would write. It launches nothing. A mistake in an input is refused
-here, with the row and the file at fault, before any solver time is spent.
+`plan` reads the matrix and every file it names, and prints one line per point
+with the three files it uses and its flight condition. It launches nothing. A
+mistake in an input is refused here, with the matrix path, the row and the file
+at fault, before any solver time is spent. Add `--verbose` to see, for each
+point, the labels of its row, what a run would do and every file it would
+write.
 
 Each point has a name built from its flight condition: `DP-M200AL+020` is Mach
 0.200 and alpha +2.0 degrees. With its `POL` in front, `1001/DP-M200AL+020`,
@@ -143,17 +137,26 @@ cfd-matrix run polar
 ```
 
 ```text
-  1001/DP-M200AL+000  COMPLETED converged
-  1001/DP-M200AL+020  COMPLETED converged
-  1001/DP-M200AL+040  COMPLETED converged
+[1/3] 1001/DP-M200AL+000  running
+[1/3] 1001/DP-M200AL+000  COMPLETED converged in 0 s
+[2/3] 1001/DP-M200AL+020  running
+[2/3] 1001/DP-M200AL+020  COMPLETED converged in 0 s
+[3/3] 1001/DP-M200AL+040  running
+[3/3] 1001/DP-M200AL+040  COMPLETED converged in 0 s
 ```
 
 `run` executes each point in its own folder,
 `sims/sim_1001/datapoints/DP-M200AL+000/` for the first one, and records it in
-`runs.json`. The first word is the status of the run: `COMPLETED` means the
-solver process ended. The second word is the verdict on the numbers:
-`converged`, `iteration_limit` or `failed`. A completed run is not always a
-converged one; [Results and tables](results.md) explains the three verdicts.
+`runs.json`. A line says when a point starts and another when it ends, with the
+time it took. The first word of the second line is the status of the run:
+`COMPLETED` means the solver process ended. The second word is the verdict on
+the numbers: `converged`, `iteration_limit` or `failed`. A completed run is not
+always a converged one; [Results and tables](results.md) explains the three
+verdicts. A point that ended in failure reads `FAILED_EXECUTION` or another
+`FAILED_` word instead of `COMPLETED`, so a failure is not mistaken for a
+success. With a real solver, `run` first checks that the solver can start on this machine and
+refuses before it records anything when it cannot; see
+[Troubleshooting](troubleshooting.md).
 
 ## 5. Follow
 
@@ -178,7 +181,9 @@ sim   matrix  point               status     classification  error
 ```
 
 `status` reads the records, so it works at any time, also while a long run is
-going in another terminal.
+going in another terminal. `cfd-matrix show 1001/DP-M200AL+020` prints the card
+of one point: its status and verdict, its iterations and coefficients once
+collected, and its folder.
 
 ## 6. Collect
 
@@ -187,9 +192,9 @@ cfd-matrix collect polar
 ```
 
 ```text
-collected summary: /home/you/campaign/post/polar/campaign_summary.json
-collected table: /home/you/campaign/post/polar/campaign_sweep.csv
-collected table: /home/you/campaign/post/polar/polars/P1001.csv
+wrote post/polar/campaign_summary.json
+wrote post/polar/campaign_sweep.csv
+wrote post/polar/polars/P1001.csv
 collected 3, failed 0, outstanding 0
 ```
 
@@ -198,22 +203,26 @@ of the matrix under `post/polar/`. `campaign_sweep.csv` has one row per point.
 Its first columns for this campaign, with the coefficients the mock reports:
 
 ```text
-POL,point,ALPHA,BETA,MACH,...,status,classification,iterations,residual,wall_time_s,solver_version,CX,CY,CZ,Cl,Cm,Cn
-1001,DP-M200AL+000,0.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.031809,mock-1,0.01,0.02,0.03,0.04,0.05,0.06
-1001,DP-M200AL+020,2.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.024971,mock-1,0.01,0.02,0.03,0.04,0.05,0.06
-1001,DP-M200AL+040,4.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.034441,mock-1,0.01,0.02,0.03,0.04,0.05,0.06
+POL,point,ALPHA,BETA,MACH,...,status,classification,iterations,residual,wall_time_s,solver_version,CL,CD,CM,CX,CY,CZ,Cl,Cm,Cn
+1001,DP-M200AL+000,0.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.031809,mock-1,0.03,0.01,0.05,0.01,0.02,0.03,0.04,0.05,0.06
+1001,DP-M200AL+020,2.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.024971,mock-1,0.03,0.01,0.05,0.01,0.02,0.03,0.04,0.05,0.06
+1001,DP-M200AL+040,4.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.034441,mock-1,0.03,0.01,0.05,0.01,0.02,0.03,0.04,0.05,0.06
 ```
 
 The `...` stands for the air state columns, left out here to fit the page. The
 mock reports the same numbers for every point. `NA` marks a value a point does
-not have.
+not have. `CL`, `CD` and `CM` are the same three coefficients on every solver,
+filled where the solver reports them and `NA` where it does not; the columns
+after them keep the solver's own names, here `CX` to `Cn`. A script that reads
+`CL` works with any solver. `collect` also prints `wrote` before each file as a
+path relative to the workspace.
 
 ## What you have now
 
 ```text
 campaign/
   init.toml
-  inputs/                      the four files you wrote
+  inputs/                      the four files you wrote, and INPUTS.md
   sims/sim_1001/datapoints/    one folder per point, with the solver files
   post/polar/                  the plan receipt and the collected tables
   runs.json                    the record of every point

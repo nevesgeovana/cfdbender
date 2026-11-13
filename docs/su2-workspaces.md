@@ -11,7 +11,7 @@ Install SU2 so that `SU2_CFD` exists on the machine. Install it with CGNS suppor
 | `"executable"` | The `SU2_CFD` program, started as `SU2_CFD su2.cfg` in the point folder. |
 | `"pysu2"` | The SU2 Python wrapper, in a child process. |
 
-Without `route`, cfdbender prefers `pysu2`. When the module is absent it warns `pysu2 is unavailable: <reason>; falling back to the executable route` and runs the executable. With `route = "pysu2"` and no wrapper, it refuses:
+Without `route`, cfdbender prefers `pysu2`, unless the setup states `executable`: a stated executable chooses the executable route, with no search for the wrapper and no warning. When nothing is stated and the module is absent it warns `pysu2 is unavailable: <reason>; falling back to the executable route` and runs the executable. With `route = "pysu2"` and no wrapper, it refuses:
 
 > pysu2 is unavailable: `<reason>`. Build SU2 with the Python wrapper (-Denable-pywrapper=true) on Linux or WSL using a compatible Python; the Windows interpreter cannot import that Linux build. Set solver.pysu2_path or CFDBENDER_PYSU2_PATH to its install directory. The executable route is available: choose solver.route='executable'.
 
@@ -22,7 +22,7 @@ cfdbender finds the files in this order:
 | `SU2_CFD` | `executable` in `[solver]` | `CFDBENDER_SU2_EXE` | `SU2_CFD` on the PATH |
 | Python wrapper directory | `pysu2_path` in `[solver]` | `CFDBENDER_PYSU2_PATH` | the interpreter's own path |
 
-A relative path resolves from the workspace root. If no executable is found, `run` refuses with `SU2 executable not found; set solver.executable or CFDBENDER_SU2_EXE`.
+A relative path resolves from the workspace root. If no executable is found, `run --local` refuses before it records any point, with `SU2 executable not found: 'SU2_CFD'; set executable in the [solver] table of the setup file, or declare SOLVER_BUILD in inputs/executables.toml`; the same command works once the program is installed.
 
 A matrix row can also pick a build by name; see [Executables](executables.md).
 
@@ -36,7 +36,7 @@ Marker names come from the setup file, never from the mesh. Match the names and 
 
 ## Setup file
 
-`inputs/setups/s001.toml` holds numerics, markers and the free stream. cfdbender writes every key into `su2.cfg` as `KEY= value`. Neutral names below map to SU2 keys. Any key written in capitals, such as `SOLVER` or `MARKER_FAR`, passes through unchanged, and a list is written as `( a, b )`. Any other key is refused as `unsupported input <key>; SU2-specific keys must be uppercase`. A key given twice, in any of the setup, reference and pproc files or the row, is refused as `conflict: <key> is supplied more than once`.
+`inputs/setups/s001.toml` holds numerics, markers and the free stream. cfdbender writes every key into `su2.cfg` as `KEY= value`. Neutral names below map to SU2 keys. Any key written in capitals, such as `SOLVER` or `MARKER_FAR`, passes through unchanged, and a list is written as `( a, b )`. Any other key is refused as `<file>: unknown key '<key>' (closest known key: <neutral name>); known keys: ...`, naming the setup, reference or pproc file it was written in. A key given twice, in any of the setup, reference and pproc files or the row, is refused as `conflict: <key> is supplied more than once`.
 
 | Key | SU2 key | Unit | Default |
 |---|---|---|---|
@@ -99,7 +99,7 @@ This starts `mpirun -np 192 /opt/su2/bin/SU2_CFD su2.cfg` in the point folder. U
 | `MUPas` | `VISCOSITY_MODEL= CONSTANT_VISCOSITY`, `MU_CONSTANT` |
 | `GEOMETRY` | `MESH_FILENAME` |
 
-A row that states only `MACH` and angles keeps the setup's flow state. When the air is stated without `REmi`, the Reynolds number written is the outcome of the resolved density, velocity and viscosity over the reference file's `length`. A value that the setup also states must agree with the row, or the point is refused: `conflict: <key> is <value> in the s/r/p files and <value> from the matrix FLIGHT_CONDITION; state it in one place`. `ASMPS` is refused unless it equals the speed of sound SU2 derives from the temperature: `ASMPS pins a speed of sound SU2 cannot hold: SU2 derives it from the temperature; pin TK instead`. See [Matrix columns](matrix-columns.md) for every column.
+A row that states only `MACH` and angles keeps the setup's flow state. When neither the row nor the setup states a Mach number, `plan` warns that SU2 will run with its own default free stream. When the air is stated without `REmi`, the Reynolds number written is the outcome of the resolved density, velocity and viscosity over the reference file's `length`. A value that the setup also states must agree with the row, or the point is refused: `conflict: <key> is <value> in the s/r/p files and <value> from the matrix FLIGHT_CONDITION; state it in one place`. `ASMPS` is refused unless it equals the speed of sound SU2 derives from the temperature: `ASMPS pins a speed of sound SU2 cannot hold: SU2 derives it from the temperature; pin TK instead`. See [Matrix columns](matrix-columns.md) for every column.
 
 ## What converged means
 
@@ -121,7 +121,7 @@ cfdbender reports the coefficients SU2 wrote, with the axis system SU2 uses. SU2
 | `CFx`, `CFy`, `CFz` | force | body x, y, z |
 | `CMx`, `CMy`, `CMz` | moment | body x, y, z |
 
-cfdbender does not rotate between wind and body axes. The result also records the route that ran.
+cfdbender does not rotate between wind and body axes. The result also records the route that ran. In the tables of `collect` the neutral columns `CL`, `CD` and `CM` are filled from `CL`, `CD` and `CMy`; see [Results and tables](results.md).
 
 ## Worked example
 
