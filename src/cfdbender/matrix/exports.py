@@ -65,6 +65,10 @@ _ALIASES = {
 }
 
 
+#: A key spelled as a context column fills that column; it is never a second column.
+_CONTEXT_FOLDED = {name.casefold(): name for name in CONTEXT}
+
+
 def plain_cell(text: str) -> str:
     """Return text as a cell no reader has to unquote.
 
@@ -102,7 +106,8 @@ def _context(
     cells: dict[str, object] = {}
     extra: dict[str, object] = {}
     for key, value in condition.items():
-        column = _ALIASES.get(str(key).casefold())
+        folded = str(key).casefold()
+        column = _ALIASES.get(folded) or _CONTEXT_FOLDED.get(folded)
         if column is None:
             extra[str(key)] = value
         else:
