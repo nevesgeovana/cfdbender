@@ -86,4 +86,12 @@ def test_layout_setup_mesh_path_resolves_through_the_same_resolver(tmp_path):
     assert mesh_module.resolve_mesh_path(root, "inputs/mesh/a.msh") == "inputs/meshes/a.msh"
     (root / "inputs/mesh").mkdir()
     (root / "inputs/mesh/a.msh").write_text("y")
-    assert mesh_module.resolve_mesh_path(root, "inputs/meshes/a.msh") == "inputs/mesh/a.msh"
+    # An explicit legacy path that names an existing file is honoured; one warning says both exist.
+    mesh_module._warned.clear()
+    with pytest.warns(UserWarning, match="both exist") as caught:
+        for _ in range(2):
+            assert (
+                mesh_module.resolve_mesh_path(root, "inputs/meshes/a.msh") == "inputs/meshes/a.msh"
+            )
+    assert len(caught) == 1
+    assert mesh_module.resolve_mesh_path(root, "inputs/mesh/a.msh") == "inputs/mesh/a.msh"

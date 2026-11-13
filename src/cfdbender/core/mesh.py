@@ -33,6 +33,18 @@ def _note_legacy(folder: str) -> None:
     )
 
 
+def _note_both(folder: str, leaf: str) -> None:
+    key = f"{folder}/{leaf}"
+    if key in _warned:
+        return
+    _warned.add(key)
+    warnings.warn(
+        f"{key} and {MESH_FOLDER}/{leaf} both exist; the setup names {key}, so that file is used",
+        UserWarning,
+        stacklevel=3,
+    )
+
+
 def mesh_folder_of(name: str) -> str | None:
     """Return the mesh folder a workspace-relative path starts with, or None."""
     for folder in MESH_FOLDERS:
@@ -54,13 +66,23 @@ def resolve_mesh_path(root: Path, name: str) -> str:
     Returns
     -------
     str
-        The path in the first folder (``inputs/mesh`` first) that holds the file;
-        ``name`` unchanged when it names no mesh folder or no folder holds it.
+        ``name`` itself when that file exists (a legacy path that names an existing file is
+        honoured even when ``inputs/mesh`` holds a same-named file, with one warning that
+        both exist); otherwise the path in the first folder (``inputs/mesh`` first) that
+        holds the file; ``name`` unchanged when it names no mesh folder or no folder holds it.
     """
     folder = mesh_folder_of(name)
     if folder is None:
         return name
     leaf = name[len(folder) + 1 :]
+    if (root / name).is_file():
+        # The file the setup names exists: it is the one used, never a same-named file elsewhere.
+        if folder != MESH_FOLDER:
+            if (root / MESH_FOLDER / leaf).is_file():
+                _note_both(folder, leaf)
+            else:
+                _note_legacy(folder)
+        return name
     for candidate in MESH_FOLDERS:
         if (root / candidate / leaf).is_file():
             if candidate != MESH_FOLDER:
