@@ -33,7 +33,7 @@ def options(
 ) -> dict[str, object]:
     table = setup.get("solver", {})
     if not isinstance(table, dict):
-        raise ValueError("s file [solver] must be a table")
+        raise ValueError("setup file [solver] must be a table")
     for values in (workspace or {}, table):
         if unknown := set(values) - _OPTIONS:
             raise ValueError("unknown XFOIL solver options: " + ", ".join(sorted(unknown)))

@@ -43,12 +43,9 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("pyfr",)
     )
     options(workspace.setup, declaration.solver_options)
-    if (
-        workspace.reference
-        or set(workspace.post) - {"history"}
-        or workspace.post.get("history") is not True
-    ):
-        raise ValueError("PyFR uses unit references and requires history=true")
+    if workspace.post.get("history") is not True:
+        raise ValueError("PPROC file history must be true")
+    workspace.warn_unread("PyFR", reference=("length",), post=("history",))
     conditions = [dict(row.condition)]
     if row.sweep_key:
         conditions = [dict(row.condition, **{row.sweep_key: value}) for value in row.sweep_values]

@@ -9,7 +9,7 @@ from typing import cast
 
 from cfdbender.core.flight import STATE_KEYS, agree, canonical_key, row_flow
 from cfdbender.geometry.blade_slicing import AXES, CUTS, ROTATIONS, SPACINGS
-from cfdbender.solvers._host._config import number
+from cfdbender.solvers._host._config import number, unknown_keys
 
 _OPTIONS = {
     "executable",
@@ -92,7 +92,7 @@ def options(
     """Merge and validate the executable, launcher, timeout and RAM options."""
     table = setup.get("solver", {})
     if not isinstance(table, dict):
-        raise ValueError("s file [solver] must be a table")
+        raise ValueError("setup file [solver] must be a table")
     for values in (workspace or {}, table):
         if unknown := set(values) - _OPTIONS:
             raise ValueError("unknown QPROP solver options: " + ", ".join(sorted(unknown)))
@@ -137,7 +137,7 @@ def setup(values: Mapping[str, object]) -> Setup:
     """Validate the s file; raise ValueError naming the first problem."""
     options(values)
     if unknown := set(values) - _SETUP:
-        raise ValueError("unsupported QPROP setup: " + ", ".join(sorted(unknown)))
+        raise unknown_keys("setup file", unknown, _SETUP)
     blade = values.get("blade")
     if blade is None:
         raise ValueError("blade is required: name inputs/mesh/<name>.obj or inputs/polars-2D/<set>")

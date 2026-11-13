@@ -153,7 +153,7 @@ def test_p0000_qprop_plan_refuses_bad_conditions(tmp_path, setup, condition, pro
         ({"rotation": "left"}, "rotation"),
         ({"n_sections": 0}, "n_sections"),
         ({"axis": "q"}, "axis"),
-        ({"mystery": 1}, "unsupported QPROP setup: mystery"),
+        ({"mystery": 1}, "unknown key 'mystery'"),
         ({"n_blades": 0}, "n_blades"),
         ({"blade": None}, "blade"),
         ({"blade": "inputs/other/blade.obj"}, "blade"),

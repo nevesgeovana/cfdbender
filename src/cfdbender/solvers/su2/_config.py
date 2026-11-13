@@ -94,9 +94,9 @@ def options(
 ) -> dict[str, object]:
     value = setup.get("solver", {})
     if not isinstance(value, dict):
-        raise ValueError("s file [solver] must be a table")
+        raise ValueError("setup file [solver] must be a table")
     if unknown := set(value) - _OPTIONS:
-        raise ValueError("s file [solver] has unknown options: " + ", ".join(sorted(unknown)))
+        raise ValueError("setup file [solver] has unknown options: " + ", ".join(sorted(unknown)))
     if workspace and (unknown := set(workspace) - _OPTIONS):
         raise ValueError("init.toml [solver] has unknown options: " + ", ".join(sorted(unknown)))
     result = dict(workspace or {})
