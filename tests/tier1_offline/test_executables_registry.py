@@ -13,6 +13,8 @@ from cfdbender.core.executables import resolve_executable
 from cfdbender.core.registry import RunRegistry
 from cfdbender.core.settings import WorkspaceError
 from cfdbender.matrix.cli import main
+from cfdbender.matrix.receipt import write_receipt
+from cfdbender.workspace.planning import plan_workspace
 
 FAKE = Path(__file__).resolve().parents[1] / "fixtures/su2/fake_su2.py"
 MPI = Path(__file__).resolve().parents[1] / "fixtures/su2/fake_mpi.py"
@@ -83,7 +85,10 @@ def test_a_missing_or_malformed_build_refuses_before_any_write(
 ):
     case(tmp_path)
     declare(tmp_path, declared, local)
-    assert main(["plan", "study", "--workspace", str(tmp_path)]) == 0
+    # A plan binds the build as a local run would and refuses what the run would refuse.
+    assert main(["plan", "study", "--workspace", str(tmp_path)]) == 2
+    assert word in capsys.readouterr().err
+    write_receipt(plan_workspace(tmp_path, "study"))
     before = tree(tmp_path)
     assert run(tmp_path) == 2
     assert word in capsys.readouterr().err

@@ -364,9 +364,10 @@ def test_console_levels_and_no_local(tmp_path, capsys):
     normal = out(capsys)
     assert main([*base, "--log-level", "quiet"]) == 0
     quiet = out(capsys)
-    assert "would:" in normal and "would:" not in quiet and "2 point(s)" in quiet
+    assert "would:" not in normal and "would:" not in quiet and "2 point(s)" in quiet
     assert main([*base, "--verbose"]) == 0
-    assert normal in out(capsys)
+    verbose = out(capsys)
+    assert "would:" in verbose and set(normal.splitlines()) <= set(verbose.splitlines())
     with pytest.raises(SystemExit):
         main([*base, "--log-level", "loud"])
     assert main([*base, "--verbose", "--log-level", "quiet"]) == 2

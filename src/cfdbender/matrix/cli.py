@@ -6,11 +6,12 @@ import argparse
 import shlex
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter
+from cfdbender.core.executables import check_builds
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.registry import RunRecord
 from cfdbender.core.run import execute_plan
@@ -258,6 +259,26 @@ def main(argv: list[str] | None = None) -> int:
             live.close()
 
 
+def _shown(workspace: str, path: Path) -> str:
+    """Return a path relative to the workspace, with / separators."""
+    try:
+        return path.resolve().relative_to(Path(workspace).resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _strays_line(strays: Mapping[str, tuple[str, ...]]) -> str:
+    """Return the line naming recorded points the matrix no longer has."""
+    parts = []
+    for matrix, points in strays.items():
+        shown = ", ".join(points[:3]) + (", ..." if len(points) > 3 else "")
+        parts.append(
+            f"{len(points)} recorded points are not in {matrix}.fs any more ({shown}); "
+            "retire them with cfd-matrix delete-sims or cfd-workspace archive"
+        )
+    return "; ".join(parts)
+
+
 def _collect(args: argparse.Namespace, console: Console) -> int:
     """Collect once, or sweep repeatedly under --watch; the last sweep's exit code wins."""
     watching = bool(args.watch)
@@ -275,10 +296,10 @@ def _collect(args: argparse.Namespace, console: Console) -> int:
             archive=args.archive,
             settle=settle,
         )
-        for path in report.summaries:
-            console.say(f"collected summary: {path}")
-        for path in report.tables:
-            console.say(f"collected table: {path}")
+        for path in (*report.summaries, *report.tables):
+            console.say(f"wrote {_shown(args.workspace, path)}")
+        if report.strays:
+            console.say(_strays_line(report.strays))
         console.final(
             f"collected {report.collected}, failed {report.failed}, "
             f"outstanding {report.outstanding}"
@@ -299,7 +320,7 @@ def _post(args: argparse.Namespace, console: Console) -> int:
         archive=args.archive,
     )
     for path in (*report.summaries, *report.tables):
-        console.say(f"post product: {path}")
+        console.say(f"wrote {_shown(args.workspace, path)}")
     console.final(
         f"post read {report.collected}, failed {report.failed}, outstanding {report.outstanding}"
     )
@@ -311,6 +332,7 @@ def _execute(
     verbs: dict[str, Callable[[argparse.Namespace], int]],
     console: Console,
 ) -> int:
+    receipt_rel: str | None = None
     try:
         require_workspace(args.workspace)
         if args.command in verbs:
@@ -331,6 +353,14 @@ def _execute(
         if args.command == "plan":
             receipt = write_receipt(plan)
             console.detail(f"plan receipt: {receipt}")
+            receipt_rel = _shown(args.workspace, receipt)
+            if profile is None or args.local:
+                check_builds(
+                    plan.root,
+                    plan.solver,
+                    load_solver(plan.solver),
+                    (point.solver_build for point in plan.points),
+                )
         jobs = submission_plans(plan, profile) if profile is not None and not args.local else ()
         if args.command == "run":
             require_receipt(plan)
@@ -402,6 +432,7 @@ def _execute(
         console.say(
             f"  {point.point_id}: SET={point.setup_id} REF={point.reference_id} "
             f"PPROC={point.post_id} WALLTIME={point.walltime or 'NA'}"
+            f"  {condition or 'no condition stated'}"
         )
         labels = [
             f"{name}={value}"
@@ -413,7 +444,7 @@ def _execute(
             if value
         ]
         if labels:
-            console.say(f"    {' '.join(labels)}")
+            console.detail(f"    {' '.join(labels)}")
         columns = [
             f"{name}={value}"
             for name, value in (
@@ -425,13 +456,12 @@ def _execute(
             if value is not None
         ]
         if columns:
-            console.say(f"    {' '.join(columns)}")
+            console.detail(f"    {' '.join(columns)}")
         for key, value in point.variables.items():
-            console.say(f"    variable {key} = {value!r}")
-        console.say(f"    {condition or 'no condition stated'}")
-        console.say(f"    would: {'; '.join(point.actions)}")
+            console.detail(f"    variable {key} = {value!r}")
+        console.detail(f"    would: {'; '.join(point.actions)}")
         for output in point.outputs:
-            console.say(f"    output: {output}")
+            console.detail(f"    output: {output}")
     for job in jobs:
         for warning in job.warnings:
             console.error(f"warning: {warning}")
@@ -439,6 +469,11 @@ def _execute(
         if console.level != "quiet":
             print(job.descriptor_text, end="")
         console.say(f"would submit: {shlex.join(job.command)}")
+    if receipt_rel is not None:
+        console.final(
+            f"{len(plan.points)} point(s) planned; receipt {receipt_rel}; "
+            f"next: cfd-matrix run {Path(plan.matrix).stem}"
+        )
     return 0
 
 

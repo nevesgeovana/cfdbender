@@ -20,7 +20,7 @@ def test_collect_writes_one_row_per_point_with_every_coefficient(tmp_path, capsy
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
     post = tmp_path / "post/study"
-    assert f"collected table: {post / 'campaign_sweep.csv'}" in capsys.readouterr().out
+    assert "wrote post/study/campaign_sweep.csv" in capsys.readouterr().out
     summary = json.loads((post / "campaign_summary.json").read_bytes())["points"]
     rows = read(post / "campaign_sweep.csv")
     assert len(rows) == len(summary) == 4

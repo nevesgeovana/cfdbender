@@ -16,8 +16,9 @@ import json
 import os
 import tempfile
 import time
-from collections.abc import Sequence
-from dataclasses import dataclass, replace
+import warnings
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
@@ -30,6 +31,7 @@ from cfdbender.matrix.exports import write_tables
 from cfdbender.matrix.products import write_products
 from cfdbender.matrix.selection import chosen
 from cfdbender.solvers import available_solvers, load_solver
+from cfdbender.workspace.planning import plan_workspace
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,7 @@ class CollectReport:
     summaries: tuple[Path, ...]
     tables: tuple[Path, ...] = ()
     products: tuple[Path, ...] = ()
+    strays: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     @property
     def exit_code(self) -> int:
@@ -168,6 +171,29 @@ def _previous_rows(root: Path, matrix: str) -> dict[str, dict[str, object]]:
         return {}
 
 
+def _strays(
+    root: Path, grouped: Mapping[str, Sequence[Mapping[str, object]]]
+) -> dict[str, tuple[str, ...]]:
+    """Return, per matrix stem, the recorded points its current plan no longer holds.
+
+    A matrix that cannot be planned now (removed or invalid) reports none: the
+    comparison needs a plan, and a refusal here belongs to ``plan``.
+    """
+    found: dict[str, tuple[str, ...]] = {}
+    for name, rows in sorted(grouped.items()):
+        stem = Path(name).name.removesuffix(".fs")
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                current = {point.point_id for point in plan_workspace(root, stem).points}
+        except (PlanError, OSError, ValueError):
+            continue
+        gone = tuple(str(row["point_id"]) for row in rows if row["point_id"] not in current)
+        if gone:
+            found[stem] = gone
+    return found
+
+
 def collect_workspace(
     root: str | Path,
     matrix: str | None = None,
@@ -236,6 +262,7 @@ def collect_workspace(
     unsettled = _unsettled(target, records, settle) if settle is not None else set()
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
+    failed_ids: set[str] = set()
     for record in records:
         row: dict[str, object] = {
             "point_id": record.point_id,
@@ -309,11 +336,13 @@ def collect_workspace(
             row["result"] = result.to_dict()
             if result.classification == "failed":
                 failed += 1
+                failed_ids.add(record.point_id)
             else:
                 collected += 1
         except (OSError, ValueError) as error:
             row["error"] = str(error)
             failed += 1
+            failed_ids.add(record.point_id)
     before = _snapshot(target, grouped) if archive else {}
     summaries: list[Path] = []
     tables: list[Path] = []
@@ -326,6 +355,15 @@ def collect_workspace(
         products.extend(write_products(target, name, config.solver, rows, summary, written))
     if archive:
         _archive_replaced(target, before)
+    strays = _strays(target, grouped)
+    # A point the matrix lost is reported as a stray, not counted among the failures.
+    failed -= len(failed_ids & {point for gone in strays.values() for point in gone})
     return CollectReport(
-        collected, failed, outstanding, tuple(summaries), tuple(tables), tuple(products)
+        collected,
+        failed,
+        outstanding,
+        tuple(summaries),
+        tuple(tables),
+        tuple(products),
+        strays,
     )

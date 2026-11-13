@@ -328,7 +328,7 @@ def _events(root: Path, runs: list[Run]) -> list[dict[str, Any]]:
     for run in runs:
         record = run.record
         base = {"run": run.run_id, "sim": record.point.pol}
-        events.append({**base, "time": record.created_at, "stage": "plan", "event": "registered"})
+        events.append({**base, "time": record.created_at, "stage": "run", "event": "registered"})
         if record.started_at:
             events.append({**base, "time": record.started_at, "stage": "run", "event": "started"})
         if record.completed_at:
@@ -410,11 +410,17 @@ def run_log(args: argparse.Namespace) -> int:
         stem = matrix_stem(args.post)
         path = root / "post" / stem / "post.log"
         lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+        # The post log carries no stamps of its own; its rows take the time it was last written.
+        written = (
+            datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat()
+            if path.is_file()
+            else None
+        )
         events = [
             {
                 "run": None,
                 "sim": None,
-                "time": None,
+                "time": written,
                 "stage": "post",
                 "event": line,
                 "problem": "warning" in line.lower() or "refus" in line.lower(),

@@ -17,7 +17,8 @@ from the HPC profile's ``[builds]`` table instead; these files serve local runs.
 from __future__ import annotations
 
 import tomllib
-from collections.abc import Mapping
+import warnings
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -93,6 +94,42 @@ def bind_executable(point: AdapterPoint, adapter: object) -> AdapterPoint:
     if found.launcher:
         solver[keys["launcher"]] = list(found.launcher)
     return replace(point, setup={**point.setup, "solver": solver})
+
+
+def check_builds(root: Path, solver: str, adapter: object, builds: Iterable[str | None]) -> None:
+    """Judge at plan time the builds a local run will bind, as a run binds them.
+
+    A build nobody declares is warned when the workspace has no inputs/executables.toml
+    (a plan may be made here for a cluster) and refused when the file exists but lacks it.
+
+    Parameters
+    ----------
+    root : Path
+        Workspace root.
+    solver : str
+        The init.toml solver.
+    adapter : object
+        The workspace's adapter module; one without EXECUTABLE_KEYS binds nothing.
+    builds : iterable of str or None
+        The SOLVER_BUILD of every planned point.
+
+    Raises
+    ------
+    WorkspaceError
+        The workspace declares executables and a planned build is not among them.
+    """
+    if getattr(adapter, "EXECUTABLE_KEYS", None) is None:
+        return
+    for build in sorted({b for b in builds if b}):
+        if has_registry(root):
+            resolve_executable(root, solver, build)
+        else:
+            warnings.warn(
+                f"SOLVER_BUILD {build} is carried but no {DECLARED} declares it; a local run "
+                "uses the executable the setup names",
+                UserWarning,
+                stacklevel=2,
+            )
 
 
 def has_registry(root: Path) -> bool:

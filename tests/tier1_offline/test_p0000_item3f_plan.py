@@ -133,7 +133,7 @@ def test_p0000_item3f_bad_profile_refuses_before_writes(tmp_path, command, capsy
 def test_p0000_item3f_local_plan_keeps_adapter_plan(tmp_path, capsys):
     prepared(tmp_path)
     before = tree(tmp_path)
-    assert cli(tmp_path, "plan", "--local") == 0
+    assert cli(tmp_path, "plan", "--local", "--verbose") == 0
     output = capsys.readouterr().out
     assert "would submit:" not in output
     assert "would: write mock ASCII input" in output
