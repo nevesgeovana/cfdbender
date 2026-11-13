@@ -343,8 +343,7 @@ def collect_workspace(
             # mark-converged is a verdict on a completed point: the record carries it and
             # the result keeps the class the numerical evidence gives.
             judged = (
-                record.classification == "converged"
-                and marked.get(record.point_id) == "converged"
+                record.classification == "converged" and marked.get(record.point_id) == "converged"
             )
             if result.classification != record.classification and not judged:
                 raise RegistryError(

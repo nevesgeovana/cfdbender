@@ -22,6 +22,6 @@ def test_c09_an_unread_reference_or_post_key_is_warned_and_skipped(case, kind): 
     assert plan.points, solver
     if solver == "mock":
         return  # the mock writes every r and p key into its input: none is unread
-    named =[str(w.message) for w in seen if "zz_unread_key" in str(w.message)]
+    named = [str(w.message) for w in seen if "zz_unread_key" in str(w.message)]
     assert named, f"{solver}: no warning names the unread key"
     assert all(kind.split("/")[1] in text and "POL 7001" in text for text in named)

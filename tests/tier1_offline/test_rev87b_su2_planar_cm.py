@@ -44,7 +44,7 @@ def _run(root, line, cmy, cmz):
     setup = root / "inputs/setups/s001.toml"
     setup.write_text(
         setup.read_text(encoding="ascii")
-        + f"\n[solver]\nroute = \"executable\"\nexecutable = {json.dumps(script.as_posix())}\n",
+        + f'\n[solver]\nroute = "executable"\nexecutable = {json.dumps(script.as_posix())}\n',
         encoding="ascii",
     )
     assert main(["plan", "study", "--workspace", str(root)]) == 0
