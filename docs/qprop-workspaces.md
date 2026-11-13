@@ -141,7 +141,8 @@ Collection returns, with the rotation axis as the axis of each value:
 | `J` | V / (n D) |
 | `CT`, `CP` | T / (rho n^2 D^4) and P / (rho n^3 D^5) |
 | `CT_QPROP`, `CP_QPROP` | as QPROP prints them, normalised by dynamic pressure at the tip speed and the disk area |
-| `EFFICIENCY` | T V / P |
+| `EFFICIENCY` | propeller efficiency as QPROP prints it (`effprop`) |
+| `EFFICIENCY_OVERALL` | overall efficiency including the motor, as QPROP prints it (`eff`) |
 | `T`, `Q`, `P` | thrust (N), shaft torque (N m), shaft power (W) |
 
 QPROP's table is read by header names, so column order does not matter. A point

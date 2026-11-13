@@ -44,7 +44,8 @@ def coefficients(row: dict[str, float], *, rho: float, radius: float) -> dict[st
 
     QPROP normalises by the tip speed and disk area. The standard forms are
     T/(rho n^2 D^4), P/(rho n^3 D^5) and J = V/(n D) with n in revolutions per
-    second and D = 2R; efficiency is T V / P.
+    second and D = 2R. CT, CP and J are derived from the printed T, Q (shaft power) and rpm;
+    CT_QPROP, CP_QPROP and both efficiencies are the values QPROP prints.
     """
     speed, rpm = row["V(m/s)"], row["rpm"]
     thrust, torque, power = row["T(N)"], row["Q(N-m)"], row["Pshaft(W)"]
@@ -57,7 +58,10 @@ def coefficients(row: dict[str, float], *, rho: float, radius: float) -> dict[st
         "CP": power / (rho * n**3 * diameter**5),
         "CT_QPROP": row["CT"],
         "CP_QPROP": row["CP"],
-        "EFFICIENCY": thrust * speed / power if power != 0.0 else 0.0,
+        # Both efficiencies are QPROP's own printed values, never recomputed: effprop is the
+        # propeller efficiency, eff the overall one including the motor.
+        "EFFICIENCY": row["effprop"],
+        "EFFICIENCY_OVERALL": row["eff"],
         "T": thrust,
         "Q": torque,
         "P": power,

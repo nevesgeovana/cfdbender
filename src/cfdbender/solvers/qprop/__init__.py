@@ -25,8 +25,9 @@ sections run through the XFOIL adapter's execution path and shared host guards.
 
 Collection returns J, CT and CP in the standard T/(rho n^2 D^4) and P/(rho n^3 D^5)
 form, CT_QPROP and CP_QPROP as QPROP prints them (tip-speed and disk-area based),
-EFFICIENCY, and T, Q and P. The axis is the rotation axis; Q and P are listed as
-moments only to fit the neutral contract.
+EFFICIENCY (QPROP's effprop) and EFFICIENCY_OVERALL (its eff, with the motor), and T, Q
+and P. The axis is the rotation axis; Q and P are listed as moments only to fit the
+neutral contract.
 """
 
 from __future__ import annotations

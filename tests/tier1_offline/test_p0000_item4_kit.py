@@ -151,11 +151,15 @@ def test_p0000_item4_su2_plan_without_mock_or_real_solver(installed):
         [python, "-I", "-c", code, "plan", "smoke", "--local"], cwd=folder / "smoke", env=env
     )
     assert "solver: su2" in output and "1 point(s)" in output
-    assert before == {
+    # The plan-receipt contract: plan writes post/<matrix>/plan.json and nothing else.
+    after = {
         str(p.relative_to(folder / "smoke")): p.read_bytes()
         for p in (folder / "smoke").rglob("*")
         if p.is_file()
     }
+    receipt = str(Path("post/smoke/plan.json"))
+    assert receipt in after and receipt not in before
+    assert before == {name: data for name, data in after.items() if name != receipt}
     # Fake execution verifies that planning wasn't quietly satisfied by the mock adapter.
     output = run([matrix, "run", "smoke", "--local"], cwd=folder / "smoke", env=env)
     assert "COMPLETED converged" in output

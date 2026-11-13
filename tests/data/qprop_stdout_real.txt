@@ -1,0 +1,22 @@
+
+ Motor file not found:  none                                            
+ Default motor used  :  Speed-400 3321 (6V) direct drive                                                
+
+# QPROP Version 1.22
+# 
+# TUD XPROP isolated propeller                                                    
+# 
+# Speed-400 3321 (6V) direct drive                                                
+#   0.31000     R  (Ohm)                        
+#   0.77000     Io (Amp)                        
+#    2760.0     Kv (rpm/Volt)                   
+# 
+#   rho =  1.2000     kg/m^3
+#   mu  = 0.18000E-04 kg/m-s
+#   a   =  343.00     m/s   
+# 
+#  1         2        3          4          5         6            7         8       9        10        11        12          13        14        15      16          17           18      19
+# 
+#  V(m/s)    rpm      Dbeta      T(N)       Q(N-m)    Pshaft(W)    Volts     Amps    effmot   effprop   adv       CT          CP        DV(m/s)   eff     Pelec       Pprop        cl_avg  cd_avg
+#  40.900   7548.      0.000   158.8       11.78       9309.    1058.208 3404.7529   0.0026   0.6975   0.25465  0.7907E-01  0.2887E-01  20.0318   0.0018  0.3603E+07   6493.       0.9220  0.1032E-01
+# 

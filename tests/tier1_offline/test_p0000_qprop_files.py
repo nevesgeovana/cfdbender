@@ -164,7 +164,7 @@ def test_p0000_qprop_coefficients_in_both_normalisations():
     assert got["CT"] == pytest.approx(18.25 / (rho * n**2 * diameter**4))
     assert got["CP"] == pytest.approx(344.1 / (rho * n**3 * diameter**5))
     assert got["CT_QPROP"] == pytest.approx(0.03016) and got["CP_QPROP"] == pytest.approx(0.005387)
-    assert got["EFFICIENCY"] == pytest.approx(18.25 * 10.0 / 344.1)
+    assert got["EFFICIENCY"] == pytest.approx(0.5304)
     assert (got["T"], got["Q"], got["P"]) == (18.25, 0.5477, 344.1)
 
 

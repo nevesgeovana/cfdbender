@@ -104,7 +104,18 @@ def test_p0000_qprop_collect_returns_both_normalisations_and_the_standard_ones(t
     j = SPEED / (n * d)
     ct, cp = 0.12 - 0.06 * j, 0.04 + 0.01 * j
     value = {k: c.value for k, c in result.coefficients.items()}
-    assert set(value) == {"J", "CT", "CP", "CT_QPROP", "CP_QPROP", "EFFICIENCY", "T", "Q", "P"}
+    assert set(value) == {
+        "J",
+        "CT",
+        "CP",
+        "CT_QPROP",
+        "CP_QPROP",
+        "EFFICIENCY",
+        "EFFICIENCY_OVERALL",
+        "T",
+        "Q",
+        "P",
+    }
     assert value["J"] == pytest.approx(j, rel=1e-5)
     assert value["CT"] == pytest.approx(ct, rel=1e-4) and value["CP"] == pytest.approx(cp, rel=1e-4)
     assert value["T"] == pytest.approx(ct * RHO * n**2 * d**4, rel=1e-4)

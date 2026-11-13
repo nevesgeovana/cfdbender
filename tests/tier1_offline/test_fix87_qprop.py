@@ -103,3 +103,17 @@ def test_u01_a_run_takes_the_blade_from_geometry_alone(tmp_path):
     qw.adapter().execute(point, check_ram=lambda: None)
     result = qw.adapter().collect(point)
     assert result.classification == "converged"
+
+
+def test_collected_efficiency_is_the_value_qprop_prints():
+    from pathlib import Path
+
+    from cfdbender.solvers.qprop import _output
+
+    text = (Path(__file__).resolve().parents[1] / "data/qprop_stdout_real.txt").read_text()
+    row = _output.parse_table(text)
+    got = _output.coefficients(row, rho=1.2, radius=0.2)
+    assert got["EFFICIENCY"] == 0.6975, "effprop as printed, not J CT / CP"
+    assert got["EFFICIENCY_OVERALL"] == 0.0018
+    assert got["CT_QPROP"] == 0.07907 and got["CP_QPROP"] == 0.02887
+    assert (got["T"], got["Q"], got["P"]) == (158.8, 11.78, 9309.0)
