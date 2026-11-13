@@ -273,8 +273,18 @@ def _sync_sources(root: Path, name: str | None) -> dict[str, Path]:
 
 
 def _copy_files(
-    base: Path, other: Path, top: str, args: argparse.Namespace, saved: list[str]
+    base: Path,
+    other: Path,
+    top: str,
+    args: argparse.Namespace,
+    saved: list[str],
+    kept: frozenset[str] = frozenset(),
 ) -> int:
+    """Copy the other workspace's files under ``top``; ``kept`` are main's own point folders.
+
+    A file of a point whose record main keeps is never replaced, whatever ``--overwrite``
+    says: the record holds the digests of main's files, and the two travel together.
+    """
     count = 0
     source = other / top
     if not source.is_dir():
@@ -292,8 +302,12 @@ def _copy_files(
                 == hashlib.sha256(path.read_bytes()).digest()
             ):
                 continue
+            name = relative.as_posix()
+            if any(name.startswith(folder + "/") for folder in kept):
+                print(f"  conflict {name}: main's copy kept, with the record of its point")
+                continue
             if not args.overwrite:
-                print(f"  conflict {relative.as_posix()}: main's copy kept")
+                print(f"  conflict {name}: main's copy kept")
                 continue
             if args.apply:
                 backup = (
@@ -341,7 +355,8 @@ def run_sync(args: argparse.Namespace) -> int:
         if args.level in ("post", "all"):
             copied += _copy_files(root, other, "post", args, saved)
         if args.level == "all":
-            copied += _copy_files(root, other, "sims", args, saved)
+            own = frozenset(r.point.directory for r in mine.values() if r.point_id not in changes)
+            copied += _copy_files(root, other, "sims", args, saved, own)
         if args.restore and args.apply:
             print("  --restore: run `cfd-matrix rebuild --apply` for sim folders no record carries")
         if args.apply and changes:

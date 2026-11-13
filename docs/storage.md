@@ -133,7 +133,7 @@ before:
 |---|---|
 | `--from NAME` | Reads one of the named workspaces instead of all of them. |
 | `--prefer-other` | When both workspaces have a record of the same point, takes the other one. Without it this workspace keeps its own. |
-| `--overwrite` | When both have a file of the same name, archives the file of this workspace and takes the other one. |
+| `--overwrite` | When both have a file of the same name, archives the file of this workspace and takes the other one. The files of a point whose record this workspace keeps are never replaced: a record and the files it describes stay together. |
 | `--include-archives` | Also brings the files under folders named `archive`. |
 
 Without the file, `sync` refuses:
