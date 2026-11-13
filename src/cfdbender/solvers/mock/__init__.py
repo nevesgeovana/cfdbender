@@ -65,9 +65,12 @@ def _references(data: Mapping[str, object]) -> References:
 def _validate(
     setup: Mapping[str, object], reference: Mapping[str, object], post: Mapping[str, object]
 ) -> tuple[str, int, References]:
-    unknown = sorted(set(setup) - {"mock"})
+    unknown = sorted(set(setup) - {"mock", "solver", "solver_version", "ncpus", "solver_type"})
     if unknown:
-        raise ValueError(f"unsupported setup key {unknown[0]!r}; the mock setup holds only [mock]")
+        raise ValueError(
+            f"unsupported setup key {unknown[0]!r}; the mock setup holds [mock] and the "
+            "cluster keys solver_version, ncpus and solver_type"
+        )
     table = setup.get("mock")
     if not isinstance(table, dict):
         raise ValueError("setup needs a [mock] table with outcome and iterations")
