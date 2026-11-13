@@ -63,16 +63,15 @@ def tree_copy(tmp_path_factory):
     names = subprocess.run(
         ["git", "-C", str(ROOT), "ls-files", "-z"], check=True, capture_output=True
     ).stdout.split(b"\0")
-    paths = []
     for name in names:
         if name:
             relative = Path(os.fsdecode(name))
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / relative, target)
-            paths.append(str(target))
     subprocess.run(["git", "init", "-q", str(root)], check=True)
-    subprocess.run(["git", "-C", str(root), "add", "--", *paths], check=True)
+    # One add of the whole copy: a path per file overran the Windows command-line limit.
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
     return root
 
 

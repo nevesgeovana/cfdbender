@@ -49,6 +49,7 @@ from cfdbender.core.results import (
     References,
 )
 from cfdbender.core.settings import _validate, read_init
+from cfdbender.solvers import load_solver
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._config import number
 from cfdbender.solvers.qprop import _output
@@ -234,9 +235,7 @@ def _stage(
         # A missing executable refuses the point before any folder is written.
         qprop_argv(opts, point.root)
         if any(p.source == "xfoil" for p in planned):
-            from cfdbender.solvers.xfoil._execute import argv as xfoil_argv
-
-            xfoil_argv(_xfoil_options(opts), point.root, key="xfoil_executable")
+            load_solver("xfoil").argv(_xfoil_options(opts), point.root, key="xfoil_executable")
     check_ram()
     _ram.require_ram(number(opts["ram_estimate_gib"], "ram_estimate_gib"), solver="QPROP")
     folder.mkdir(parents=True, exist_ok=False)
@@ -272,12 +271,11 @@ def _stage(
 def preflight(point: AdapterPoint) -> None:
     """Refuse before any point starts: QPROP and XFOIL executables, host slot and free RAM."""
     from cfdbender.solvers._host._exe import check_host_free
-    from cfdbender.solvers.xfoil._execute import argv as xfoil_argv
 
     opts, _, _, _, _, planned = _context(point)
     qprop_argv(opts, point.root)
     if any(p.source == "xfoil" for p in planned):
-        xfoil_argv(_xfoil_options(opts), point.root, key="xfoil_executable")
+        load_solver("xfoil").argv(_xfoil_options(opts), point.root, key="xfoil_executable")
     check_host_free("QPROP", number(opts["ram_estimate_gib"], "ram_estimate_gib"))
 
 

@@ -99,7 +99,7 @@ def test_a_condition_key_spelled_as_a_context_column_fills_it_once(tmp_path):
     workspace(tmp_path)
     (tmp_path / "inputs/matrices/study.fs").write_text(
         "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
-        "1001|1|001|001|001|MACH:0.2, VREF:30, ALPHA:sweep|0\n",
+        "1001|1|001|001|001|mach:0.2, alpha:sweep|2\n",
         encoding="ascii",
     )
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
@@ -109,7 +109,7 @@ def test_a_condition_key_spelled_as_a_context_column_fills_it_once(tmp_path):
     assert len(header) == len(set(header)), "a column is stated twice"
     first = path.read_text(encoding="utf-8").splitlines()[1].split(",")
     row = dict(zip(header, first, strict=True))
-    assert float(row["VREF"]) == 30.0
+    assert float(row["MACH"]) == 0.2 and float(row["ALPHA"]) == 2.0
 
 
 def test_text_cells_hold_no_comma_quote_or_line_break():

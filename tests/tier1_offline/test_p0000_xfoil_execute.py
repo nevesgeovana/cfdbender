@@ -171,9 +171,11 @@ def test_p0000_xfoil_mutant_reader_wrong_cl_column_fails(tmp_path):
     expected = oracle(fixture, 4)
     assert {key: value.value for key, value in reader.read_polar(fixture, 4).items()} == expected
     source = Path(reader.__file__).read_text(encoding="utf-8")
-    assert '"CL": 1' in source, "mutation must touch the production CL column mapping"
+    assert "matches[0][index[key]]" in source, "mutation must touch the by-name column lookup"
     scratch = tmp_path / "mutant_polar.py"
-    scratch.write_text(source.replace('"CL": 1', '"CL": 2', 1), encoding="utf-8")
+    scratch.write_text(
+        source.replace("matches[0][index[key]]", 'matches[0][index["CD"]]', 1), encoding="utf-8"
+    )
     spec = importlib.util.spec_from_file_location("xfoil_mutant", scratch)
     mutant = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mutant)

@@ -79,7 +79,7 @@ def test_p0000_item2a_init_creates_root_declaration_and_empty_layout(tmp_path, s
         assert (target / "inputs" / kind).is_dir(), kind
         assert list((target / "inputs" / kind).iterdir()) == []
         assert f"inputs/{kind}/" in result.stdout
-    assert {p.name for p in (target / "inputs").iterdir()} == {*KINDS, ".gitignore"}
+    assert {p.name for p in (target / "inputs").iterdir()} == {*KINDS, ".gitignore", "INPUTS.md"}
     assert (target / "inputs/.gitignore").read_text() == "executables.local.toml\n"
     assert {p.name for p in target.iterdir()} == {"init.toml", "inputs", "sims", "post", "archive"}
     assert "campaign workspace ready at" in result.stdout

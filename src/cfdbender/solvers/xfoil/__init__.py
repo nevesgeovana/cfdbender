@@ -48,6 +48,7 @@ from cfdbender.core.results import Classification, ExecutionResult, NeutralResul
 from cfdbender.core.settings import _validate, read_init
 from cfdbender.solvers._host._config import number
 from cfdbender.solvers.xfoil._config import config, options, render
+from cfdbender.solvers.xfoil._execute import argv as argv
 from cfdbender.solvers.xfoil._execute import run
 from cfdbender.solvers.xfoil._execute import run_script as run_script
 from cfdbender.solvers.xfoil._execute import stage as _stage
@@ -143,7 +144,6 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
 def preflight(point: AdapterPoint) -> None:
     """Refuse before any point starts: executable, host slot and free RAM."""
     from cfdbender.solvers._host._exe import check_host_free
-    from cfdbender.solvers.xfoil._execute import argv
 
     opts = options(point.setup, read_init(point.root, available_solvers=("xfoil",)).solver_options)
     argv(opts, point.root)

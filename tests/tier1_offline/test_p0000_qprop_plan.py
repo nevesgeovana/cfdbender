@@ -130,7 +130,7 @@ def test_p0000_qprop_plan_claims_declared_outputs(tmp_path):
         (None, "V:20", "RPM or J"),
         (None, "V:20,RPM:6000,J:0.8", "only one of RPM and J"),
         (None, "V:20,RPM:6000,BETA07:30,DBETA:1", "BETA07 or DBETA"),
-        (None, "V:20,RPM:6000,FLAP:1", "unsupported QPROP condition"),
+        (None, "V:20,RPM:6000,FLAP:1", "not one this package knows"),
         (None, "V:20,RPM:-5", "RPM"),
         (None, "V:0,J:0.5", "J needs V"),
         (None, "V:20,RPM:6000,N_SECTIONS:2.5", "N_SECTIONS"),

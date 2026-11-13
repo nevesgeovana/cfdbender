@@ -38,4 +38,5 @@ def test_layout_qprop_setup_blade_in_a_legacy_folder_still_works_beside_mesh(tmp
     (tmp_path / "inputs/mesh").mkdir(exist_ok=True)
     shutil.copy(tmp_path / "inputs/geometry/blade.obj", tmp_path / "inputs/mesh/blade.obj")
     point = prepared(tmp_path)
-    assert point.setup["blade"] == "inputs/mesh/blade.obj"
+    # The setup names the legacy file and it exists, so it is the one used.
+    assert point.setup["blade"] == "inputs/geometry/blade.obj"

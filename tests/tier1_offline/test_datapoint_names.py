@@ -93,6 +93,9 @@ def validate(row, inputs):
     )
 
 
+validate.native_condition_keys = ("V", "J", "BETA07")  # type: ignore[attr-defined]
+
+
 def ids(root: Path) -> list[str]:
     plan = plan_matrix(root, "study", validators={"mock": validate})
     return [point.point_id for point in plan.points]
