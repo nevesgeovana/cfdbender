@@ -1,4 +1,4 @@
-"""Usability fixes of GOAL-087 arm 10 that concern `cfd-matrix run`: refusals before any point,
+"""Usability fixes that concern `cfd-matrix run`: refusals before any point,
 live progress, one wording for a missing executable."""
 
 from __future__ import annotations

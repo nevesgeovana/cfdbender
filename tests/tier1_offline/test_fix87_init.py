@@ -1,4 +1,4 @@
-"""Usability fixes of GOAL-087 arm 10 that concern what `cfd-workspace init` writes."""
+"""Usability fixes that concern what `cfd-workspace init` writes."""
 
 from __future__ import annotations
 

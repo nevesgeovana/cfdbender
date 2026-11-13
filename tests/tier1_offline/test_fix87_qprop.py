@@ -1,4 +1,4 @@
-"""Walk findings U-01 and U-02 and the owner's Q8: QPROP section settings live in init.toml."""
+"""Walk findings U-01 and U-02 and the QPROP section settings kept in init.toml."""
 
 from __future__ import annotations
 

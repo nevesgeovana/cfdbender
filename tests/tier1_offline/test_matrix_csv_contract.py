@@ -107,7 +107,8 @@ def test_a_condition_key_spelled_as_a_context_column_fills_it_once(tmp_path):
     path = tmp_path / "post/study/campaign_sweep.csv"
     header = header_of(path)
     assert len(header) == len(set(header)), "a column is stated twice"
-    row = dict(zip(header, path.read_text(encoding="utf-8").splitlines()[1].split(","), strict=True))
+    first = path.read_text(encoding="utf-8").splitlines()[1].split(",")
+    row = dict(zip(header, first, strict=True))
     assert float(row["VREF"]) == 30.0
 
 

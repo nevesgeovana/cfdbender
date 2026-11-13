@@ -443,7 +443,8 @@ def test_free_space_never_deletes_through_a_linked_folder(tmp_path, capsys):
     (outside / "data.vtu").write_bytes(b"y" * 10)
     _link_folder(outside, root / "sims/sim_1002/link")
     (root / "inputs/management").mkdir(parents=True)
-    (root / "inputs/management/m1.toml").write_text('[[delete_extensions]]\nextensions = [".vtu"]\n')
+    recipe = '[[delete_extensions]]\nextensions = [".vtu"]\n'
+    (root / "inputs/management/m1.toml").write_text(recipe)
     assert main(["free-space", "m1", "--apply", "--list", "--workspace", str(root)]) == 0
     assert (outside / "data.vtu").is_file()
     assert "link/data.vtu" not in out(capsys)
