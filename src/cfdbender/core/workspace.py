@@ -6,6 +6,7 @@ import json
 from collections.abc import Collection
 from pathlib import Path
 
+from cfdbender.core.inputs_guide import guide_text
 from cfdbender.core.settings import WorkspaceError, _validate
 
 INPUT_KINDS = (
@@ -103,4 +104,7 @@ def init_workspace(root: str | Path, *, solver: str, available_solvers: Collecti
     ignore = target / "inputs" / ".gitignore"
     if not ignore.exists():
         ignore.write_text("executables.local.toml\n", encoding="utf-8", newline="\n")
+    guide = target / "inputs" / "INPUTS.md"
+    if not guide.exists():
+        guide.write_text(guide_text(config.solver), encoding="utf-8", newline="\n")
     return target
