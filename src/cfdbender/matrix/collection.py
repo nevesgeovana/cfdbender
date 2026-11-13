@@ -204,6 +204,7 @@ def collect_workspace(
     runs: str = "runs.json",
     archive: bool = False,
     settle: float | None = None,
+    pickup: bool = True,
 ) -> CollectReport:
     """Read saved results through the declared adapter and rebuild neutral summaries.
 
@@ -226,6 +227,10 @@ def collect_workspace(
     settle : float, optional
         Seconds between the two observations that decide a submitted point's outputs
         are settled (size and modification time stable); None skips the check.
+    pickup : bool, optional
+        Read a SUBMITTED point whose job outputs are present and seal its record
+        COMPLETED. False leaves every submitted point outstanding and changes no
+        record; the post stage passes it.
 
     Returns
     -------
@@ -290,7 +295,11 @@ def collect_workspace(
             grouped.setdefault(record.matrix, []).append(row)
             continue
         grouped.setdefault(record.matrix, []).append(row)
-        if record.status not in ("COMPLETED", "SUBMITTED") or record.point_id in unsettled:
+        if (
+            record.status not in ("COMPLETED", "SUBMITTED")
+            or record.point_id in unsettled
+            or (record.status == "SUBMITTED" and not pickup)
+        ):
             outstanding += 1
             continue
         try:

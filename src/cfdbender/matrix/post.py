@@ -1,9 +1,11 @@
 """The post stage as a function: rebuild every product from runs.json and saved outputs.
 
-``post_workspace`` is what ``collect`` runs: it reads the recorded points through
-the workspace's adapter, rebuilds ``campaign_summary.json``, the CSV tables,
-``products.json`` and ``post.log`` under ``post/<matrix>/``, and never launches a
-solver. Calling it twice over unchanged records writes the same bytes.
+``post_workspace`` is the reading half of ``collect``: it reads the recorded
+points through the workspace's adapter, rebuilds ``campaign_summary.json``, the
+CSV tables, ``products.json`` and ``post.log`` under ``post/<matrix>/``, and never
+launches a solver. It changes no record: a SUBMITTED point stays outstanding
+until ``collect`` picks it up. Calling it twice over unchanged records writes
+the same bytes.
 """
 
 from __future__ import annotations
@@ -45,4 +47,6 @@ def post_workspace(
     CollectReport
         Counts, the summaries, tables and the products and log written.
     """
-    return collect_workspace(root, matrix, sims=sims, points=points, runs=runs, archive=archive)
+    return collect_workspace(
+        root, matrix, sims=sims, points=points, runs=runs, archive=archive, pickup=False
+    )
