@@ -121,7 +121,7 @@ cfdbender reports the coefficients SU2 wrote, with the axis system SU2 uses. SU2
 | `CFx`, `CFy`, `CFz` | force | body x, y, z |
 | `CMx`, `CMy`, `CMz` | moment | body x, y, z |
 
-cfdbender does not rotate between wind and body axes. The result also records the route that ran. In the tables of `collect` the neutral columns `CL`, `CD` and `CM` are filled from `CL`, `CD` and `CMy`; see [Results and tables](results.md).
+cfdbender does not rotate between wind and body axes. The result also records the route that ran. In the tables of `collect` the neutral columns `CL`, `CD` and `CM` are filled from `CL`, `CD` and `CMy`. A two-dimensional case lies in the x-y plane, so its pitching moment is `CMz` and `CMy` is zero: when SU2 prints `Two dimensional problem.`, or the native mesh states `NDIME= 2`, `CM` is filled from `CMz`, and the result records `dimensions`; see [Results and tables](results.md).
 
 ## Worked example
 

@@ -44,7 +44,8 @@ CASES = {
             "inputs/setups/s001.toml": 'iterations = 40\nSOLVER = "EULER"\n',
             "inputs/references/r001.toml": "area = 1.0\nlength = 1.0\nmoment_origin = [0, 0, 0]\n",
             "inputs/pproc/p001.toml": "history = true\n",
-            "inputs/geometries/model.su2": "NDIME= 2\n",
+            # Three-dimensional, as the stand-in's history is: it reports CMy and no CMz.
+            "inputs/geometries/model.su2": "NDIME= 3\n",
         },
         row("MACH:0.5, ALTFT:10000, ALPHA:sweep, BETA:0", "0,2", "model.su2"),
     ),

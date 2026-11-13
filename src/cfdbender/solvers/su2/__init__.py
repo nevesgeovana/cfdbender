@@ -63,7 +63,7 @@ from cfdbender.solvers.su2._config import (
 )
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
-from cfdbender.solvers.su2._history import read
+from cfdbender.solvers.su2._history import dimensions, read
 
 SOLVER_NAME = "su2"
 SOLVER_TYPE = "SU2"
@@ -75,13 +75,17 @@ JOB_OUTPUTS = ("history.csv", "stdout.log")
 
 @dataclass(frozen=True)
 class _SU2Result(NeutralResult):
-    """Add the executed route to SU2's neutral result evidence."""
+    """Add the executed route and the problem dimension to SU2's neutral result evidence."""
 
     route: str
+    dimensions: int | None = None
 
     def to_dict(self) -> dict[str, object]:
-        """Serialize the common fields and the route from execution.json."""
-        return {**super().to_dict(), "route": self.route}
+        """Serialize the common fields, the route and, when SU2 stated it, the dimension."""
+        data: dict[str, object] = {**super().to_dict(), "route": self.route}
+        if self.dimensions is not None:
+            data["dimensions"] = self.dimensions
+        return data
 
 
 def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
@@ -224,5 +228,11 @@ def collect(point: AdapterPoint) -> NeutralResult:
     execution = folder / "execution.json"
     route = json.loads(execution.read_bytes())["route"] if execution.is_file() else "cluster"
     return _SU2Result(
-        coefficients, refs, result.history, classify(result), result.solver_version, route
+        coefficients,
+        refs,
+        result.history,
+        classify(result),
+        result.solver_version,
+        route,
+        dimensions(folder),
     )

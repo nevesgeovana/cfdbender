@@ -124,7 +124,7 @@ lists its own names, their axes and their reference values.
 
 | Solver | `CL` | `CD` | `CM` |
 |---|---|---|---|
-| SU2 | `CL` | `CD` | `CMy` |
+| SU2 | `CL` | `CD` | `CMy`; `CMz` when SU2 states a two-dimensional problem |
 | OpenFOAM | `Cl` | `Cd` | `CmPitch` |
 | PyFR | `Cl` | `Cd` | `NA`, PyFR reports no moment |
 | XFOIL | `CL` | `CD` | `CM` |
