@@ -1,9 +1,12 @@
 # Matrix columns
 
-A run matrix is a pipe-delimited text file in `inputs/matrices/<name>.fs` (or `<name>.fs` in the workspace root; a name present in both places is refused as ambiguous). Every
-solver reads the same columns with the same meanings, which are those of a
-pyflightstream matrix, so one layout serves a FlightStream campaign and an SU2,
-OpenFOAM, PyFR, XFOIL or QPROP campaign. Cells may be padded with spaces, lines
+This page lists the columns of a run matrix and the keys of its
+`FLIGHT_CONDITION` cell. Every solver reads the same columns with the same
+meanings, so one layout serves every campaign.
+
+A matrix is a text file `inputs/matrices/<name>.fs` with `|` between its
+columns. A matrix may also sit in the workspace root; a name present in both
+places is refused as ambiguous. Cells may be padded with spaces, lines
 starting with `#` are comments, and a line of dashes under the header is a rule.
 
 ```text
@@ -20,7 +23,7 @@ closest known column.
 | Column | Meaning |
 |---|---|
 | `POL` | Point of interest; the simulation folder is `sims/sim_<POL>/`. Unique per matrix. |
-| `HIDDEN` | `0` or `1`: whether a solver that opens a window shows it. It never removes a row; `RUN` decides that. The library solvers run without a window, so the value is carried and listed only. |
+| `HIDDEN` | `0` or `1`: whether a solver that opens a window shows it. It never removes a row; `RUN` decides that. A solver that runs without a window carries and lists the value only. |
 | `RUN` | `1` plans and runs the row, `0` keeps it in the file without running it. |
 | `AIRCRAFT` | Your name for the vehicle. Labels only; it reaches the plan listing and the campaign summary. |
 | `CONFIGURATION` | Your name for what is in the flow. Labels only, as `AIRCRAFT`. |
@@ -31,11 +34,11 @@ closest known column.
 | `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same, and a name works too: `rwing` is `inputs/references/rwing.toml`. |
 | `SET` | Setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). |
 | `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`, numbered or named. |
-| `SYMMETRY`, `SYMMETRY_LOADS` | Accepted for layout parity and must be `-`: the library solvers take symmetry from the mesh markers and the setup. |
+| `SYMMETRY`, `SYMMETRY_LOADS` | Accepted in the header and must be `-`: symmetry comes from the mesh markers and the setup. |
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
 | `WALLTIME` | Wall clock with its unit: `90s`, `240m`, `4h`, `1d`. `{walltime}` in an HPC profile. |
-| `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [workspace files](workspace-files.md#executables)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. A pyflightstream matrix names this column `FS_BUILD`, which is accepted with the same meaning; a header holding both is refused. |
-| `WORKFLOW` | Run type; `-` means `steady`, the only type the library adapters run. |
+| `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [Executables](executables.md)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. The column may also be named `FS_BUILD`, with the same meaning; a header holding both names is refused. |
+| `WORKFLOW` | Run type; `-` means `steady`, the only type that runs. |
 | `VAR_NAMES_VALUES` | Per-row overrides of setup keys; see below. |
 
 ## FLIGHT_CONDITION
@@ -86,7 +89,7 @@ level like any other air statement.
 | QPROP | `V`, `RHO`, `MU` and `A`; `ADVANCE_RATIO` is `J` | `blade` (an OBJ) |
 
 For PyFR and XFOIL, `REmi` gives the Reynolds number directly, also at `MACH:0`;
-other air keys give it over the REF file's `length`. OpenFOAM, PyFR and XFOIL run at `BETA` 0
+for XFOIL, other air keys give it over the REF file's `length`. OpenFOAM, PyFR and XFOIL run at `BETA` 0
 and QPROP in axial flow, so a nonzero `BETA` (or `ALPHA` for QPROP) is refused
 and a zero one is accepted. A value the setup also states must agree with the
 row's, except that a PyFR row stating only `MACH` and angles replaces the setup's
@@ -94,7 +97,7 @@ row's, except that a PyFR row stating only `MACH` and angles replaces the setup'
 
 ## VAR_NAMES_VALUES
 
-The cell holds `KEY: value` pairs separated by ` / `, as in pyflightstream:
+The cell holds `KEY: value` pairs separated by ` / `:
 
 ```text
 iterations: 2000 / CFL_NUMBER: 5.0 / MARKER_FAR: ["farfield"] / solver.threads: 4

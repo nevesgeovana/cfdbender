@@ -50,19 +50,31 @@ extra_css:
   - stylesheets/extra.css
 nav:
   - Home: index.md
-  - Start here: getting-started.md
-  - Matrix columns: matrix-columns.md
-  - Commands: commands.md
-  - FlightStream workspaces: flightstream-workspaces.md
-  - SU2 workspaces: su2-workspaces.md
-  - OpenFOAM workspaces: openfoam-workspaces.md
-  - PyFR workspaces: pyfr-workspaces.md
-  - XFOIL workspaces: xfoil-workspaces.md
-  - QPROP workspaces: qprop-workspaces.md
-  - Workspace files: workspace-files.md
-  - Workspace settings: workspace-settings.md
-  - Architecture: architecture.md
-  - Adapter contract: adapter-contract.md
-  - Requirements: requirements/index.md
+  - Start here:
+      - Install: install.md
+      - First campaign: getting-started.md
+  - Workflow:
+      - The workflow: workflow.md
+      - Workspace layout: workspace-layout.md
+      - Matrix columns: matrix-columns.md
+      - Executables: executables.md
+      - Run again, resume, records: records.md
+      - Results and tables: results.md
+      - Cluster jobs: cluster-jobs.md
+      - Storage and sync: storage.md
+      - Troubleshooting: troubleshooting.md
+  - Solvers:
+      - Side by side: solvers.md
+      - SU2: su2-workspaces.md
+      - OpenFOAM: openfoam-workspaces.md
+      - PyFR: pyfr-workspaces.md
+      - XFOIL: xfoil-workspaces.md
+      - QPROP: qprop-workspaces.md
+      - FlightStream: flightstream-workspaces.md
+  - Commands: cli.md
+  - Reference:
+      - Architecture: architecture.md
+      - Adapter contract: adapter-contract.md
+      - Requirements: requirements/index.md
 exclude_docs: |
   /unpublished/

@@ -27,5 +27,5 @@ other solvers are on the roadmap. See the [OpenFOAM](docs/openfoam-workspaces.md
 [QPROP](docs/qprop-workspaces.md) workspace guides.
 
 See the [documentation site](https://nevesgeovana.github.io/cfdbender/) and
-the [workspace files](docs/workspace-files.md). This project is licensed under
+the [workspace layout](docs/workspace-layout.md). This project is licensed under
 the MIT license.

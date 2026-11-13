@@ -58,3 +58,11 @@ Before opening the change, check that:
   solver, where its reference values come from and how its axes are oriented;
 - no test needs the real solver: a test that does is marked and skipped where
   the solver is absent.
+
+## Testing without a solver
+
+The tests run a Python stand-in in place of each solver. A setup whose
+`[solver]` table names a `.py` file as `executable`, with no launcher, runs
+that file with the Python interpreter; the PyFR tests use this to write a
+synthetic `forces.csv`. A stand-in proves the workflow, never the physics: a
+real run is the only evidence of accuracy for a given mesh.
