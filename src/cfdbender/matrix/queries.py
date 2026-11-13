@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import re
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -27,6 +28,7 @@ from cfdbender.matrix._console import (
     add_output_options,
     add_runs_option,
     emit_rows,
+    read_activity,
 )
 from cfdbender.matrix._journal import MARKS, STORAGE, read_journal
 from cfdbender.matrix.selection import split_ids
@@ -349,6 +351,27 @@ def _events(root: Path, runs: list[Run]) -> list[dict[str, Any]]:
                 "detail": entry.get("reason"),
                 "problem": entry.get("verdict") == "failed",
             }
+        )
+    # The commands' own start and end, from logs/activity.log.jsonl (stage "command").
+    activity, skipped = read_activity(root)
+    for entry in activity:
+        events.append(
+            {
+                "run": None,
+                "sim": None,
+                "time": entry["timestamp"],
+                "stage": "command",
+                "event": f"{entry.get('stage')} {entry.get('event')}",
+                "detail": entry.get("message") or None,
+                "problem": entry.get("event") == "failed",
+            }
+        )
+    if skipped:
+        warnings.warn(
+            f"{skipped} line(s) of logs/activity.log.jsonl could not be read and are left out; "
+            "the other events are shown",
+            UserWarning,
+            stacklevel=2,
         )
     return events
 

@@ -21,6 +21,8 @@ from cfdbender.matrix._console import (
     add_warning_option,
     held_warnings,
     level_of,
+    open_live_log,
+    record_activity,
 )
 from cfdbender.matrix.collection import collect_workspace
 from cfdbender.matrix.post import post_workspace
@@ -31,6 +33,9 @@ from cfdbender.matrix.submission import select_profile, submission_plans, submit
 from cfdbender.solvers import load_solver
 from cfdbender.solvers.flightstream import dispatch
 from cfdbender.workspace.planning import plan_workspace
+
+#: The commands that leave a live log and activity events in logs/.
+LOGGED = frozenset({"plan", "run", "collect", "post"})
 
 
 def _seconds(text: str) -> float:
@@ -220,12 +225,34 @@ def main(argv: list[str] | None = None) -> int:
     parser, verbs = build_parser()
     args = parser.parse_args(argv)
     try:
-        console = Console(level_of(args))
+        level = level_of(args)
     except WorkspaceError as error:
         print(str(error), file=sys.stderr)
         return 2
-    with held_warnings(Path(args.workspace).resolve(), show=args.console_warnings):
-        return _execute(args, verbs, console)
+    root = Path(args.workspace).resolve()
+    # The commands that do work leave a live log and activity events; the read-only
+    # verbs leave nothing behind.
+    live = open_live_log(root, args.command) if args.command in LOGGED else None
+    console = Console(level, live)
+    code = 2
+    if args.command in LOGGED:
+        record_activity(root, args.command, "started", argv=list(argv))
+    try:
+        with held_warnings(root, show=args.console_warnings, log=live):
+            code = _execute(args, verbs, console)
+        return code
+    finally:
+        if args.command in LOGGED:
+            record_activity(
+                root,
+                args.command,
+                "finished" if code == 0 else "failed",
+                f"exit code {code}",
+                exit_code=code,
+            )
+        if live is not None:
+            live.write(f"# {args.command} ended with exit code {code}")
+            live.close()
 
 
 def _collect(args: argparse.Namespace, console: Console) -> int:
@@ -323,22 +350,22 @@ def _execute(
             for record in records:
                 console.say(f"  {record.point_id}  {record.status} {record.classification}")
                 if record.error:
-                    print(f"  {record.point_id}: {record.error}", file=sys.stderr)
+                    console.error(f"  {record.point_id}: {record.error}")
                 elif record.submission and record.submission["timed_out"]:
-                    print(record.submission["stderr"], file=sys.stderr)
+                    console.error(str(record.submission["stderr"]))
             if any(
                 record.classification == "failed"
                 or (record.submission and record.submission["return_code"] != 0)
                 for record in records
             ):
-                print("matrix run with failures", file=sys.stderr)
+                console.error("matrix run with failures")
                 return 2
             if any(record.status == "SUBMITTED" for record in records):
                 console.final("submitted; extraction pending collect")
             return 0
     except (WorkspaceError, OSError, ValueError) as error:
         prefix = "matrix not run: " if args.command == "run" else ""
-        print(prefix + str(error), file=sys.stderr)
+        console.error(prefix + str(error))
         return 2
     console.final(f"matrix: {plan.matrix}")
     console.final(f"solver: {plan.solver}")
@@ -380,7 +407,7 @@ def _execute(
             console.say(f"    output: {output}")
     for job in jobs:
         for warning in job.warnings:
-            print(f"warning: {warning}", file=sys.stderr)
+            console.error(f"warning: {warning}")
         console.say(f"descriptor: {job.descriptor_path.as_posix()}")
         if console.level != "quiet":
             print(job.descriptor_text, end="")

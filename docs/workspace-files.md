@@ -208,3 +208,12 @@ directory, collect reads it from the record, and old records still load. Only
 a plan written afterwards uses the new names, so re-planning a matrix in an old
 workspace would register its points a second time under the new names; finish
 or archive the old campaign first.
+
+## Logs
+
+`plan`, `run`, `collect` and `post` write to `logs/` of the workspace (only a
+folder that is a workspace gets one): `logs/<command>-<stamp>.log` holds every line the
+command showed, `logs/activity.log` and `logs/activity.log.jsonl` record when each
+command started and how it ended (the `log` verb lists them with the run events,
+stage `command`), and `logs/warnings.log` holds every warning, whatever
+`--warning-off` does to the console. The read-only verbs write nothing.
