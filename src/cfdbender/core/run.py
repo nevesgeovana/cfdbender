@@ -20,7 +20,6 @@ from cfdbender.core.executables import bind_executable
 from cfdbender.core.plan import RunPlan, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 
-
 FLOOR_GIB = 0.5
 
 
