@@ -67,6 +67,9 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("openfoam",)
     )
     opts = options(workspace.setup, declaration.solver_options)
+    workspace.warn_unread(
+        "OpenFOAM", reference=("area", "length", "moment_origin"), post=("history",)
+    )
     conditions = [dict(row.condition)]
     if row.sweep_key:
         conditions = [dict(row.condition, **{row.sweep_key: value}) for value in row.sweep_values]

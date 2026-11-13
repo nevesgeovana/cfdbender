@@ -40,6 +40,17 @@ NEUTRAL_KEYS = {
     "mesh": "MESH_FILENAME",
 }
 _REVERSE = {value: key for key, value in reversed(NEUTRAL_KEYS.items())}
+
+
+def reads_key(key: str) -> bool:
+    """Return whether SU2 translates a neutral key or forwards a native key."""
+    return (
+        key.lower() in NEUTRAL_KEYS
+        or key == "moment_origin"
+        or re.fullmatch("[A-Z][A-Z0-9_]*", key) is not None
+    )
+
+
 _FLOW_WORDS = {
     "MACH_NUMBER": "MACH",
     "FREESTREAM_TEMPERATURE": "temperature",
@@ -248,6 +259,8 @@ def config(
             target = NEUTRAL_KEYS.get(key.lower())
             if target is None:
                 if re.fullmatch("[A-Z][A-Z0-9_]*", key) is None:
+                    if table is reference or table is post:
+                        continue
                     raise unknown_keys(file, [key], [*NEUTRAL_KEYS, "moment_origin"]) from None
                 target = key
             add(target, value)

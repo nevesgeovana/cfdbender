@@ -105,6 +105,11 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         Deterministic actions and output templates per point.
     """
     _validate(workspace.setup, workspace.reference, workspace.post)
+    workspace.warn_unread(
+        "mock",
+        reference=("area", "length", "moment_origin", "axis_system", "axis_directions"),
+        post=("history",),
+    )
     if row.workflow != "steady":
         raise steady_only("the mock solver")
     if workspace.geometry is not None:

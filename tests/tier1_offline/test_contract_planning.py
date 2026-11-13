@@ -139,3 +139,15 @@ def test_c17_every_sweep_point_is_validated_at_planning(case):  # noqa: F811
     with pytest.raises(ValueError):
         plan_workspace(root, "full")
     assert snapshot(root) == before
+
+
+@pytest.mark.parametrize("kind,ident", [("references", "r001"), ("pproc", "p001")])
+def test_c09_unread_reference_and_post_keys_warn_and_still_translate(case, kind, ident):  # noqa: F811
+    from cfdbender.core.adapter import load_point
+
+    solver, root = case
+    path = root / f"inputs/{kind}/{ident}.toml"
+    path.write_bytes(b"review_unused = 1\n" + path.read_bytes())
+    with pytest.warns(UserWarning, match=f"POL 7001.*review_unused.*{ident}"):
+        plan = plan_workspace(root, "full")
+    assert load_solver(solver).translate(load_point(root, plan.points[0], solver=solver))

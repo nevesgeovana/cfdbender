@@ -129,8 +129,6 @@ def config(
             },
             "setup file",
         ),
-        (reference, {"area", "length", "moment_origin"}, "REF file"),
-        (post, {"history"}, "PPROC file"),
         (condition, {"alpha"}, "FLIGHT_CONDITION"),
     ):
         if unknown := set(table) - allowed:
