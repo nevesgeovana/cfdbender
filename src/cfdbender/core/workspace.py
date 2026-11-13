@@ -9,7 +9,7 @@ from pathlib import Path
 from cfdbender.core.settings import WorkspaceError, _validate
 
 INPUT_KINDS = (
-    "geometries",
+    "mesh",
     "references",
     "setups",
     "pproc",
