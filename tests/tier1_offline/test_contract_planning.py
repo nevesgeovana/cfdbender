@@ -107,15 +107,9 @@ def test_c08_c16_an_unimplemented_workflow_is_refused_naming_it(case):  # noqa: 
     assert snapshot(root) == before
 
 
-def test_c08_c09_an_unknown_setup_key_is_refused_naming_the_key(case, request):  # noqa: F811
+def test_c08_c09_an_unknown_setup_key_is_refused_naming_the_key(case):  # noqa: F811
     """C-08 and C-09: an unknown top-level setup key is refused, and the key is named."""
     solver, root = case
-    if solver == "mock":
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True, reason="C-09 defect: the mock adapter accepts an unknown setup key"
-            )
-        )
     setup = root / "inputs/setups/s001.toml"
     setup.write_bytes(b"zz_unknown_key = 1\n" + setup.read_bytes())
     with pytest.raises(ValueError, match="zz_unknown_key"):

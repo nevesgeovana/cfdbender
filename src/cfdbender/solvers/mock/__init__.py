@@ -65,6 +65,9 @@ def _references(data: Mapping[str, object]) -> References:
 def _validate(
     setup: Mapping[str, object], reference: Mapping[str, object], post: Mapping[str, object]
 ) -> tuple[str, int, References]:
+    unknown = sorted(set(setup) - {"mock"})
+    if unknown:
+        raise ValueError(f"unsupported setup key {unknown[0]!r}; the mock setup holds only [mock]")
     table = setup.get("mock")
     if not isinstance(table, dict):
         raise ValueError("setup needs a [mock] table with outcome and iterations")
@@ -154,7 +157,17 @@ def classify(result: ExecutionResult) -> Classification:
 def _read(point: AdapterPoint) -> tuple[ExecutionResult, dict[str, Coefficient]]:
     point.verify()
     folder = workspace_path(point.root, point.point.directory)
-    metadata = json.loads((folder / "execution.json").read_bytes())
+    record = folder / "execution.json"
+    if record.is_file():
+        metadata = json.loads(record.read_bytes())
+    else:
+        # A cluster job may return only history.csv: the setup states what execution.json held.
+        outcome, limit, _ = _validate(point.setup, point.reference, point.post)
+        metadata = {
+            "exit_code": int(outcome == "failed"),
+            "iteration_limit": limit,
+            "solver_version": "mock-1",
+        }
     if (
         not isinstance(metadata, dict)
         or set(metadata) != {"exit_code", "iteration_limit", "solver_version"}
