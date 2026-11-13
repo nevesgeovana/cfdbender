@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shutil
 import tomllib
 from datetime import UTC, datetime
@@ -90,6 +91,30 @@ def _recipe(root: Path, name: str) -> dict[str, Any]:
     return recipe
 
 
+def _own_files(base: Path) -> list[Path]:
+    """Return the regular files under base, never entering a linked folder or junction.
+
+    Path.rglob enters a Windows junction (it is not a symlink), so a junction under
+    sims/ would put files outside the workspace in reach of a delete.
+    """
+    if not base.is_dir() or base.is_symlink() or os.path.isjunction(base):
+        return []
+    found: list[Path] = []
+    stack = [base]
+    while stack:
+        folder = stack.pop()
+        with os.scandir(folder) as entries:
+            for entry in entries:
+                path = Path(entry.path)
+                if entry.is_symlink() or os.path.isjunction(path):
+                    continue
+                if entry.is_dir(follow_symlinks=False):
+                    stack.append(path)
+                elif entry.is_file(follow_symlinks=False):
+                    found.append(path)
+    return sorted(found)
+
+
 def run_free_space(args: argparse.Namespace) -> int:
     """Run a storage recipe: delete named extensions under sims/ that no record names."""
     root = Path(args.workspace).resolve()
@@ -104,8 +129,8 @@ def run_free_space(args: argparse.Namespace) -> int:
         extensions = {str(e).lower() for e in step.get("extensions", [])}
         if not extensions or any(not e.startswith(".") for e in extensions):
             raise WorkspaceError('delete_extensions needs extensions = [".ext", ...]')
-        for path in sorted((root / "sims").rglob("*")):
-            if not path.is_file() or path.is_symlink() or path.suffix.lower() not in extensions:
+        for path in _own_files(root / "sims"):
+            if path.suffix.lower() not in extensions:
                 continue
             protected = path.resolve() in kept
             if args.list_paths:
@@ -130,6 +155,27 @@ def run_free_space(args: argparse.Namespace) -> int:
     return 0
 
 
+def _sim_folder(root: Path, sim: str) -> Path:
+    """Return sims/sim_<sim>, refusing an id that is not one plain folder name of sims/.
+
+    A separator or ``..`` would step out of sims/, and Windows drops trailing dots and
+    spaces and folds case, so ``1001.`` names sim_1001; the resolved name must be the
+    name asked for. A link or junction is refused, never followed.
+    """
+    name = f"sim_{sim}"
+    if any(c in sim for c in '/\\:*?"<>|') or sim.strip(". ") != sim or not sim:
+        raise RegistryError(f"--sims {sim!r}: not a simulation id")
+    folder = root / "sims" / name
+    if not folder.exists():
+        return folder
+    if folder.is_symlink() or os.path.isjunction(folder):
+        raise RegistryError(f"--sims {sim}: sims/{name} is a link; refusing to follow it")
+    resolved = folder.resolve()
+    if resolved.parent != (root / "sims").resolve() or resolved.name != name:
+        raise RegistryError(f"--sims {sim}: sims/{name} is not that simulation's folder")
+    return folder
+
+
 def run_delete_sims(args: argparse.Namespace) -> int:
     """Delete named sims: their folders and records, keeping a note in the manifest history."""
     root = Path(args.workspace).resolve()
@@ -137,6 +183,7 @@ def run_delete_sims(args: argparse.Namespace) -> int:
     records = registry.read()
     sims = split_ids(args.sims)
     for sim in sims:
+        _sim_folder(root, sim)
         if all(r.point.pol != sim for r in records) and not (root / "sims" / f"sim_{sim}").is_dir():
             raise RegistryError(f"--sims {sim}: no record or folder of that simulation")
     doomed = [r for r in records if r.point.pol in sims]

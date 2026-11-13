@@ -95,6 +95,22 @@ def test_a_stated_air_state_fills_velocity_density_and_reynolds(tmp_path):
     assert row["RE"] != "NA" and float(row["MU"]) > 1e-5
 
 
+def test_a_condition_key_spelled_as_a_context_column_fills_it_once(tmp_path):
+    workspace(tmp_path)
+    (tmp_path / "inputs/matrices/study.fs").write_text(
+        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "1001|1|001|001|001|MACH:0.2, VREF:30, ALPHA:sweep|0\n",
+        encoding="ascii",
+    )
+    assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
+    assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
+    path = tmp_path / "post/study/campaign_sweep.csv"
+    header = header_of(path)
+    assert len(header) == len(set(header)), "a column is stated twice"
+    row = dict(zip(header, path.read_text(encoding="utf-8").splitlines()[1].split(","), strict=True))
+    assert float(row["VREF"]) == 30.0
+
+
 def test_text_cells_hold_no_comma_quote_or_line_break():
     from cfdbender.matrix.exports import plain_cell
 
