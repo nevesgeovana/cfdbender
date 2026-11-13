@@ -25,8 +25,6 @@ matrix -> plan -> run or submit -> collect -> tables
 | submit | `cfd-matrix run <matrix> --hpc <profile>` | the plan, the profile in `inputs/hpc/` | the staged point folder, the job descriptor, the record as `SUBMITTED` |
 | collect | `cfd-matrix collect [<matrix>]` | `runs.json`, the saved solver outputs | `post/<matrix>/campaign_summary.json`, `campaign_sweep.csv`, `polars/P<POL>.csv`, `products.json`, `post.log` |
 
-<!-- lands with conf87: the plan receipt post/<matrix>/plan.json, products.json and post.log -->
-
 Planning launches no solver. A run executes every selected point, records a
 failed point and continues with the next. Collect launches nothing: it reads
 saved outputs and rebuilds every table whole, so a table can always be
@@ -101,9 +99,6 @@ the guarantees listed below the table.
 | `sims/sim_<POL>/datapoints/DP-<name>/` | the adapter, during a run or a staging | The solver input as written, the solver outputs and the captured output channels. |
 | `post/<matrix>/` tables | `cfd-matrix collect` | Derived products, rebuilt on every collect. |
 | `archive/<stamp>/` | the run registry | `runs.json` as it was and the folder of each point that was redone. |
-
-<!-- lands with core87: inputs/mesh/ as the canonical folder and the three earlier names still read -->
-<!-- lands with conf87: post/<matrix>/plan.json -->
 
 ### What the core guarantees
 
