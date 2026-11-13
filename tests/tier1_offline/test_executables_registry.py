@@ -71,6 +71,18 @@ def test_the_row_build_wins_over_the_setup_solver_table(tmp_path):
     assert RunRegistry(tmp_path).read()[0].classification == "converged"
 
 
+def test_a_serial_build_clears_the_setup_launcher(tmp_path):
+    from cfdbender.core.adapter import load_point
+    from cfdbender.core.executables import bind_executable
+    from cfdbender.solvers import load_solver
+
+    case(tmp_path, setup_solver='[solver]\nmpi_launcher = ["obsolete-launcher", "-np", "8"]\n')
+    declare(tmp_path, '[su2]\n"8.6.0" = ' + json.dumps(FAKE.as_posix()) + "\n")
+    point = load_point(tmp_path, plan_workspace(tmp_path, "study").points[0], solver="su2")
+    bound = bind_executable(point, load_solver("su2"))
+    assert bound.setup["solver"]["mpi_launcher"] == []
+
+
 @pytest.mark.parametrize(
     "declared,local,word",
     [

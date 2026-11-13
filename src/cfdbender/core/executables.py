@@ -91,8 +91,7 @@ def bind_executable(point: AdapterPoint, adapter: object) -> AdapterPoint:
     solver = dict(table) if isinstance(table, Mapping) else {}
     solver.update(getattr(adapter, "BUILD_OPTIONS", {}))
     solver[keys["path"]] = found.path
-    if found.launcher:
-        solver[keys["launcher"]] = list(found.launcher)
+    solver[keys["launcher"]] = list(found.launcher)
     return replace(point, setup={**point.setup, "solver": solver})
 
 
