@@ -52,6 +52,7 @@ from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate
+from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers.su2._config import config, mesh_name, options, render, staged_mesh
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
@@ -92,7 +93,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         Actions and claimed point outputs.
     """
     if row.workflow != "steady":
-        raise ValueError("SU2 WORKFLOW must be steady in this adapter")
+        raise steady_only("SU2")
     declaration = _validate(
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("su2",)
     )

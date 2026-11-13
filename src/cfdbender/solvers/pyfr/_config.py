@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from cfdbender.core.flight import agree, mach_reynolds
 from cfdbender.core.mesh import MESH_PREFIXES
-from cfdbender.solvers._host._config import number
+from cfdbender.solvers._host._config import number, unknown_keys
 
 _MESH_FOLDERS = MESH_PREFIXES
 
@@ -59,23 +59,28 @@ def config(
         "solver",
     }
     if unknown := set(setup) - allowed:
-        raise ValueError(f"unsupported PyFR setup: {sorted(unknown)}")
+        raise unknown_keys("setup file", unknown, allowed)
     values = dict(setup)
+    known = {"mach", "reynolds", "alpha", "order", "tend", "window_start", "tolerance"}
     for key, value in condition.items():
         key = key.lower()
-        if key not in {"mach", "reynolds", "alpha", "order", "tend", "window_start", "tolerance"}:
-            raise ValueError(f"unsupported PyFR condition: {key}")
+        if key not in known:
+            raise unknown_keys("FLIGHT_CONDITION", [key], known)
         values[key] = value
     mesh = values.get("mesh")
     if not isinstance(mesh, str) or not mesh.startswith(_MESH_FOLDERS) or not mesh.endswith(".msh"):
         raise ValueError("mesh must name inputs/mesh/<name>.msh")
-    mach = number(values.get("mach"), "mach")
-    reynolds = number(values.get("reynolds"), "reynolds")
-    alpha = number(values.get("alpha", 0), "alpha")
-    order = number(values.get("order"), "order")
-    tend = number(values.get("tend"), "tend")
-    start = number(values.get("window_start"), "window_start")
-    tolerance = number(values.get("tolerance", 0.01), "tolerance")
+    if values.get("mach") is None:
+        raise ValueError("FLIGHT_CONDITION needs MACH (or mach in the setup file)")
+    if values.get("reynolds") is None:
+        raise ValueError("FLIGHT_CONDITION needs REmi (or reynolds in the setup file)")
+    mach = number(values.get("mach"), "mach", "FLIGHT_CONDITION")
+    reynolds = number(values.get("reynolds"), "reynolds", "FLIGHT_CONDITION")
+    alpha = number(values.get("alpha", 0), "alpha", "FLIGHT_CONDITION")
+    order = number(values.get("order"), "order", "setup file")
+    tend = number(values.get("tend"), "tend", "setup file")
+    start = number(values.get("window_start"), "window_start", "setup file")
+    tolerance = number(values.get("tolerance", 0.01), "tolerance", "setup file")
     backend = values.get("backend", "cuda")
     if (
         mach <= 0

@@ -40,6 +40,7 @@ from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate, read_init
+from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers.openfoam._config import config, files, options, staged_mesh
 from cfdbender.solvers.openfoam._execute import run, stage_case
 from cfdbender.solvers.openfoam._history import Evidence, read
@@ -61,7 +62,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         Tracked setup, reference and post inputs.
     """
     if row.workflow != "steady":
-        raise ValueError("OpenFOAM WORKFLOW must be steady")
+        raise steady_only("OpenFOAM")
     declaration = _validate(
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("openfoam",)
     )

@@ -8,6 +8,7 @@ from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate, read_init
+from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers.pyfr._config import config, options, render
 from cfdbender.solvers.pyfr._execute import run, stage_case
 from cfdbender.solvers.pyfr._history import Evidence, read
@@ -37,7 +38,7 @@ class PyFRResult(NeutralResult):
 def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     """Validate a steady row and its gmsh mesh without writing."""
     if row.workflow != "steady":
-        raise ValueError("PyFR workflow must be steady")
+        raise steady_only("PyFR")
     declaration = _validate(
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("pyfr",)
     )

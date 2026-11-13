@@ -236,7 +236,10 @@ def test_every_table_carries_neutral_cl_cd_cm_beside_the_solvers_own_columns(cas
     write_receipt(plan_workspace(root, "full"))
     assert local(root) == 0, solver
     assert main(["collect", "full", "--workspace", str(root)]) == 0
-    for table in (root / "post/full/campaign_sweep.csv", *(root / "post/full/polars").glob("*.csv")):
+    for table in (
+        root / "post/full/campaign_sweep.csv",
+        *(root / "post/full/polars").glob("*.csv"),
+    ):
         with table.open(encoding="utf-8", newline="") as stream:
             rows = list(csv.DictReader(stream))
         assert rows and {"CL", "CD", "CM"} <= set(rows[0])

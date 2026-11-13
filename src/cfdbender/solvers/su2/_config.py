@@ -15,6 +15,7 @@ from cfdbender.core.flight import (
     states_flow,
 )
 from cfdbender.solvers._host._config import number as number
+from cfdbender.solvers._host._config import unknown_keys
 from cfdbender.solvers.su2.routes import ROUTES
 
 NEUTRAL_KEYS = {
@@ -37,6 +38,27 @@ NEUTRAL_KEYS = {
     "output_frequency": "OUTPUT_WRT_FREQ",
     "mesh": "MESH_FILENAME",
 }
+_REVERSE = {value: key for key, value in reversed(NEUTRAL_KEYS.items())}
+_FLOW_WORDS = {
+    "MACH_NUMBER": "MACH",
+    "FREESTREAM_TEMPERATURE": "temperature",
+    "FREESTREAM_PRESSURE": "pressure",
+    "FREESTREAM_DENSITY": "density",
+    "REYNOLDS_NUMBER": "Reynolds number",
+    "REYNOLDS_LENGTH": "Reynolds length",
+}
+
+
+def _named(key: str) -> str:
+    """Return a key as the user wrote it: its file and its neutral name, or the SU2 key."""
+    if key in _FLOW_WORDS:
+        return f"FLIGHT_CONDITION {_FLOW_WORDS[key]}"
+    if key in _REVERSE:
+        file = "REF file" if key in {"REF_AREA", "REF_LENGTH"} else "setup file"
+        return f"{file} {_REVERSE[key]}"
+    return key
+
+
 _OPTIONS = {
     "route",
     "executable",
@@ -113,6 +135,12 @@ def render_value(value: object, name: str) -> str:
     ):
         return value
     raise ValueError(f"{name} needs an ASCII SU2 scalar or list without control characters, % or =")
+
+
+def _needs(key: str) -> str:
+    """Return the refusal of a required key the user left out."""
+    file, _, name = _named(key).rpartition(" ")
+    return f"{file} needs {name}"
 
 
 def _reference_length(*tables: Mapping[str, object]) -> float | None:
@@ -196,7 +224,12 @@ def config(
             render_value(value, key)
         values[key] = value
 
-    for table in (setup, reference, post, condition):
+    for table, file in (
+        (setup, "setup file"),
+        (reference, "REF file"),
+        (post, "PPROC file"),
+        (condition, "FLIGHT_CONDITION"),
+    ):
         for key, value in table.items():
             if (
                 key in {"solver", "mesh_link"}
@@ -214,9 +247,7 @@ def config(
             target = NEUTRAL_KEYS.get(key.lower())
             if target is None:
                 if re.fullmatch("[A-Z][A-Z0-9_]*", key) is None:
-                    raise ValueError(
-                        f"unsupported input {key}; SU2-specific keys must be uppercase"
-                    )
+                    raise unknown_keys(file, [key], [*NEUTRAL_KEYS, "moment_origin"]) from None
                 target = key
             add(target, value)
     for key, value in derived.items():
@@ -229,15 +260,17 @@ def config(
         values[key] = value
     for key in ("REF_AREA", "REF_LENGTH", "ITER", "MESH_FILENAME"):
         if key not in values:
-            raise ValueError(f"missing {key}")
+            if key == "MESH_FILENAME":
+                raise ValueError("GEOMETRY names no mesh and setup file states none")
+            raise ValueError(_needs(key))
     for key in values.keys() & _NUMERIC:
         value = number(values[key], key)
         if key in {"REF_AREA", "REF_LENGTH", "ITER", "OUTPUT_WRT_FREQ"} and value <= 0:
-            raise ValueError(f"{key} must be positive")
+            raise ValueError(f"{_named(key)} must be positive")
         if key in {"ITER", "OUTPUT_WRT_FREQ"} and value != int(value):
-            raise ValueError(f"{key} must be an integer")
+            raise ValueError(f"{_named(key)} must be an integer")
         if key == "MACH_NUMBER" and value < 0:
-            raise ValueError("MACH_NUMBER must be non-negative")
+            raise ValueError("FLIGHT_CONDITION MACH must be non-negative")
         if (
             key
             in {
@@ -249,7 +282,7 @@ def config(
             }
             and value <= 0
         ):
-            raise ValueError(f"{key} must be positive")
+            raise ValueError(f"{_named(key)} must be positive (check MACH, TASmps, ALTFT and REmi)")
     if "FREESTREAM_VELOCITY" in values:
         velocity = values["FREESTREAM_VELOCITY"]
         if not isinstance(velocity, list) or len(velocity) != 3:

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from cfdbender.core.flight import agree, mach_reynolds
-from cfdbender.solvers._host._config import number
+from cfdbender.solvers._host._config import number, unknown_keys
 
 _OPTIONS = {"executable", "launcher", "timeout_s", "ram_estimate_gib"}
 
@@ -90,7 +90,7 @@ def config(
         "solver",
     }
     if unknown := set(setup) - allowed:
-        raise ValueError("unsupported XFOIL setup: " + ", ".join(sorted(unknown)))
+        raise unknown_keys("setup file", unknown, allowed)
     if ("airfoil" in setup) == ("airfoil_file" in setup):
         raise ValueError("specify exactly one of airfoil and airfoil_file")
     airfoil = setup.get("airfoil", "")

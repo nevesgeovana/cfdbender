@@ -46,7 +46,7 @@ from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate, read_init
-from cfdbender.solvers._host._config import number
+from cfdbender.solvers._host._config import number, steady_only
 from cfdbender.solvers.xfoil._config import config, options, render
 from cfdbender.solvers.xfoil._execute import argv as argv
 from cfdbender.solvers.xfoil._execute import run
@@ -76,7 +76,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         Per-point actions and output claims.
     """
     if row.workflow != "steady":
-        raise ValueError("XFOIL WORKFLOW must be steady")
+        raise steady_only("XFOIL")
     if row.sweep_key and row.sweep_key.lower() != "alpha":
         raise ValueError("XFOIL only supports an alpha sweep")
     declaration = _validate(

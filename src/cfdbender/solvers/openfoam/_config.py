@@ -13,7 +13,7 @@ from typing import cast
 from cfdbender.core.flight import agree, row_flow
 from cfdbender.core.mesh import MESH_PREFIXES
 from cfdbender.core.results import References
-from cfdbender.solvers._host._config import number
+from cfdbender.solvers._host._config import number, unknown_keys
 
 
 @dataclass(frozen=True)
@@ -127,16 +127,16 @@ def config(
                 "residual_target",
                 "solver",
             },
-            "setup",
+            "setup file",
         ),
-        (reference, {"area", "length", "moment_origin"}, "reference"),
-        (post, {"history"}, "post"),
-        (condition, {"alpha"}, "condition"),
+        (reference, {"area", "length", "moment_origin"}, "REF file"),
+        (post, {"history"}, "PPROC file"),
+        (condition, {"alpha"}, "FLIGHT_CONDITION"),
     ):
         if unknown := set(table) - allowed:
-            raise ValueError(f"unsupported OpenFOAM {label}: " + ", ".join(sorted(unknown)))
+            raise unknown_keys(label, unknown, allowed)
     if setup.get("application") != "simpleFoam":
-        raise ValueError("application must be simpleFoam in the OpenFOAM POC")
+        raise ValueError("setup file application must be simpleFoam, the OpenFOAM solver run here")
     mesh = setup.get("mesh")
     if (
         not isinstance(mesh, str)
@@ -160,8 +160,12 @@ def config(
             raise ValueError(
                 "mesh_converter supports only {mesh} and {case} placeholders"
             ) from error
-    speed = number(setup.get("speed"), "speed")
-    nu = number(setup.get("nu"), "nu")
+    if setup.get("speed") is None:
+        raise ValueError("FLIGHT_CONDITION needs MACH or TASmps (or speed in the setup file)")
+    if setup.get("nu") is None:
+        raise ValueError("FLIGHT_CONDITION needs REmi with a REF length, or nu in the setup file")
+    speed = number(setup.get("speed"), "speed", "setup file")
+    nu = number(setup.get("nu"), "nu", "setup file")
     target = number(setup.get("residual_target", 1e-5), "residual_target")
     if min(speed, nu, target) <= 0:
         raise ValueError("speed, nu and residual_target must be positive")
@@ -177,7 +181,7 @@ def config(
     if not isinstance(origin, list) or len(origin) != 3:
         raise ValueError("moment_origin needs three finite coordinates")
     refs = References(
-        number(reference.get("area"), "area"),
+        number(reference.get("area"), "area", "REF file"),
         number(reference.get("length"), "length"),
         (
             number(origin[0], "moment_origin"),
