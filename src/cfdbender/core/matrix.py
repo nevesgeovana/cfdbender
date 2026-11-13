@@ -305,6 +305,11 @@ def parse_matrix(data: bytes, source: Path, *, active_only: bool = True) -> tupl
     header = [c.strip() for c in content[0].split("|")]
     if any(not c for c in header) or len(set(header)) != len(header):
         raise MatrixError(f"{source.as_posix()}: blank or duplicate matrix headers")
+    if len(header) == 1 and "," in header[0] and set(header[0].split(",")) & set(COLUMNS):
+        raise MatrixError(
+            f"{source.as_posix()}: columns are separated by |, not by commas "
+            "(POL | RUN | SET | ...)"
+        )
     missing = set(REQUIRED_COLUMNS) - set(header)
     unknown = set(header) - set(COLUMNS)
     if missing or unknown:
@@ -313,10 +318,12 @@ def parse_matrix(data: bytes, source: Path, *, active_only: bool = True) -> tupl
             for name in sorted(unknown)
             for close in [difflib.get_close_matches(name, COLUMNS, n=1)]
         ]
-        raise MatrixError(
-            f"{source.as_posix()}: missing columns: {', '.join(sorted(missing)) or '(none)'}; "
-            f"unsupported columns: {', '.join(hints) or '(none)'}"
-        )
+        problems = []
+        if missing:
+            problems.append(f"missing columns: {', '.join(sorted(missing))}")
+        if hints:
+            problems.append(f"unsupported columns: {', '.join(hints)}")
+        raise MatrixError(f"{source.as_posix()}: {'; '.join(problems)}")
     if {"SOLVER_BUILD", "FS_BUILD"} <= set(header):
         raise MatrixError(
             f"{source.as_posix()}: SOLVER_BUILD and FS_BUILD name one column; keep one"

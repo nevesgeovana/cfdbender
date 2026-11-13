@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
@@ -95,9 +96,13 @@ def config(
         raise ValueError("specify exactly one of airfoil and airfoil_file")
     airfoil = setup.get("airfoil", "")
     if "airfoil" in setup and (
-        not isinstance(airfoil, str) or re.fullmatch("NACA ([0-9]{4}|[0-9]{5})", airfoil) is None
+        not isinstance(airfoil, str)
+        or re.fullmatch("NACA ([0-9]{4}|[1-6][0-9]{4})", airfoil) is None
     ):
-        raise ValueError("airfoil must be a NACA 4 or 5 digit designation, e.g. NACA 0012")
+        raise ValueError(
+            "setup file airfoil must be a NACA 4 or 5 digit designation, "
+            "e.g. NACA 0012 or NACA 23012"
+        )
     filename = setup.get("airfoil_file")
     if "airfoil_file" in setup and (
         not isinstance(filename, str)
@@ -110,6 +115,13 @@ def config(
     normalized = {key.lower(): value for key, value in condition.items()}
     if set(normalized) != {"alpha"}:
         raise ValueError("XFOIL matrix conditions require only scalar alpha or an alpha sweep")
+    if "reynolds" not in setup:
+        warnings.warn(
+            "neither REmi in the row nor reynolds in the setup file states a Reynolds number: "
+            "XFOIL runs inviscid",
+            UserWarning,
+            stacklevel=2,
+        )
     reynolds = number(setup.get("reynolds", 0), "reynolds")
     mach = number(setup.get("mach", 0), "mach")
     ncrit = number(setup.get("ncrit", 9), "ncrit")

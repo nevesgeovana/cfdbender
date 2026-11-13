@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import warnings
 from collections.abc import Mapping
 from typing import cast
 
@@ -258,6 +259,13 @@ def config(
                 f"{value!r} from the matrix {source}; state it in one place"
             )
         values[key] = value
+    if "MACH_NUMBER" not in values:
+        warnings.warn(
+            "FLIGHT_CONDITION and the setup file state no MACH_NUMBER: SU2 runs with its own "
+            "default free stream",
+            UserWarning,
+            stacklevel=2,
+        )
     for key in ("REF_AREA", "REF_LENGTH", "ITER", "MESH_FILENAME"):
         if key not in values:
             if key == "MESH_FILENAME":

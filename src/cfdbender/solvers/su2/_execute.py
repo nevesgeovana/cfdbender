@@ -81,7 +81,11 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
     if raw_path:
         path = Path(str(raw_path)).expanduser()
         wrapper_path = str((path if path.is_absolute() else point.root / path).resolve())
-    route = select_route(str(opts["route"]) if "route" in opts else None, pysu2_path=wrapper_path)
+    # A stated executable is a choice of the executable route: no wrapper search, no warning.
+    chosen = (
+        str(opts["route"]) if "route" in opts else ("executable" if "executable" in opts else None)
+    )
+    route = select_route(chosen, pysu2_path=wrapper_path)
     if route == "pysu2":
         argv = [sys.executable, "-m", "cfdbender.solvers.su2._pysu2_worker", "su2.cfg"]
     else:

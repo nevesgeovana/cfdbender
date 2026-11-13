@@ -132,6 +132,8 @@ def _context(
     except (FlightConditionError, ValueError):
         return cells, extra
     cells.setdefault("MACH", state.mach)
+    if "ALT" not in cells and state.density_source == "atmosphere":
+        cells["ALT"] = 0.0
     cells["VINF"] = state.velocity
     cells["RHO"] = state.density
     cells["TEMP"] = state.temperature

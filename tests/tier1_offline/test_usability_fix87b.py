@@ -104,3 +104,9 @@ def test_u15_an_adapter_refusal_names_the_setup_file_it_concerns(mock, capsys):
     assert code == 2
     assert err.startswith("inputs/matrices/full.fs, data row 1 (POL 7001)")
     assert "inputs/setups/s001.toml" in err
+
+
+def plan_error_text(capsys, root):
+    code, _, err = run(capsys, "plan", "full", "--workspace", root)
+    assert code == 2
+    return err

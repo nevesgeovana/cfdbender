@@ -207,18 +207,18 @@ class Console:
     def say(self, text: str = "") -> None:
         """Print a progress or per-point line unless the level is quiet."""
         if self.level != "quiet":
-            print(text)
+            print(text, flush=True)
             self._tee(text)
 
     def detail(self, text: str = "") -> None:
         """Print a detail line at verbose only."""
         if self.level == "verbose":
-            print(text)
+            print(text, flush=True)
             self._tee(text)
 
     def final(self, text: str = "") -> None:
         """Print the final summary line at every level."""
-        print(text)
+        print(text, flush=True)
         self._tee(text)
 
     def error(self, text: str = "") -> None:
