@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import time
@@ -18,6 +17,7 @@ from cfdbender.core.plan import workspace_path
 from cfdbender.solvers import load_solver
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._config import number
+from cfdbender.solvers._host._exe import resolve_executable
 from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
 from cfdbender.solvers._host._single import process_lease
 from cfdbender.solvers.qprop._config import Operating, Setup, options
@@ -31,20 +31,8 @@ def qprop_argv(opts: Mapping[str, object], root: Path) -> list[str]:
     launcher = cast(list[str], opts.get("launcher", []))
     if launcher:
         return [*launcher, value]
-    executable = Path(value).expanduser()
-    is_path = executable.is_absolute() or any(sep in value for sep in (os.sep, os.altsep) if sep)
-    if is_path:
-        if not executable.is_absolute():
-            executable = root / executable
-        allowed = executable.suffix == ".py" or os.name == "nt" or os.access(executable, os.X_OK)
-        resolved = str(executable) if executable.is_file() and allowed else None
-        if resolved is None and not executable.exists():
-            resolved = shutil.which(str(executable))
-    else:
-        resolved = shutil.which(value)
-    if resolved is None or not Path(resolved).is_file():
-        raise ValueError("QPROP executable not found; set solver.executable or CFDBENDER_QPROP_EXE")
-    return [sys.executable, resolved] if executable.suffix == ".py" else [resolved]
+    resolved = resolve_executable(value, root, "QPROP", "executable")
+    return [sys.executable, str(resolved)] if resolved.suffix == ".py" else [str(resolved)]
 
 
 def _xfoil_options(opts: Mapping[str, object]) -> dict[str, object]:

@@ -13,6 +13,7 @@ from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
+from cfdbender.solvers._host._exe import resolve_executable
 from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._single import process_lease
@@ -24,16 +25,12 @@ def launch_prefix(opts: Mapping[str, object], root: Path) -> list[str]:
     """Return the launcher tokens and executable every PyFR command starts with."""
     launcher = cast(list[str], opts["launcher"])
     executable = str(opts.get("executable", "pyfr"))
-    if executable.endswith(".py") and not launcher:
-        path = Path(executable)
-        if not path.is_absolute():
-            path = root / path
-        if not path.is_file():
-            raise ValueError("PyFR stand-in does not exist")
-        prefix = [sys.executable, str(path)]
-    else:
-        prefix = [*launcher, executable]
-    return prefix
+    if launcher:
+        return [*launcher, executable]
+    resolved = resolve_executable(executable, root, "PyFR", "executable")
+    if resolved.suffix == ".py":
+        return [sys.executable, str(resolved)]
+    return [str(resolved)]
 
 
 def commands(opts: Mapping[str, object], root: Path, backend: str) -> list[list[str]]:
