@@ -18,6 +18,9 @@ def parse_table(text: str) -> dict[str, float]:
         names = line.lstrip("#").split()
         if "V(m/s)" not in names or "rpm" not in names:
             continue
+        required = {"V(m/s)", "rpm", "T(N)", "Q(N-m)", "Pshaft(W)", "CT", "CP", "effprop", "eff"}
+        if len(set(names)) != len(names) or not required <= set(names):
+            return {}
         for follower in lines[number + 1 :]:
             cells = follower.lstrip("#").split()
             if not cells:
