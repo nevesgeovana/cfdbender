@@ -100,7 +100,7 @@ The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_orig
 \begin{cmdblock}{cfd-matrix plan}{<matrix>}{Lists each point with the files its run would write, and saves \file{post/<matrix>/plan.json}.}
 \opt{--sims POL [POL ...]}{only these simulations; spaces or commas}
 \opt{--points NAME [NAME ...]}{only these points, \texttt{DP-name} or \texttt{POL/DP-name}}
-\opt{--local}{plan for this machine, not for a submission}
+\opt{--local}{plan for this machine, not for a submission; stops when the solver is not found here}
 \opt{--hpc NAME}{the profile \file{inputs/hpc/<NAME>.toml}, when there are several}
 \opt{--verbose}{details too, such as the path of the receipt}
 \opt{--log-level LEVEL}{\texttt{quiet}, \texttt{normal} or \texttt{verbose}}
@@ -137,7 +137,7 @@ A value the row and a file both state must agree.
 \err{A key is stated in \texttt{VAR\_NAMES\_VALUES} and is also a matrix column.}{State it in its column.}
 \err{The row sweeps a key but \texttt{SWEEP\_VALUES} is empty, or two keys say \texttt{sweep}.}{One sweep key per row, its values in \texttt{SWEEP\_VALUES}.}
 \err{Every row has \texttt{RUN} 0, so there is nothing to plan.}{Set \texttt{RUN} to 1 on the rows to run.}
-\err{The plan passes on this machine and the solver is not installed here.}{Plan checks the inputs, not the installation. See stage 3 for where the solver is declared.}
+\err{The plan passes and the solver is not installed here.}{A plan without \texttt{--local} is made for a cluster and does not look for the solver. With \texttt{--local} the plan stops on the missing solver, with the sentence \texttt{run} gives. See stage 3 for where the solver is declared.}
 \end{multicols}
 \foot
 
@@ -176,7 +176,7 @@ A value the row and a file both state must agree.
 \wf{archive/<stamp>/}{on a rerun: the earlier folder and records}
 
 \hd{Where the solver is}
-Either the setup file's \texttt{[solver]} table (\texttt{executable}, \texttt{launcher}; \texttt{foam\_bashrc} for OpenFOAM), or a \texttt{SOLVER\_BUILD} cell with the two executables files above. A solver that is not found stops \texttt{run --local} before anything is recorded. A cluster job takes its build from the HPC profile's \texttt{[builds]} table.
+Either the setup file's \texttt{[solver]} table (\texttt{executable}, \texttt{launcher}; \texttt{foam\_bashrc} for OpenFOAM), or a \texttt{SOLVER\_BUILD} cell with the two executables files above. A solver that is not found stops \texttt{plan --local} and \texttt{run --local}, before anything is recorded. A cluster job takes its build from the HPC profile's \texttt{[builds]} table.
 
 \columnbreak
 \hd{On this machine or on a cluster}

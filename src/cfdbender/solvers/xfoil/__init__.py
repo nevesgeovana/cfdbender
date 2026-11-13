@@ -141,12 +141,18 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     ]
 
 
+def check_executable(point: AdapterPoint) -> None:
+    """Refuse a point whose executable is not on this machine; no host check."""
+    opts = options(point.setup, read_init(point.root, available_solvers=("xfoil",)).solver_options)
+    argv(opts, point.root)
+
+
 def preflight(point: AdapterPoint) -> None:
     """Refuse before any point starts: executable, host slot and free RAM."""
     from cfdbender.solvers._host._exe import check_host_free
 
+    check_executable(point)
     opts = options(point.setup, read_init(point.root, available_solvers=("xfoil",)).solver_options)
-    argv(opts, point.root)
     check_host_free("XFOIL", number(opts["ram_estimate_gib"], "ram_estimate_gib"))
 
 

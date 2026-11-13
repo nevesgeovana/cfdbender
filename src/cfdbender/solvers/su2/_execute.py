@@ -188,8 +188,8 @@ def _run_owned(
         )
 
 
-def preflight(point: AdapterPoint) -> None:
-    """Resolve the executable and ask the host for a slot and RAM, writing nothing."""
+def check_executable(point: AdapterPoint) -> None:
+    """Resolve the executable the point would run, writing nothing and asking no host slot."""
     declaration = read_init(point.root, available_solvers=("su2",))
     opts = options(point.setup, declaration.solver_options)
     raw_path = opts.get("pysu2_path") or os.environ.get("CFDBENDER_PYSU2_PATH")
@@ -204,4 +204,10 @@ def preflight(point: AdapterPoint) -> None:
         )
     if route != "pysu2":
         _argv(opts, point.root)
+
+
+def preflight(point: AdapterPoint) -> None:
+    """Resolve the executable and ask the host for a slot and RAM, writing nothing."""
+    check_executable(point)
+    opts = options(point.setup, read_init(point.root, available_solvers=("su2",)).solver_options)
     check_host_free("SU2", number(opts["ram_estimate_gib"], "ram_estimate_gib"))

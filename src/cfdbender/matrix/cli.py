@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter
-from cfdbender.core.executables import check_builds
+from cfdbender.core.executables import check_builds, check_local_executables
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.registry import RunRecord
 from cfdbender.core.run import execute_plan
@@ -389,6 +389,11 @@ def _execute(
                     plan.solver,
                     load_solver(plan.solver),
                     (point.solver_build for point in plan.points),
+                )
+            if args.local:
+                # A local plan looks for the executable as a run does; a cluster plan does not.
+                check_local_executables(
+                    plan.root, plan.solver, load_solver(plan.solver), plan.points
                 )
         jobs = submission_plans(plan, profile) if profile is not None and not args.local else ()
         if args.command == "run":
