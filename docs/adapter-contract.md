@@ -104,8 +104,6 @@ may also name it, the two must agree or the row is refused.
 mesh resolver, which reads `inputs/mesh/` first and then the earlier folder
 names.
 
-<!-- lands with core87: C-13, the mesh resolver cfdbender.core.mesh -->
-
 **C-14.** The row's `FLIGHT_CONDITION` is the authority on the air and the
 attitude. The adapter resolves it with `cfdbender.core.flight` and never with
 an atmosphere of its own. A value that the s, r or p file also states must

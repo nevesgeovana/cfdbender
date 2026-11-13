@@ -1,9 +1,8 @@
 # Workspace layout
 
-A workspace is one folder that holds a whole campaign: the files you write, the
-files each run produces and the tables collected from them. This page names
-every folder and file, says who writes it, and marks the ones that are yours to
-edit. The layout is the same for every solver.
+This page names every folder and file of a workspace, says who writes it, and
+marks the ones that are yours to edit. A workspace is one folder that holds a
+whole campaign, and its layout is the same for every solver.
 
 ## The tree
 
@@ -34,11 +33,13 @@ campaign/
   runs.json                     # the record of every point that was run
   marks.json                    # verdicts you recorded with mark-failed and mark-converged
   storage_management.json       # the record of every storage command
-  logs/warnings.log             # warnings hidden from the console by --warning-off
+  logs/                         # what run, collect and post printed, and every warning
 ```
 
-`cfd-workspace init` creates `init.toml`, the input folders, `sims/`, `post/`
-and `archive/`. Every other file appears when the command beside it first runs.
+`cfd-workspace init` creates `init.toml`, `sims/`, `post/`, `archive/` and the
+input folders `matrices`, `setups`, `references`, `pproc`, `mesh` and `hpc`.
+You create `inputs/management/` and the optional files when you need them.
+Every other file appears when the command beside it first runs.
 
 ## What you write
 
@@ -73,8 +74,13 @@ solver = "su2"
 
 Every command reads it first. A workspace keeps its solver for life: `init`
 refuses a folder that already holds an `init.toml`, and a collect refuses
-records made by another solver. The solver names are lower case: `su2`,
-`openfoam`, `pyfr`, `xfoil`, `qprop`, `mock` and `flightstream`.
+records made by another solver. The solver names are lower case, and
+`cfd-workspace init --help` lists them.
+
+`init` writes this file and you do not need to edit it. A key other than these
+two, a `schema_version` other than the integer `1` or a solver name that is not
+in the list is refused by every command, with the name of the file and the
+problem.
 
 ## What a run writes
 
@@ -117,6 +123,17 @@ Nothing is deleted without a command that says so. Running a point again moves
 its folder and its record to `archive/<stamp>/` first, where `<stamp>` is the
 UTC time of the move, and `cfd-matrix history` lists what is there.
 `cfd-matrix restore` brings a file back.
+
+## Logs
+
+`run`, `collect` and `post` keep what they print. The commands that only read
+write nothing.
+
+| File | Holds |
+|---|---|
+| `logs/<command>-<stamp>.log` | Every line one call of `run`, `collect` or `post` printed. |
+| `logs/activity.log` | One line per call: when it started and how it ended. `cfd-matrix log` lists these with the run events. |
+| `logs/warnings.log` | Every warning, also those that `--warning-off` kept out of the console. |
 
 ## Version control
 

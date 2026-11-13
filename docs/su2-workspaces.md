@@ -1,136 +1,178 @@
-# SU2 workspaces
+# SU2
 
-SU2 accepts tracked workspace meshes in native `.su2` or CGNS `.cgns` format.
-Each point stages `mesh.su2` with `MESH_FORMAT= SU2`, or `mesh.cgns` with
-`MESH_FORMAT= CGNS`. Both formats are included in `inputs_sha256` and checked
-before execution. Install SU2 with CGNS support to run CGNS inputs.
+You run steady SU2 cases through cfdbender: it writes `su2.cfg`, links your mesh, runs SU2 and reads the residual history and the force and moment coefficients. This page lists only what is specific to SU2.
 
-The mesh is never copied into a point folder. Staging creates a relative
-symbolic link, so the link still resolves after the workspace moves to a
-cluster; on a Windows host without the symbolic-link privilege it creates a hard
-link instead (the same file on disk). It refuses if neither link works. Hard
-links require the source and point directory to share a volume. Keep source
-meshes immutable while planned points or linked results use them. The setup key
-`mesh_link = true` is still accepted and changes nothing; `mesh_link = false` is
-refused. Input validation and planning still read the mesh for provenance, so
-allow memory for input hashing.
+## Install
 
-For example, `inputs/setups/s001.toml` can contain:
+Install SU2 so that `SU2_CFD` exists on the machine. Install it with CGNS support if you run `.cgns` meshes. cfdbender runs SU2 by one of two routes, set by `route` in the `[solver]` table of the setup file:
 
-```toml
-mesh = "inputs/mesh/transport.cgns"
-iterations = 1000
-mach = 0.85
-alpha = 2.0
-SOLVER = "EULER"
-MARKER_EULER = ["wing", "fuselage", "windscreen"]
-MARKER_SYM = ["symmetry"]
-MARKER_FAR = ["farfield-xmax", "farfield-xmin", "farfield-ymax", "farfield-zmax", "farfield-zmin"]
-
-[solver]
-route = "executable"
-executable = "/opt/su2/bin/SU2_CFD"
-```
-
-Marker names are supplied by the s file, not inferred from CGNS. Match the
-names and boundary conditions to the grid. Supply reference `area`, `length`,
-and `moment_origin` in the r file and `history = true` in the p file, then use
-`cfd-matrix plan study`, `cfd-matrix run study`, and `cfd-matrix collect study`.
-
-## A matrix that states the free stream and the mesh
-
-The matrix can carry the flight condition, the mesh, the processor count and the
-SU2 build, so the setup holds only the numerics. See
-[matrix columns](matrix-columns.md) for every column.
-
-`inputs/matrices/dpw.fs`:
-
-```text
-POL  | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION       | FLIGHT_CONDITION                                   | SWEEP_VALUES | GEOMETRY | REF | SET | PPROC | NCPUS | WALLTIME | SOLVER_BUILD | VAR_NAMES_VALUES
------|--------|-----|----------|---------------|-------------------|----------------------------------------------------|--------------|----------|-----|-----|-------|-------|----------|--------------|-----------------
-5001 |   0    |  1  | WB       | cruise        | Polar near design | MACH:0.85, REmi:5, TK:310.928, ALPHA:sweep, BETA:0 | 2.5,2.75     | wb.su2   | 001 | 001 | 001   | 192   | 4h       | 8.3.0        | -
-5002 |   0    |  1  | WB       | cruise        | Longer run        | MACH:0.85, REmi:5, TK:310.928, ALPHA:sweep, BETA:0 | 3.0          | wb.su2   | 001 | 001 | 001   | 192   | 6h       | 8.3.0        | iterations: 4000
-```
-
-`inputs/setups/s001.toml` then names no mesh and no free stream:
-
-```toml
-iterations = 2000
-SOLVER = "RANS"
-KIND_TURB_MODEL = "SA"
-MARKER_HEATFLUX = ["wing", "fuselage"]
-MARKER_FAR = ["farfield"]
-```
-
-and `inputs/references/r001.toml` gives `area`, `length` and `moment_origin`;
-`length` is the length REmi is measured against. The mesh is
-`inputs/mesh/wb.su2`. For each point the deck receives:
-
-| Matrix | SU2 key |
+| `route` | What runs |
 |---|---|
-| resolved Mach number | `MACH_NUMBER` |
-| `ALPHA`, `BETA` | `AOA`, `SIDESLIP_ANGLE` |
-| resolved temperature, pressure, density | `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE`, `FREESTREAM_DENSITY` |
-| `REmi` x 1e6 and the r file's `length` | `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` |
-| `MUPas` | `VISCOSITY_MODEL= CONSTANT_VISCOSITY`, `MU_CONSTANT` |
-| `GEOMETRY` | `MESH_FILENAME` (staged as `mesh.su2` or `mesh.cgns`) |
+| `"executable"` | The `SU2_CFD` program, started as `SU2_CFD su2.cfg` in the point folder. |
+| `"pysu2"` | The SU2 Python wrapper, in a child process. |
 
-When the air is stated without `REmi`, the Reynolds number written is the
-outcome of the resolved density, velocity and viscosity over the r file's
-`length`. `ASMPS` is refused unless it equals the speed of sound SU2 derives from
-the temperature. If the setup also states one of these keys, the two values must
-agree. A row stating only `MACH` and angles keeps the setup's flow state.
+Without `route`, cfdbender prefers `pysu2`. When the module is absent it warns `pysu2 is unavailable: <reason>; falling back to the executable route` and runs the executable. With `route = "pysu2"` and no wrapper, it refuses:
 
-With an HPC profile in `inputs/hpc/`, `NCPUS` fills `{ncpus}`, `WALLTIME` fills
-`{walltime}`, `SOLVER_BUILD` selects the `[builds]` entry for
-`{solver_version_alias}`, and `{solver_type}` is `SU2`:
+> pysu2 is unavailable: `<reason>`. Build SU2 with the Python wrapper (-Denable-pywrapper=true) on Linux or WSL using a compatible Python; the Windows interpreter cannot import that Linux build. Set solver.pysu2_path or CFDBENDER_PYSU2_PATH to its install directory. The executable route is available: choose solver.route='executable'.
 
-```toml
-application_id = "SU2"
-max_walltime = "96:00:00"
+cfdbender finds the files in this order:
 
-[descriptor]
-format = "yaml"
-name = "submit.yaml"
+| What | Setup key | Environment variable | Last resort |
+|---|---|---|---|
+| `SU2_CFD` | `executable` in `[solver]` | `CFDBENDER_SU2_EXE` | `SU2_CFD` on the PATH |
+| Python wrapper directory | `pysu2_path` in `[solver]` | `CFDBENDER_PYSU2_PATH` | the interpreter's own path |
 
-[descriptor.fields]
-job_name = "{job_name}"
-walltime = "{walltime}"
-ncpus = "{ncpus}"
-version = "{solver_version_alias}"
-working_directory = "{workdir}"
-config_file = "{config_path}"
-solver_type = "{solver_type}"
+A relative path resolves from the workspace root. If no executable is found, `run` refuses with `SU2 executable not found; set solver.executable or CFDBENDER_SU2_EXE`.
 
-[submit]
-command = ["submit-tool", "{descriptor_path}"]
+A matrix row can also pick a build by name; see [Executables](executables.md).
 
-[builds]
-"8.3.0" = "8.3.0"
-```
+## Mesh
 
-`cfd-matrix plan dpw` prints each point, its descriptor and the submit command
-without writing anything; `cfd-matrix run dpw` stages `su2.cfg` and the linked
-mesh in each point folder and submits. `{config_path}` is that `su2.cfg`. Send
-the job's standard output to `{stdout_log}`, since convergence is read from the
-SU2 log; see [point folders of cluster jobs](workspace-files.md#point-folders-of-cluster-jobs).
+SU2 reads a native `.su2` mesh or a CGNS `.cgns` mesh. Put the file in `inputs/mesh/` and name it in the matrix `GEOMETRY` column (a file name or a stem), or in the setup key `mesh`. A `mesh` key in the setup and a `GEOMETRY` cell must name the same file. Each point folder holds the link as `mesh.su2` (with `MESH_FORMAT= SU2`) or `mesh.cgns` (with `MESH_FORMAT= CGNS`); see [Workspace layout](workspace-layout.md) for how a mesh is linked.
 
-## MPI executable launch
+Any other suffix is refused: `mesh must name a workspace-relative .su2 or .cgns file`.
 
-For a native MPI-enabled SU2 executable, add `mpi_launcher` in the s file's
-`[solver]` table:
+Marker names come from the setup file, never from the mesh. Match the names and the boundary conditions to your grid.
+
+## Setup file
+
+`inputs/setups/s001.toml` holds numerics, markers and the free stream. cfdbender writes every key into `su2.cfg` as `KEY= value`. Neutral names below map to SU2 keys. Any key written in capitals, such as `SOLVER` or `MARKER_FAR`, passes through unchanged, and a list is written as `( a, b )`. Any other key is refused as `unsupported input <key>; SU2-specific keys must be uppercase`. A key given twice, in any of the setup, reference and pproc files or the row, is refused as `conflict: <key> is supplied more than once`.
+
+| Key | SU2 key | Unit | Default |
+|---|---|---|---|
+| `mesh` | `MESH_FILENAME` | - | none (or `GEOMETRY`) |
+| `iterations` | `ITER` | - | required, integer above 0 |
+| `mach` | `MACH_NUMBER` | - | none |
+| `alpha` or `angle_of_attack` | `AOA` | degrees | none |
+| `beta` or `sideslip` | `SIDESLIP_ANGLE` | degrees | none |
+| `freestream_temperature` | `FREESTREAM_TEMPERATURE` | K | none |
+| `freestream_pressure` | `FREESTREAM_PRESSURE` | Pa | none |
+| `freestream_density` | `FREESTREAM_DENSITY` | kg/m^3 | none |
+| `freestream_velocity` | `FREESTREAM_VELOCITY` | m/s, three components | none |
+| `reynolds`, `reynolds_length` | `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` | -, m | none |
+| `convergence_field` | `CONV_FIELD` | - | SU2's own |
+| `convergence_residual` | `CONV_RESIDUAL_MINVAL` | log10 of the residual | SU2's own |
+| `output_frequency` | `OUTPUT_WRT_FREQ` | iterations | SU2's own |
+| `mesh_link` | none | - | `true`; `false` is refused |
+
+Temperature, pressure, density and velocity use SU2's units, SI by default. `mesh_link = true` changes nothing; `mesh_link = false` is refused with `mesh_link = false asks for a mesh copy; meshes are always linked, never copied: remove mesh_link`.
+
+cfdbender also writes `MESH_FORMAT` to match the mesh, `CONV_FILENAME= history` and `TABULAR_FORMAT= CSV`, because the history must be a CSV file. If you state one of these with another value, it refuses with `conflict: <key> must be <value>`. The history must contain at least one `rms[...]` residual column and one coefficient column; add `HISTORY_OUTPUT = ["ITER", "RMS_RES", "AERO_COEFF"]` to the setup to write both.
+
+**`[solver]` table**
+
+| Key | Meaning | Unit | Default |
+|---|---|---|---|
+| `route` | `"pysu2"` or `"executable"` | - | pysu2 if available |
+| `executable` | path to `SU2_CFD` | - | see Install |
+| `pysu2_path` | directory holding the Python wrapper | - | see Install |
+| `threads` | OpenMP threads, passed as `OMP_NUM_THREADS` | - | 1 |
+| `timeout_s` | time after which cfdbender stops the run | s | 600 |
+| `ram_estimate_gib` | memory the run is expected to need | GiB | 0.25 |
+| `mpi_launcher` | tokens that start MPI, see below | - | `[]` (serial) |
+
+The same `[solver]` keys can be set for the whole workspace in `init.toml`; the setup file overrides them.
+
+**MPI launch.** On the executable route, `mpi_launcher` goes in front of the executable. Tokens are passed as arguments without shell expansion.
 
 ```toml
 [solver]
 route = "executable"
 executable = "/opt/su2/bin/SU2_CFD"
 mpi_launcher = ["mpirun", "-np", "192"]
-threads = 1
 ```
 
-This launches `mpirun -np 192 /opt/su2/bin/SU2_CFD su2.cfg` in the point
-directory. Under an existing scheduler allocation, `mpi_launcher = ["srun"]`
-uses the allocation's task count. Tokens are passed as arguments without shell
-expansion. The default empty list retains serial execution. This option applies
-only to the executable route; the Python wrapper route remains serial. Configure
-the allocation and MPI environment separately before starting the worker.
+This starts `mpirun -np 192 /opt/su2/bin/SU2_CFD su2.cfg` in the point folder. Under a scheduler allocation, `mpi_launcher = ["srun"]` uses the allocation's task count. The `pysu2` route always runs serially. For a scheduler job, see [Cluster jobs](cluster-jobs.md).
+
+**Reference file** `inputs/references/r001.toml` holds `area` (m^2), `length` (m) and `moment_origin` (three coordinates, m). They become `REF_AREA`, `REF_LENGTH` and `REF_ORIGIN_MOMENT_X`, `_Y`, `_Z`, and cfdbender refuses a point without all of them. `length` is also the length that `REmi` is measured against.
+
+**Pproc file** `inputs/pproc/p001.toml` must hold `history = true`; otherwise `pproc history must be true`. It may also hold `output_frequency`.
+
+**Flight condition.** The row can carry the flow state, so the setup holds only the numerics. For each point SU2 receives:
+
+| Matrix | SU2 key |
+|---|---|
+| resolved Mach number | `MACH_NUMBER` |
+| `ALPHA`, `BETA` | `AOA`, `SIDESLIP_ANGLE` |
+| resolved temperature, pressure, density | `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE`, `FREESTREAM_DENSITY` |
+| `REmi` x 1e6 and the reference file's `length` | `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` |
+| `MUPas` | `VISCOSITY_MODEL= CONSTANT_VISCOSITY`, `MU_CONSTANT` |
+| `GEOMETRY` | `MESH_FILENAME` |
+
+A row that states only `MACH` and angles keeps the setup's flow state. When the air is stated without `REmi`, the Reynolds number written is the outcome of the resolved density, velocity and viscosity over the reference file's `length`. A value that the setup also states must agree with the row, or the point is refused: `conflict: <key> is <value> in the s/r/p files and <value> from the matrix FLIGHT_CONDITION; state it in one place`. `ASMPS` is refused unless it equals the speed of sound SU2 derives from the temperature: `ASMPS pins a speed of sound SU2 cannot hold: SU2 derives it from the temperature; pin TK instead`. See [Matrix columns](matrix-columns.md) for every column.
+
+## What converged means
+
+cfdbender reads `history.csv` and the SU2 log (`stdout.log` and `stderr.log`). The history gives the residuals and coefficients. The log gives the verdict, because a clean exit says nothing about numerics.
+
+| Result | Rule |
+|---|---|
+| `converged` | The log holds a line that reads `Convergence criteria satisfied` (`All` before it and `were` before `satisfied` are accepted) or `SU2 has successfully converged`, and the exit code is 0. |
+| `iteration_limit` | No such line, and the last history iteration reached `ITER`. |
+| `failed` | A nonzero exit code, no readable history, or a history that stops before `ITER` without a convergence line. |
+
+A history is unreadable when it lacks `Inner_Iter`, a residual column or a coefficient column, holds a non-finite value, or its iterations do not increase. The residual of an iteration is the largest `rms[...]` column, converted from log10 to a linear value; iteration numbers start at 1.
+
+cfdbender reports the coefficients SU2 wrote, with the axis system SU2 uses. SU2 normalises them with the reference area, length and moment origin of the reference file.
+
+| Name | Meaning | Axes |
+|---|---|---|
+| `CL`, `CD`, `CSF` | lift, drag, side force | wind: z, x, y |
+| `CFx`, `CFy`, `CFz` | force | body x, y, z |
+| `CMx`, `CMy`, `CMz` | moment | body x, y, z |
+
+cfdbender does not rotate between wind and body axes. The result also records the route that ran.
+
+## Worked example
+
+A 2D airfoil with an Euler solution at Mach 0.3 and sea level, at two angles of attack. You supply your own mesh as `inputs/mesh/airfoil.su2`, with markers `airfoil` and `farfield`.
+
+```console
+cfd-workspace init campaign --solver su2
+cd campaign
+```
+
+`inputs/setups/s001.toml`:
+
+```toml
+iterations = 40
+convergence_field = "RMS_DENSITY"
+convergence_residual = -14
+SOLVER = "EULER"
+MARKER_EULER = ["airfoil"]
+MARKER_FAR = ["farfield"]
+MARKER_MONITORING = ["airfoil"]
+HISTORY_OUTPUT = ["ITER", "RMS_RES", "AERO_COEFF"]
+
+[solver]
+route = "executable"
+executable = "/opt/su2/bin/SU2_CFD"
+```
+
+`inputs/references/r001.toml`:
+
+```toml
+area = 1.0
+length = 1.0
+moment_origin = [0.25, 0.0, 0.0]
+```
+
+`inputs/pproc/p001.toml`:
+
+```toml
+history = true
+```
+
+`inputs/matrices/airfoil.fs`:
+
+```text
+POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY
+---|---|---|---|-----|----------------|------------|--------
+1001|1|001|001|001|MACH:0.3, ALTFT:0, ALPHA:sweep|0,2|airfoil.su2
+```
+
+```console
+cfd-matrix plan airfoil
+cfd-matrix run airfoil
+cfd-matrix collect airfoil
+```
