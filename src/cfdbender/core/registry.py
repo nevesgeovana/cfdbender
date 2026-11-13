@@ -57,6 +57,7 @@ class RunRecord:
     outputs_sha256: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     error: str | None = None
     submission: Mapping[str, object] | None = None
+    solver_version: str | None = None
 
     @property
     def point_id(self) -> str:
@@ -220,6 +221,8 @@ def _decode(raw: object, root: Path) -> RunRecord:
     status = _text(row, "status")
     optional = {"submission"} if "submission" in row and status != "PLANNED" else set()
     optional |= set(row) & set(POINT_EXTRAS)
+    if status != "PLANNED":
+        optional |= {"solver_version"} & set(row)
     if set(row) != expected | (execution if status != "PLANNED" else set()) | optional:
         raise RegistryError("run record has missing or unknown fields")
     condition: dict[str, float] = {}
@@ -296,6 +299,8 @@ def _decode(raw: object, root: Path) -> RunRecord:
         record = replace(
             record, submission=_submission(row["submission"], root, directory, started)
         )
+    if "solver_version" in row:
+        record = replace(record, solver_version=_text(row, "solver_version"))
     if status == "SUBMITTED" and record.submission is None:
         raise RegistryError("SUBMITTED requires submission evidence")
     classification = row["classification"]
@@ -389,6 +394,8 @@ def _encode(record: RunRecord) -> dict[str, object]:
         )
     if record.submission is not None:
         row["submission"] = dict(record.submission)
+    if record.solver_version is not None:
+        row["solver_version"] = record.solver_version
     return row
 
 
@@ -476,6 +483,7 @@ class RunRegistry:
         classification: Classification | None = None,
         error: str | None = None,
         submission: Mapping[str, object] | None = None,
+        solver_version: str | None = None,
     ) -> RunRecord:
         """Claim, submit or seal a point; never rewrite a finished one.
 
@@ -496,6 +504,8 @@ class RunRegistry:
             process timestamps, code, timeout and timed_out evidence, and optional
             job_outputs: the declared outputs the cluster job itself writes. Required
             when moving from RUNNING to SUBMITTED; retained on completion.
+        solver_version : str, optional
+            The version the solver reported, kept on the record when sealing COMPLETED.
 
         Returns
         -------
@@ -567,6 +577,7 @@ class RunRegistry:
                         error=error,
                         outputs_sha256=MappingProxyType(digests),
                         submission=previous.submission if submission is None else submission,
+                        solver_version=solver_version or previous.solver_version,
                     )
                 updated = _decode(_encode(updated), self.root)
                 if submission is not None:

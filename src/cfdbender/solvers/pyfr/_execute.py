@@ -16,10 +16,12 @@ from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._single import process_lease
+from cfdbender.solvers._host._version import UNKNOWN, probe_version
 from cfdbender.solvers.pyfr._config import config, options
 
 
-def commands(opts: Mapping[str, object], root: Path, backend: str) -> list[list[str]]:
+def launch_prefix(opts: Mapping[str, object], root: Path) -> list[str]:
+    """Return the launcher tokens and executable every PyFR command starts with."""
     launcher = cast(list[str], opts["launcher"])
     executable = str(opts.get("executable", "pyfr"))
     if executable.endswith(".py") and not launcher:
@@ -31,6 +33,11 @@ def commands(opts: Mapping[str, object], root: Path, backend: str) -> list[list[
         prefix = [sys.executable, str(path)]
     else:
         prefix = [*launcher, executable]
+    return prefix
+
+
+def commands(opts: Mapping[str, object], root: Path, backend: str) -> list[list[str]]:
+    prefix = launch_prefix(opts, root)
     return [
         prefix + ["import", "mesh.msh", "mesh.pyfrm"],
         prefix + ["-p", "run", "-b", backend, "mesh.pyfrm", "case.ini"],
@@ -67,14 +74,19 @@ def run(point: AdapterPoint, text: str, check_ram: Callable[[], None]) -> None:
         raise ValueError("PyFR is already running; only one process at a time")
     try:
         with process_lease("PyFR"):
+            version = probe_version(launch_prefix(opts, point.root))
             stage_case(point, text, folder)
-            _launch(argv, folder, timeout, check_ram)
+            _launch(argv, folder, timeout, check_ram, version)
     finally:
         _RUNNING.release()
 
 
 def _launch(
-    argv: list[list[str]], folder: Path, timeout: float, check_ram: Callable[[], None]
+    argv: list[list[str]],
+    folder: Path,
+    timeout: float,
+    check_ram: Callable[[], None],
+    version: str = UNKNOWN,
 ) -> None:
     start = time.monotonic()
     code = 1
@@ -120,7 +132,13 @@ def _launch(
             _kill_tree(process)
         (folder / "execution.json").write_text(
             json.dumps(
-                {"argv": argv, "exit_code": code, "timed_out": timed_out, "timeout_s": timeout},
+                {
+                    "argv": argv,
+                    "exit_code": code,
+                    "timed_out": timed_out,
+                    "timeout_s": timeout,
+                    "version": version,
+                },
                 sort_keys=True,
             ),
             encoding="ascii",

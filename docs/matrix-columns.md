@@ -34,7 +34,7 @@ closest known column.
 | `SYMMETRY`, `SYMMETRY_LOADS` | Accepted for layout parity and must be `-`: the library solvers take symmetry from the mesh markers and the setup. |
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
 | `WALLTIME` | Wall clock with its unit: `90s`, `240m`, `4h`, `1d`. `{walltime}` in an HPC profile. |
-| `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [workspace files](workspace-files.md#executables)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. A pyflightstream matrix names this column `FS_BUILD`, which is accepted with the same meaning; a header holding both is refused. |
+| `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [workspace files](workspace-files.md#executables)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. A pyflightstream matrix names this column `FS_BUILD`, which is accepted with the same meaning; a header holding both is refused. |
 | `WORKFLOW` | Run type; `-` means `steady`, the only type the library adapters run. |
 | `VAR_NAMES_VALUES` | Per-row overrides of setup keys; see below. |
 

@@ -30,8 +30,10 @@ def read(
     )
     # A cluster job leaves no execution.json; classification then rests on forces.csv.
     execution = folder / "execution.json"
-    code = int(json.loads(execution.read_bytes())["exit_code"]) if execution.is_file() else 0
-    empty = Evidence(code, (), 1, "unknown", True)
+    meta = json.loads(execution.read_bytes()) if execution.is_file() else {}
+    code = int(meta["exit_code"]) if meta else 0
+    version = str(meta.get("version") or "unknown")
+    empty = Evidence(code, (), 1, version, True)
     try:
         with (folder / "forces.csv").open(encoding="ascii", newline="") as stream:
             reader = csv.DictReader(stream)
@@ -60,7 +62,7 @@ def read(
         window = [row for row in rows if case.window_start <= row[0] <= case.tend]
         if not window:
             return (
-                Evidence(code, (), 1, "unknown", False, True),
+                Evidence(code, (), 1, version, False, True),
                 {},
                 refs,
                 (case.window_start, case.tend),
@@ -71,7 +73,7 @@ def read(
         half = len(window) // 2
         if half < 1 or len(window) - half < 1:
             return (
-                Evidence(code, (), 1, "unknown", False, True),
+                Evidence(code, (), 1, version, False, True),
                 coeff,
                 refs,
                 (case.window_start, case.tend),
@@ -83,6 +85,6 @@ def read(
         ]
         stationary = diff[0] < case.tolerance * abs(cl) and diff[1] < case.tolerance * abs(cd)
         history = (Iteration(1, max(diff), stationary),)
-        return Evidence(code, history, 1, "unknown"), coeff, refs, (case.window_start, case.tend)
+        return Evidence(code, history, 1, version), coeff, refs, (case.window_start, case.tend)
     except (OSError, ValueError, KeyError, TypeError, OverflowError):
         return empty, {}, refs, (case.window_start, case.tend)

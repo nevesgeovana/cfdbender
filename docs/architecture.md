@@ -97,7 +97,7 @@ the guarantees listed below the table.
 | `inputs/executables.toml` | you | The solver builds a matrix may name and their executables. |
 | `inputs/hpc/<name>.toml` | you | A cluster profile: every descriptor field and the submit command. |
 | `post/<matrix>/plan.json` | `cfd-matrix plan` | The digest of the matrix and of every input of every planned point. |
-| `runs.json` | the run registry in the core | One record per point: the proposal, the status, the times, the classification, the digests of inputs and outputs, and the history of archived records. |
+| `runs.json` | the run registry in the core | One record per point: the proposal, the status, the times, the classification, the solver version the solver reported, the digests of inputs and outputs, and the history of archived records. |
 | `sims/sim_<POL>/datapoints/DP-<name>/` | the adapter, during a run or a staging | The solver input as written, the solver outputs and the captured output channels. |
 | `post/<matrix>/` tables | `cfd-matrix collect` | Derived products, rebuilt on every collect. |
 | `archive/<stamp>/` | the run registry | `runs.json` as it was and the folder of each point that was redone. |

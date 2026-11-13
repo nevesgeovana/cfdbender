@@ -250,10 +250,10 @@ def run_rebuild(args: argparse.Namespace) -> int:
         base = RunRecord(point, plan.matrix, plan.solver, "COMPLETED", first)
         found = _digests(root, base)
         error: str | None = None
+        version: str | None = None
         try:
-            classification = adapter.collect(
-                load_point(root, point, solver=config.solver)
-            ).classification
+            collected = adapter.collect(load_point(root, point, solver=config.solver))
+            classification, version = collected.classification, collected.solver_version
         except (OSError, ValueError) as failure:
             classification, error = "failed", f"rebuilt: cannot read the result: {failure}"
         missing = [name for name in point.outputs if name not in found]
@@ -266,6 +266,7 @@ def run_rebuild(args: argparse.Namespace) -> int:
             classification=classification,
             outputs_sha256=MappingProxyType(found),
             error=error,
+            solver_version=version,
         )
     for point_id, record in changes.items():
         print(

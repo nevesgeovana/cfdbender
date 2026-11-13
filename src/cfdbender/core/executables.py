@@ -155,3 +155,35 @@ def resolve_executable(root: Path, solver: str, build: str) -> Executable:
     launcher = entry.get("launcher", [])
     assert isinstance(launcher, list)
     return Executable(build, str(path), tuple(str(token) for token in launcher))
+
+
+def build_mismatch(build: str | None, reported: str) -> str | None:
+    """Return a refusal when the row's SOLVER_BUILD differs from the version the solver printed.
+
+    A build equal to the reported version matches, and so does a build that
+    names an alias of it (``8.3.0-mpi`` for ``8.3.0``). A solver that did not
+    report a version (``unknown`` or empty) cannot be checked and is not refused.
+
+    Parameters
+    ----------
+    build : str or None
+        The row's SOLVER_BUILD, or None when the row states none.
+    reported : str
+        The version the adapter read from the solver.
+
+    Returns
+    -------
+    str or None
+        The message to record as the failure, or None when the point may stand.
+    """
+    seen = reported.strip()
+    if not build or not seen or seen.casefold() == "unknown":
+        return None
+    wanted = build.casefold()
+    if wanted == seen.casefold() or wanted.startswith(seen.casefold() + "-"):
+        return None
+    return (
+        f"SOLVER_BUILD mismatch: the row names {build!r} but the solver reported version "
+        f"{seen!r}; point SOLVER_BUILD at the executable of that build in "
+        f"{DECLARED}, or correct the row"
+    )

@@ -64,7 +64,9 @@ def test_xfoil_with_empty_reference_and_post_warns_nothing(tmp_path):
     assert messages == []
 
 
-@pytest.mark.parametrize("name,text", [("references/r001", "area = 2.0\n"), ("pproc/p001", "x = 1\n")])
+@pytest.mark.parametrize(
+    "name,text", [("references/r001", "area = 2.0\n"), ("pproc/p001", "x = 1\n")]
+)
 def test_qprop_reads_no_reference_or_post_key_and_says_so(tmp_path, name, text):
     qprop_workspace(tmp_path)
     (tmp_path / f"inputs/{name}.toml").write_text(text)

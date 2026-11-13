@@ -16,7 +16,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from cfdbender.core.adapter import SolverAdapter, load_point
-from cfdbender.core.executables import bind_executable
+from cfdbender.core.executables import bind_executable, build_mismatch
 from cfdbender.core.plan import RunPlan, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 
@@ -134,12 +134,18 @@ def execute_plan(
         check_ram()
         registry.transition(context.point.point_id, "RUNNING")
         error = None
+        version = None
         try:
             result = adapter.execute(context, check_ram=check_ram)
+            version = str(getattr(result, "solver_version", "")) or None
             classification = adapter.classify(result)
             if classification not in ("converged", "iteration_limit", "failed"):
                 raise ValueError(f"unknown classification {classification!r}")
-            if classification == "failed":
+            # A row's SOLVER_BUILD must be the solver that ran: the printed version decides.
+            if mismatch := build_mismatch(context.point.solver_build, version or ""):
+                classification = "failed"
+                error = f"FAILED_EXECUTION: {mismatch}"
+            elif classification == "failed":
                 error = f"FAILED_EXECUTION: exit code {result.exit_code}; numerical evidence failed"
             elif any(
                 not workspace_path(plan.root, name).is_file() for name in context.point.outputs
@@ -155,6 +161,7 @@ def execute_plan(
                 "COMPLETED",
                 classification=classification,
                 error=error,
+                solver_version=version,
             )
         )
     return tuple(completed)
