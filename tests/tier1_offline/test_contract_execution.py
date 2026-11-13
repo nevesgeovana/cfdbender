@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 import pytest
-from test_conformance_workspace import case, local, prepared  # noqa: F401
+from test_conformance_workspace import case, local, prepared, state_no_build  # noqa: F401
 
 from cfdbender import testing
 from cfdbender.core.adapter import load_point
@@ -41,6 +41,7 @@ def test_c19_translate_verifies_the_workspace_solver_first(case):  # noqa: F811
 def test_c10_the_run_record_holds_every_declared_output_digest(case):  # noqa: F811
     """C-10: after a run the record carries the digest of every declared output."""
     solver, root = case
+    state_no_build(root)
     testing.assert_run_record(load_solver(solver), plan_workspace(root, "full"))
 
 
@@ -50,16 +51,9 @@ def test_c22_a_finished_point_is_never_overwritten(case):  # noqa: F811
     testing.assert_finished_no_overwrite(load_solver(solver), plan_workspace(root, "full"))
 
 
-def test_c32_exit_zero_without_evidence_is_failed(case, request):  # noqa: F811
+def test_c32_exit_zero_without_evidence_is_failed(case):  # noqa: F811
     """C-32: a zero exit with no history fails, and a nonzero exit cannot converge."""
     solver, root = case
-    if solver == "pyfr":
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True,
-                reason="C-32 defect: pyfr classifies exit 0 with empty history as iteration_limit",
-            )
-        )
     adapter, point = prepared(root, solver)
     testing.assert_exit_evidence(adapter, point)
 
@@ -67,6 +61,7 @@ def test_c32_exit_zero_without_evidence_is_failed(case, request):  # noqa: F811
 def test_c35_c36_collect_reads_the_recorded_class_and_only_reads(case):  # noqa: F811
     """C-35 and C-36: collect reaches the recorded class and writes nothing."""
     solver, root = case
+    state_no_build(root)
     testing.assert_collected_results(load_solver(solver), plan_workspace(root, "full"))
 
 
@@ -118,15 +113,9 @@ def test_c26_the_solver_is_launched_without_a_shell_or_console_window(case, monk
             assert kwargs.get("creationflags", 0) & subprocess.CREATE_NO_WINDOW
 
 
-def test_c27_collect_works_without_execution_json(case, request):  # noqa: F811
+def test_c27_collect_works_without_execution_json(case):  # noqa: F811
     """C-27: collect classifies a point folder from which execution.json is removed."""
     solver, root = case
-    if solver == "mock":
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True, reason="C-27 defect: mock collect raises without execution.json"
-            )
-        )
     adapter, point = prepared(root, solver)
     adapter.execute(point, check_ram=lambda: None)
     expected = adapter.collect(point).classification

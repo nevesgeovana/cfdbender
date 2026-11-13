@@ -129,12 +129,17 @@ def test_plan_writes_the_receipt_and_the_registry_records_planned_points(case):
     assert {r.status for r in records} == {"PLANNED"}
 
 
+def state_no_build(root):
+    """Make the row state no SOLVER_BUILD: a stand-in prints its own version."""
+    matrix = root / "inputs/matrices/full.fs"
+    matrix.write_text(matrix.read_text(encoding="ascii").replace("| 2h | 1.0 |", "| 2h | - |"))
+
+
 def test_run_completes_resume_skips_and_collect_writes_the_common_csv(case):
     solver, root = case
     # The row's build is a label here; a stand-in prints its own version, and a row build
     # that differs from the printed version is refused, so this run states none.
-    matrix = root / "inputs/matrices/full.fs"
-    matrix.write_text(matrix.read_text(encoding="ascii").replace("| 2h | 1.0 |", "| 2h | - |"))
+    state_no_build(root)
     plan = plan_workspace(root, "full")
     write_receipt(plan)
     assert local(root) == 0, solver

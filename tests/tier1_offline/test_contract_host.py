@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from test_conformance_workspace import SOLVERS, case, local, prepared  # noqa: F401
+from test_conformance_workspace import SOLVERS, case, local, prepared, state_no_build  # noqa: F401
 
 from cfdbender.core.adapter import load_point
 from cfdbender.core.executables import bind_executable
@@ -200,6 +200,7 @@ def test_c52_an_archived_point_keeps_its_linked_mesh(case, tmp_path):  # noqa: F
         pytest.skip("only su2, openfoam and pyfr link a mesh into the point folder")
     adapter, point = prepared(root, solver)
     mesh = root / point.geometry
+    state_no_build(root)
     assert main(["run", "full", "--workspace", str(root), "--local"]) == 0
     assert main(["run", "full", "--workspace", str(root), "--local", "--force-rerun-all"]) == 0
     archived = [
