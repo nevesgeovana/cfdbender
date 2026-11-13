@@ -53,7 +53,14 @@ from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate
 from cfdbender.solvers._host._config import steady_only
-from cfdbender.solvers.su2._config import config, mesh_name, options, render, staged_mesh
+from cfdbender.solvers.su2._config import (
+    config,
+    mesh_name,
+    options,
+    read_keys,
+    render,
+    staged_mesh,
+)
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import read
@@ -98,6 +105,9 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("su2",)
     )
     options(workspace.setup, declaration.solver_options)
+    workspace.warn_unread(
+        "SU2", reference=read_keys(workspace.reference), post=read_keys(workspace.post)
+    )
     conditions = [dict(row.condition)]
     if row.sweep_key:
         conditions = [dict(row.condition, **{row.sweep_key: value}) for value in row.sweep_values]

@@ -195,6 +195,21 @@ def _same(stated: object, derived: object) -> bool:
     return stated == derived
 
 
+def read_keys(table: Mapping[str, object]) -> tuple[str, ...]:
+    """Return the keys of a REF or PPROC table that reach SU2; the others are skipped.
+
+    A neutral key, moment_origin, history and any uppercase key (handed to SU2 as its
+    own option) are read.
+    """
+    return tuple(
+        key
+        for key in table
+        if key in ("moment_origin", "history")
+        or key.lower() in NEUTRAL_KEYS
+        or re.fullmatch("[A-Z][A-Z0-9_]*", key) is not None
+    )
+
+
 def config(
     setup: Mapping[str, object],
     reference: Mapping[str, object],
@@ -248,6 +263,9 @@ def config(
             target = NEUTRAL_KEYS.get(key.lower())
             if target is None:
                 if re.fullmatch("[A-Z][A-Z0-9_]*", key) is None:
+                    if file in ("REF file", "PPROC file"):
+                        # Not a key SU2 reads: planning warns about it and it is skipped.
+                        continue
                     raise unknown_keys(file, [key], [*NEUTRAL_KEYS, "moment_origin"]) from None
                 target = key
             add(target, value)

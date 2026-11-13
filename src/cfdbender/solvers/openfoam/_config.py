@@ -15,6 +15,10 @@ from cfdbender.core.mesh import MESH_PREFIXES
 from cfdbender.core.results import References
 from cfdbender.solvers._host._config import number, unknown_keys
 
+#: The keys of the REF and PPROC files the OpenFOAM case reads; any other is skipped.
+REFERENCE_KEYS = ("area", "length", "moment_origin")
+POST_KEYS = ("history",)
+
 
 @dataclass(frozen=True)
 class Case:
@@ -129,8 +133,8 @@ def config(
             },
             "setup file",
         ),
-        (reference, {"area", "length", "moment_origin"}, "REF file"),
-        (post, {"history"}, "PPROC file"),
+        # A REF or PPROC key the case does not read is warned about at planning and
+        # skipped (REFERENCE_KEYS, POST_KEYS); only the setup and the row are refused.
         (condition, {"alpha"}, "FLIGHT_CONDITION"),
     ):
         if unknown := set(table) - allowed:
