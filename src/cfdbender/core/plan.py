@@ -8,6 +8,7 @@ The hook validates and describes actions; it must not run a solver or write file
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import re
 import tomllib
@@ -18,6 +19,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Protocol
 
+from cfdbender.core.flight import ATTITUDE_KEYS, STATE_KEYS
 from cfdbender.core.matrix import MatrixRow, parse_matrix
 from cfdbender.core.mesh import mesh_candidates, resolve_setup_paths
 from cfdbender.core.naming import PointNameError, datapoint_dir_name, point_name
@@ -484,6 +486,26 @@ def resolve_matrix(root: str | Path, name: str) -> str:
     return found[0]
 
 
+def _closed_condition_keys(row: MatrixRow, native: tuple[str, ...]) -> None:
+    """Refuse a FLIGHT_CONDITION key outside the grammar, as pyflightstream does.
+
+    The set is closed: the flight-condition and attitude keys of the shared grammar and the
+    keys the solver's adapter declares as its own. A mistyped key costs a message rather
+    than a campaign solved at a condition nobody asked for.
+    """
+    known = (*STATE_KEYS, *ATTITUDE_KEYS, *native)
+    for key in row.condition:
+        if key in known or key.upper() in {k.upper() for k in known}:
+            continue
+        close = difflib.get_close_matches(key, known, n=1, cutoff=0.6)
+        hint = f" (closest known key: {close[0]})" if close else ""
+        raise ValueError(
+            f"FLIGHT_CONDITION key {key!r}{hint} is not one this package knows; the accepted "
+            f"keys are {', '.join(known)}. The set is closed so that a mistyped key costs a "
+            "message rather than a campaign solved at a condition nobody asked for."
+        )
+
+
 def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowValidator]) -> RunPlan:
     """Plan a named matrix (inputs/matrices/<name>.fs or <name>.fs in the root) read-only.
 
@@ -518,7 +540,9 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
     for row in rows:
         try:
             inputs = RowInputs(target, row, common)
-            needs = validators[config.solver](row, inputs)
+            hook = validators[config.solver]
+            _closed_condition_keys(row, tuple(getattr(hook, "native_condition_keys", ())))
+            needs = hook(row, inputs)
             if inputs.geometry is not None and inputs.geometry not in inputs.digests():
                 warnings.warn(
                     f"POL {row.pol}: GEOMETRY {row.geometry!r} is skipped; solver "

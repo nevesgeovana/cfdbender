@@ -52,7 +52,14 @@ from cfdbender.core.settings import _validate, read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._config import number
 from cfdbender.solvers.qprop import _output
-from cfdbender.solvers.qprop._config import Operating, Setup, operating, options, setup
+from cfdbender.solvers.qprop._config import (
+    CONDITIONS,
+    Operating,
+    Setup,
+    operating,
+    options,
+    setup,
+)
 from cfdbender.solvers.qprop._execute import (
     _xfoil_options,
     prepare,
@@ -143,6 +150,9 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         ),
         tuple(f"sims/sim_{{pol}}/datapoints/{{point}}/{name}" for name in _OUTPUTS),
     )
+
+
+validate_row.native_condition_keys = CONDITIONS  # type: ignore[attr-defined]
 
 
 def translate(point: AdapterPoint) -> str:
