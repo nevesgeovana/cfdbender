@@ -419,3 +419,18 @@ def test_verbs_are_read_only_when_a_lock_is_held_elsewhere(tmp_path):
     assert main(["status", "--workspace", str(tmp_path)]) == 0
     assert main(["mark-failed", "--sims", "1001", "--apply", "--workspace", str(tmp_path)]) == 2
     assert os.path.exists(tmp_path / "runs.json.lock"), "a lock held elsewhere is never removed"
+
+
+@pytest.mark.parametrize("sim", ["1001/../../../victim", "1001/../../inputs", "..", "1001."])
+def test_delete_sims_never_deletes_outside_its_own_sim_folder(tmp_path, sim):
+    root = tmp_path / "ws"
+    root.mkdir()
+    ran(root)
+    victim = tmp_path / "victim"
+    victim.mkdir()
+    (victim / "keep.txt").write_text("x")
+    before = snapshot(root)
+    code = main(["delete-sims", "--sims", sim, "--apply", "--workspace", str(root)])
+    assert code == 2
+    assert (victim / "keep.txt").is_file()
+    assert snapshot(root) == before
