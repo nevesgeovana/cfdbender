@@ -68,7 +68,7 @@ def case(request, tmp_path):
         matrix.write_text(matrix.read_text(encoding="ascii").replace("MACH:0.1", "MACH:0"))
     if solver == "qprop":
         # QPROP executes only a blade named in its setup under its own folder, while
-        # the planner resolves the GEOMETRY column in either: a gap for the layout lane.
+        # the planner resolves the GEOMETRY column in either: a layout gap.
         setup.write_bytes(b'blade = "inputs/geometry/blade.obj"' + bytes([10]) + setup.read_bytes())
         (root / "inputs/geometry").mkdir()
         (root / "inputs/geometries/blade.obj").rename(root / "inputs/geometry/blade.obj")
