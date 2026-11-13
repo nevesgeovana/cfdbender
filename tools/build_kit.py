@@ -197,7 +197,7 @@ def build(out: Path) -> Path:
             raise ValueError("tiny-case generator is unavailable")
         generator = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(generator)
-        mesh = workspace / "inputs/meshes/tiny.su2"
+        mesh = workspace / "inputs/mesh/tiny.su2"
         mesh.parent.mkdir(parents=True, exist_ok=True)
         cells = generator.generate(mesh)
         if not 100 < cells <= 5000:
@@ -209,7 +209,7 @@ def build(out: Path) -> Path:
             {
                 WHEEL: wheel_data,
                 "smoke/init.toml": (workspace / "init.toml").read_bytes(),
-                "smoke/inputs/meshes/tiny.su2": mesh.read_bytes(),
+                "smoke/inputs/mesh/tiny.su2": mesh.read_bytes(),
             }
         )
         for name, data in members.items():

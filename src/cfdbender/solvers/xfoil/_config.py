@@ -101,10 +101,11 @@ def config(
     filename = setup.get("airfoil_file")
     if "airfoil_file" in setup and (
         not isinstance(filename, str)
-        or re.fullmatch("inputs/(airfoils|geometries|geometry)/[^/]+[.]dat", filename) is None
+        or re.fullmatch("inputs/(airfoils|mesh|geometries|geometry|meshes)/[^/]+[.]dat", filename)
+        is None
     ):
         raise ValueError(
-            "airfoil_file must name inputs/airfoils/<name>.dat or inputs/geometries/<name>.dat"
+            "airfoil_file must name inputs/mesh/<name>.dat or inputs/airfoils/<name>.dat"
         )
     normalized = {key.lower(): value for key, value in condition.items()}
     if set(normalized) != {"alpha"}:

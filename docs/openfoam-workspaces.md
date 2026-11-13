@@ -19,14 +19,14 @@ mesh. The destination parent must exist and the Python environment needs gmsh.
 
 ```console
 cfd-workspace init --solver openfoam --workspace campaign
-mkdir campaign/inputs/meshes -Force
-python tools/kit/openfoam_naca0012_mesh.py campaign/inputs/meshes/naca0012.msh
+mkdir campaign/inputs/mesh -Force
+python tools/kit/openfoam_naca0012_mesh.py campaign/inputs/mesh/naca0012.msh
 ```
 
 `campaign/inputs/setups/s001.toml`:
 
 ```toml
-mesh = "inputs/meshes/naca0012.msh"
+mesh = "inputs/mesh/naca0012.msh"
 application = "simpleFoam"
 speed = 10.0
 nu = 1.5e-5
@@ -137,7 +137,7 @@ ESI has no native CGNS or UGRID import route in this adapter. For `.cgns` and
 `.ugrid` meshes, supply `mesh_converter` in the s file, before `[solver]`:
 
 ```toml
-mesh = "inputs/meshes/airfoil.cgns"
+mesh = "inputs/mesh/airfoil.cgns"
 mesh_converter = "convert-to-fluent {mesh} {case}/converted.msh && fluentMeshToFoam {case}/converted.msh -case {case}"
 application = "simpleFoam"
 speed = 10.0

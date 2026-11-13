@@ -35,7 +35,7 @@ FILES = {
     "smoke/inputs/setups/s001.toml",
     "smoke/inputs/references/r001.toml",
     "smoke/inputs/pproc/p001.toml",
-    "smoke/inputs/meshes/tiny.su2",
+    "smoke/inputs/mesh/tiny.su2",
     "smoke/inputs/hpc/h001.toml",
 }
 
@@ -101,7 +101,7 @@ def test_p0000_item4_exact_members_and_privacy(kit):
             assert not re.search(rb"\b[A-Za-z]:[/\\]|\\\\[A-Za-z0-9_.-]+[\\/]", data)
             assert b"\xe2\x80\x93" not in data and b"\xe2\x80\x94" not in data
         assert len(archive.read("README-FIRST.md").decode().splitlines()) == 15
-        mesh = archive.read("smoke/inputs/meshes/tiny.su2").decode()
+        mesh = archive.read("smoke/inputs/mesh/tiny.su2").decode()
         assert "NELEM= 1280" in mesh and "airfoil" in mesh and "farfield" in mesh
         assert b'route = "executable"' in archive.read("smoke/inputs/setups/s001.toml")
         profile = tomllib.loads(archive.read("smoke/inputs/hpc/h001.toml").decode())

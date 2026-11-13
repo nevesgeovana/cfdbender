@@ -33,7 +33,7 @@ def prepare(root: Path, mesh: Path, route: str, executable: str | None = None) -
         "init.toml": 'schema_version=1\nsolver="su2"\n',
         "inputs/setups/s001.toml": chr(10).join(
             [
-                'mesh="inputs/meshes/naca0012_small.su2"',
+                'mesh="inputs/mesh/naca0012_small.su2"',
                 "iterations=40",
                 'SOLVER="EULER"',
                 'MATH_PROBLEM="DIRECT"',
@@ -71,7 +71,7 @@ def prepare(root: Path, mesh: Path, route: str, executable: str | None = None) -
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(text.encode("ascii"))
-    target = root / "inputs/meshes/naca0012_small.su2"
+    target = root / "inputs/mesh/naca0012_small.su2"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(data)
     return plan_matrix(

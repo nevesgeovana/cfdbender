@@ -35,7 +35,7 @@ wrapper cannot be imported by the Windows interpreter.
 For workspace defaults, replace the scalar solver declaration with [solver],
 name="su2", and route or executable. The s file overrides workspace options.
 
-Example setup (with a mesh and r/p files): mesh="inputs/meshes/airfoil.su2",
+Example setup (with a mesh and r/p files): mesh="inputs/mesh/airfoil.su2",
 iterations=40, SOLVER="EULER", MACH_NUMBER=0.3, AOA=2.0,
 MARKER_EULER=["airfoil"], MARKER_FAR=["farfield"]. For native execution add
 [solver] with route="executable" and set CFDBENDER_SU2_EXE in the environment.

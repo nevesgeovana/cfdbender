@@ -1,7 +1,7 @@
 """Run ESI simpleFoam cases from a tracked native or user-converted mesh.
 
 Initialize with ``cfd-workspace init --solver openfoam``. A setup file contains
-mesh="inputs/meshes/airfoil.msh", application="simpleFoam", speed=10, nu=1.5e-5,
+mesh="inputs/mesh/airfoil.msh", application="simpleFoam", speed=10, nu=1.5e-5,
 turbulence="SpalartAllmaras" (or "laminar"), iterations=500 and optionally
 residual_target=1e-5. Reference files supply area, length and moment_origin;
 mesh may also name .cgns or .ugrid when mesh_converter supplies a shell command

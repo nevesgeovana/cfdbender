@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from cfdbender.core.matrix import MatrixRow
+from cfdbender.core.mesh import resolve_setup_paths
 from cfdbender.core.plan import InputFiles, Point, RowInputs, RowRequirements, apply_variables
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import read_init
@@ -73,7 +74,12 @@ def load_point(root: str | Path, point: Point, *, solver: str) -> AdapterPoint:
         target,
         point,
         solver,
-        apply_variables(files.read_toml(f"inputs/setups/{point.setup_id}.toml"), point.variables),
+        resolve_setup_paths(
+            target,
+            apply_variables(
+                files.read_toml(f"inputs/setups/{point.setup_id}.toml"), point.variables
+            ),
+        ),
         files.read_toml(f"inputs/references/{point.reference_id}.toml"),
         files.read_toml(f"inputs/pproc/{point.post_id}.toml"),
     )

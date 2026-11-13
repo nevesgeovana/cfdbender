@@ -18,6 +18,7 @@ from types import MappingProxyType
 from typing import Protocol
 
 from cfdbender.core.matrix import MatrixRow, parse_matrix
+from cfdbender.core.mesh import mesh_candidates, resolve_setup_paths
 from cfdbender.core.naming import PointNameError, datapoint_dir_name, point_name
 from cfdbender.core.settings import WorkspaceError, _validate
 
@@ -136,9 +137,6 @@ class InputFiles:
         )
 
 
-GEOMETRY_FOLDERS = ("inputs/geometries", "inputs/geometry")
-
-
 def apply_variables(
     setup: Mapping[str, object], variables: Mapping[str, object]
 ) -> Mapping[str, object]:
@@ -179,8 +177,9 @@ def resolve_geometry(root: Path, cell: str | None) -> str | None:
     root : Path
         Resolved workspace root.
     cell : str or None
-        A file name in inputs/geometries/ (or inputs/geometry/), a stem naming
-        exactly one file there, or a workspace-relative path containing ``/``.
+        A file name in inputs/mesh/ (legacy inputs/geometry/, inputs/geometries/ or
+        inputs/meshes/ still read), a stem naming exactly one file there, or a
+        workspace-relative path containing ``/``.
 
     Returns
     -------
@@ -190,23 +189,14 @@ def resolve_geometry(root: Path, cell: str | None) -> str | None:
     if cell is None:
         return None
     if "/" in cell:
-        candidates = [cell]
+        found = [cell] if workspace_path(root, cell).is_file() else []
     else:
-        candidates = [f"{folder}/{cell}" for folder in GEOMETRY_FOLDERS]
-    found = [name for name in candidates if workspace_path(root, name).is_file()]
-    if not found and "/" not in cell:
-        found = [
-            path.relative_to(root).as_posix()
-            for folder in GEOMETRY_FOLDERS
-            if (root / folder).is_dir()
-            for path in sorted((root / folder).glob(f"{cell}.*"))
-            if path.is_file()
-        ]
+        found = mesh_candidates(root, cell)
     if len(found) != 1:
         raise ValueError(
             f"GEOMETRY {cell!r} names "
             + (f"several files: {', '.join(found)}" if found else "no file")
-            + "; name one file of inputs/geometries/ (with its extension when stems repeat)"
+            + "; name one file of inputs/mesh/ (with its extension when stems repeat)"
         )
     return found[0]
 
@@ -221,8 +211,9 @@ class RowInputs(InputFiles):
     def __init__(self, root: Path, row: MatrixRow, common: InputFiles) -> None:
         super().__init__(root)
         self._bytes.update(common._bytes)
-        self.setup = apply_variables(
-            self.read_toml(f"inputs/setups/{row.setup_id}.toml"), row.variables
+        self.setup = resolve_setup_paths(
+            root,
+            apply_variables(self.read_toml(f"inputs/setups/{row.setup_id}.toml"), row.variables),
         )
         self.reference = self.read_toml(f"inputs/references/{row.reference_id}.toml")
         self.post = self.read_toml(f"inputs/pproc/{row.post_id}.toml")

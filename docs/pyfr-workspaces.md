@@ -32,7 +32,7 @@ The openmp backend needs no GPU.
 A setup file under `inputs/setups` names the case:
 
 ```toml
-mesh = "inputs/meshes/naca0012.msh"
+mesh = "inputs/mesh/naca0012.msh"
 mach = 0.2
 reynolds = 10000
 order = 3
@@ -47,7 +47,7 @@ executable = "/home/user/bin/pyfr-run"
 timeout_s = 7200
 ```
 
-`mesh` is a gmsh `.msh` file in `inputs/meshes` with the physical groups
+`mesh` is a gmsh `.msh` file in `inputs/mesh` with the physical groups
 `fluid`, `wall` and `far`. A mesh that mixes quadrilaterals and triangles is
 supported: both element sections are written. `mach`, `reynolds`, `alpha`,
 `order`, `tend`, `window_start` and `tolerance` may also be matrix

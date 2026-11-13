@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from cfdbender.core.flight import agree, row_flow
+from cfdbender.core.mesh import MESH_PREFIXES
 from cfdbender.core.results import References
 from cfdbender.solvers._host._config import number
 
@@ -139,12 +140,10 @@ def config(
     mesh = setup.get("mesh")
     if (
         not isinstance(mesh, str)
-        or not mesh.startswith(("inputs/meshes/", "inputs/geometries/", "inputs/geometry/"))
+        or not mesh.startswith(MESH_PREFIXES)
         or not mesh.endswith((".msh", ".cgns", ".ugrid"))
     ):
-        raise ValueError(
-            "mesh must name inputs/meshes/ or inputs/geometries/<name>.msh, .cgns or .ugrid"
-        )
+        raise ValueError("mesh must name inputs/mesh/<name>.msh, .cgns or .ugrid")
     converter = setup.get("mesh_converter")
     if "mesh_converter" in setup or not mesh.endswith(".msh"):
         if (

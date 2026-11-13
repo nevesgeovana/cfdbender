@@ -18,7 +18,7 @@ allow memory for input hashing.
 For example, `inputs/setups/s001.toml` can contain:
 
 ```toml
-mesh = "inputs/meshes/transport.cgns"
+mesh = "inputs/mesh/transport.cgns"
 iterations = 1000
 mach = 0.85
 alpha = 2.0
@@ -64,7 +64,7 @@ MARKER_FAR = ["farfield"]
 
 and `inputs/references/r001.toml` gives `area`, `length` and `moment_origin`;
 `length` is the length REmi is measured against. The mesh is
-`inputs/geometries/wb.su2`. For each point the deck receives:
+`inputs/mesh/wb.su2`. For each point the deck receives:
 
 | Matrix | SU2 key |
 |---|---|

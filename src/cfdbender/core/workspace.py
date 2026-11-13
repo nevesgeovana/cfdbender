@@ -23,7 +23,7 @@ INPUT_KINDS = (
 )
 #: The input folders the solver adapters of this package read. The other kinds
 #: belong to the FlightStream layout and stay in a mock workspace.
-SOLVER_INPUT_KINDS = ("geometries", "references", "setups", "pproc", "hpc", "matrices")
+SOLVER_INPUT_KINDS = ("mesh", "references", "setups", "pproc", "hpc", "matrices")
 _LIBRARY_SOLVERS = frozenset({"su2", "openfoam", "pyfr", "xfoil", "qprop"})
 
 

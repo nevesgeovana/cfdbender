@@ -5,9 +5,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from cfdbender.core.flight import agree, mach_reynolds
+from cfdbender.core.mesh import MESH_PREFIXES
 from cfdbender.solvers._host._config import number
 
-_MESH_FOLDERS = ("inputs/meshes/", "inputs/geometries/", "inputs/geometry/")
+_MESH_FOLDERS = MESH_PREFIXES
 
 
 @dataclass(frozen=True)
@@ -67,7 +68,7 @@ def config(
         values[key] = value
     mesh = values.get("mesh")
     if not isinstance(mesh, str) or not mesh.startswith(_MESH_FOLDERS) or not mesh.endswith(".msh"):
-        raise ValueError("mesh must name inputs/meshes/<name>.msh or inputs/geometries/<name>.msh")
+        raise ValueError("mesh must name inputs/mesh/<name>.msh")
     mach = number(values.get("mach"), "mach")
     reynolds = number(values.get("reynolds"), "reynolds")
     alpha = number(values.get("alpha", 0), "alpha")

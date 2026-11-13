@@ -80,9 +80,9 @@ def deck(root: Path, index: int = 0) -> dict[str, str]:
 def test_su2_init_creates_only_the_folders_it_reads(tmp_path):
     init_workspace(tmp_path, solver="su2", available_solvers=available_solvers())
     assert sorted(p.name for p in (tmp_path / "inputs").iterdir() if p.is_dir()) == [
-        "geometries",
         "hpc",
         "matrices",
+        "mesh",
         "pproc",
         "references",
         "setups",

@@ -122,17 +122,15 @@ def setup(values: Mapping[str, object]) -> Setup:
         raise ValueError("unsupported QPROP setup: " + ", ".join(sorted(unknown)))
     blade = values.get("blade")
     if blade is None:
-        raise ValueError(
-            "blade is required: name inputs/geometry/<name>.obj or inputs/polars-2D/<set>"
-        )
+        raise ValueError("blade is required: name inputs/mesh/<name>.obj or inputs/polars-2D/<set>")
     if (
         not isinstance(blade, str)
         or re.fullmatch(
-            "inputs/(geometry/[^/]+[.]obj|geometries/[^/]+[.]obj|polars-2D/[^/]+)", blade
+            "inputs/((mesh|geometry|geometries|meshes)/[^/]+[.]obj|polars-2D/[^/]+)", blade
         )
         is None
     ):
-        raise ValueError("blade must name inputs/geometry/<name>.obj or inputs/polars-2D/<set>")
+        raise ValueError("blade must name inputs/mesh/<name>.obj or inputs/polars-2D/<set>")
     if "n_blades" not in values:
         raise ValueError("n_blades is required")
     hub = values.get("hub_center", [0.0, 0.0, 0.0])

@@ -24,13 +24,13 @@ path verbatim, so give absolute Linux paths below; `~` is not expanded.
 campaign/
   init.toml                  solver = "qprop"
   inputs/
-    geometry/blade.obj       a 3D blade, in metres (or set scale)
+    mesh/blade.obj           a 3D blade, in metres (or set scale)
     polars-2D/<set>/         an existing set of section cuts and polars
     setups/s001.toml
     matrices/study.fs
 ```
 
-The `blade` key of the s file points at either one OBJ under `inputs/geometry`
+The `blade` key of the s file points at either one OBJ under `inputs/mesh`
 or one set under `inputs/polars-2D`.
 
 **Blade OBJ.** cfdbender slices the blade at `n_sections` radial stations
@@ -70,7 +70,7 @@ be omitted; if given it must equal the number of stations.
 `campaign/inputs/setups/s001.toml`:
 
 ```toml
-blade = "inputs/geometry/blade.obj"
+blade = "inputs/mesh/blade.obj"
 n_blades = 3
 n_sections = 12
 spacing = "cosine"

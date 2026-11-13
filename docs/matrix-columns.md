@@ -27,7 +27,7 @@ closest known column.
 | `DESCRIPTION` | Free text for the row. Labels only, as `AIRCRAFT`. |
 | `FLIGHT_CONDITION` | The flow state and attitude as `KEY:value` pairs; see below. |
 | `SWEEP_VALUES` | The comma-separated values of the one `FLIGHT_CONDITION` key written `sweep`. |
-| `GEOMETRY` | The mesh or geometry file: a file name in `inputs/geometries/`, a stem naming exactly one file there, or a workspace-relative path. The setup may then omit its mesh key; one it states must name the same file. |
+| `GEOMETRY` | The mesh or geometry file: a file name in `inputs/mesh/`, a stem naming exactly one file there, or a workspace-relative path. The older folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/` are still read, after `inputs/mesh/`. The setup may then omit its mesh key; one it states must name the same file. |
 | `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same. |
 | `SET` | Setup file `inputs/setups/s<id>.toml`. |
 | `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`. |

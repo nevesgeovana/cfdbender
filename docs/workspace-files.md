@@ -17,7 +17,7 @@ Initialization creates:
 campaign/
   init.toml
   inputs/
-    geometries/
+    mesh/
     references/       # r<id>.toml
     setups/           # s<id>.toml
     pproc/            # p<id>.toml
@@ -34,9 +34,10 @@ campaign/
 ```
 
 That is the mock solver's layout. A workspace for su2, openfoam, pyfr, xfoil or
-qprop gets only the input folders those adapters read: `geometries`, `references`,
+qprop gets only the input folders those adapters read: `mesh`, `references`,
 `setups`, `pproc`, `hpc` and `matrices`. A matrix GEOMETRY cell names a file of
-`inputs/geometries/`; see [matrix columns](matrix-columns.md).
+`inputs/mesh/` (the older names `inputs/geometry/`, `inputs/geometries/` and
+`inputs/meshes/` are still read, with a one-time warning); see [matrix columns](matrix-columns.md).
 
 The input folders follow the established campaign layout. They start empty;
 input files, matrix expansion, run records, HPC operations and solver execution

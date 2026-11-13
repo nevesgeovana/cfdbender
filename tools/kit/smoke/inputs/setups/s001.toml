@@ -1,4 +1,4 @@
-mesh = "inputs/meshes/tiny.su2"
+mesh = "inputs/mesh/tiny.su2"
 iterations = 40
 freestream_temperature = 288.15
 SOLVER = "EULER"
