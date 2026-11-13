@@ -53,7 +53,14 @@ from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._config import number
 from cfdbender.solvers.qprop import _output
 from cfdbender.solvers.qprop._config import Operating, Setup, operating, options, setup
-from cfdbender.solvers.qprop._execute import prepare, record, run_qprop, section_fits
+from cfdbender.solvers.qprop._execute import (
+    _xfoil_options,
+    prepare,
+    qprop_argv,
+    record,
+    run_qprop,
+    section_fits,
+)
 from cfdbender.solvers.qprop._prop import Station, render_prop, render_qcon
 from cfdbender.solvers.qprop._sections import (
     Blade,
@@ -66,7 +73,7 @@ from cfdbender.solvers.qprop._sections import (
 )
 
 SOLVER_NAME = "qprop"
-STAGED_CONFIG = "propeller.prop"
+STAGED_CONFIG = "sections.plan"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "launcher"}
 JOB_OUTPUTS = ("stdout.log",)
 _OUTPUTS = (
@@ -151,23 +158,28 @@ def translate(point: AdapterPoint) -> str:
     """
     point.verify()
     _, settings, op, _, rpm, planned = _context(point)
-    sections = ["# index radius chord beta reynolds mach source"]
-    sections += [
-        f"{p.index} {p.spec.radius:.8f} {p.spec.chord:.8f} {p.spec.beta:.4f} "
-        f"{p.reynolds:.0f} {p.mach:.4f} {p.source}"
-        for p in planned
-    ]
-    files = {
-        "sections.plan": "\n".join(sections) + "\n",
-        "command": f"qprop propeller.prop none {op.speed:.10g} {rpm:.10g}\n",
-        "qcon.def": render_qcon(op.rho, op.mu, op.a),
-    }
+    files = _plan_files(op, rpm, planned)
     for p in planned:
         if p.source == "xfoil":
             assert p.spec.shape is not None
             files[f"xfoil/{p.name}/airfoil.dat"] = p.spec.shape
             files[f"xfoil/{p.name}/xfoil.in"] = deck(settings, p)
     return "".join(f"// FILE: {name}\n{body}" for name, body in files.items())
+
+
+def _plan_files(op: Operating, rpm: float, planned: tuple[Planned, ...]) -> dict[str, str]:
+    """Return the section plan, command and qcon.def: the files no process is needed for."""
+    sections = ["# index radius chord beta reynolds mach source"]
+    sections += [
+        f"{p.index} {p.spec.radius:.8f} {p.spec.chord:.8f} {p.spec.beta:.4f} "
+        f"{p.reynolds:.0f} {p.mach:.4f} {p.source}"
+        for p in planned
+    ]
+    return {
+        "sections.plan": "\n".join(sections) + "\n",
+        "command": f"qprop propeller.prop none {op.speed:.10g} {rpm:.10g}\n",
+        "qcon.def": render_qcon(op.rho, op.mu, op.a),
+    }
 
 
 def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionResult:
@@ -180,7 +192,7 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     check_ram : callable
         Coordinator guard, checked before writes and throughout every process.
     """
-    folder, opts, op, rpm = _stage(point, check_ram)
+    folder, opts, op, rpm = _stage(point, check_ram, run=True)
     run_qprop(point, folder, op, rpm, opts, check_ram)
     return _read(folder, point)[0]
 
@@ -188,28 +200,41 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
 def stage(point: AdapterPoint) -> None:
     """Stage propeller.prop, qcon.def and sections.json for a cluster job.
 
-    Missing section polars are made here, by the XFOIL step a local run uses,
-    so the job only runs qprop propeller.prop none <speed> <rpm> in the point
-    folder, with the point's speed and the rpm recorded in sections.json, and
-    sends its standard output to stdout.log (the profile's {stdout_log}).
+    Staging runs no process. It writes sections.plan and qcon.def and, when every
+    section has a given polar, propeller.prop and sections.json, so the job only
+    runs qprop propeller.prop none <speed> <rpm> in the point folder and sends its
+    standard output to stdout.log (the profile's {stdout_log}). A section that
+    needs XFOIL is made by a local run, not by staging.
 
     Parameters
     ----------
     point : AdapterPoint
         Planned point whose folder does not exist yet.
     """
-    _stage(point, lambda: None)
+    _stage(point, lambda: None, run=False)
 
 
 def _stage(
-    point: AdapterPoint, check_ram: Callable[[], None]
+    point: AdapterPoint, check_ram: Callable[[], None], *, run: bool
 ) -> tuple[Path, Mapping[str, object], Operating, float]:
     point.verify()
     opts, settings, op, blade, rpm, planned = _context(point)
     folder = prepare(point)
+    if run:
+        # A missing executable refuses the point before any folder is written.
+        qprop_argv(opts, point.root)
+        if any(p.source == "xfoil" for p in planned):
+            from cfdbender.solvers.xfoil._execute import argv as xfoil_argv
+
+            xfoil_argv(_xfoil_options(opts), point.root, key="xfoil_executable")
     check_ram()
     _ram.require_ram(number(opts["ram_estimate_gib"], "ram_estimate_gib"), solver="QPROP")
     folder.mkdir(parents=True, exist_ok=False)
+    for name, body in _plan_files(op, rpm, planned).items():
+        if name != "command":
+            (folder / name).write_text(body, encoding="ascii", newline="\n")
+    if not run and any(p.source == "xfoil" for p in planned):
+        return folder, opts, op, rpm
     fits = section_fits(point, folder, settings, planned, opts, check_ram)
     add = beta_offset(blade, op)
     (folder / "sections.json").write_text(
@@ -231,9 +256,6 @@ def _stage(
         encoding="ascii",
         newline="\n",
     )
-    (folder / "qcon.def").write_text(
-        render_qcon(op.rho, op.mu, op.a), encoding="ascii", newline="\n"
-    )
     return folder, opts, op, rpm
 
 
@@ -253,7 +275,7 @@ def classify(result: ExecutionResult) -> Classification:
 def _read(
     folder: Path, point: AdapterPoint
 ) -> tuple[ExecutionResult, dict[str, Coefficient], References]:
-    settings = setup(point.setup)
+    settings = setup(_with_geometry(point.setup, point.geometry))
     axis: Literal["x", "y", "z"] = settings.axis  # type: ignore[assignment]
     refs_radius = 1.0
     try:
@@ -261,7 +283,12 @@ def _read(
         execution = folder / "execution.json"
         meta = json.loads(execution.read_bytes()) if execution.is_file() else {"exit_code": 0}
         text = (folder / "stdout.log").read_text(encoding="utf-8", errors="replace")
-        refs_radius = float(json.loads((folder / "sections.json").read_bytes())["radius"])
+        sections = folder / "sections.json"
+        if sections.is_file():
+            refs_radius = float(json.loads(sections.read_bytes())["radius"])
+        else:
+            # A cluster folder staged before its XFOIL polars exist: the blade states the radius.
+            refs_radius = _context(point)[3].radius
     except (OSError, ValueError, KeyError):
         meta, text = {"exit_code": 1}, ""
     row = _output.parse_table(text)

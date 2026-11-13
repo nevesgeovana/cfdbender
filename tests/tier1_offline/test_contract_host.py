@@ -71,17 +71,9 @@ def test_c25_a_solver_past_its_timeout_is_stopped_and_failed(case, tmp_path):  #
     assert json.loads(record.read_bytes()).get("timed_out") is True, solver
 
 
-def test_c29_a_missing_executable_is_refused_before_any_write(case, request):  # noqa: F811
+def test_c29_a_missing_executable_is_refused_before_any_write(case):  # noqa: F811
     """C-29: an executable that does not exist is refused and no point folder is written."""
     solver, root = case
-    if solver in ("pyfr", "qprop"):
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True,
-                reason=f"C-29 defect: {solver} creates the point folder before it finds the "
-                "executable missing",
-            )
-        )
     if solver == "mock":
         pytest.skip("the mock adapter has no executable")
     path = setup_path(root)
@@ -125,15 +117,9 @@ def test_c46_stage_refuses_an_existing_point_folder(case):  # noqa: F811
     assert after == before
 
 
-def test_c46_stage_runs_no_solver(case, monkeypatch, request):  # noqa: F811
+def test_c46_stage_runs_no_solver(case, monkeypatch):  # noqa: F811
     """C-46: staging launches no process."""
     solver, root = case
-    if solver == "qprop":
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True, reason="C-46 defect: qprop stage runs the XFOIL polar step"
-            )
-        )
     adapter, point = prepared(root, solver)
 
     def refuse(*args, **kwargs):
@@ -170,16 +156,9 @@ def test_c20_a_cluster_folder_holds_the_bytes_a_local_run_reads(case, tmp_path_f
     assert not differing, (solver, differing)
 
 
-def test_c18_c20_staged_text_is_the_same_bytes_on_every_platform(case, tmp_path_factory, request):  # noqa: F811
+def test_c18_c20_staged_text_is_the_same_bytes_on_every_platform(case, tmp_path_factory):  # noqa: F811
     """C-18 and C-20: no staged file carries a carriage return the translation did not write."""
     solver, root = case
-    if solver == "qprop":
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True,
-                reason="C-18 defect: qprop _stage writes text with CRLF on Windows",
-            )
-        )
     adapter, point = prepared(root, solver)
     spare, names = staged_copy(root, point, solver, tmp_path_factory)
     folder = spare / point.point.directory
