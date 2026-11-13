@@ -42,13 +42,35 @@ def _read(plan: RunPlan) -> tuple[Path, dict[str, object] | None, str | None]:
         data = json.loads(path.read_bytes())
     except (OSError, ValueError) as error:
         return path, None, f"the plan at {path} cannot be read: {error}. {PLAN_REQUIRED_MESSAGE}"
-    if not isinstance(data, dict) or not isinstance(data.get("points"), list):
+    if (
+        not isinstance(data, dict)
+        or type(data.get("schema_version")) is not int
+        or data.get("schema_version") != 1
+        or data.get("solver") != plan.solver
+        or data.get("matrix") != plan.matrix
+        or not isinstance(data.get("points"), list)
+        or not _valid_points(data["points"])
+    ):
         return (
             path,
             None,
             f"the plan at {path} is not a plan receipt. {PLAN_REQUIRED_MESSAGE}",
         )
     return path, data, None
+
+
+def _valid_points(points: list[object]) -> bool:
+    seen: set[str] = set()
+    for entry in points:
+        if not isinstance(entry, dict):
+            return False
+        name = entry.get("point_id")
+        if not isinstance(name, str) or not name or name in seen:
+            return False
+        if not isinstance(entry.get("inputs_sha256"), dict):
+            return False
+        seen.add(name)
+    return True
 
 
 def write_receipt(plan: RunPlan) -> Path:

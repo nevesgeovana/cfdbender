@@ -90,3 +90,22 @@ def test_a_run_and_a_forced_rerun_leave_the_receipt_valid(tmp_path):
     rerun = ["run", "study", "--workspace", str(tmp_path), "--force-rerun", "1001/DP-AL+000"]
     assert main(rerun) == 0
     require_receipt(plan_workspace(tmp_path, "study"))
+
+
+@pytest.mark.parametrize("defect", ["missing_id", "duplicate", "schema", "solver", "matrix"])
+def test_malformed_receipt_refuses_cleanly_and_can_be_replanned(tmp_path, defect):
+    three(tmp_path)
+    plan = plan_workspace(tmp_path, "study")
+    path = write_receipt(plan)
+    data = json.loads(path.read_bytes())
+    if defect == "missing_id":
+        del data["points"][0]["point_id"]
+    elif defect == "duplicate":
+        data["points"].append(data["points"][0])
+    else:
+        data[{"schema": "schema_version", "solver": "solver", "matrix": "matrix"}[defect]] = "wrong"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="plan"):
+        require_receipt(plan)
+    write_receipt(plan)
+    require_receipt(plan)
