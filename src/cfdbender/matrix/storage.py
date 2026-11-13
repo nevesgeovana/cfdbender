@@ -23,7 +23,7 @@ from cfdbender.core.registry import (
     encode_record,
 )
 from cfdbender.core.settings import WorkspaceError
-from cfdbender.matrix._console import add_runs_option
+from cfdbender.matrix._console import WORKSPACE_HELP, add_runs_option
 from cfdbender.matrix._journal import STORAGE, append_journal, now
 from cfdbender.matrix.selection import split_ids
 
@@ -118,6 +118,12 @@ def _own_files(base: Path) -> list[Path]:
 def run_free_space(args: argparse.Namespace) -> int:
     """Run a storage recipe: delete named extensions under sims/ that no record names."""
     root = Path(args.workspace).resolve()
+    if args.recipe is None:
+        if not args.list_paths:
+            raise WorkspaceError("name a recipe of inputs/management/, or add --list to see them")
+        found = sorted(p.stem for p in (root / "inputs" / "management").glob("*.toml"))
+        print(", ".join(found) if found else "no recipe in inputs/management/ (write <name>.toml)")
+        return 0
     recipe = _recipe(root, args.recipe)
     kept = {
         workspace_path(root, name)
@@ -360,7 +366,7 @@ def run_sync(args: argparse.Namespace) -> int:
 def register(commands: Any) -> dict[str, Any]:
     """Add the storage verbs to the cfd-matrix subparsers and return their handlers."""
     apply_help = "change files; without it the command previews and changes nothing"
-    workspace_help = "campaign workspace (default: .)"
+    workspace_help = WORKSPACE_HELP
     space = commands.add_parser(
         "space-in-use",
         help="report disk space by folder, by sim and by extension",
@@ -373,7 +379,11 @@ def register(commands: Any) -> dict[str, Any]:
         help="run a storage recipe inputs/management/<recipe>.toml (preview unless --apply)",
         allow_abbrev=False,
     )
-    free.add_argument("recipe", help="the recipe id: a file stem in inputs/management/")
+    free.add_argument(
+        "recipe",
+        nargs="?",
+        help="the recipe id: a file stem in inputs/management/ (with --list alone: list them)",
+    )
     free.add_argument("--workspace", default=".", help=workspace_help)
     free.add_argument("--apply", action="store_true", help=apply_help)
     free.add_argument(

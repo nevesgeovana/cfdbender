@@ -27,7 +27,7 @@ from cfdbender.core.registry import (
     encode_record,
 )
 from cfdbender.core.settings import WorkspaceError, read_init
-from cfdbender.matrix._console import add_runs_option
+from cfdbender.matrix._console import WORKSPACE_HELP, add_runs_option
 from cfdbender.matrix._journal import MARKS, STORAGE, append_journal, now, read_journal
 from cfdbender.matrix.selection import chosen, split_ids
 from cfdbender.solvers import available_solvers, load_solver
@@ -317,7 +317,7 @@ def _sims_option(parser: argparse.ArgumentParser, *, required: bool, help_text: 
 def register(commands: Any) -> dict[str, Any]:
     """Add the record verbs to the cfd-matrix subparsers and return their handlers."""
     apply_help = "change files; without it the command previews and changes nothing"
-    workspace_help = "campaign workspace (default: .)"
+    workspace_help = WORKSPACE_HELP
     for name, help_text, reason_required in (
         ("mark-failed", "mark points FAILED with a reason, whatever they ended in", False),
         ("mark-converged", "record the verdict that completed points converged", True),

@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 
 from cfdbender.core import WorkspaceError, init_workspace, input_kinds
+from cfdbender.core.registry import RegistryError, RunRegistry
 from cfdbender.matrix._console import (
+    WORKSPACE_HELP,
     Console,
     add_console_options,
     add_warning_option,
@@ -42,13 +44,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     init.add_argument(
         "--workspace",
-        help="campaign workspace (default: the current directory); the positional "
-        "root names the same folder",
+        help=WORKSPACE_HELP + "; the positional root names the same folder",
     )
     init.add_argument(
         "--solver",
         required=True,
-        help=f"solver for this workspace; available solvers: {', '.join(available_solvers())}",
+        metavar="NAME",
+        help=f"solver for this workspace, one of: {', '.join(available_solvers())}",
     )
     archive = subparsers.add_parser(
         "archive",
@@ -58,7 +60,9 @@ def build_parser() -> argparse.ArgumentParser:
             "moves its records from runs.json to the manifest history, so the simulation "
             "can be run again into a clean folder while its evidence stays. Refuses a "
             "simulation the manifest does not record. It does not read the status of the "
-            "runs: do not archive a simulation whose run is still going."
+            "runs: do not archive a simulation whose run is still going. It acts at once, with "
+            "no preview, as pyflightstream's archive does; look first with cfd-matrix status "
+            "--points --sims <POL>."
         ),
         allow_abbrev=False,
     )
@@ -72,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     archive.add_argument(
         "--workspace",
-        help="campaign workspace (default: the current directory)",
+        help=WORKSPACE_HELP,
     )
     for command in (init, archive):
         add_console_options(command)
@@ -123,30 +127,52 @@ def main(argv: list[str] | None = None) -> int:
 def _run(args: argparse.Namespace, console: Console) -> int:
     if args.subcommand == "archive":
         try:
-            target = archive_sim(Path(_campaign_root(args)).resolve(), args.sim_id)
-        except (OSError, WorkspaceError) as error:
+            root = Path(_campaign_root(args)).resolve()
+            count = sum(1 for r in RunRegistry(root).read() if r.point.pol == args.sim_id)
+            target = archive_sim(root, args.sim_id)
+        except (OSError, WorkspaceError, RegistryError) as error:
             print(str(error), file=sys.stderr)
             return 2
-        console.final(f"archived sim_{args.sim_id} to {target}; sims/sim_{args.sim_id}/ is removed")
+        console.final(
+            f"archived sim {args.sim_id} ({count} point(s)) to "
+            f"{target.relative_to(root).as_posix()}; sims/sim_{args.sim_id}/ is removed"
+        )
         return 0
+    solver = str(args.solver)
+    if solver not in available_solvers():
+        if solver.lower() not in available_solvers():
+            print(
+                f"--solver {solver}: unknown solver; choose one of "
+                f"{', '.join(available_solvers())}",
+                file=sys.stderr,
+            )
+            return 2
+        solver = solver.lower()
+    target = Path(_campaign_root(args)).resolve()
+    existed = target.is_dir() and any(target.iterdir())
     try:
         root = (
             init_flightstream(_campaign_root(args))
-            if args.solver == "flightstream"
+            if solver == "flightstream"
             else init_workspace(
-                _campaign_root(args), solver=args.solver, available_solvers=available_solvers()
+                _campaign_root(args), solver=solver, available_solvers=available_solvers()
             )
         )
     except (OSError, WorkspaceError) as error:
         print(str(error), file=sys.stderr)
         return 2
     console.final(f"campaign workspace ready at {root}")
-    console.say(f"  init.toml (solver: {args.solver})")
-    for kind in input_kinds(args.solver):
+    console.say(f"  init.toml (solver: {solver})")
+    for kind in input_kinds(solver):
         console.say(f"  inputs/{kind}/")
+    if solver != "flightstream":
+        console.say("  inputs/INPUTS.md (what each input file holds)")
+        console.say("  inputs/.gitignore (keeps this machine's executable paths out of git)")
     for name in ("sims", "post", "archive"):
         console.say(f"  {name}/")
-    console.say("existing folders and files were kept untouched")
+    if existed:
+        console.say("existing folders and files were kept untouched")
+    console.say("next: write inputs/matrices/<name>.fs, then cfd-matrix plan <name>")
     return 0
 
 

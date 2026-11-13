@@ -26,6 +26,8 @@ from cfdbender.core.registry import (
     encode_record,
 )
 from cfdbender.matrix._console import (
+    SIMS_HELP,
+    WORKSPACE_HELP,
     add_output_options,
     add_runs_option,
     clock,
@@ -535,7 +537,7 @@ def run_log(args: argparse.Namespace) -> int:
 
 
 def _common(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
+    parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
     add_runs_option(parser)
     add_output_options(parser)
 
@@ -547,7 +549,7 @@ def register(commands: Any) -> dict[str, Any]:
         help="list every recorded sim per matrix with its states, filterable",
         allow_abbrev=False,
     )
-    status.add_argument("--sims", nargs="+", metavar="POL", help="only these simulations")
+    status.add_argument("--sims", nargs="+", metavar="POL", help=SIMS_HELP)
     status.add_argument("--matrix", help="only this recorded matrix")
     status.add_argument(
         "--status",
@@ -579,7 +581,7 @@ def register(commands: Any) -> dict[str, Any]:
     source = log.add_mutually_exclusive_group()
     source.add_argument("--post", metavar="MATRIX", help="the saved post log of a matrix")
     source.add_argument("--storage", action="store_true", help="list the recorded storage calls")
-    log.add_argument("--sims", nargs="+", metavar="POL", help="only these simulations")
+    log.add_argument("--sims", nargs="+", metavar="POL", help=SIMS_HELP)
     log.add_argument("--run", help="only events naming this run id")
     log.add_argument("--stage", help="only this stage (storage: command)")
     log.add_argument("--since", help="events since an ISO time or duration, such as 2h or 7d")

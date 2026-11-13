@@ -29,6 +29,12 @@ from typing import TextIO
 from cfdbender.core.settings import WorkspaceError
 
 LEVELS = ("quiet", "normal", "verbose")
+#: One text for the options every verb shares, so no two verbs word them differently.
+WORKSPACE_HELP = "campaign workspace (default: the current directory)"
+SIMS_HELP = (
+    "only these simulations, by POL, space or comma separated "
+    "(--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused"
+)
 
 
 def add_warning_option(parser: argparse.ArgumentParser) -> None:

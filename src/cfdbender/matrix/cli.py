@@ -18,6 +18,8 @@ from cfdbender.core.run import execute_plan
 from cfdbender.core.settings import WorkspaceError, require_workspace
 from cfdbender.matrix import queries, records, storage
 from cfdbender.matrix._console import (
+    SIMS_HELP,
+    WORKSPACE_HELP,
     Console,
     add_console_options,
     add_runs_option,
@@ -40,6 +42,26 @@ from cfdbender.workspace.planning import plan_workspace
 
 #: The commands that leave a live log and activity events in logs/; plan only previews.
 LOGGED = frozenset({"run", "collect", "post"})
+
+
+_EPILOG = """\
+first campaign (the folder is a workspace made by cfd-workspace init):
+  cfd-matrix plan <matrix>            preview the work and write the plan receipt
+  cfd-matrix run <matrix> --local     run every active point on this machine
+  cfd-matrix status                   see how each simulation ended (--points: each point)
+  cfd-matrix show <POL>               the card of a simulation or of one point
+  cfd-matrix collect <matrix>         read the results into the tables of post/<matrix>/
+  cfd-matrix post <matrix>            rebuild those tables again, with no solver and no pickup
+
+Verbs by stage:
+  plan and run:       plan, run
+  follow:             status, show, history, log, trace, diff
+  collect and post:   collect, post
+  correct records:    mark-failed, mark-converged, restore, rebuild
+  manage storage:     space-in-use, free-space, delete-sims, sync
+Every verb takes --workspace, --verbose and --log-level; the verbs that change files preview
+until --apply. `cfd-matrix <verb> --help` says the rest.
+"""
 
 
 def _seconds(text: str) -> float:
@@ -66,7 +88,13 @@ def build_parser() -> tuple[
     argparse.ArgumentParser, dict[str, Callable[[argparse.Namespace], int]]
 ]:
     """Return the cfd-matrix parser and the handlers of the verbs that read or change records."""
-    parser = argparse.ArgumentParser(prog="cfd-matrix", allow_abbrev=False)
+    parser = argparse.ArgumentParser(
+        prog="cfd-matrix",
+        description="Plan, run and collect a campaign matrix with the solver of its workspace.",
+        epilog=_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
+    )
     add_warning_option(parser)
     commands = parser.add_subparsers(dest="command", required=True)
     plan_parser = commands.add_parser(
@@ -75,7 +103,7 @@ def build_parser() -> tuple[
         allow_abbrev=False,
     )
     plan_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
-    plan_parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
+    plan_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
     run_parser = commands.add_parser(
         "run",
         help="run every active point; on this machine a row's SOLVER_BUILD picks its "
@@ -83,7 +111,7 @@ def build_parser() -> tuple[
         allow_abbrev=False,
     )
     run_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
-    run_parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
+    run_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
     run_parser.add_argument(
         "--resume",
         action="store_true",
@@ -116,7 +144,7 @@ def build_parser() -> tuple[
         allow_abbrev=False,
     )
     collect_parser.add_argument("matrix", nargs="?", help="recorded matrix name (default: all)")
-    collect_parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
+    collect_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
     post_parser = commands.add_parser(
         "post",
         help="rebuild every product under post/<matrix>/ from runs.json and the saved "
@@ -124,8 +152,8 @@ def build_parser() -> tuple[
         allow_abbrev=False,
     )
     post_parser.add_argument("matrix", nargs="?", help="recorded matrix name (default: all)")
-    post_parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
-    post_parser.add_argument("--sims", nargs="+", metavar="POL", help="only these simulations")
+    post_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
+    post_parser.add_argument("--sims", nargs="+", metavar="POL", help=SIMS_HELP)
     post_parser.add_argument("--points", nargs="+", metavar="NAME", help="only these points")
     add_runs_option(post_parser)
     post_parser.add_argument(
@@ -139,8 +167,7 @@ def build_parser() -> tuple[
             "--sims",
             nargs="+",
             metavar="POL",
-            help="only these simulations, by POL, space or comma separated "
-            "(--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused",
+            help=SIMS_HELP,
         )
         command_parser.add_argument(
             "--points",
@@ -157,7 +184,9 @@ def build_parser() -> tuple[
         command_parser.add_argument(
             "--local",
             action="store_true",
-            help="keep work on THIS machine instead of submitting it",
+            help=argparse.SUPPRESS
+            if command_parser is collect_parser
+            else "keep work on THIS machine instead of submitting it",
         )
     run_parser.add_argument(
         "--no-local",
