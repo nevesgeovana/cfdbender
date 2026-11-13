@@ -12,6 +12,7 @@ import os
 import shutil
 import tempfile
 import tomllib
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -117,6 +118,13 @@ def _own_files(base: Path) -> list[Path]:
 
 
 def run_free_space(args: argparse.Namespace) -> int:
+    """Keep an applied management operation under the run writer lock."""
+    registry = RunRegistry(Path(args.workspace).resolve(), args.runs)
+    with registry.transaction() if args.apply else nullcontext():
+        return _run_free_space(args, registry)
+
+
+def _run_free_space(args: argparse.Namespace, registry: RunRegistry) -> int:
     """Run a storage recipe: delete named extensions under sims/ that no record names."""
     root = Path(args.workspace).resolve()
     if args.recipe is None:
@@ -128,7 +136,7 @@ def run_free_space(args: argparse.Namespace) -> int:
     recipe = _recipe(root, args.recipe)
     kept = {
         workspace_path(root, name)
-        for record in RunRegistry(root, args.runs).read()
+        for record in registry.read()
         for name in (*record.point.outputs, *record.outputs_sha256)
     }
     freed = 0
@@ -184,9 +192,15 @@ def _sim_folder(root: Path, sim: str) -> Path:
 
 
 def run_delete_sims(args: argparse.Namespace) -> int:
+    """Keep an applied management operation under the run writer lock."""
+    registry = RunRegistry(Path(args.workspace).resolve(), args.runs)
+    with registry.transaction() if args.apply else nullcontext():
+        return _run_delete_sims(args, registry)
+
+
+def _run_delete_sims(args: argparse.Namespace, registry: RunRegistry) -> int:
     """Delete named sims: their folders and records, keeping a note in the manifest history."""
     root = Path(args.workspace).resolve()
-    registry = RunRegistry(root, args.runs)
     records = registry.read()
     sims = split_ids(args.sims)
     for sim in sims:
@@ -299,12 +313,15 @@ def _copy_files(
             if args.apply:
                 archive = owned_path(base, "archive")
                 archive.mkdir(exist_ok=True)
-                backup = Path(
-                    tempfile.mkdtemp(
-                        prefix=f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-sync-",
-                        dir=archive,
+                backup = (
+                    Path(
+                        tempfile.mkdtemp(
+                            prefix=f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-sync-",
+                            dir=archive,
+                        )
                     )
-                ) / relative
+                    / relative
+                )
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(target, backup)
                 saved.append(relative.as_posix())
@@ -317,9 +334,16 @@ def _copy_files(
 
 
 def run_sync(args: argparse.Namespace) -> int:
+    """Keep an applied management operation under the run writer lock."""
+    registry = RunRegistry(Path(args.workspace).resolve(), args.runs)
+    with registry.transaction() if args.apply else nullcontext():
+        return _run_sync(args, registry)
+
+
+def _run_sync(args: argparse.Namespace, registry: RunRegistry) -> int:
     """Bring records and results from the workspaces named in inputs/sync-workspaces.toml."""
     root = Path(args.workspace).resolve()
-    main = RunRegistry(root, args.runs)
+    main = registry
     mine = {r.point_id: r for r in main.read()}
     for name, other in _sync_sources(root, args.source).items():
         print(f"from {name}: {other}")

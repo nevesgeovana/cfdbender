@@ -19,7 +19,9 @@ import math
 import os
 import re
 import tempfile
-from collections.abc import Mapping
+import threading
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -439,6 +441,7 @@ class RunRegistry:
         self.root = Path(root).resolve()
         self.path = self.root / runs
         self.lock_path = self.root / f"{runs}.lock"
+        self._transaction = threading.local()
 
     def _history(self) -> list[object]:
         if not self.path.exists():
@@ -519,11 +522,7 @@ class RunRegistry:
             Held lock, illegal transition, changed inputs, existing output or bad evidence.
         """
         stamp = _timestamp(timestamp if timestamp is not None else datetime.now(UTC).isoformat())
-        lock = self.lock_path
-        try:
-            lease = lock.open("x", encoding="utf-8")
-        except FileExistsError as exc:
-            raise RegistryError(f"{lock}: registry is locked by another writer") from exc
+        lease = self._locked()
         try:
             with lease:
                 records = self.read()
@@ -593,8 +592,6 @@ class RunRegistry:
                 return updated
         except (OSError, ValueError, TypeError) as exc:
             raise RegistryError(f"{self.path}: cannot transition point: {exc}") from exc
-        finally:
-            lock.unlink(missing_ok=True)
 
     def history(self) -> tuple[Mapping[str, object], ...]:
         """Return archived records, oldest first, each with archived_at and archive.
@@ -637,11 +634,7 @@ class RunRegistry:
         while target.exists():
             target = self.root / "archive" / f"{name}-{suffix}"
             suffix += 1
-        lock = self.lock_path
-        try:
-            lease = lock.open("x", encoding="utf-8")
-        except FileExistsError as error:
-            raise RegistryError(f"{lock}: registry is locked by another writer") from error
+        lease = self._locked()
         try:
             with lease:
                 records = self.read()
@@ -673,8 +666,6 @@ class RunRegistry:
                 return target
         except (OSError, ValueError, TypeError) as error:
             raise RegistryError(f"{self.path}: cannot archive points: {error}") from error
-        finally:
-            lock.unlink(missing_ok=True)
 
     def read(self) -> tuple[RunRecord, ...]:
         """Read validated records, or return an empty tuple when runs.json is absent.
@@ -733,15 +724,11 @@ class RunRegistry:
         if plan.root != self.root:
             raise RegistryError("plan and registry must belong to the same workspace")
         stamp = _timestamp(created_at if created_at is not None else datetime.now(UTC).isoformat())
-        lock = self.lock_path
+        lease = self._locked()
         try:
-            lease = lock.open("x", encoding="utf-8")
-        except FileExistsError as error:
-            raise RegistryError(f"{lock}: registry is locked by another writer") from error
-        try:
-            with lease:
-                lease.write(str(os.getpid()))
-                lease.flush()
+            with lease as stream:
+                stream.write(str(os.getpid()))
+                stream.flush()
                 previous = self.read()
                 check_claims(tuple(r.point for r in previous) + plan.points)
                 records = tuple(
@@ -764,16 +751,30 @@ class RunRegistry:
                 return records
         except (OSError, PlanError, ValueError, TypeError) as error:
             raise RegistryError(f"{self.path}: cannot register plan: {error}") from error
-        finally:
-            lock.unlink(missing_ok=True)
 
-    def _locked(self) -> Any:
+    @contextmanager
+    def transaction(self) -> Iterator[Any]:
+        """Hold the writer lock across reads, file changes and nested registry writes."""
+        held = getattr(self._transaction, "lease", None)
+        if held is not None:
+            yield held
+            return
         try:
-            return self.lock_path.open("x", encoding="utf-8")
+            lease = self.lock_path.open("x", encoding="utf-8")
         except FileExistsError as error:
             raise RegistryError(
                 f"{self.lock_path}: registry is locked by another writer"
             ) from error
+        self._transaction.lease = lease
+        try:
+            with lease:
+                yield lease
+        finally:
+            self._transaction.lease = None
+            self.lock_path.unlink(missing_ok=True)
+
+    def _locked(self) -> Any:
+        return self.transaction()
 
     def archive_manifest(self, *, stamp: str | None = None) -> Path:
         """Copy the manifest to archive/<stamp>/ before a change, never overwriting a copy.
@@ -847,8 +848,6 @@ class RunRegistry:
                 return folder
         except (OSError, ValueError, TypeError) as error:
             raise RegistryError(f"{self.path}: cannot change records: {error}") from error
-        finally:
-            self.lock_path.unlink(missing_ok=True)
 
     def restore_from(self, source: Path) -> Path:
         """Replace the manifest by a validated archived copy, archiving the current one first.
@@ -888,5 +887,3 @@ class RunRegistry:
                 return folder
         except (OSError, ValueError, TypeError) as error:
             raise RegistryError(f"{source}: cannot restore the manifest: {error}") from error
-        finally:
-            self.lock_path.unlink(missing_ok=True)

@@ -11,6 +11,7 @@ import hashlib
 import os
 import shutil
 import sys
+from contextlib import nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,8 +52,13 @@ def _marked_failed(root: Path, point_id: str) -> bool:
 
 
 def _mark(args: argparse.Namespace, verdict: str) -> int:
+    registry = RunRegistry(Path(args.workspace).resolve(), args.runs)
+    with registry.transaction() if args.apply else nullcontext():
+        return _mark_locked(args, verdict, registry)
+
+
+def _mark_locked(args: argparse.Namespace, verdict: str, registry: RunRegistry) -> int:
     root = Path(args.workspace).resolve()
-    registry = RunRegistry(root, args.runs)
     records = registry.read()
     keep = chosen((r.point for r in records), split_ids(args.sims), split_ids(args.points))
     stamp = now()
@@ -226,11 +232,17 @@ def _only_matrix(root: Path, name: str | None) -> str:
 
 
 def run_rebuild(args: argparse.Namespace) -> int:
+    """Rebuild under the destination manifest's writer lock."""
+    registry = RunRegistry(Path(args.workspace).resolve(), args.out or args.runs)
+    with registry.transaction() if args.apply else nullcontext():
+        return _rebuild_locked(args, registry)
+
+
+def _rebuild_locked(args: argparse.Namespace, registry: RunRegistry) -> int:
     """Rebuild records from the sim folders on disk, by the matrix's plan."""
     root = Path(args.workspace).resolve()
     config = read_init(root, available_solvers=available_solvers())
     adapter = cast(SolverAdapter, load_solver(config.solver))
-    registry = RunRegistry(root, args.out or args.runs)
     plan = plan_workspace(root, _only_matrix(root, args.matrix))
     recorded = {r.point_id for r in RunRegistry(root, args.runs).read()}
     on_disk = {p.name[4:] for p in (root / "sims").glob("sim_*") if p.is_dir()}
@@ -291,8 +303,14 @@ def run_rebuild(args: argparse.Namespace) -> int:
 
 
 def archive_sim(root: Path, sim_id: str, runs: str = "runs.json") -> Path:
-    """Move one recorded sim's folder into archive/<stamp> and record it in the manifest."""
+    """Archive the sim and its records under one writer lock."""
     registry = RunRegistry(root, runs)
+    with registry.transaction():
+        return _archive_sim_locked(root, sim_id, registry)
+
+
+def _archive_sim_locked(root: Path, sim_id: str, registry: RunRegistry) -> Path:
+    """Move one recorded sim's folder into archive/<stamp> and record it in the manifest."""
     ids = tuple(r.point_id for r in registry.read() if r.point.pol == sim_id)
     if not ids:
         raise WorkspaceError(f"sim {sim_id!r} is not recorded in {registry.path.name}; refusing")
