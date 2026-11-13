@@ -183,9 +183,30 @@ def test_c52_an_archived_point_keeps_its_linked_mesh(case, tmp_path):  # noqa: F
     assert main(["run", "full", "--workspace", str(root), "--local"]) == 0
     assert main(["run", "full", "--workspace", str(root), "--local", "--force-rerun-all"]) == 0
     archived = [
-        p for p in (root / "archive").rglob("*") if p.is_file() and p.name.startswith("mesh")
+        p for p in (root / "archive").rglob("*") if p.name == f"mesh{mesh.suffix}"
     ]
     assert archived, solver
-    assert all(p.samefile(mesh) for p in archived if p.stat().st_size == mesh.stat().st_size), (
-        solver
-    )
+    assert all(p.is_file() and p.samefile(mesh) for p in archived), solver
+
+
+def test_c52_probe_rejects_a_replaced_mesh_of_different_size(case, tmp_path, monkeypatch):  # noqa: F811
+    from cfdbender.core.registry import RunRegistry
+
+    solver, root = case
+    if solver not in ("su2", "openfoam", "pyfr"):
+        pytest.skip("this adapter does not stage a mesh link")
+    _, point = prepared(root, solver)
+    mesh = root / point.geometry
+    original = RunRegistry.archive
+
+    def corrupt(self, *args, **kwargs):
+        folder = original(self, *args, **kwargs)
+        for path in folder.rglob("*"):
+            if path.is_file() and path.samefile(mesh):
+                path.unlink()
+                path.write_bytes(b"broken mesh with a different size")
+        return folder
+
+    monkeypatch.setattr(RunRegistry, "archive", corrupt)
+    with pytest.raises(AssertionError):
+        test_c52_an_archived_point_keeps_its_linked_mesh(case, tmp_path)
