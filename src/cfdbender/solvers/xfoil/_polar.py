@@ -22,30 +22,43 @@ def read_polar(path: Path, alpha: float) -> dict[str, Coefficient]:
     """
     try:
         lines = path.read_text(encoding="ascii").splitlines()
-        header = next(i for i, line in enumerate(lines) if line.split()[:1] == ["alpha"])
-        if lines[header].split()[:7] != ["alpha", "CL", "CD", "CDp", "CM", "Top_Xtr", "Bot_Xtr"]:
+        header = next(i for i, line in enumerate(lines) if {"alpha", "CL"} <= set(line.split()))
+        names = lines[header].split()
+        needed = ["alpha", "CL", "CD", "CDp", "CM", "Top_Xtr", "Bot_Xtr"]
+        if not set(needed) <= set(names) or len(set(names)) != len(names):
             return {}
         rule = lines[header + 1]
         if set(rule) - {" ", "-"}:
             return {}
         spans = [(match.start(), match.end()) for match in re.finditer("-+", rule)]
-        if len(spans) < 7 or len(spans) != len(lines[header].split()):
+        if len(spans) != len(names):
             return {}
+        # Columns are found by their header names; a row whose numbers do not separate by
+        # blanks is read by the dashed-rule widths, which hold only for XFOIL's own order.
+        index = {name: i for i, name in enumerate(names)}
         matches: list[list[float]] = []
         for line in lines[header + 2 :]:
             if not line.strip():
                 continue
-            cells = [float(line[start:end]) for start, end in spans]
+            tokens = line.split()
+            if len(tokens) == len(names):
+                cells = [float(token) for token in tokens]
+            elif names[:7] == needed:
+                cells = [float(line[start:end]) for start, end in spans]
+            else:
+                return {}
             if not all(map(math.isfinite, cells)):
                 return {}
-            if abs(cells[0] - alpha) <= 0.0005000001:
+            if abs(cells[index["alpha"]] - alpha) <= 0.0005000001:
                 matches.append(cells)
         if len(matches) != 1:
             return {}
         axes: dict[str, Literal["x", "y", "z"]] = {"CL": "z", "CD": "x", "CDp": "x", "CM": "y"}
         return {
-            key: Coefficient(matches[0][column], axes[key], "moment" if key == "CM" else "force")
-            for key, column in _COLUMNS.items()
+            key: Coefficient(
+                matches[0][index[key]], axes[key], "moment" if key == "CM" else "force"
+            )
+            for key in _COLUMNS
         }
     except (OSError, UnicodeError, ValueError, StopIteration, IndexError):
         return {}

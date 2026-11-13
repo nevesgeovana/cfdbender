@@ -99,15 +99,8 @@ TABLES = {"su2": "history.csv", "pyfr": "forces.csv", "xfoil": "polar.txt"}
 
 
 @pytest.mark.parametrize("solver_name", sorted(TABLES))
-def test_c41_tables_are_read_by_column_name_not_position(solver_name, tmp_path, request):
+def test_c41_tables_are_read_by_column_name_not_position(solver_name, tmp_path):
     """C-41: reversing the column order of the output table leaves the result unchanged."""
-    if solver_name == "xfoil":
-        request.applymarker(
-            pytest.mark.xfail(
-                strict=True,
-                reason="C-41 defect: xfoil takes its fixed header order, reads by position",
-            )
-        )
     from test_conformance_workspace import build, executables
 
     from cfdbender.core.adapter import load_point
