@@ -19,6 +19,7 @@ from types import MappingProxyType
 from typing import Any, cast
 
 from cfdbender.core.adapter import SolverAdapter, load_point
+from cfdbender.core.executables import build_mismatch
 from cfdbender.core.plan import owned_path, workspace_path
 from cfdbender.core.registry import (
     RegistryError,
@@ -269,6 +270,8 @@ def _rebuild_locked(args: argparse.Namespace, registry: RunRegistry) -> int:
         try:
             collected = adapter.collect(load_point(root, point, solver=config.solver))
             classification, version = collected.classification, collected.solver_version
+            if mismatch := build_mismatch(point.solver_build, version):
+                classification, error = "failed", f"FAILED_EXECUTION: {mismatch}"
         except (OSError, ValueError) as failure:
             classification, error = "failed", f"rebuilt: cannot read the result: {failure}"
         missing = [name for name in point.outputs if name not in found]

@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter, load_point
+from cfdbender.core.executables import build_mismatch
 from cfdbender.core.plan import PlanError, matrix_homes, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
@@ -311,6 +312,9 @@ def collect_workspace(
                 )
             _verify_outputs(target, measured)
             result = adapter.collect(point)
+            mismatch = build_mismatch(record.point.solver_build, result.solver_version)
+            if mismatch:
+                result = replace(result, classification="failed")
             _verify_outputs(target, measured)
             _verify_submission(target, record)
             if record.status == "SUBMITTED":
@@ -318,7 +322,9 @@ def collect_workspace(
                     record.point_id,
                     "COMPLETED",
                     classification=result.classification,
-                    error="FAILED_EXECUTION: numerical evidence failed during collect"
+                    solver_version=result.solver_version,
+                    error="FAILED_EXECUTION: "
+                    + (mismatch or "numerical evidence failed during collect")
                     if result.classification == "failed"
                     else None,
                 )

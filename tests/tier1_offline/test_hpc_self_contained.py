@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -29,11 +30,16 @@ FIELDS = {"name": "{job_name}", "working_directory": "{workdir}", "config": "{co
 
 
 def submit(root):
+    solver = tomllib.loads((root / "init.toml").read_text())["solver"]
+    if isinstance(solver, dict):
+        solver = solver["name"]
+    build = {"su2": "8.6.0", "openfoam": "v2412", "qprop": "1.22"}.get(solver, "mock-1")
     matrix = root / "inputs/matrices/study.fs"
     header, *rows = matrix.read_text(encoding="ascii").strip().splitlines()
-    lines = [header + "|SOLVER_BUILD", *(row + "|mock-1" for row in rows)]
+    lines = [header + "|SOLVER_BUILD", *(row + "|" + build for row in rows)]
     matrix.write_text("\n".join(lines) + "\n", encoding="ascii")
-    profile(root, fields=FIELDS)
+    path = profile(root, fields=FIELDS)
+    path.write_text(path.read_text().replace('"mock-1" =', f'"{build}" ='))
     assert main(["run", "study", "--workspace", str(root)]) == 0
     records = RunRegistry(root).read()
     assert [r.status for r in records] == ["SUBMITTED"]
