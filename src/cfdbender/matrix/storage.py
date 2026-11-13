@@ -348,16 +348,17 @@ def run_sync(args: argparse.Namespace) -> int:
         if args.apply and changes:
             main.replace_records(changes)
             mine.update(changes)
-        append_journal(
-            root,
-            STORAGE,
-            {
-                "at": now(),
-                "command": "sync",
-                "detail": f"{name}: {args.level}; records {len(changes)}; files {copied}",
-                "event": "apply" if args.apply else "preview",
-            },
-        )
+        if args.apply:
+            append_journal(
+                root,
+                STORAGE,
+                {
+                    "at": now(),
+                    "command": "sync",
+                    "detail": f"{name}: {args.level}; records {len(changes)}; files {copied}",
+                    "event": "apply" if args.apply else "preview",
+                },
+            )
         print(f"  {len(changes)} record(s), {copied} file(s)")
     if not args.apply:
         print("preview only; add --apply to change files")
