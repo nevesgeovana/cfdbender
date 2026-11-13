@@ -21,16 +21,19 @@ from cfdbender.core.plan import RunPlan, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 
 
-def check_available_ram() -> None:
-    """Refuse local work if available memory cannot be measured above 0.5 GiB.
+FLOOR_GIB = 0.5
+
+
+def free_ram_gib() -> float:
+    """Return available host RAM in GiB; the one measurement every RAM guard reads.
 
     Windows uses GlobalMemoryStatusEx; Linux reads MemAvailable from procfs.
     No solver or optional monitoring dependency is imported.
 
     Raises
     ------
-    RegistryError
-        Available memory is unknown or below the required floor.
+    OSError
+        Available memory cannot be measured.
     """
     if sys.platform == "win32":
 
@@ -51,20 +54,28 @@ def check_available_ram() -> None:
         status = MemoryStatus()
         status.length = ctypes.sizeof(status)
         if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-            raise RegistryError("cannot measure free RAM; local run refused")
-        available = status.available
-    else:
-        try:
-            line = next(
-                line
-                for line in Path("/proc/meminfo").read_text().splitlines()
-                if line.startswith("MemAvailable:")
-            )
-            available = int(line.split()[1]) * 1024
-        except (OSError, StopIteration, ValueError, IndexError) as error:
-            raise RegistryError("cannot measure free RAM; local run refused") from error
-    if available < 0.5 * 2**30:
-        raise RegistryError(f"free RAM {available / 2**30:.3f} GiB is below the 0.5 GiB floor")
+            raise OSError("GlobalMemoryStatusEx failed")
+        return float(status.available) / 2**30
+    for line in Path("/proc/meminfo").read_text(encoding="ascii").splitlines():
+        if line.startswith("MemAvailable:"):
+            return int(line.split()[1]) / 2**20
+    raise OSError("MemAvailable missing")
+
+
+def check_available_ram() -> None:
+    """Refuse local work if available memory cannot be measured above 0.5 GiB.
+
+    Raises
+    ------
+    RegistryError
+        Available memory is unknown or below the required floor.
+    """
+    try:
+        available = free_ram_gib()
+    except (OSError, ValueError, IndexError) as error:
+        raise RegistryError("cannot measure free RAM; local run refused") from error
+    if available < FLOOR_GIB:
+        raise RegistryError(f"free RAM {available:.3f} GiB is below the 0.5 GiB floor")
 
 
 def execute_plan(
