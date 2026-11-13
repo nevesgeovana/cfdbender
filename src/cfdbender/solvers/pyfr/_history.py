@@ -15,6 +15,7 @@ from cfdbender.solvers.pyfr._config import config
 class Evidence(ExecutionResult):
     failed: bool = False
     insufficient: bool = False
+    budget_exhausted: bool = False
 
 
 def read(
@@ -59,6 +60,7 @@ def read(
                         2 * (fx * math.cos(angle) + fy * math.sin(angle)),
                     )
                 )
+        exhausted = bool(rows) and rows[-1][0] >= case.tend
         window = [row for row in rows if case.window_start <= row[0] <= case.tend]
         if not window:
             return (
@@ -73,7 +75,7 @@ def read(
         half = len(window) // 2
         if half < 1 or len(window) - half < 1:
             return (
-                Evidence(code, (), 1, version, False, True),
+                Evidence(code, (), 1, version, False, True, exhausted),
                 coeff,
                 refs,
                 (case.window_start, case.tend),
@@ -85,6 +87,11 @@ def read(
         ]
         stationary = diff[0] < case.tolerance * abs(cl) and diff[1] < case.tolerance * abs(cd)
         history = (Iteration(1, max(diff), stationary),)
-        return Evidence(code, history, 1, version), coeff, refs, (case.window_start, case.tend)
+        return (
+            Evidence(code, history, 1, version, budget_exhausted=exhausted),
+            coeff,
+            refs,
+            (case.window_start, case.tend),
+        )
     except (OSError, ValueError, KeyError, TypeError, OverflowError):
         return empty, {}, refs, (case.window_start, case.tend)

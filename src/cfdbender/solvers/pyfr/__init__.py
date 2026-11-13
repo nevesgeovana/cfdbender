@@ -113,7 +113,7 @@ def classify(result: ExecutionResult) -> Classification:
     if not result.history and not result.insufficient:
         return "failed"
     if result.insufficient or not result.history or not result.history[-1].converged:
-        return "iteration_limit"
+        return "iteration_limit" if result.budget_exhausted else "failed"
     return "converged"
 
 

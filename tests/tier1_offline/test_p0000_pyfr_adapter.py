@@ -64,7 +64,7 @@ def test_p0000_pyfr_plan_twice(tmp_path):
     "mode,expected",
     [
         ("normal", "converged"),
-        ("short", "iteration_limit"),
+        ("short", "failed"),
         ("nan", "failed"),
         ("nonzero", "failed"),
     ],

@@ -78,7 +78,7 @@ Unsteady flow has no residual to drive to zero, so convergence is stationarity o
 | Result | Rule |
 |---|---|
 | `converged` | The exit code is 0 and the means of the two halves differ by less than `tolerance` times the absolute window mean, for both `Cl` and `Cd`. |
-| `iteration_limit` | The window holds fewer than two samples, or the halves disagree. Extend `tend` or move `window_start` later. |
+| `iteration_limit` | The output reaches `tend`, but the window holds fewer than two samples or its halves disagree. Without evidence that `tend` was reached, a nonconverged result is `failed`. |
 | `failed` | A nonzero exit code, a timeout, a missing or malformed `forces.csv`, a non-finite value, or time stamps that do not increase. |
 
 The averages are the plain means over the window. With the angle of attack alpha and `F` the pressure plus viscous force:
