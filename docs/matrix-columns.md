@@ -1,6 +1,6 @@
 # Matrix columns
 
-A run matrix is a pipe-delimited text file in `inputs/matrices/<name>.fs`. Every
+A run matrix is a pipe-delimited text file in `inputs/matrices/<name>.fs` (or `<name>.fs` in the workspace root; a name present in both places is refused as ambiguous). Every
 solver reads the same columns with the same meanings, which are those of a
 pyflightstream matrix, so one layout serves a FlightStream campaign and an SU2,
 OpenFOAM, PyFR, XFOIL or QPROP campaign. Cells may be padded with spaces, lines
@@ -28,9 +28,9 @@ closest known column.
 | `FLIGHT_CONDITION` | The flow state and attitude as `KEY:value` pairs; see below. |
 | `SWEEP_VALUES` | The comma-separated values of the one `FLIGHT_CONDITION` key written `sweep`. |
 | `GEOMETRY` | The mesh or geometry file: a file name in `inputs/mesh/`, a stem naming exactly one file there, or a workspace-relative path. The older folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/` are still read, after `inputs/mesh/`. The setup may then omit its mesh key; one it states must name the same file. |
-| `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same. |
-| `SET` | Setup file `inputs/setups/s<id>.toml`. |
-| `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`. |
+| `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same, and a name works too: `rwing` is `inputs/references/rwing.toml`. |
+| `SET` | Setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). |
+| `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`, numbered or named. |
 | `SYMMETRY`, `SYMMETRY_LOADS` | Accepted for layout parity and must be `-`: the library solvers take symmetry from the mesh markers and the setup. |
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
 | `WALLTIME` | Wall clock with its unit: `90s`, `240m`, `4h`, `1d`. `{walltime}` in an HPC profile. |

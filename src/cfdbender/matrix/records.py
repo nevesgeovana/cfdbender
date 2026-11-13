@@ -209,11 +209,15 @@ def run_restore(args: argparse.Namespace) -> int:
 def _only_matrix(root: Path, name: str | None) -> str:
     if name:
         return Path(name).name.removesuffix(".fs")
-    stems = sorted(p.stem for p in (root / "inputs/matrices").glob("*.fs"))
+    stems = sorted({p.stem for home in (root / "inputs/matrices", root) for p in home.glob("*.fs")})
     if len(stems) != 1:
         raise WorkspaceError(
             "rebuild: name the matrix with --matrix"
-            + (f" ({', '.join(stems)})" if stems else "; inputs/matrices holds none")
+            + (
+                f" ({', '.join(stems)})"
+                if stems
+                else "; inputs/matrices and the workspace root hold none"
+            )
         )
     return stems[0]
 

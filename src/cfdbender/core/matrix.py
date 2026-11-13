@@ -100,10 +100,16 @@ def _number(text: str, label: str) -> float:
 
 
 def _artifact_id(text: str, prefix: str, label: str) -> str:
-    code = text.removesuffix(".toml").removeprefix(prefix)
-    if not code or not code.isascii() or not code.isdecimal():
-        raise MatrixError(f"{label}: {text!r} must name {prefix}<digits>.toml")
-    return prefix + code
+    name = text.removesuffix(".toml")
+    if name.isascii() and name.isdecimal():
+        return prefix + name
+    named = name.removeprefix(prefix)
+    if named and named != name and re.fullmatch("[A-Za-z0-9][A-Za-z0-9._-]*", named):
+        return name
+    raise MatrixError(
+        f"{label}: {text!r} must name {prefix}<digits> or {prefix}<name> "
+        f"(the file {prefix}<digits or name>.toml)"
+    )
 
 
 def _condition(

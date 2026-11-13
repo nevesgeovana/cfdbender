@@ -73,7 +73,9 @@ def select_profile(root: Path, name: str | None) -> HpcProfile | None:
             version = files.read_toml(path.relative_to(root).as_posix()).get("solver_version")
             if isinstance(version, str) and version.strip():
                 versions.add(version)
-        for path in sorted((root / "inputs/matrices").glob("*.fs")):
+        for path in sorted(
+            p for home in (root / "inputs/matrices", root) for p in home.glob("*.fs")
+        ):
             try:
                 rows = parse_matrix(path.read_bytes(), path, active_only=False)
             except (OSError, MatrixError):

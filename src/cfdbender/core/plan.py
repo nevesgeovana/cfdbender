@@ -403,8 +403,54 @@ def check_claims(points: tuple[Point, ...]) -> None:
             claims.append((folded, point.point_id, is_directory))
 
 
+MATRIX_HOME = "inputs/matrices"
+
+
+def matrix_homes(name: str) -> tuple[str, str]:
+    """Return the two workspace-relative paths a matrix named ``name`` may live at.
+
+    The first is the canonical ``inputs/matrices/<stem>.fs``, the second the
+    workspace root. Raises PlanError for a name that is not a plain matrix stem.
+    """
+    stem = name.removesuffix(".fs")
+    if re.fullmatch("[A-Za-z0-9][A-Za-z0-9_-]*", stem) is None:
+        raise PlanError(f"{name!r}: name a .fs matrix in inputs/matrices/ or the workspace root")
+    return f"{MATRIX_HOME}/{stem}.fs", f"{stem}.fs"
+
+
+def resolve_matrix(root: str | Path, name: str) -> str:
+    """Return the workspace-relative path of the one matrix file ``name`` names.
+
+    Parameters
+    ----------
+    root : str or Path
+        Workspace root.
+    name : str
+        Matrix filename or stem.
+
+    Raises
+    ------
+    PlanError
+        The name is malformed, no file exists in either home, or both do (ambiguous).
+    """
+    target = Path(root).resolve()
+    homes = matrix_homes(name)
+    found = [home for home in homes if (target / home).is_file()]
+    if len(found) == 2:
+        raise PlanError(
+            f"matrix {name!r} exists in both {homes[0]} and {homes[1]}; keep one, so a run "
+            "never reads the wrong file"
+        )
+    if not found:
+        raise PlanError(
+            f"matrix {name!r}: no {homes[0]} in inputs/matrices/ and no {homes[1]} in the "
+            "workspace root"
+        )
+    return found[0]
+
+
 def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowValidator]) -> RunPlan:
-    """Plan a named inputs/matrices/<name>.fs without writing or executing anything.
+    """Plan a named matrix (inputs/matrices/<name>.fs or <name>.fs in the root) read-only.
 
     Parameters
     ----------
@@ -431,10 +477,7 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
         config = _validate(common.read_toml("init.toml"), target / "init.toml", validators.keys())
     except WorkspaceError as error:
         raise PlanError(str(error)) from error
-    stem = name.removesuffix(".fs")
-    if re.fullmatch("[A-Za-z0-9][A-Za-z0-9_-]*", stem) is None:
-        raise PlanError(f"{name!r}: name a .fs matrix in inputs/matrices/")
-    matrix = f"inputs/matrices/{stem}.fs"
+    matrix = resolve_matrix(target, name)
     rows = parse_matrix(common.read_bytes(matrix), Path(matrix))
     points: list[Point] = []
     for row in rows:

@@ -14,7 +14,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
 import tempfile
 import time
 from collections.abc import Sequence
@@ -24,7 +23,7 @@ from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter, load_point
-from cfdbender.core.plan import workspace_path
+from cfdbender.core.plan import PlanError, matrix_homes, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
 from cfdbender.matrix.exports import write_tables
@@ -217,14 +216,17 @@ def collect_workspace(
     target = Path(root).resolve()
     config = read_init(target, available_solvers=available_solvers())
     adapter = cast(SolverAdapter, load_solver(config.solver))
-    if (
-        matrix is not None
-        and re.fullmatch("[A-Za-z0-9][A-Za-z0-9_-]*", matrix.removesuffix(".fs")) is None
-    ):
-        raise RegistryError(f"{matrix!r}: name a .fs matrix in inputs/matrices/")
-    selected = None if matrix is None else f"inputs/matrices/{matrix.removesuffix('.fs')}.fs"
+    try:
+        homes = None if matrix is None else matrix_homes(matrix)
+    except PlanError as error:
+        raise RegistryError(str(error)) from error
     registry = RunRegistry(target, runs)
-    records = tuple(r for r in registry.read() if selected is None or r.matrix == selected)
+    records = tuple(r for r in registry.read() if homes is None or r.matrix in homes)
+    if homes is not None and len({r.matrix for r in records}) > 1:
+        raise RegistryError(
+            f"matrix {matrix!r} is recorded from both {homes[0]} and {homes[1]}; "
+            "name the one to collect with its folder, or keep one file"
+        )
     if not records:
         raise RegistryError("no recorded points for this collection")
     if any(r.solver != config.solver for r in records):
