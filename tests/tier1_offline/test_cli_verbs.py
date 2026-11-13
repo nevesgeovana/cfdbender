@@ -421,6 +421,30 @@ def test_verbs_are_read_only_when_a_lock_is_held_elsewhere(tmp_path):
     assert os.path.exists(tmp_path / "runs.json.lock"), "a lock held elsewhere is never removed"
 
 
+def _link_folder(target: Path, link: Path) -> None:
+    if os.name == "nt":
+        import _winapi
+
+        _winapi.CreateJunction(str(target), str(link))
+        return
+    link.symlink_to(target, target_is_directory=True)
+
+
+def test_free_space_never_deletes_through_a_linked_folder(tmp_path, capsys):
+    root = tmp_path / "ws"
+    root.mkdir()
+    ran(root)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "data.vtu").write_bytes(b"y" * 10)
+    _link_folder(outside, root / "sims/sim_1002/link")
+    (root / "inputs/management").mkdir(parents=True)
+    (root / "inputs/management/m1.toml").write_text('[[delete_extensions]]\nextensions = [".vtu"]\n')
+    assert main(["free-space", "m1", "--apply", "--list", "--workspace", str(root)]) == 0
+    assert (outside / "data.vtu").is_file()
+    assert "link/data.vtu" not in out(capsys)
+
+
 @pytest.mark.parametrize("sim", ["1001/../../../victim", "1001/../../inputs", "..", "1001."])
 def test_delete_sims_never_deletes_outside_its_own_sim_folder(tmp_path, sim):
     root = tmp_path / "ws"

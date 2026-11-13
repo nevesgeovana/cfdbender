@@ -91,6 +91,30 @@ def _recipe(root: Path, name: str) -> dict[str, Any]:
     return recipe
 
 
+def _own_files(base: Path) -> list[Path]:
+    """Return the regular files under base, never entering a linked folder or junction.
+
+    Path.rglob enters a Windows junction (it is not a symlink), so a junction under
+    sims/ would put files outside the workspace in reach of a delete.
+    """
+    if not base.is_dir() or base.is_symlink() or os.path.isjunction(base):
+        return []
+    found: list[Path] = []
+    stack = [base]
+    while stack:
+        folder = stack.pop()
+        with os.scandir(folder) as entries:
+            for entry in entries:
+                path = Path(entry.path)
+                if entry.is_symlink() or os.path.isjunction(path):
+                    continue
+                if entry.is_dir(follow_symlinks=False):
+                    stack.append(path)
+                elif entry.is_file(follow_symlinks=False):
+                    found.append(path)
+    return sorted(found)
+
+
 def run_free_space(args: argparse.Namespace) -> int:
     """Run a storage recipe: delete named extensions under sims/ that no record names."""
     root = Path(args.workspace).resolve()
@@ -105,8 +129,8 @@ def run_free_space(args: argparse.Namespace) -> int:
         extensions = {str(e).lower() for e in step.get("extensions", [])}
         if not extensions or any(not e.startswith(".") for e in extensions):
             raise WorkspaceError('delete_extensions needs extensions = [".ext", ...]')
-        for path in sorted((root / "sims").rglob("*")):
-            if not path.is_file() or path.is_symlink() or path.suffix.lower() not in extensions:
+        for path in _own_files(root / "sims"):
+            if path.suffix.lower() not in extensions:
                 continue
             protected = path.resolve() in kept
             if args.list_paths:
