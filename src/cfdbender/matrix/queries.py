@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import json
 import re
 import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from cfdbender.core.registry import (
     RegistryError,
@@ -27,8 +28,11 @@ from cfdbender.core.registry import (
 from cfdbender.matrix._console import (
     add_output_options,
     add_runs_option,
+    clock,
     emit_rows,
+    level_of,
     read_activity,
+    status_word,
 )
 from cfdbender.matrix._journal import MARKS, STORAGE, read_journal
 from cfdbender.matrix.selection import split_ids
@@ -185,21 +189,85 @@ def run_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _outcome(root: Path, run: Run) -> dict[str, Any]:
+    """Return the collected result of a current run from its matrix summary, or {}."""
+    if run.kind != "current":
+        return {}
+    summary = root / "post" / matrix_stem(run.record.matrix) / "campaign_summary.json"
+    try:
+        points = json.loads(summary.read_text(encoding="utf-8")).get("points", [])
+    except (OSError, ValueError):
+        return {}
+    for point in points:
+        if isinstance(point, dict) and point.get("point_id") == run.point_id:
+            result = point.get("result")
+            return result if isinstance(result, dict) else {}
+    return {}
+
+
+def _shown_condition(record: RunRecord) -> str:
+    return ", ".join(f"{key}={value:g}" for key, value in record.point.condition.items())
+
+
+def _card(root: Path, run: Run) -> list[str]:
+    """Return a run's card: outcome first, then where it ran and what it measured."""
+    record = run.record
+    word = status_word(record.status, record.classification, record.error)
+    head = f"{run.point_id}  {word}"
+    if record.classification:
+        head += f" {record.classification}"
+    if run.kind != "current":
+        head += f"  ({run.kind})"
+    lines = [head, f"  matrix {matrix_stem(record.matrix)}  solver {record.solver}"]
+    if record.solver_version:
+        lines[-1] += f" {record.solver_version}"
+    if record.point.condition:
+        lines.append(f"  condition {_shown_condition(record)}")
+    result = _outcome(root, run)
+    history = result.get("history") or []
+    if history:
+        lines.append(
+            f"  iterations {history[-1]['iteration']}  residual {history[-1]['residual']:.3g}"
+        )
+    coefficients = result.get("coefficients") or {}
+    if coefficients:
+        shown = ", ".join(f"{name}={item['value']:.6g}" for name, item in coefficients.items())
+        lines.append(f"  coefficients {shown}")
+    lines.append(f"  folder {record.point.directory}")
+    if record.started_at and record.completed_at:
+        lines.append(f"  ran {clock(record.started_at)} to {clock(record.completed_at)}")
+    if record.error:
+        lines.append(f"  error: {record.error}")
+    return lines
+
+
 def run_show(args: argparse.Namespace) -> int:
-    """Print each matching record in full."""
-    runs = find_runs(load_runs(_open(args)), args.target, args.point)
+    """Print an outcome-first card for each matching run; the full record under --verbose."""
+    registry = _open(args)
+    runs = find_runs(load_runs(registry), args.target, args.point)
     rows = [{"run": r.run_id, "kind": r.kind, **encode_record(r.record)} for r in runs]
     if args.json or args.csv:
         columns = list(dict.fromkeys(key for row in rows for key in row))
         emit_rows(rows, columns, args)
         return 0
-    from cfdbender.matrix._console import _cell
+    if level_of(args) == "verbose":
+        from cfdbender.matrix._console import _cell
 
-    for row in rows:
-        print(f"run {row['run']} ({row['kind']})")
-        for key, value in row.items():
-            if key not in ("run", "kind"):
-                print(f"  {key}: {_cell(value)}")
+        for row in rows:
+            print(f"run {row['run']} ({row['kind']})")
+            for key, value in row.items():
+                if key not in ("run", "kind") and value not in (None, "", [], {}):
+                    print(f"  {key}: {_cell(value)}")
+        return 0
+    if len(runs) > 1 and "/" not in args.target and "@" not in args.target:
+        print(f"sim {args.target}: {len(runs)} runs")
+        for run in runs:
+            word = status_word(run.record.status, run.record.classification, run.record.error)
+            print(f"  {run.run_id}  {word} {run.record.classification or ''}".rstrip())
+        print("name one run for its card, or add --verbose for the full records")
+        return 0
+    for run in runs:
+        print("\n".join(_card(registry.root, run)))
     return 0
 
 
@@ -248,6 +316,15 @@ def run_diff(args: argparse.Namespace) -> int:
         for key in sorted(set(flat[0]) | set(flat[1]))
         if flat[0].get(key) != flat[1].get(key)
     ]
+    if not (args.json or args.csv) and level_of(args) != "verbose":
+        # Hashes and output paths differ whenever two points do; they stay under --verbose.
+        noise = ("inputs_sha256.", "outputs_sha256.")
+        hidden = [r for r in rows if str(r["field"]).startswith(noise) or r["field"] == "outputs"]
+        rows = [r for r in rows if r not in hidden]
+        if hidden:
+            rows.append(
+                {"field": "hashes, output paths", "a": f"{len(hidden)} differ", "b": "--verbose"}
+            )
     if args.json or args.csv:
         emit_rows(rows, ["field", "a", "b"], args)
     elif not rows:
@@ -298,6 +375,12 @@ def run_trace(args: argparse.Namespace) -> int:
     target = root / product
     if not args.json and not args.csv:
         print(f"product {product}" + ("" if target.is_file() else " (file not on disk)"))
+    if not args.json and not args.csv and level_of(args) != "verbose":
+        # The hash map of every input is several hundred columns wide; it stays under --verbose.
+        rows = [
+            {**row, "inputs_sha256": f"{len(cast(dict[str, str], row['inputs_sha256']))} files"}
+            for row in rows
+        ]
     emit_rows(
         rows,
         ["run", "matrix", "status", "classification", "inputs_sha256", "product_sha256"],
