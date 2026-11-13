@@ -149,7 +149,8 @@ def test_p0000_item3g_wrapper_path(tmp_path, monkeypatch, option_source):
 
 def test_p0000_item3g_fallback_record_and_neutral_route(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "pysu2", None)
-    point = case(tmp_path, route=None, extra="executable = " + json.dumps(FAKE.as_posix()))
+    monkeypatch.setenv("CFDBENDER_SU2_EXE", str(FAKE))
+    point = case(tmp_path, route=None)
     with pytest.warns(RuntimeWarning, match="pysu2.*falling back.*executable"):
         records = execute_plan(plan(tmp_path), api())
     name = point.point.directory + "/execution.json"

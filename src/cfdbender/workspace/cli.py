@@ -142,7 +142,7 @@ def _run(args: argparse.Namespace, console: Console) -> int:
     if solver not in available_solvers():
         if solver.lower() not in available_solvers():
             print(
-                f"--solver {solver}: unknown solver; choose one of "
+                f"--solver {solver}: unknown solver {solver!r}; available solvers: "
                 f"{', '.join(available_solvers())}",
                 file=sys.stderr,
             )

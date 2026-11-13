@@ -81,7 +81,8 @@ def test_p0000_item3f_help_has_hpc_and_local(command, capsys):
     assert caught.value.code == 0
     output = capsys.readouterr().out
     assert "--hpc NAME" in output
-    assert "--local" in output
+    # collect accepts --local but does not offer it: it means nothing to a collect.
+    assert ("--local" in output) == (command != "collect")
 
 
 @pytest.mark.parametrize("options", [[], ["--hpc", "h001"], ["--hpc", "h001.toml"]])

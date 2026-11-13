@@ -150,7 +150,7 @@ def test_su2_hpc_descriptor_from_row_columns(tmp_path):
 
 def test_su2_plan_listing_carries_the_row_text(tmp_path, capsys):
     root = workspace(tmp_path, profile=True)
-    assert main(["plan", "dpw", "--workspace", str(root)]) == 0
+    assert main(["plan", "dpw", "--workspace", str(root), "--verbose"]) == 0
     out = capsys.readouterr().out
     assert "AIRCRAFT=WB CONFIGURATION=cruise DESCRIPTION=Polar near design" in out
     assert "GEOMETRY=inputs/geometries/wb.su2 NCPUS=192 SOLVER_BUILD=8.3.0" in out

@@ -64,7 +64,14 @@ def test_p0000_item3d_explicit_pysu2_never_launches_executable(tmp_path, monkeyp
 def test_p0000_item3d_default_fallback_runs_with_warning(tmp_path, monkeypatch):
     case(tmp_path)
     source = tmp_path / "inputs/setups/s001.toml"
-    source.write_text(source.read_text().replace('route = "executable"', ""))
+    # A stated executable would choose the executable route; the environment does not.
+    text = source.read_text().replace('route = "executable"', "")
+    source.write_text(
+        chr(10).join(line for line in text.splitlines() if not line.startswith("executable ="))
+    )
+    from test_p0000_item3d_execute import FAKE
+
+    monkeypatch.setenv("CFDBENDER_SU2_EXE", str(FAKE))
     monkeypatch.setitem(sys.modules, "pysu2", None)
     with pytest.warns(RuntimeWarning, match="falling back.*executable"):
         result = execution_api().execute(prepared(tmp_path), check_ram=lambda: None)

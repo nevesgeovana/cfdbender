@@ -1,4 +1,4 @@
-"""Usability-walk findings of GOAL-087 fixed by lane fix87b, each pinned as the user sees it."""
+"""Usability findings of the first-campaign walk, each pinned as the user sees it."""
 
 from __future__ import annotations
 
