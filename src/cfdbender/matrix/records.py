@@ -221,11 +221,6 @@ def _only_matrix(root: Path, name: str | None) -> str:
 def run_rebuild(args: argparse.Namespace) -> int:
     """Rebuild records from the sim folders on disk, by the matrix's plan."""
     root = Path(args.workspace).resolve()
-    if args.inputs_from:
-        raise WorkspaceError(
-            "rebuild --inputs-from is not available in cfdbender yet: restore the inputs the "
-            "run used into inputs/ and rebuild from there"
-        )
     config = read_init(root, available_solvers=available_solvers())
     adapter = cast(SolverAdapter, load_solver(config.solver))
     registry = RunRegistry(root, args.out or args.runs)
@@ -365,12 +360,6 @@ def register(commands: Any) -> dict[str, Any]:
     )
     _sims_option(rebuild, required=False, help_text="rebuild these simulations")
     rebuild.add_argument("--matrix", help="the matrix the simulations ran from")
-    rebuild.add_argument(
-        "--inputs-from",
-        dest="inputs_from",
-        metavar="FOLDER",
-        help="another origin's inputs folder to lay over this workspace's",
-    )
     rebuild.add_argument("--apply", action="store_true", help=apply_help)
     return {
         "mark-failed": run_mark_failed,

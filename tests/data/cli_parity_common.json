@@ -305,10 +305,6 @@
  },
  {
   "command": "cfd-matrix rebuild",
-  "option": "--inputs-from"
- },
- {
-  "command": "cfd-matrix rebuild",
   "option": "--matrix"
  },
  {

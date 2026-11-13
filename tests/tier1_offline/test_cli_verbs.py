@@ -195,7 +195,11 @@ def test_rebuild_writes_records_from_the_sim_folders(tmp_path, capsys):
     assert all(r.status == "COMPLETED" for r in rebuilt.values())
     assert main([*base, "--out", "rebuilt.json", "--all-sims", "--apply"]) == 0
     assert (tmp_path / "rebuilt.json").is_file()
-    assert main([*base, "--inputs-from", str(tmp_path)]) == 2
+    # --inputs-from is FlightStream-only: it feeds a script comparison cfdbender has no
+    # counterpart for, so the parser refuses it rather than accept and ignore it.
+    with pytest.raises(SystemExit) as refused:
+        main([*base, "--inputs-from", str(tmp_path)])
+    assert refused.value.code == 2
 
 
 def test_delete_sims_refuses_stale_products_then_deletes_folder_and_record(tmp_path, capsys):
