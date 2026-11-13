@@ -116,7 +116,10 @@ def execute_plan(
         recorded = previous.get(point.point_id)
         if recorded is not None:
             if recorded.status != "PLANNED":
-                raise RegistryError(f"point {point.point_id!r} already recorded {recorded.status}")
+                raise RegistryError(
+                    f"point {point.point_id!r} already recorded {recorded.status}; use --resume "
+                    "to run only the points not yet recorded, or --force-rerun POINT to redo one"
+                )
             if (
                 recorded.point != point
                 or recorded.matrix != plan.matrix

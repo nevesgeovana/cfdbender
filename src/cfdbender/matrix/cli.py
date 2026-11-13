@@ -25,6 +25,7 @@ from cfdbender.matrix._console import (
     level_of,
     open_live_log,
     record_activity,
+    status_word,
 )
 from cfdbender.matrix.collection import collect_workspace
 from cfdbender.matrix.post import post_workspace
@@ -355,8 +356,9 @@ def _execute(
                     console.say(f"[{index}/{total}] {point_id}  running")
                 elif record is not None:
                     took = time.monotonic() - started.get(point_id, time.monotonic())
+                    word = status_word(record.status, record.classification, record.error)
                     console.say(
-                        f"[{index}/{total}] {point_id}  {record.status} "
+                        f"[{index}/{total}] {point_id}  {word} "
                         f"{record.classification} in {took:.0f} s"
                     )
 

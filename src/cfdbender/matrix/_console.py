@@ -263,6 +263,39 @@ def _cell(value: object) -> str:
     return json.dumps(value, sort_keys=True)
 
 
+def status_word(status: object, classification: object, error: object) -> str:
+    """Return the word a console shows: a failed point reads FAILED_*, never COMPLETED.
+
+    The records keep COMPLETED with classification failed; only the console changes, as
+    pyflightstream's status words say how a point failed.
+    """
+    if status == "COMPLETED" and classification == "failed":
+        head = str(error or "").split(":", 1)[0]
+        return head if head.startswith("FAILED") else "FAILED"
+    return str(status)
+
+
+def clock(value: object) -> str:
+    """Return an ISO timestamp as local time to the second; any other text is unchanged."""
+    text = str(value)
+    try:
+        stamp = datetime.fromisoformat(text)
+    except ValueError:
+        return text
+    if stamp.tzinfo is None:
+        return text
+    return stamp.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _shown(row: Mapping[str, object], column: str) -> str:
+    value = row.get(column)
+    if column == "status" and "classification" in row:
+        return status_word(value, row.get("classification"), row.get("error"))
+    if column in ("time", "when") and value:
+        return clock(value)
+    return _cell(value)
+
+
 def emit_rows(
     rows: Sequence[Mapping[str, object]], columns: Sequence[str], args: argparse.Namespace
 ) -> None:
@@ -278,7 +311,7 @@ def emit_rows(
             writer.writerow([_cell(row.get(c)) for c in columns])
         print(buffer.getvalue(), end="")
         return
-    table = [[_cell(row.get(c)) for c in columns] for row in rows]
+    table = [[_shown(row, c) for c in columns] for row in rows]
     widths = [max([len(c), *(len(r[i]) for r in table)]) for i, c in enumerate(columns)]
     print("  ".join(c.ljust(w) for c, w in zip(columns, widths, strict=True)).rstrip())
     for line in table:

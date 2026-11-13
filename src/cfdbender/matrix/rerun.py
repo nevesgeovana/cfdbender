@@ -120,6 +120,14 @@ def decide(
             run.append(point)
         elif record.status == "RUNNING":
             skipped.append((point.point_id, "RUNNING and its process may be alive"))
+        elif record.classification == "failed":
+            # pyflightstream's --resume also skips a recorded point; the line says how to redo it.
+            skipped.append(
+                (
+                    point.point_id,
+                    f"{record.status} failed; redo it with --force-rerun {point.point_id}",
+                )
+            )
         else:
             skipped.append((point.point_id, record.status))
     archive = registry.archive(tuple(redo)) if redo else None
