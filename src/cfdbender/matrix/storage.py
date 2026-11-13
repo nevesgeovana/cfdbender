@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from cfdbender.core.plan import workspace_path
+from cfdbender.core.plan import owned_path, workspace_path
 from cfdbender.core.registry import (
     RegistryError,
     RunRecord,
@@ -171,7 +171,7 @@ def _sim_folder(root: Path, sim: str) -> Path:
     name = f"sim_{sim}"
     if any(c in sim for c in '/\\:*?"<>|') or sim.strip(". ") != sim or not sim:
         raise RegistryError(f"--sims {sim!r}: not a simulation id")
-    folder = root / "sims" / name
+    folder = owned_path(root, f"sims/{name}")
     if not folder.exists():
         return folder
     if folder.is_symlink() or os.path.isjunction(folder):
@@ -276,16 +276,16 @@ def _copy_files(
     base: Path, other: Path, top: str, args: argparse.Namespace, saved: list[str]
 ) -> int:
     count = 0
-    source = other / top
+    source = owned_path(other, top)
     if not source.is_dir():
         return 0
-    for path in sorted(source.rglob("*")):
+    for path in _own_files(source):
         if not path.is_file() or path.is_symlink():
             continue
         relative = path.relative_to(other)
         if not args.include_archives and "archive" in relative.parts:
             continue
-        target = base / relative
+        target = owned_path(base, relative.as_posix())
         if target.exists():
             if (
                 hashlib.sha256(target.read_bytes()).digest()
@@ -302,6 +302,7 @@ def _copy_files(
                     / f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-sync"
                     / relative
                 )
+                backup = owned_path(base, backup.relative_to(base).as_posix())
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(target, backup)
                 saved.append(relative.as_posix())

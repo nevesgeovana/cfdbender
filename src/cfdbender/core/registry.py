@@ -32,6 +32,7 @@ from cfdbender.core.plan import (
     Point,
     RunPlan,
     check_claims,
+    owned_path,
     workspace_path,
 )
 from cfdbender.core.results import Classification
@@ -631,7 +632,7 @@ class RunRegistry:
         """
         now = datetime.now(UTC)
         name = stamp or now.strftime("%Y%m%dT%H%M%SZ")
-        target = self.root / "archive" / name
+        target = owned_path(self.root, f"archive/{name}")
         suffix = 1
         while target.exists():
             target = self.root / "archive" / f"{name}-{suffix}"
@@ -647,6 +648,8 @@ class RunRegistry:
                 chosen = {r.point_id: r for r in records if r.point_id in point_ids}
                 if missing := sorted(set(point_ids) - set(chosen)):
                     raise RegistryError(f"no recorded point {missing[0]!r} to archive")
+                for record in chosen.values():
+                    owned_path(self.root, record.point.directory)
                 target.mkdir(parents=True)
                 (target / self.path.name).write_bytes(self.path.read_bytes())
                 history = self._history()
@@ -781,7 +784,7 @@ class RunRegistry:
             The archive folder that now holds the manifest as it was.
         """
         name = stamp or datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-        target = self.root / "archive" / name
+        target = owned_path(self.root, f"archive/{name}")
         suffix = 1
         while target.exists():
             target = self.root / "archive" / f"{name}-{suffix}"

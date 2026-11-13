@@ -18,7 +18,7 @@ from types import MappingProxyType
 from typing import Any, cast
 
 from cfdbender.core.adapter import SolverAdapter, load_point
-from cfdbender.core.plan import workspace_path
+from cfdbender.core.plan import owned_path, workspace_path
 from cfdbender.core.registry import (
     RegistryError,
     RunRecord,
@@ -134,7 +134,7 @@ def run_mark_converged(args: argparse.Namespace) -> int:
 
 
 def _archives_with(root: Path, relative: str) -> list[Path]:
-    base = root / "archive"
+    base = owned_path(root, "archive")
     if not base.is_dir():
         return []
     return sorted(p for p in base.iterdir() if (p / relative).exists())
@@ -174,7 +174,11 @@ def run_restore(args: argparse.Namespace) -> int:
             f"restore {args.kind}: no archive/<stamp>/{relative} to restore"
             + (f" for stamp {args.stamp}" if args.stamp else "")
         )
-    source = candidates[-1] / relative
+    source = owned_path(root, (candidates[-1] / relative).relative_to(root).as_posix())
+    target = owned_path(root, relative)
+    if source.is_dir():
+        for item in source.rglob("*"):
+            owned_path(root, item.relative_to(root).as_posix())
     print(
         f"{'restoring' if args.apply else 'would restore'} {args.kind} "
         f"from {source.relative_to(root).as_posix()}"
@@ -187,12 +191,11 @@ def run_restore(args: argparse.Namespace) -> int:
         print(f"restored; the manifest before is in {folder.relative_to(root).as_posix()}")
         return 0
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    saved = root / "archive" / f"{stamp}-restore"
+    saved = owned_path(root, f"archive/{stamp}-restore")
     suffix = 1
     while saved.exists():
         saved = root / "archive" / f"{stamp}-restore-{suffix}"
         suffix += 1
-    target = root / relative
     if target.exists():
         destination = saved / relative
         destination.parent.mkdir(parents=True)
@@ -294,7 +297,7 @@ def archive_sim(root: Path, sim_id: str, runs: str = "runs.json") -> Path:
     if not ids:
         raise WorkspaceError(f"sim {sim_id!r} is not recorded in {registry.path.name}; refusing")
     target = registry.archive(ids)
-    leftover = root / "sims" / f"sim_{sim_id}"
+    leftover = owned_path(root, f"sims/sim_{sim_id}")
     if leftover.exists():
         destination = target / "sims" / leftover.name
         destination.parent.mkdir(parents=True, exist_ok=True)

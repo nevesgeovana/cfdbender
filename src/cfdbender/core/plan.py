@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import difflib
 import hashlib
+import os
 import re
 import tomllib
 import warnings
@@ -82,6 +83,18 @@ def checked_relative(name: str) -> Path:
             or any(ord(c) < 32 or c in '<>"|?*' for c in part)
         ):
             raise PlanError(f"{name!r}: ambiguous or invalid Windows path component")
+    return path
+
+
+def owned_path(root: Path, name: str) -> Path:
+    """Return a management path, refusing links or junctions in any component."""
+    relative = checked_relative(name)
+    path = root
+    for part in relative.parts:
+        path = path / part
+        if path.is_symlink() or os.path.isjunction(path):
+            raise PlanError(f"{name!r}: linked management path; refusing to follow it")
+    workspace_path(root, name)
     return path
 
 

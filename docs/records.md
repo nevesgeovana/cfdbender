@@ -263,3 +263,9 @@ A workspace made with an early version can hold folders named `DP-` followed
 by 20 letters and digits. Their records keep working. Planning such a matrix
 again registers its points under the new names, so finish or archive the old
 campaign first.
+
+## Management path safety
+
+Management destinations must stay inside the workspace without passing through a
+symbolic link or Windows junction. Sync skips linked source folders; restore
+refuses linked source trees.
