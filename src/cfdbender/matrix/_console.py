@@ -32,7 +32,7 @@ def add_warning_option(parser: argparse.ArgumentParser) -> None:
         dest="console_warnings",
         action="store_false",
         default=True,
-        help="hide console warnings while keeping every one in logs/warnings.log",
+        help="hide console warnings; they are kept in logs/warnings.log",
     )
 
 
@@ -111,7 +111,7 @@ def held_warnings(root: Path | None, *, show: bool) -> Iterator[None]:
         finally:
             seen = list(dict.fromkeys(str(w.message) for w in caught))
             if seen:
-                if root is not None and root.is_dir():
+                if not show and root is not None and root.is_dir():
                     try:
                         logs = root / "logs"
                         logs.mkdir(exist_ok=True)

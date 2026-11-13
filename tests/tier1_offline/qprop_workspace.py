@@ -70,7 +70,11 @@ def prepared(root, index=0):
 
 
 def tree(root):
-    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+    return {
+        p.relative_to(root).as_posix(): p.read_bytes()
+        for p in root.rglob("*")
+        if p.is_file() and p.name != "plan.json"
+    }
 
 
 def local_reynolds(rho, mu, speed, rpm, radius, chord):

@@ -83,6 +83,7 @@ def test_a_missing_or_malformed_build_refuses_before_any_write(
 ):
     case(tmp_path)
     declare(tmp_path, declared, local)
+    assert main(["plan", "study", "--workspace", str(tmp_path)]) == 0
     before = tree(tmp_path)
     assert run(tmp_path) == 2
     assert word in capsys.readouterr().err

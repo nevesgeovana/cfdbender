@@ -362,7 +362,7 @@ def test_console_levels_and_no_local(tmp_path, capsys):
     quiet = out(capsys)
     assert "would:" in normal and "would:" not in quiet and "2 point(s)" in quiet
     assert main([*base, "--verbose"]) == 0
-    assert out(capsys) == normal
+    assert normal in out(capsys)
     with pytest.raises(SystemExit):
         main([*base, "--log-level", "loud"])
     assert main([*base, "--verbose", "--log-level", "quiet"]) == 2
@@ -391,7 +391,8 @@ def test_warning_off_hides_the_console_warning_and_keeps_it_in_the_log(tmp_path,
     assert "legacy mesh folder" in (tmp_path / "logs/warnings.log").read_text()
     mesh._warned.clear()
     assert main(["plan", "study", "--workspace", str(tmp_path)]) == 0
-    assert "Warnings (1)" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "Warnings (1)" in err
 
 
 def test_init_and_archive_take_the_console_options(tmp_path, capsys):

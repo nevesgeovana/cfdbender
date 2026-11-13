@@ -6,4 +6,5 @@
 
 ## Changed
 
-- Warnings of a command are held and printed together at the end under `Warnings (n)`, and each is also kept in `logs/warnings.log`.
+- Warnings of a command are held and printed together at the end under `Warnings (n)`, and `--warning-off` keeps them in `logs/warnings.log` instead of the console.
+- `cfd-matrix post [matrix]` rebuilds every product from the records without running anything; `plan` writes the plan receipt and `run` refuses a missing or stale one.

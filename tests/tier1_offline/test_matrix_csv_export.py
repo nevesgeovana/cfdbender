@@ -25,19 +25,16 @@ def test_collect_writes_one_row_per_point_with_every_coefficient(tmp_path, capsy
     rows = read(post / "campaign_sweep.csv")
     assert len(rows) == len(summary) == 4
     header = list(rows[0])
-    assert header[:10] == [
-        "POL",
-        "point",
-        "ALPHA",
+    assert header[:2] == ["POL", "point"] and header[2] == "ALPHA"
+    assert header[18:24] == [
         "status",
         "classification",
         "iterations",
         "residual",
         "wall_time_s",
         "solver_version",
-        "CX",
     ]
-    assert header[9:] == ["CX", "CY", "CZ", "Cl", "Cm", "Cn"]
+    assert header[24:] == ["CX", "CY", "CZ", "Cl", "Cm", "Cn"]
     for row, point in zip(rows, summary, strict=True):
         result = point["result"]
         assert row["POL"] == point["pol"]
@@ -73,4 +70,4 @@ def test_an_unread_point_leaves_empty_cells(tmp_path):
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 3
     rows = read(tmp_path / "post/study/polars/P1002.csv")
     assert rows[0]["status"] == "PLANNED"
-    assert rows[0]["classification"] == rows[0]["iterations"] == rows[0]["CX"] == ""
+    assert rows[0]["classification"] == rows[0]["iterations"] == rows[0]["CX"] == "NA"

@@ -142,12 +142,23 @@ the `history` list of `runs.json` with the time and the archive folder.
 and two CSV tables beside it: `campaign_sweep.csv` with one row per recorded
 point, and `polars/P<POL>.csv` with one row per point of each simulation, the
 `P<sim>` stem pyflightstream gives its polar files. The columns are `POL`,
-`point`, the FLIGHT_CONDITION keys in the order the matrix states them,
-`status`, `classification`, `iterations` and `residual` of the last history
-entry, `wall_time_s` from the record's start and completion times,
-`solver_version`, then every coefficient the solver reported. A value a point
-does not have, such as the coefficients of a point not yet run, is an empty
-cell. The tables are derived files and are rebuilt by every collect.
+`point`, the fixed context block of pyflightstream (`ALPHA`, `BETA`, `MACH`,
+`RE` in millions, `VINF`, `VREF`, `ALT`, `RHO`, `TEMP`, `MU`, `J`, `J_CLOCK`,
+`RPM_CLOCK`, `SREF`, `CREF`, `BREF`), any other FLIGHT_CONDITION key the matrix
+states, `status`, `classification`, `iterations` and `residual` of the last
+history entry, `wall_time_s` from the record's start and completion times,
+`solver_version`, then every coefficient the solver reported. Air state columns
+are resolved from the row's flight condition; `SREF` and `CREF` are the
+references the solver reported. A value a point does not have, such as the
+coefficients of a point not yet run, is `NA`. No cell holds a comma, a double
+quote or a line break and none is quoted, so `numpy.genfromtxt` reads every row
+to the header's count. The tables are derived files and are rebuilt by every collect.
+
+Beside them, `post/<matrix>/products.json` names every product written and every
+product skipped with its reason (a point that never ran, or whose result could
+not be read), with `complete` true only when nothing was skipped, and
+`post/<matrix>/post.log` says the same in text. A skipped point never blocks the
+other products.
 
 ## Selecting simulations and points
 

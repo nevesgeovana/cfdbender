@@ -23,6 +23,8 @@ from cfdbender.matrix._console import (
     level_of,
 )
 from cfdbender.matrix.collection import collect_workspace
+from cfdbender.matrix.post import post_workspace
+from cfdbender.matrix.receipt import require_receipt, write_receipt
 from cfdbender.matrix.rerun import decide
 from cfdbender.matrix.selection import select_plan, split_ids
 from cfdbender.matrix.submission import select_profile, submission_plans, submit_plan
@@ -59,7 +61,9 @@ def build_parser() -> tuple[
     add_warning_option(parser)
     commands = parser.add_subparsers(dest="command", required=True)
     plan_parser = commands.add_parser(
-        "plan", help="print proposed work without writing files", allow_abbrev=False
+        "plan",
+        help="print proposed work and write the plan receipt post/<matrix>/plan.json",
+        allow_abbrev=False,
     )
     plan_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
     plan_parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
@@ -104,6 +108,23 @@ def build_parser() -> tuple[
     )
     collect_parser.add_argument("matrix", nargs="?", help="recorded matrix name (default: all)")
     collect_parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
+    post_parser = commands.add_parser(
+        "post",
+        help="rebuild every product under post/<matrix>/ from runs.json and the saved "
+        "outputs, without running anything",
+        allow_abbrev=False,
+    )
+    post_parser.add_argument("matrix", nargs="?", help="recorded matrix name (default: all)")
+    post_parser.add_argument("--workspace", default=".", help="campaign workspace (default: .)")
+    post_parser.add_argument("--sims", nargs="+", metavar="POL", help="only these simulations")
+    post_parser.add_argument("--points", nargs="+", metavar="NAME", help="only these points")
+    add_runs_option(post_parser)
+    post_parser.add_argument(
+        "--archive",
+        action="store_true",
+        help="keep a copy of each replaced product under archive/<stamp>/",
+    )
+    add_console_options(post_parser)
     for command_parser in (plan_parser, run_parser, collect_parser):
         command_parser.add_argument(
             "--sims",
@@ -238,6 +259,23 @@ def _collect(args: argparse.Namespace, console: Console) -> int:
         time.sleep(pause)
 
 
+def _post(args: argparse.Namespace, console: Console) -> int:
+    report = post_workspace(
+        args.workspace,
+        args.matrix,
+        sims=split_ids(args.sims),
+        points=split_ids(args.points),
+        runs=args.runs,
+        archive=args.archive,
+    )
+    for path in (*report.summaries, *report.tables):
+        console.say(f"post product: {path}")
+    console.final(
+        f"post read {report.collected}, failed {report.failed}, outstanding {report.outstanding}"
+    )
+    return report.exit_code
+
+
 def _execute(
     args: argparse.Namespace,
     verbs: dict[str, Callable[[argparse.Namespace], int]],
@@ -246,6 +284,8 @@ def _execute(
     try:
         if args.command in verbs:
             return verbs[args.command](args)
+        if args.command == "post":
+            return _post(args, console)
         profile = select_profile(Path(args.workspace).resolve(), args.hpc)
         if args.command == "collect":
             return _collect(args, console)
@@ -254,8 +294,12 @@ def _execute(
             split_ids(args.sims),
             split_ids(args.points),
         )
+        if args.command == "plan":
+            receipt = write_receipt(plan)
+            console.detail(f"plan receipt: {receipt}")
         jobs = submission_plans(plan, profile) if profile is not None and not args.local else ()
         if args.command == "run":
+            require_receipt(plan)
             submitting = profile is not None and not args.local
             decision = decide(
                 plan,

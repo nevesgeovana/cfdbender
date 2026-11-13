@@ -17,7 +17,7 @@ without saying so.
 
 | Option | Meaning |
 |---|---|
-| `--warning-off` (before the command) | Hide console warnings; each is kept in `logs/warnings.log`. |
+| `--warning-off` (before the command) | Hide console warnings; they are kept in `logs/warnings.log` instead. |
 | `--verbose`, `--log-level quiet\|normal\|verbose` | How much the command says: quiet prints errors and the final summary, normal adds the per-point lines, verbose adds details. |
 | `--runs NAME` | Read another run manifest in the workspace root instead of `runs.json`. |
 | `--json`, `--csv` | On the read-only commands: print the rows for a program. A nested cell is JSON. |

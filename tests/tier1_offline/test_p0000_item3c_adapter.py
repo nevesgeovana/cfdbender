@@ -138,7 +138,11 @@ def test_p0000_item3c_plan_uses_real_mock_hook_without_writes(tmp_path):
 
     before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
     assert main(["plan", "study", "--workspace", str(tmp_path)]) == 0
-    assert before == {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    receipt = tmp_path / "post/study/plan.json"
+    assert receipt.is_file(), "plan writes only its receipt"
+    assert before == {
+        p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file() and p != receipt
+    }
 
 
 def test_p0000_item3c_init_and_drift_refused(tmp_path):
