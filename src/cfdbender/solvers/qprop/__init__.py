@@ -232,6 +232,11 @@ def _stage(
     point.verify()
     opts, settings, op, blade, rpm, planned = _context(point)
     folder = prepare(point)
+    if not run and any(p.source == "xfoil" for p in planned):
+        raise ValueError(
+            "QPROP staging needs a supplied polar for every section; "
+            "provide a polars-2D set or run locally to generate the section polars"
+        )
     if run:
         # A missing executable refuses the point before any folder is written.
         qprop_argv(opts, point.root)
@@ -243,8 +248,6 @@ def _stage(
     for name, body in _plan_files(op, rpm, planned).items():
         if name != "command":
             (folder / name).write_text(body, encoding="ascii", newline="\n")
-    if not run and any(p.source == "xfoil" for p in planned):
-        return folder, opts, op, rpm
     fits = section_fits(point, folder, settings, planned, opts, check_ram)
     add = beta_offset(blade, op)
     (folder / "sections.json").write_text(

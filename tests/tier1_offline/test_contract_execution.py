@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 import pytest
-from test_conformance_workspace import case, local, prepared, state_no_build  # noqa: F401
+from test_conformance_workspace import case, local, prepared, staging_case, state_no_build  # noqa: F401
 
 from cfdbender import testing
 from cfdbender.core.adapter import load_point
@@ -125,9 +125,9 @@ def test_c27_collect_works_without_execution_json(case):  # noqa: F811
     assert adapter.collect(point).classification == expected, solver
 
 
-def test_c47_collect_works_from_the_job_outputs_alone(case, tmp_path_factory):  # noqa: F811
+def test_c47_collect_works_from_the_job_outputs_alone(staging_case, tmp_path_factory):  # noqa: F811
     """C-47: a cluster folder (staged inputs plus JOB_OUTPUTS) collects as the local one did."""
-    solver, root = case
+    solver, root = staging_case
     adapter, point = prepared(root, solver)
     spare = tmp_path_factory.mktemp("staged") / "ws"
     shutil.copytree(root, spare)

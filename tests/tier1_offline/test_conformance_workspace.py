@@ -79,6 +79,31 @@ def data_row(root):
     return (root / "inputs/matrices/full.fs").read_text(encoding="ascii").splitlines()[2].split("|")
 
 
+@pytest.fixture
+def staging_case(case):
+    """Use supplied QPROP polars for the optional cluster staging contract."""
+    solver, root = case
+    if solver == "qprop":
+        from qprop_workspace import setup_text, table_set
+
+        table_set(
+            root,
+            rows=[
+                "0.06,0.030,50,a1.dat,p1.txt",
+                "0.12,0.026,38,a1.dat,p2.txt",
+                "0.19,0.021,22,a1.dat,p2.txt",
+            ],
+        )
+        (root / "inputs/setups/s001.toml").write_text(
+            setup_text(blade="inputs/polars-2D/set1", n_sections=None) + executables(root, solver)
+        )
+        matrix = root / "inputs/matrices/full.fs"
+        matrix.write_text(
+            matrix.read_text().replace("blade.obj", "-").replace("n_sections: 5", "n_sections: 3")
+        )
+    return case
+
+
 def local(root, *options):
     return main(["run", "full", "--workspace", str(root), "--local", *options])
 

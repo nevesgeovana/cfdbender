@@ -13,7 +13,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from test_conformance_workspace import SOLVERS, case, local, prepared, state_no_build  # noqa: F401
+from test_conformance_workspace import SOLVERS, case, local, prepared, staging_case, state_no_build  # noqa: F401
 
 from cfdbender.core.adapter import load_point
 from cfdbender.core.executables import bind_executable
@@ -104,9 +104,9 @@ def test_c29_c49_a_row_build_selects_the_declared_executable(case):  # noqa: F81
     ), solver
 
 
-def test_c46_stage_refuses_an_existing_point_folder(case):  # noqa: F811
+def test_c46_stage_refuses_an_existing_point_folder(staging_case):  # noqa: F811
     """C-46: a second stage of the same point is refused and changes nothing."""
-    solver, root = case
+    solver, root = staging_case
     adapter, point = prepared(root, solver)
     adapter.stage(point)
     assert point_folder(root, point).is_dir()
@@ -117,9 +117,9 @@ def test_c46_stage_refuses_an_existing_point_folder(case):  # noqa: F811
     assert after == before
 
 
-def test_c46_stage_runs_no_solver(case, monkeypatch):  # noqa: F811
+def test_c46_stage_runs_no_solver(staging_case, monkeypatch):  # noqa: F811
     """C-46: staging launches no process."""
-    solver, root = case
+    solver, root = staging_case
     adapter, point = prepared(root, solver)
 
     def refuse(*args, **kwargs):
@@ -129,17 +129,17 @@ def test_c46_stage_runs_no_solver(case, monkeypatch):  # noqa: F811
     adapter.stage(point)
 
 
-def test_c45_the_staged_config_is_among_the_staged_files(case, tmp_path_factory):  # noqa: F811
+def test_c45_the_staged_config_is_among_the_staged_files(staging_case, tmp_path_factory):  # noqa: F811
     """C-45: stage writes the file the adapter names as STAGED_CONFIG."""
-    solver, root = case
+    solver, root = staging_case
     adapter, point = prepared(root, solver)
     _, names = staged_copy(root, point, solver, tmp_path_factory)
     assert adapter.STAGED_CONFIG in names, (solver, sorted(names))
 
 
-def test_c20_a_cluster_folder_holds_the_bytes_a_local_run_reads(case, tmp_path_factory):  # noqa: F811
+def test_c20_a_cluster_folder_holds_the_bytes_a_local_run_reads(staging_case, tmp_path_factory):  # noqa: F811
     """C-20: every staged input equals the file a local run of the same point starts from."""
-    solver, root = case
+    solver, root = staging_case
     adapter, point = prepared(root, solver)
     spare, names = staged_copy(root, point, solver, tmp_path_factory)
     staged = spare / point.point.directory
@@ -156,9 +156,9 @@ def test_c20_a_cluster_folder_holds_the_bytes_a_local_run_reads(case, tmp_path_f
     assert not differing, (solver, differing)
 
 
-def test_c18_c20_staged_text_is_the_same_bytes_on_every_platform(case, tmp_path_factory):  # noqa: F811
+def test_c18_c20_staged_text_is_the_same_bytes_on_every_platform(staging_case, tmp_path_factory):  # noqa: F811
     """C-18 and C-20: no staged file carries a carriage return the translation did not write."""
-    solver, root = case
+    solver, root = staging_case
     adapter, point = prepared(root, solver)
     spare, names = staged_copy(root, point, solver, tmp_path_factory)
     folder = spare / point.point.directory
@@ -182,9 +182,7 @@ def test_c52_an_archived_point_keeps_its_linked_mesh(case, tmp_path):  # noqa: F
     state_no_build(root)
     assert main(["run", "full", "--workspace", str(root), "--local"]) == 0
     assert main(["run", "full", "--workspace", str(root), "--local", "--force-rerun-all"]) == 0
-    archived = [
-        p for p in (root / "archive").rglob("*") if p.name == f"mesh{mesh.suffix}"
-    ]
+    archived = [p for p in (root / "archive").rglob("*") if p.name == f"mesh{mesh.suffix}"]
     assert archived, solver
     assert all(p.is_file() and p.samefile(mesh) for p in archived), solver
 

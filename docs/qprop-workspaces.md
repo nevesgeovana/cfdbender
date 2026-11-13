@@ -166,3 +166,5 @@ cfd-matrix plan study
 cfd-matrix run study
 cfd-matrix collect study
 ```
+
+Cluster staging requires a supplied polar for every section. If a section needs XFOIL, staging refuses before writing or submitting; provide the missing polars or run locally.
