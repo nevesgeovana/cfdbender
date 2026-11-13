@@ -11,7 +11,8 @@ from __future__ import annotations
 import hashlib
 import re
 import tomllib
-from collections.abc import Mapping
+import warnings
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
@@ -218,6 +219,40 @@ class RowInputs(InputFiles):
         self.reference = self.read_toml(f"inputs/references/{row.reference_id}.toml")
         self.post = self.read_toml(f"inputs/pproc/{row.post_id}.toml")
         self.geometry = resolve_geometry(root, row.geometry)
+        self._row = row
+
+    def warn_unread(
+        self, solver: str, *, reference: Collection[str] = (), post: Collection[str] = ()
+    ) -> None:
+        """Warn once per entry that the REF or PPROC file holds and ``solver`` never reads.
+
+        An entry that does not apply is skipped, not refused: planning goes on
+        without it, and the warning names the row, the file, the entry and why.
+
+        Parameters
+        ----------
+        solver : str
+            Solver label used in the message.
+        reference : collection of str, optional
+            REF-file keys the solver reads; any other key is unread.
+        post : collection of str, optional
+            PPROC-file keys the solver reads; any other key is unread.
+        """
+        row = self._row
+        for kind, table, read, ident in (
+            ("references", self.reference, reference, row.reference_id),
+            ("pproc", self.post, post, row.post_id),
+        ):
+            for key in table:
+                if key not in read:
+                    where = f"inputs/{kind}/{ident}.toml"
+                    warnings.warn(
+                        f"POL {row.pol}: {key!r} of {where} is skipped; {solver} does not read "
+                        f"it ({'reads only ' + ', '.join(sorted(read)) if read else 'reads no key'}"
+                        f" of this file)",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
 
 @dataclass(frozen=True)
@@ -485,10 +520,14 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
             inputs = RowInputs(target, row, common)
             needs = validators[config.solver](row, inputs)
             if inputs.geometry is not None and inputs.geometry not in inputs.digests():
-                raise PlanError(
-                    f"solver {config.solver!r} does not read the GEOMETRY column; "
-                    "name the geometry where its setup documents it and write - in the cell"
+                warnings.warn(
+                    f"POL {row.pol}: GEOMETRY {row.geometry!r} is skipped; solver "
+                    f"{config.solver!r} does not read the GEOMETRY column (name the geometry "
+                    "where its setup documents it, and write - in the cell to silence this)",
+                    UserWarning,
+                    stacklevel=2,
                 )
+                inputs.geometry = None
             points.extend(_points(target, row, inputs, needs))
         except (ValueError, OSError) as error:
             raise PlanError(f"data row {row.row_number}, POL {row.pol}: {error}") from error

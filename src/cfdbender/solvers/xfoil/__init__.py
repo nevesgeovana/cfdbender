@@ -81,6 +81,8 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("xfoil",)
     )
     options(workspace.setup, declaration.solver_options)
+    # XFOIL takes only the reference length (to turn a Reynolds number into a state).
+    workspace.warn_unread("XFOIL", reference=("length",))
     conditions = [dict(row.condition)]
     if row.sweep_key:
         conditions = [dict(row.condition, **{row.sweep_key: value}) for value in row.sweep_values]

@@ -117,6 +117,8 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("qprop",)
     )
     options(workspace.setup, declaration.solver_options)
+    # QPROP's references come from the blade and the operating point, not the REF or PPROC files.
+    workspace.warn_unread("QPROP")
     settings = setup(_with_geometry(workspace.setup, workspace.geometry))
     conditions = [dict(row.condition)]
     if row.sweep_key:

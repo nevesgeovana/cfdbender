@@ -183,7 +183,6 @@ def test_registry_keeps_the_row_columns(tmp_path):
     def ignores(row, inputs):
         return RowRequirements(("solve",), ("sims/sim_{pol}/datapoints/{point}/out.txt",))
 
-    from cfdbender.core.plan import PlanError
-
-    with pytest.raises(PlanError, match="does not read the GEOMETRY column"):
-        plan_matrix(tmp_path, "study", validators={"mock": ignores})
+    with pytest.warns(UserWarning, match="does not read the GEOMETRY column"):
+        skipped = plan_matrix(tmp_path, "study", validators={"mock": ignores})
+    assert skipped.points[0].geometry is None
