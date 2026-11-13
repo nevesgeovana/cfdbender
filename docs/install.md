@@ -47,11 +47,11 @@ different paths, name the builds once in `inputs/executables.toml`; see
 
 ## Check that the solver is found
 
-`cfd-matrix plan` does not look for the solver, because a plan may be made on
-one machine for a run on another. `cfd-matrix run --local` does, before it
-records any point. To check an installation, run a matrix with one point. A
-solver that is not found stops the run before anything is recorded, with the
-same sentence for every solver:
+`cfd-matrix plan --local` and `cfd-matrix run --local` look for the solver on
+this machine; `run` does it before it records any point. A plan without
+`--local` is made for a cluster, so it does not look. To check an installation,
+plan a matrix with `--local`. A solver that is not found stops the plan, and the
+run, before anything is recorded, with the same sentence for every solver:
 
 ```text
 matrix not run: SU2 executable not found: 'SU2_CFD'; set executable in the [solver] table of the setup file, or declare SOLVER_BUILD in inputs/executables.toml

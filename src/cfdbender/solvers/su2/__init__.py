@@ -181,6 +181,13 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     return read(workspace_path(point.root, point.point.directory))[0]
 
 
+def check_executable(point: AdapterPoint) -> None:
+    """Refuse a point whose executable is not on this machine (executable route); no host check."""
+    from cfdbender.solvers.su2._execute import check_executable as check
+
+    check(point)
+
+
 def preflight(point: AdapterPoint) -> None:
     """Refuse before any point starts: executable, host slot and free RAM (executable route)."""
     from cfdbender.solvers.su2._execute import preflight as check

@@ -96,13 +96,19 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     return read(workspace_path(point.root, point.point.directory), point)[0]
 
 
-def preflight(point: AdapterPoint) -> None:
-    """Refuse before any point starts: executable, host slot and free RAM."""
-    from cfdbender.solvers._host._exe import check_host_free
+def check_executable(point: AdapterPoint) -> None:
+    """Refuse a point whose executable is not on this machine; no host check."""
     from cfdbender.solvers.pyfr._execute import launch_prefix
 
     opts = options(point.setup, read_init(point.root, available_solvers=("pyfr",)).solver_options)
     launch_prefix(opts, point.root)
+
+
+def preflight(point: AdapterPoint) -> None:
+    """Refuse before any point starts: executable, host slot and free RAM."""
+    from cfdbender.solvers._host._exe import check_host_free
+
+    check_executable(point)
     check_host_free("PyFR")
 
 

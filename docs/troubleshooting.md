@@ -171,8 +171,8 @@ refusal as well as `run`. See [Executables](executables.md).
 matrix not run: SU2 executable not found: 'SU2_CFD'; set executable in the [solver] table of the setup file, or declare SOLVER_BUILD in inputs/executables.toml
 ```
 
-`run --local` checks the machine before it records anything: the solver
-program (every solver gives this one sentence), the machine-wide process slot
+`plan --local` and `run --local` check the machine before they record
+anything: the solver program (every solver gives this one sentence), the machine-wide process slot
 and the free memory. When one of them fails the run is refused, no record is
 written, and the same command works once the cause is gone.
 

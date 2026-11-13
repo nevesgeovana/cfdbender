@@ -272,14 +272,20 @@ def _stage(
     return folder, opts, op, rpm
 
 
-def preflight(point: AdapterPoint) -> None:
-    """Refuse before any point starts: QPROP and XFOIL executables, host slot and free RAM."""
-    from cfdbender.solvers._host._exe import check_host_free
-
+def check_executable(point: AdapterPoint) -> None:
+    """Refuse a point whose QPROP or XFOIL executable is not on this machine; no host check."""
     opts, _, _, _, _, planned = _context(point)
     qprop_argv(opts, point.root)
     if any(p.source == "xfoil" for p in planned):
         load_solver("xfoil").argv(_xfoil_options(opts), point.root, key="xfoil_executable")
+
+
+def preflight(point: AdapterPoint) -> None:
+    """Refuse before any point starts: QPROP and XFOIL executables, host slot and free RAM."""
+    from cfdbender.solvers._host._exe import check_host_free
+
+    check_executable(point)
+    opts = _context(point)[0]
     check_host_free("QPROP", number(opts["ram_estimate_gib"], "ram_estimate_gib"))
 
 

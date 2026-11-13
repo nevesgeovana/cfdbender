@@ -21,8 +21,9 @@ import warnings
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
-from cfdbender.core.adapter import AdapterPoint
+from cfdbender.core.adapter import AdapterPoint, load_point
 from cfdbender.core.settings import WorkspaceError
 
 DECLARED = "inputs/executables.toml"
@@ -129,6 +130,40 @@ def check_builds(root: Path, solver: str, adapter: object, builds: Iterable[str 
                 UserWarning,
                 stacklevel=2,
             )
+
+
+def check_local_executables(
+    root: Path, solver: str, adapter: object, points: Iterable[Any]
+) -> None:
+    """Refuse a local plan whose solver executable is not on this machine.
+
+    A local plan binds each point's build as a run does and asks the adapter's own
+    ``check_executable``, the check ``run`` makes first, so plan and run say the same sentence.
+    Nothing is launched and no host slot is taken. A plan made for a cluster does not call this.
+
+    Parameters
+    ----------
+    root : Path
+        Workspace root.
+    solver : str
+        The init.toml solver.
+    adapter : object
+        The workspace's adapter module; one without ``check_executable`` looks for nothing.
+    points : iterable of Point
+        The planned points.
+
+    Raises
+    ------
+    ValueError
+        The executable a point would run does not exist (the one missing-executable sentence).
+    WorkspaceError
+        A planned build is not declared.
+    """
+    check = getattr(adapter, "check_executable", None)
+    if check is None:
+        return
+    for point in points:
+        check(bind_executable(load_point(root, point, solver=solver), adapter))
 
 
 def has_registry(root: Path) -> bool:

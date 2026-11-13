@@ -7,6 +7,7 @@
 
 ## Changed
 
+- `cfd-matrix plan --local` fails with the one missing-executable sentence when the solver executable does not exist on this machine, as `run --local` does; a plan without `--local`, made for a cluster, does not look for it.
 - A missing executable, a busy machine-wide slot or the RAM floor refuses `run --local` before any point is recorded (`matrix not run: ...`, exit 2), so the same command works once the cause is gone. Every solver words a missing executable alike and names the key to set.
 - A failed point reads `FAILED_EXECUTION` (or `FAILED`) at the console instead of `COMPLETED`; the records are unchanged. Console times print as local time to the second.
 - `--resume` says `skipped: COMPLETED failed; redo it with --force-rerun <point>`, and the already-recorded refusal says what to type.

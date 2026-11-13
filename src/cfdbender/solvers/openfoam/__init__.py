@@ -170,11 +170,11 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     return read(workspace_path(point.root, point.point.directory), point)[0]
 
 
-def preflight(point: AdapterPoint) -> None:
-    """Refuse before any point starts: launcher or stand-in, host slot and free RAM."""
+def check_executable(point: AdapterPoint) -> None:
+    """Refuse a point whose launcher or stand-in is not on this machine; no host check."""
     import shutil
 
-    from cfdbender.solvers._host._exe import check_host_free, missing_executable
+    from cfdbender.solvers._host._exe import missing_executable
     from cfdbender.solvers.openfoam._execute import argv
 
     opts = options(
@@ -183,6 +183,13 @@ def preflight(point: AdapterPoint) -> None:
     command = argv(opts, point.root)
     if command[0] != sys.executable and not shutil.which(command[0]):
         raise missing_executable("OpenFOAM", command[0], "launcher")
+
+
+def preflight(point: AdapterPoint) -> None:
+    """Refuse before any point starts: launcher or stand-in, host slot and free RAM."""
+    from cfdbender.solvers._host._exe import check_host_free
+
+    check_executable(point)
     check_host_free("OpenFOAM", 0.25)
 
 
