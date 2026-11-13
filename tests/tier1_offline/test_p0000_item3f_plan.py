@@ -28,7 +28,7 @@ def tree(root):
         if p.is_file()
         else "directory"
         for p in root.rglob("*")
-        if p.relative_to(root).parts[:1] != ("post",)  # the plan receipt
+        if p.relative_to(root).parts[:1] not in (("post",), ("logs",))  # plan receipt, logs
     }
 
 

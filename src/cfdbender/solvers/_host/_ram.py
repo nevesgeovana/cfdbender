@@ -5,7 +5,8 @@ from __future__ import annotations
 import math
 from collections.abc import Callable
 
-from cfdbender.core.run import FLOOR_GIB, free_ram_gib
+from cfdbender.core.run import FLOOR_GIB as FLOOR_GIB
+from cfdbender.core.run import free_ram_gib as free_ram_gib
 
 
 def require_ram(

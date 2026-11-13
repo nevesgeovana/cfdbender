@@ -42,14 +42,14 @@ def test_a_run_writes_a_live_log_of_what_the_console_said(tmp_path, capsys):
 
 def test_every_logged_command_leaves_started_and_finished_activity(tmp_path, capsys):
     grown(tmp_path)
-    for command in (["plan", "study"], ["run", "study"], ["collect", "study"]):
+    for command in (["plan", "study"], ["run", "study"], ["post", "study"], ["collect", "study"]):
         assert main([*command, "--workspace", str(tmp_path)]) == 0
     events = activity(tmp_path)
     assert [(e["stage"], e["event"]) for e in events] == [
-        ("plan", "started"),
-        ("plan", "finished"),
         ("run", "started"),
         ("run", "finished"),
+        ("post", "started"),
+        ("post", "finished"),
         ("collect", "started"),
         ("collect", "finished"),
     ]
@@ -95,9 +95,9 @@ def test_warning_off_only_silences_the_console(tmp_path, capsys):
 
 def test_the_live_log_keeps_the_warnings_block_too(tmp_path, capsys):
     legacy_mesh_workspace(tmp_path)
-    assert main(["plan", "study", "--workspace", str(tmp_path)]) == 0
+    assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     capsys.readouterr()
-    (live,) = sorted((tmp_path / "logs").glob("plan-*.log"))
+    (live,) = sorted((tmp_path / "logs").glob("run-*.log"))
     assert "Warnings (1)" in live.read_text(encoding="utf-8")
 
 
@@ -114,4 +114,13 @@ def test_read_only_verbs_write_no_log(tmp_path, capsys, verb):
 def test_a_folder_that_is_no_workspace_gets_no_logs(tmp_path, capsys):
     assert main(["plan", "study", "--workspace", str(tmp_path)]) == 2
     assert not (tmp_path / "logs").exists()
+    capsys.readouterr()
+
+
+def test_plan_only_previews_and_leaves_no_live_log_or_activity(tmp_path, capsys):
+    grown(tmp_path)
+    before = snapshot(tmp_path)
+    assert main(["plan", "study", "--workspace", str(tmp_path)]) == 0
+    assert not (tmp_path / "logs").exists()
+    assert {k for k in snapshot(tmp_path)} - set(before) <= {"post/study/plan.json"}
     capsys.readouterr()

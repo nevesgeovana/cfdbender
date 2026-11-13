@@ -1,7 +1,8 @@
 """Console options shared by the cfdbender commands: warnings, verbosity and row output.
 
 Every warning is written to ``logs/warnings.log``; ``--warning-off`` only hides it from
-the console. A running ``plan``, ``run``, ``collect`` or ``post`` also writes the lines it
+the console. A running ``run``, ``collect`` or ``post`` (``plan`` only previews) also writes
+the lines it
 shows to ``logs/<command>-<stamp>.log`` and its start and end to ``logs/activity.log`` and
 ``logs/activity.log.jsonl``, which the ``log`` verb reads. Only a folder that is a workspace
 gets a ``logs/`` folder.

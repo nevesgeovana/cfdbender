@@ -34,8 +34,8 @@ from cfdbender.solvers import load_solver
 from cfdbender.solvers.flightstream import dispatch
 from cfdbender.workspace.planning import plan_workspace
 
-#: The commands that leave a live log and activity events in logs/.
-LOGGED = frozenset({"plan", "run", "collect", "post"})
+#: The commands that leave a live log and activity events in logs/; plan only previews.
+LOGGED = frozenset({"run", "collect", "post"})
 
 
 def _seconds(text: str) -> float:

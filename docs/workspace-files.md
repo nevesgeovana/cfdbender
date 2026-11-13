@@ -211,7 +211,7 @@ or archive the old campaign first.
 
 ## Logs
 
-`plan`, `run`, `collect` and `post` write to `logs/` of the workspace (only a
+`run`, `collect` and `post` write to `logs/` of the workspace (only a
 folder that is a workspace gets one): `logs/<command>-<stamp>.log` holds every line the
 command showed, `logs/activity.log` and `logs/activity.log.jsonl` record when each
 command started and how it ended (the `log` verb lists them with the run events,

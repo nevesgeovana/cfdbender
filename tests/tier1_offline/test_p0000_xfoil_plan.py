@@ -58,7 +58,7 @@ def tree(root):
     return {
         p.relative_to(root).as_posix(): p.read_bytes()
         for p in root.rglob("*")
-        if p.is_file() and p.name != "plan.json"
+        if p.is_file() and p.name != "plan.json" and p.relative_to(root).parts[:1] != ("logs",)
     }
 
 
