@@ -14,7 +14,7 @@ from cfdbender.core.adapter import SolverAdapter
 from cfdbender.core.executables import check_builds
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.registry import RunRecord
-from cfdbender.core.run import execute_plan
+from cfdbender.core.run import execute_plan, judge_environment
 from cfdbender.core.settings import WorkspaceError, require_workspace
 from cfdbender.matrix import queries, records, storage
 from cfdbender.matrix._console import (
@@ -394,12 +394,18 @@ def _execute(
         if args.command == "run":
             require_receipt(plan)
             submitting = profile is not None and not args.local
+            adapter = cast(SolverAdapter, load_solver(plan.solver))
             decision = decide(
                 plan,
                 resume=args.resume,
                 force=args.force_rerun,
                 force_all=args.force_rerun_all,
                 submitting=submitting,
+                # A local run this machine would refuse must refuse before a point is
+                # archived, not after: the refusal leaves the records as they were.
+                before_archive=None
+                if submitting
+                else lambda chosen: judge_environment(chosen, adapter),
             )
             if decision.archive is not None:
                 console.say(f"archived previous evidence: {decision.archive}")
@@ -407,7 +413,6 @@ def _execute(
                 console.say(f"  {point_id}  skipped: {reason}")
             plan = decision.plan
             jobs = submission_plans(plan, profile) if submitting and profile is not None else ()
-            adapter = cast(SolverAdapter, load_solver(plan.solver))
             live = profile is None or args.local
             started: dict[str, float] = {}
 
