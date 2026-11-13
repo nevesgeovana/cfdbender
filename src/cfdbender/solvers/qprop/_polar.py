@@ -45,18 +45,24 @@ def polar_script(
 
 
 def read_polar_rows(text: str) -> list[tuple[float, float, float]]:
-    """Return (alpha, CL, CD) from every numeric row of an XFOIL polar text."""
+    """Return (alpha, CL, CD) by header name from an XFOIL section polar."""
     rows = []
+    names: list[str] = []
     for line in text.splitlines():
         cells = line.split()
-        if len(cells) < 3:
+        if {"alpha", "CL", "CD"} <= set(cells):
+            if len(set(cells)) != len(cells):
+                return []
+            names = cells
+            continue
+        if not names or len(cells) != len(names):
             continue
         try:
-            row = (float(cells[0]), float(cells[1]), float(cells[2]))
+            row = tuple(float(cells[names.index(key)]) for key in ("alpha", "CL", "CD"))
         except ValueError:
             continue
         if all(map(math.isfinite, row)):
-            rows.append(row)
+            rows.append((row[0], row[1], row[2]))
     return rows
 
 

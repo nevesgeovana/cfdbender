@@ -46,6 +46,12 @@ def test_p0000_qprop_polar_rows_are_read_by_value_not_position():
     assert _polar.read_polar_rows("no table here\n") == []
 
 
+def test_qprop_section_polar_columns_can_be_reordered():
+    text = xfoil_text(synthetic_polar())
+    reordered = "\n".join(" ".join(reversed(line.split())) for line in text.splitlines())
+    assert _polar.read_polar_rows(reordered) == _polar.read_polar_rows(text)
+
+
 def test_p0000_qprop_polar_fit_recovers_the_analytic_parameters():
     fit = _polar.fit_polar(synthetic_polar())
     assert fit is not None
