@@ -64,7 +64,8 @@ xfoil_executable = "/home/you/bin/xfoil"
 \begin{column}{0.46\textwidth}
 \begin{itemize}\small
   \item \code{blade} is a 3D blade as an OBJ, in metres, or a set under
-        \code{inputs/polars-2D/} with the stations and their polars.
+        \code{inputs/polars-2D/} with the stations and their polars. A blade
+        named only in the \code{GEOMETRY} cell runs too.
   \item An OBJ is sliced at \code{n_sections} radial stations: radius,
         chord, pitch and section shape are measured.
   \item Each section gets its polar from XFOIL, at its own Reynolds and

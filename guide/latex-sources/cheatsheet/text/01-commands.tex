@@ -23,7 +23,7 @@
 \begin{multicols}{4}
 
 \stage{1. CREATE THE WORKSPACE}
-\wsub{init [root]}{create the campaign tree: \texttt{init.toml}, the input folders, \texttt{sims/}, \texttt{post/}, \texttt{archive/}; a folder that already is a workspace is refused}
+\wsub{init [root]}{create the campaign tree: \texttt{init.toml}, the input folders, \texttt{inputs/INPUTS.md}, \texttt{sims/}, \texttt{post/}, \texttt{archive/}; a folder that already is a workspace is refused}
 \begin{flags}
 \item \fl{--solver NAME} required: \texttt{su2}, \texttt{openfoam}, \texttt{pyfr}, \texttt{xfoil}, \texttt{qprop}, \texttt{mock} or \texttt{flightstream}
 \item \fl{--workspace DIR} the same folder as the positional root (default: the current folder)
@@ -31,7 +31,7 @@
 \end{flags}
 
 \stage{2. PLAN}
-\sub{plan <matrix>}{read the matrix and every file it names, list each point and the files its run would write, save the receipt \texttt{post/<matrix>/plan.json}; launches nothing}
+\sub{plan <matrix>}{read the matrix and every file it names, list each point on one line (\fl{--verbose}: the files its run would write), save the receipt \texttt{post/<matrix>/plan.json}; launches nothing}
 \begin{flags}
 \item \fl{--sims POL [POL ...]} only these simulations, by POL, space or comma separated; an id the matrix lacks is refused
 \item \fl{--points NAME [NAME ...]} only these points, named \texttt{DP-name} or \texttt{POL/DP-name}, within \fl{--sims} when given
@@ -44,7 +44,7 @@
 \stage{3. RUN}
 \sub{run <matrix>}{run every active point of the planned matrix, here or as cluster jobs when an HPC profile exists; a point already recorded refuses the run unless one of the first three options is given}
 \begin{flags}
-\item \fl{--resume} skip the points recorded COMPLETED or SUBMITTED and run the rest
+\item \fl{--resume} skip the points recorded COMPLETED or SUBMITTED and run the rest; a skipped failed point names the \fl{--force-rerun} that redoes it
 \item \fl{--force-rerun POINT} archive this recorded point, then run it again; repeat for several
 \item \fl{--force-rerun-all} archive and redo every recorded point of the matrix; a submitted job is not cancelled
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
@@ -65,7 +65,7 @@
 \item \fl{--workspace DIR}, \fl{--runs NAME} campaign root; another run manifest than \texttt{runs.json}
 \item \fl{--verbose}, \fl{--log-level LEVEL} console quiet, normal or verbose
 \end{flags}
-\sub{show <target>}{print one simulation (POL), point (\texttt{POL/DP-name}) or run record in full}
+\sub{show <target>}{the card of a point (\texttt{POL/DP-name}): status, verdict, iterations, coefficients, folder; a simulation (POL) lists its points; \fl{--verbose} prints the whole record}
 \begin{flags}
 \item \fl{--point NAME} only the run of this point within the target
 \item \fl{--json}, \fl{--csv}, \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}

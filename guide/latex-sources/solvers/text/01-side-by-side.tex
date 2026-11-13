@@ -109,15 +109,17 @@ Anything missing, inconsistent or not a number is \code{failed}.
 \code{xfoil} & \code{CL}, \code{CD}, \code{CDp}, \code{CM} & as printed;
   unit chord, moment about the quarter chord \\
 \code{qprop} & \code{J}, \code{CT}, \code{CP}, \code{EFFICIENCY},
-  \code{T}, \code{Q}, \code{P}, \code{CT_QPROP}, \code{CP_QPROP} & two
-  normalisations; see Part 6 \\
+  \code{EFFICIENCY_OVERALL}, \code{T}, \code{Q}, \code{P}, \code{CT_QPROP},
+  \code{CP_QPROP} & two normalisations; \code{EFFICIENCY} as QPROP prints it;
+  see Part 6 \\
 \bottomrule
 \end{tabularx}}
 \vspace{2mm}
-\begin{cfdbpitfall}[The names are the solver's]
-\code{CL} of one solver and \code{Cl} of another are the same quantity under
-two names, and a pitching moment may differ in sign. Check this table before
-putting two solvers on one plot.
+\begin{cfdbpitfall}[Compare the neutral three]
+Every table carries \code{CL}, \code{CD} and \code{CM} first, filled from the
+solver's own columns (\code{NA} where it has none, as QPROP and the moment of
+\code{pyfr}); the solver's own names follow. A pitching moment may differ in
+sign. Check this table before putting two solvers on one plot.
 \end{cfdbpitfall}
 \end{frame}
 

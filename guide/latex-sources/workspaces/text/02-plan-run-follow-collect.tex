@@ -15,7 +15,8 @@ cfd-matrix plan polar
         optional.
   \item Plan reads the matrix and every file it names, resolves the air of
         each row, and asks the solver's adapter to check the inputs.
-  \item It lists each point with the files its run would write.
+  \item It lists each point on one line and ends with the receipt and the
+        next command; \code{--verbose} adds the files each run would write.
   \item It \textbf{launches nothing} and creates no point folder.
   \item It saves the plan receipt, \code{post/polar/plan.json}: the matrix
         and every input, as planned.
@@ -66,8 +67,9 @@ cfd-matrix run polar
         status, start and finish, verdict.
 \end{itemize}
 \begin{cfdblimit}[One solver process at a time]
-On one machine the library solvers run their points one after another, and a
-run is refused when it would leave the machine too little free memory.
+The library solvers run one point at a time. A run is refused, before it
+records anything, when the solver is missing, the machine is held or memory
+is short.
 \end{cfdblimit}
 \end{frame}
 
@@ -79,8 +81,9 @@ run is refused when it would leave the machine too little free memory.
 \midrule
 \code{run polar} & it refuses the run: finished evidence is not replaced by
   accident \\
-\code{run polar --resume} & it is skipped, and the points not yet recorded
-  run. A matrix that grew a row runs only the new row \\
+\code{run polar --resume} & it is skipped, a failed one with the
+  \code{--force-rerun} that redoes it, and the points not yet recorded run.
+  A matrix that grew a row runs only the new row \\
 \code{run polar --force-rerun POINT} & that point is archived, then run
   again. Repeat the option for several points \\
 \code{run polar --force-rerun-all} & every recorded point of the matrix is
@@ -150,8 +153,10 @@ run is refused when it would leave the machine too little free memory.
 \end{column}
 \end{columns}
 \begin{cfdbpitfall}[Completed is not converged]
-A completed point may have failed. Read the verdict, which every table and
-every \code{status --points} row carries, before using a number.
+A completed point may have failed: the console shows it as
+\code{FAILED_EXECUTION} or another \code{FAILED_} word, the records and tables
+as \code{COMPLETED} with the verdict \code{failed}. Read the verdict, which
+every table and every \code{status --points} row carries, before using a number.
 \end{cfdbpitfall}
 \end{frame}
 

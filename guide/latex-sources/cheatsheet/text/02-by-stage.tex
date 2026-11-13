@@ -15,7 +15,7 @@
 \stagepage{1}{Create the workspace and write the inputs}{One folder holds the campaign. \texttt{cfd-workspace init} makes the tree and binds it to one solver; you then write the matrix and the files it names, all under \texttt{inputs/}.}
 \begin{multicols}{3}
 \hd{Command}
-\begin{cmdblock}{cfd-workspace init}{[root]}{Creates \file{init.toml}, the input folders, \file{sims/}, \file{post/} and \file{archive/}. Refuses a folder that already is a workspace.}
+\begin{cmdblock}{cfd-workspace init}{[root]}{Creates \file{init.toml}, the input folders, \file{inputs/INPUTS.md}, \file{sims/}, \file{post/} and \file{archive/}. Refuses a folder that already is a workspace.}
 \opt{--solver NAME}{required: \texttt{su2}, \texttt{openfoam}, \texttt{pyfr}, \texttt{xfoil}, \texttt{qprop}, \texttt{mock}, \texttt{flightstream}}
 \opt{--workspace DIR}{the same folder as \texttt{[root]}}
 \end{cmdblock}
@@ -38,6 +38,7 @@
 
 \hd{Files}
 \wf{init.toml}{the solver of the workspace; never edited}
+\wf{inputs/INPUTS.md}{what each input file of the solver holds}
 \wf{inputs/.gitignore}{keeps this machine's solver paths out of a repository}
 \rd{inputs/}{everything below is yours to write}
 
@@ -78,13 +79,13 @@ su2 & \texttt{.su2}, \texttt{.cgns} & \texttt{iterations}, \texttt{SOLVER}, the 
 openfoam & 2D gmsh \texttt{.msh} & \texttt{application}, \texttt{turbulence}, \texttt{iterations}\\
 pyfr & 2D gmsh \texttt{.msh} & \texttt{order}, \texttt{tend}, \texttt{window\_start}\\
 xfoil & coordinate file, or none & \texttt{airfoil} or \texttt{airfoil\_file}\\
-qprop & blade \texttt{.obj} & \texttt{blade}, \texttt{n\_blades}\\
+qprop & blade \texttt{.obj} & \texttt{n\_blades}; the blade is \texttt{GEOMETRY}\\
 mock & none & \texttt{[mock]} \texttt{outcome}, \texttt{iterations}\\
 \end{tabular}\par\vspace{2pt}
 The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_origin} where the solver takes them from a file; the post file reads \texttt{history = true}. Guide 3 has one worked setup per solver.
 
 \hd{Common mistakes}
-\err{The solver name is written in capitals.}{The names are lower case: \texttt{--solver su2}.}
+\err{The solver name is not one of the listed names.}{The refusal lists them; capitals are accepted: \texttt{--solver SU2} is \texttt{su2}.}
 \err{The columns are separated by commas or tabs.}{Separate them with \texttt{|}.}
 \err{A \texttt{SET} cell names a file that is not there.}{\texttt{001} and \texttt{s001} both mean \file{inputs/setups/s001.toml}.}
 \err{The mesh is somewhere else on the disk.}{Put it in \file{inputs/mesh/} and write its file name in \texttt{GEOMETRY}.}
@@ -145,7 +146,7 @@ A value the row and a file both state must agree.
 \begin{multicols}{3}
 \hd{Command}
 \begin{cmdblock}{cfd-matrix run}{<matrix>}{Runs every active point of the planned matrix. A point already recorded refuses the run unless one of the first three options is given.}
-\opt{--resume}{skip the points recorded COMPLETED or SUBMITTED, run the rest}
+\opt{--resume}{skip the points recorded COMPLETED or SUBMITTED, run the rest; a failed one names its \texttt{--force-rerun}}
 \opt{--force-rerun POINT}{archive that point, then run it again; repeatable}
 \opt{--force-rerun-all}{archive and redo every recorded point of the matrix}
 \opt{--sims POL [POL ...]}{only these simulations}
@@ -175,20 +176,20 @@ A value the row and a file both state must agree.
 \wf{archive/<stamp>/}{on a rerun: the earlier folder and records}
 
 \hd{Where the solver is}
-Either the setup file's \texttt{[solver]} table (\texttt{executable}, \texttt{launcher}; \texttt{foam\_bashrc} for OpenFOAM), or a \texttt{SOLVER\_BUILD} cell with the two executables files above. A cluster job takes its build from the HPC profile's \texttt{[builds]} table.
+Either the setup file's \texttt{[solver]} table (\texttt{executable}, \texttt{launcher}; \texttt{foam\_bashrc} for OpenFOAM), or a \texttt{SOLVER\_BUILD} cell with the two executables files above. A solver that is not found stops \texttt{run --local} before anything is recorded. A cluster job takes its build from the HPC profile's \texttt{[builds]} table.
 
 \columnbreak
 \hd{On this machine or on a cluster}
 Without a profile in \file{inputs/hpc/}, points run here, one solver process at a time. With a profile, each point is staged in its folder and submitted as one job; it is recorded SUBMITTED until \texttt{collect} reads it (stage 5).
 
 \hd{Status of a point}
-PLANNED, SUBMITTED, RUNNING, COMPLETED. A completed point carries a verdict: \texttt{converged}, \texttt{iteration\_limit} or \texttt{failed}.
+PLANNED, SUBMITTED, RUNNING, COMPLETED. A completed point carries a verdict: \texttt{converged}, \texttt{iteration\_limit} or \texttt{failed}; a failed one reads \texttt{FAILED\_EXECUTION} or another \texttt{FAILED\_} word on the console.
 
 \hd{Common mistakes}
 \err{An input was edited after the plan.}{Plan again, then run.}
 \err{The matrix grew a row and the run is refused because the older points are recorded.}{\texttt{--resume} runs only what is not recorded.}
 \err{A point must be redone after a change of setup.}{Plan again, then \texttt{--force-rerun POINT}; the earlier result goes to \file{archive/<stamp>/}.}
-\err{The solver is not found, so the points end as failed.}{Declare it (see ``Where the solver is''), then redo those points with \texttt{--force-rerun}.}
+\err{The solver is not found.}{The run is refused and nothing is recorded: declare it (see ``Where the solver is''), then run again.}
 \err{A rerun is asked while a job of that point is still in the queue.}{Cancel the job in the scheduler first.}
 \end{multicols}
 \foot
@@ -288,7 +289,7 @@ PLANNED, SUBMITTED, RUNNING, COMPLETED. A completed point carries a verdict: \te
 \wf{post/<matrix>/post.log}{the same, as text}
 
 \hd{The columns of a table}
-\texttt{POL}, \texttt{point}; the flight condition and air state (\texttt{ALPHA}, \texttt{BETA}, \texttt{MACH}, \texttt{RE} in millions, \texttt{VINF}, \texttt{RHO}, \texttt{TEMP}, \texttt{MU}, ...); the references (\texttt{SREF}, \texttt{CREF}); \texttt{status}, \texttt{classification} (the verdict), \texttt{iterations}, \texttt{residual}, \texttt{wall\_time\_s}, \texttt{solver\_version}; then every coefficient the solver reported, under the solver's own names. A missing value is \texttt{NA}.
+\texttt{POL}, \texttt{point}; the flight condition and air state (\texttt{ALPHA}, \texttt{BETA}, \texttt{MACH}, \texttt{RE} in millions, \texttt{VINF}, \texttt{RHO}, \texttt{TEMP}, \texttt{MU}, ...); the references (\texttt{SREF}, \texttt{CREF}); \texttt{status}, \texttt{classification} (the verdict), \texttt{iterations}, \texttt{residual}, \texttt{wall\_time\_s}, \texttt{solver\_version}; then \texttt{CL}, \texttt{CD}, \texttt{CM}, the same on every solver, and every coefficient the solver reported under its own names. A missing value is \texttt{NA}.
 
 \columnbreak
 \hd{Exit codes}
@@ -308,7 +309,7 @@ PLANNED, SUBMITTED, RUNNING, COMPLETED. A completed point carries a verdict: \te
 \hd{Common mistakes}
 \err{The table is edited by hand.}{It is rebuilt by every collect. Correct the input or the record instead.}
 \err{A cluster point stays outstanding.}{Its output files are not in the point folder yet: the job is running, or its output went elsewhere. Point the scheduler's output at the point folder.}
-\err{Two solvers are compared by column name.}{Coefficient names are the solver's own (\texttt{CL}, \texttt{Cl}); guide 3 has the table.}
+\err{Two solvers are compared by their own coefficient names.}{Compare \texttt{CL}, \texttt{CD}, \texttt{CM}; the columns after them are the solver's own (\texttt{Cl}); guide 3 has the table.}
 \err{A converged number is taken as accurate.}{The verdict is about the run, not about the mesh or the model.}
 \end{multicols}
 \foot

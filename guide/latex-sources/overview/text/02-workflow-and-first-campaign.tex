@@ -112,8 +112,8 @@ and not by a job that waited in a queue.\end{takeaway}
   \item \code{runs.json} holds one record per point: its inputs and their
         hashes, its status, its times and the verdict on its convergence.
   \item A point that is already recorded \textbf{refuses} a second run.
-        \code{--resume} runs only what is not recorded yet;
-        \code{--force-rerun} redoes a point you name.
+        \code{--resume} runs only what is not recorded yet, and says how to
+        redo a failed point; \code{--force-rerun} redoes a point you name.
   \item Before a record or a result is replaced, the old one moves to
         \code{archive/<stamp>/}.
   \item The commands that correct records or manage storage only
@@ -212,7 +212,8 @@ file and run a second row: you have seen a failure before it matters.\end{takeaw
         setup per solver.
   \item Say where the solver is on this machine: in the setup's
         \code{[solver]} table, or in \code{inputs/executables.toml} with the
-        \code{SOLVER_BUILD} column.
+        \code{SOLVER_BUILD} column. A run refuses before it records anything
+        when the solver is missing.
   \item Plan, run, follow, collect: the same commands as on the mock.
 \end{enumerate}
 \end{frame}

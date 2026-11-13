@@ -65,8 +65,11 @@ cfd-workspace init campaign --solver openfoam
 \end{lstlisting}
 \begin{itemize}
   \item Creates the folder if needed, \code{init.toml}, the input folders,
-        \code{sims/}, \code{post/} and \code{archive/}.
-  \item \code{--solver} is required. The names are lower case: \code{su2},
+        \code{inputs/INPUTS.md} (what each input file holds),
+        \code{sims/}, \code{post/} and \code{archive/}, and ends with the next
+        step.
+  \item \code{--solver} is required; a name in capitals is read as lower
+        case. The names are \code{su2},
         \code{openfoam}, \code{pyfr}, \code{xfoil}, \code{qprop},
         \code{mock}, \code{flightstream}.
   \item A folder that already is a workspace is refused: a workspace keeps
