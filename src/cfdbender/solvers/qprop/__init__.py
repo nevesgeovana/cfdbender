@@ -211,7 +211,7 @@ def _stage(
     fits = section_fits(point, folder, settings, planned, opts, check_ram)
     add = beta_offset(blade, op)
     (folder / "sections.json").write_text(
-        record(blade, planned, fits, settings.blades, add, rpm), encoding="ascii"
+        record(blade, planned, fits, settings.blades, add, rpm), encoding="ascii", newline="\n"
     )
     stations = [
         Station(p.spec.radius, p.spec.chord, p.spec.beta, e["fit"], p.reynolds)  # type: ignore[arg-type]
@@ -227,8 +227,11 @@ def _stage(
             re_exponent=settings.re_exponent,
         ),
         encoding="ascii",
+        newline="\n",
     )
-    (folder / "qcon.def").write_text(render_qcon(op.rho, op.mu, op.a), encoding="ascii")
+    (folder / "qcon.def").write_text(
+        render_qcon(op.rho, op.mu, op.a), encoding="ascii", newline="\n"
+    )
     return folder, opts, op, rpm
 
 
