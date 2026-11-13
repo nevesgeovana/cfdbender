@@ -1,0 +1,91 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% workspaces/main.tex
+%
+% Guide 2 of the cfdbender guides: the workspace tree, its input files, and
+% every stage of a campaign (plan, run, follow, collect and post), on a
+% workstation and on an HPC cluster, then keeping and cleaning. Built by
+% ../build_guides.py with this folder and ../shared/ as include directories.
+%
+% No em dashes and no en dashes. No underscores in frame or section titles
+% outside \code: beamer writes titles to .nav and .toc. A brace group right
+% after a frame title is read as the subtitle and vanishes: a frame body that
+% starts with a group starts with \relax.
+
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\input{preamble-slides.tex}
+\input{hooks-slides.tex}
+\cfdbinput{boxes}
+\cfdbinput{hooks-contract}
+
+\usepackage[nohyphen]{underscore}
+
+\input{info.tex}
+\guidepdftitle{2}{Workspaces}
+
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{R}{>{\RaggedRight\arraybackslash}X}
+
+\begin{document}
+
+\guidetitleframe{2}{Workspaces}{Workspaces}
+  {One tree, every stage of a campaign}
+  {Sources: the package pages ``Workspace layout'', ``Matrix columns'',
+   ``Command line'' and ``Workspace files'' [1, 2, 3, 4].}
+
+\begin{frame}{Who reads what}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{This guide}
+\begin{itemize}\small
+  \item Part 1: the tree, and who writes what.
+  \item Part 2: the inputs you write.
+  \item Parts 3 and 4: plan, then run.
+  \item Parts 5 and 6: follow a run, collect its results.
+  \item Part 7: a workstation and a cluster.
+  \item Part 8: keeping, correcting and cleaning.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{The other guides}
+\begin{itemize}\small
+  \item 1: the overview. Read it first.
+  \item 3: solvers. The keys of each setup file, the mesh each solver reads
+        and what its results mean.
+  \item 4: the cheatsheet. Every command and option on one page, then one
+        page per stage.
+\end{itemize}
+\end{block}
+This guide names no solver except in a table: everything in it holds for all
+six.
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Contents}
+\begin{multicols}{2}
+\tableofcontents
+\end{multicols}
+\end{frame}
+
+\input{text/01-tree-and-inputs.tex}
+\input{text/02-plan-run-follow-collect.tex}
+\input{text/03-cluster-and-keeping.tex}
+
+\begin{frame}{References}
+\begin{reflist}
+  \bibitem{g2r01} \docref{workspace-layout}{Workspace layout}
+  \bibitem{g2r02} \docref{matrix-columns}{Matrix columns}
+  \bibitem{g2r03} \docref{cli}{Command line}
+  \bibitem{g2r04} \docref{workspace-files}{Workspace files}
+  \bibitem{g2r05} International Organization for Standardization, \emph{ISO
+        2533:1975, Standard Atmosphere}, ISO, Geneva, 1975.
+  \bibitem{g2r06} F. M. White, \emph{Viscous Fluid Flow}, 3rd ed.,
+        McGraw-Hill, New York, 2006. Sutherland's law for the viscosity of
+        air.
+\end{reflist}
+\end{frame}
+
+\end{document}

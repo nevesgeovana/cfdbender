@@ -1,0 +1,24 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% shared/hooks-contract.tex
+%
+% Refuses to build when hooks-slides.tex has not defined every hook.
+
+\makeatletter
+\def\cfdb@hookcmds{cfdbbodysize,cfdbcodesize,cfdbtablesize,cfdbfigscale,cfdbboxopts}
+\def\cfdb@hookenvs{cfdbpitfall,cfdblist}
+
+\@for\cfdb@h:=\cfdb@hookcmds\do{%
+  \@ifundefined{\cfdb@h}{%
+    \PackageError{cfdbguide}%
+      {Deck hook \cfdb@h\space is not defined}%
+      {Input hooks-slides.tex before
+       shared/hooks-contract.tex.}}{}}
+
+\@for\cfdb@h:=\cfdb@hookenvs\do{%
+  \@ifundefined{\cfdb@h}{%
+    \PackageError{cfdbguide}%
+      {Deck hook environment \cfdb@h\space is not defined}%
+      {Input hooks-slides.tex before
+       shared/hooks-contract.tex.}}{}}
+\makeatother

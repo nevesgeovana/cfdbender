@@ -1,0 +1,195 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% workspaces/text/03-cluster-and-keeping.tex
+%
+% Parts 7 and 8 of guide 2: a workstation and a cluster; keeping, correcting
+% and cleaning.
+
+\section{A workstation and a cluster}
+
+\begin{frame}{Two machines, two jobs}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{The workstation}
+\begin{itemize}\small
+  \item Write the inputs and plan.
+  \item Run one point, or a cheap solver, and look at it.
+  \item Collect, read the tables, plot.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{The cluster}
+\begin{itemize}\small
+  \item Run the long matrix, one scheduler job per point.
+  \item Keep the heavy solver output where it was written.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{itemize}
+  \item The workspace is the same tree on both. What differs is one file,
+        the \textbf{HPC profile}, that says how this site submits a job.
+  \item A workspace with a profile submits; \code{--local} keeps the work on
+        this machine all the same.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{The HPC profile}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/hpc/h001.toml
+application_id = "SU2"
+max_walltime = "96:00:00"
+[descriptor]
+format = "yaml"
+name = "submit.yaml"
+[descriptor.fields]
+job_name = "{job_name}"
+walltime = "{walltime}"
+ncpus = "{ncpus}"
+version = "{solver_version_alias}"
+working_directory = "{workdir}"
+config_file = "{config_path}"
+[submit]
+command = ["submit-tool", "{descriptor_path}"]
+[builds]
+"8.3.0" = "8.3.0"
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item The profile describes a job file and the command that submits it.
+        \code{submit-tool} stands for your site's own.
+  \item \code{\{ncpus\}} and \code{\{walltime\}} come from the row's
+        \code{NCPUS} and \code{WALLTIME}.
+  \item \code{[builds]} maps the row's \code{SOLVER_BUILD} to the name the
+        site gives that version.
+  \item \code{\{config_path\}} is the file the solver reads in the point
+        folder.
+  \item With several profiles, \code{--hpc NAME} picks one.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{A cluster run, step by step}
+\begin{enumerate}
+  \item \code{cfd-matrix plan polar} prints each point, its job file and the
+        submit command. Nothing is written but the receipt.
+  \item \code{cfd-matrix run polar} stages every file the solver reads into
+        the point folder, then submits one job per point. The points are
+        recorded \code{SUBMITTED}.
+  \item The job runs in its point folder and needs nothing else from the
+        workspace.
+  \item \code{cfd-matrix collect polar} reads the points whose output files
+        exist and leaves the others outstanding. \code{--watch} repeats the
+        sweep until none is outstanding.
+\end{enumerate}
+\begin{cfdbpitfall}[Send the job's output to the point folder]
+Point the scheduler's output files at \code{\{stdout_log\}} and
+\code{\{stderr_log\}}: several solvers print their results there, and
+collect reads them from the point folder.
+\end{cfdbpitfall}
+\end{frame}
+
+\begin{frame}[fragile]{Bringing results home: sync}
+\begin{lstlisting}
+cfd-matrix sync runs
+cfd-matrix sync post --apply
+cfd-matrix sync all --apply
+\end{lstlisting}
+\begin{itemize}
+  \item \code{inputs/sync-workspaces.toml} names the other workspaces;
+        \code{--from NAME} takes one of them.
+  \item Each level adds to the one before: \code{runs}, then \code{post},
+        then \code{all}.
+  \item Sync \textbf{previews} until \code{--apply}.
+  \item On a conflict it keeps this workspace's record and file, unless
+        \code{--prefer-other} (records) or \code{--overwrite} (files, the
+        local copy archived first) says otherwise.
+\end{itemize}
+\begin{takeaway}Bring the records and the tables to the workstation. Leave
+the heavy files on the cluster until you need one.\end{takeaway}
+\end{frame}
+
+\section{Keeping, correcting, cleaning}
+
+\begin{frame}{Correcting the records}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.4\linewidth}R@{}}
+\toprule
+\textbf{Command} & \textbf{Does} \\
+\midrule
+\code{cfd-matrix mark-failed --sims POL} & records your verdict that points
+  failed, whatever the solver reported \\
+\code{cfd-matrix mark-converged --sims POL --reason TEXT} & records your
+  verdict that completed points converged; the reason is required \\
+\code{cfd-matrix restore KIND} & brings \code{runs}, \code{storage},
+  \code{products} or \code{plan} back from \code{archive/<stamp>/} \\
+\code{cfd-matrix rebuild} & writes records for simulation folders that have
+  none \\
+\code{cfd-workspace archive SIM_ID} & moves one simulation's folder and
+  records to \code{archive/<stamp>/} \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item The four \code{cfd-matrix} commands preview until \code{--apply}.
+  \item \code{cfd-workspace archive} acts at once, without a preview.
+  \item Your verdicts are kept in \code{marks.json}, apart from what the
+        solver reported.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Space on disk}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.4\linewidth}R@{}}
+\toprule
+\textbf{Command} & \textbf{Does} \\
+\midrule
+\code{cfd-matrix space-in-use} & sizes by folder, by simulation and by file
+  extension \\
+\code{cfd-matrix free-space RECIPE} & deletes the files that
+  \code{inputs/management/<RECIPE>.toml} names, except those a record needs \\
+\code{cfd-matrix delete-sims --sims POL} & deletes simulation folders and
+  retires their records \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{itemize}\small
+  \item \code{free-space} and \code{delete-sims} preview until
+        \code{--apply}. Read the preview: these are the only commands that
+        delete.
+  \item Every storage command is recorded in \code{storage_management.json};
+        \code{cfd-matrix log --storage} lists them.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Version control}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{Worth committing}
+\begin{itemize}\small
+  \item \code{init.toml}
+  \item \code{inputs/}: small text, and the whole definition of the study
+  \item \code{runs.json} and \code{post/}, when the results are part of the
+        record you keep
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{Usually left out}
+\begin{itemize}\small
+  \item \code{sims/} and \code{archive/}: solver output
+  \item large meshes: keep them where your site keeps large files
+  \item \code{inputs/executables.local.toml}: one machine's paths, ignored
+        by the \code{.gitignore} that \code{init} writes
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\begin{takeaway}The inputs and the records are enough to say what was run.
+The solver output is what it cost to run it.\end{takeaway}
+\end{frame}

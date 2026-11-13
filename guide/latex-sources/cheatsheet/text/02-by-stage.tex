@@ -1,0 +1,435 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% cheatsheet/text/02-by-stage.tex
+%
+% Pages 2 to 8 of the cheatsheet (guide 4): the seven stages of the workflow,
+% one page each: what the stage is for, its commands with the options used
+% most, the files it reads (R) and writes (W), and its common mistakes with
+% their fixes. A tier-1 test
+% (tests/tier1_offline/test_guide_cheatsheet_parsers.py) refuses a cmdblock
+% that names a command no parser has, an \opt its command does not take, and
+% a command of either parser that no page here carries.
+\fontsize{8}{9.7}\selectfont\raggedright
+
+% ============================================================ stage 1 ======
+\stagepage{1}{Create the workspace and write the inputs}{One folder holds the campaign. \texttt{cfd-workspace init} makes the tree and binds it to one solver; you then write the matrix and the files it names, all under \texttt{inputs/}.}
+\begin{multicols}{3}
+\hd{Command}
+\begin{cmdblock}{cfd-workspace init}{[root]}{Creates \file{init.toml}, the input folders, \file{sims/}, \file{post/} and \file{archive/}. Refuses a folder that already is a workspace.}
+\opt{--solver NAME}{required: \texttt{su2}, \texttt{openfoam}, \texttt{pyfr}, \texttt{xfoil}, \texttt{qprop}, \texttt{mock}, \texttt{flightstream}}
+\opt{--workspace DIR}{the same folder as \texttt{[root]}}
+\end{cmdblock}
+
+\hd{The tree}
+\texttt{campaign/}\\
+\texttt{\ \ init.toml}\quad the solver\\
+\texttt{\ \ inputs/}\quad yours\\
+\texttt{\ \ \ \ matrices/<name>.fs}\\
+\texttt{\ \ \ \ setups/s<id>.toml}\\
+\texttt{\ \ \ \ references/r<id>.toml}\\
+\texttt{\ \ \ \ pproc/p<id>.toml}\\
+\texttt{\ \ \ \ mesh/}\\
+\texttt{\ \ \ \ hpc/}\quad cluster profiles\\
+\texttt{\ \ \ \ executables.toml}\\
+\texttt{\ \ sims/}\quad written by run\\
+\texttt{\ \ post/<matrix>/}\quad tables\\
+\texttt{\ \ archive/<stamp>/}\\
+\texttt{\ \ runs.json}\quad the records
+
+\hd{Files}
+\wf{init.toml}{the solver of the workspace; never edited}
+\wf{inputs/.gitignore}{keeps this machine's solver paths out of a repository}
+\rd{inputs/}{everything below is yours to write}
+
+\columnbreak
+\hd{The matrix, \texttt{inputs/matrices/<name>.fs}}
+Text, columns separated by \texttt{|}. A line starting with \texttt{\#} is a comment; a cell holding \texttt{-} states nothing.\par\vspace{2pt}
+{\ttfamily\fontsize{6.6}{7.8}\selectfont
+POL\ \ | RUN | FLIGHT\_CONDITION\ \ \ \ \ \ | SWEEP\_VALUES | REF | SET | PPROC\\
+1001 | 1\ \ \ | MACH:0.2, ALPHA:sweep | 0,2,4\ \ \ \ \ \ \ \ | 001 | 001 | 001\par}
+\vspace{2pt}
+\textbf{Required:} \texttt{POL}, \texttt{RUN}, \texttt{SET}, \texttt{REF}, \texttt{PPROC}.\\
+\textbf{Optional:} \texttt{FLIGHT\_CONDITION}, \texttt{SWEEP\_VALUES}, \texttt{GEOMETRY}, \texttt{AIRCRAFT}, \texttt{CONFIGURATION}, \texttt{DESCRIPTION}, \texttt{NCPUS}, \texttt{WALLTIME}, \texttt{SOLVER\_BUILD}, \texttt{VAR\_NAMES\_VALUES}, \texttt{HIDDEN}, \texttt{SYMMETRY}, \texttt{SYMMETRY\_LOADS}, \texttt{WORKFLOW}.
+
+\hd{FLIGHT\_CONDITION keys}
+\texttt{KEY:value} pairs, comma separated; one key may say \texttt{sweep}.\par\vspace{1pt}
+\begin{tabular}{@{}>{\ttfamily}p{15mm}p{13mm}p{52mm}@{}}
+MACH & - & velocity (state one of MACH, TASmps)\\
+TASmps & m/s & velocity\\
+REmi & millions & density, from the Reynolds number\\
+ALTFT & ft & pressure and temperature; absent: sea level\\
+dISA & K & temperature offset\\
+RHOkgm3 & kg/m3 & pins the density\\
+MUPas & Pa s & pins the viscosity\\
+ASMPS & m/s & pins the speed of sound\\
+TK, PPA & K, Pa & pin temperature, pressure\\
+ALPHA, BETA & deg & attitude\\
+\end{tabular}
+
+\hd{VAR\_NAMES\_VALUES}
+\texttt{iterations: 4000 / solver.threads: 4}\\
+Each key replaces the setup key of the same name for that row.
+
+\columnbreak
+\hd{What each solver needs}
+\begin{tabular}{@{}>{\ttfamily}p{12mm}p{25mm}p{41mm}@{}}
+\textrm{\textbf{Solver}} & \textbf{GEOMETRY} & \textbf{Setup file states}\\
+su2 & \texttt{.su2}, \texttt{.cgns} & \texttt{iterations}, \texttt{SOLVER}, the markers\\
+openfoam & 2D gmsh \texttt{.msh} & \texttt{application}, \texttt{turbulence}, \texttt{iterations}\\
+pyfr & 2D gmsh \texttt{.msh} & \texttt{order}, \texttt{tend}, \texttt{window\_start}\\
+xfoil & coordinate file, or none & \texttt{airfoil} or \texttt{airfoil\_file}\\
+qprop & blade \texttt{.obj} & \texttt{blade}, \texttt{n\_blades}\\
+mock & none & \texttt{[mock]} \texttt{outcome}, \texttt{iterations}\\
+\end{tabular}\par\vspace{2pt}
+The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_origin} where the solver takes them from a file; the post file reads \texttt{history = true}. Guide 3 has one worked setup per solver.
+
+\hd{Common mistakes}
+\err{The solver name is written in capitals.}{The names are lower case: \texttt{--solver su2}.}
+\err{The columns are separated by commas or tabs.}{Separate them with \texttt{|}.}
+\err{A \texttt{SET} cell names a file that is not there.}{\texttt{001} and \texttt{s001} both mean \file{inputs/setups/s001.toml}.}
+\err{The mesh is somewhere else on the disk.}{Put it in \file{inputs/mesh/} and write its file name in \texttt{GEOMETRY}.}
+\err{Both \texttt{MACH} and \texttt{TASmps} are stated, or \texttt{REmi} beside \texttt{RHOkgm3}.}{State one of each pair.}
+\end{multicols}
+\foot
+
+% ============================================================ stage 2 ======
+\stagepage{2}{Plan}{Plan reads everything a run would read and launches nothing. It lists each point, checks the inputs with the solver's own rules, and saves the receipt that \texttt{run} asks for.}
+\begin{multicols}{3}
+\hd{Command}
+\begin{cmdblock}{cfd-matrix plan}{<matrix>}{Lists each point with the files its run would write, and saves \file{post/<matrix>/plan.json}.}
+\opt{--sims POL [POL ...]}{only these simulations; spaces or commas}
+\opt{--points NAME [NAME ...]}{only these points, \texttt{DP-name} or \texttt{POL/DP-name}}
+\opt{--local}{plan for this machine, not for a submission}
+\opt{--hpc NAME}{the profile \file{inputs/hpc/<NAME>.toml}, when there are several}
+\opt{--verbose}{details too, such as the path of the receipt}
+\opt{--log-level LEVEL}{\texttt{quiet}, \texttt{normal} or \texttt{verbose}}
+\opt{--workspace DIR}{another folder than the current one}
+\end{cmdblock}
+
+\hd{Examples}
+\ex{cfd-matrix plan polar}\\
+\ex{cfd-matrix plan polar --sims 1001,1002}\\
+\ex{cfd-matrix plan polar --local --verbose}
+
+\columnbreak
+\hd{Files}
+\rd{init.toml}{which solver checks the inputs}
+\rd{inputs/matrices/<matrix>.fs}{the rows with \texttt{RUN} 1}
+\rd{inputs/setups/s<id>.toml}{named by \texttt{SET}}
+\rd{inputs/references/r<id>.toml}{named by \texttt{REF}}
+\rd{inputs/pproc/p<id>.toml}{named by \texttt{PPROC}}
+\rd{inputs/mesh/}{the file named by \texttt{GEOMETRY}, hashed}
+\rd{inputs/hpc/}{the profile, when the run will be submitted}
+\wf{post/<matrix>/plan.json}{the receipt: the matrix and every input, as planned}
+
+\hd{What a point is}
+A row is one \textbf{simulation}, named by \texttt{POL}. A row with a sweep has one \textbf{point} per sweep value. The point's name, \texttt{DP-...}, is built from its flight condition, so the same operating point has the same name in every workspace.
+
+\columnbreak
+\hd{Rules}
+Plan creates no point folder and no record.\par
+Plan again after every edit of an input: a run refuses a matrix whose inputs changed since the receipt.\par
+A value the row and a file both state must agree.
+
+\hd{Common mistakes}
+\err{A column name is misspelled.}{The refusal names the closest known column; correct the header.}
+\err{A key is stated in \texttt{VAR\_NAMES\_VALUES} and is also a matrix column.}{State it in its column.}
+\err{The row sweeps a key but \texttt{SWEEP\_VALUES} is empty, or two keys say \texttt{sweep}.}{One sweep key per row, its values in \texttt{SWEEP\_VALUES}.}
+\err{Every row has \texttt{RUN} 0, so there is nothing to plan.}{Set \texttt{RUN} to 1 on the rows to run.}
+\err{The plan passes on this machine and the solver is not installed here.}{Plan checks the inputs, not the installation. See stage 3 for where the solver is declared.}
+\end{multicols}
+\foot
+
+% ============================================================ stage 3 ======
+\stagepage{3}{Run}{Run executes the planned points, on this machine or as cluster jobs, writes one folder per point and records every point in \texttt{runs.json}. Finished evidence is never replaced by accident.}
+\begin{multicols}{3}
+\hd{Command}
+\begin{cmdblock}{cfd-matrix run}{<matrix>}{Runs every active point of the planned matrix. A point already recorded refuses the run unless one of the first three options is given.}
+\opt{--resume}{skip the points recorded COMPLETED or SUBMITTED, run the rest}
+\opt{--force-rerun POINT}{archive that point, then run it again; repeatable}
+\opt{--force-rerun-all}{archive and redo every recorded point of the matrix}
+\opt{--sims POL [POL ...]}{only these simulations}
+\opt{--points NAME [NAME ...]}{only these points}
+\opt{--local}{keep the work on this machine}
+\opt{--no-local}{submit when a profile exists (the default)}
+\opt{--hpc NAME}{the profile to submit with}
+\opt{--verbose}{details too}
+\opt{--log-level LEVEL}{\texttt{quiet}, \texttt{normal} or \texttt{verbose}}
+\opt{--workspace DIR}{another folder than the current one}
+\end{cmdblock}
+
+\hd{Examples}
+\ex{cfd-matrix run polar}\\
+\ex{cfd-matrix run polar --local}\\
+\ex{cfd-matrix run polar --resume}\\
+\ex{cfd-matrix run polar --force-rerun 1001/DP-M200AL+020}
+
+\columnbreak
+\hd{Files}
+\rd{post/<matrix>/plan.json}{the receipt; every input is checked against it}
+\rd{inputs/executables.toml}{the builds a row may name in \texttt{SOLVER\_BUILD}}
+\rd{inputs/executables.local.toml}{this machine's paths for them}
+\wf{sims/sim_<POL>/datapoints/DP-<name>/}{the solver's input deck, a link to the mesh, the solver's output, \file{stdout.log}, \file{stderr.log}}
+\wf{runs.json}{one record per point: inputs and hashes, status, times, verdict}
+\wf{logs/}{the log of the run}
+\wf{archive/<stamp>/}{on a rerun: the earlier folder and records}
+
+\hd{Where the solver is}
+Either the setup file's \texttt{[solver]} table (\texttt{executable}, \texttt{launcher}; \texttt{foam\_bashrc} for OpenFOAM), or a \texttt{SOLVER\_BUILD} cell with the two executables files above. A cluster job takes its build from the HPC profile's \texttt{[builds]} table.
+
+\columnbreak
+\hd{On this machine or on a cluster}
+Without a profile in \file{inputs/hpc/}, points run here, one solver process at a time. With a profile, each point is staged in its folder and submitted as one job; it is recorded SUBMITTED until \texttt{collect} reads it (stage 5).
+
+\hd{Status of a point}
+PLANNED, SUBMITTED, RUNNING, COMPLETED. A completed point carries a verdict: \texttt{converged}, \texttt{iteration\_limit} or \texttt{failed}.
+
+\hd{Common mistakes}
+\err{An input was edited after the plan.}{Plan again, then run.}
+\err{The matrix grew a row and the run is refused because the older points are recorded.}{\texttt{--resume} runs only what is not recorded.}
+\err{A point must be redone after a change of setup.}{Plan again, then \texttt{--force-rerun POINT}; the earlier result goes to \file{archive/<stamp>/}.}
+\err{The solver is not found, so the points end as failed.}{Declare it (see ``Where the solver is''), then redo those points with \texttt{--force-rerun}.}
+\err{A rerun is asked while a job of that point is still in the queue.}{Cancel the job in the scheduler first.}
+\end{multicols}
+\foot
+
+% ============================================================ stage 4 ======
+\stagepage{4}{Follow}{Six commands that only read the records of the workspace. None asks a scheduler or touches a solver, and each prints JSON or CSV on request.}
+\begin{multicols}{3}
+\hd{Commands}
+\begin{cmdblock}{cfd-matrix status}{}{Every recorded simulation per matrix, with the states of its points.}
+\opt{--points}{one row per point, with status and verdict}
+\opt{--failed}{only simulations with a failed point}
+\opt{--status WORD}{only simulations with a point in this status or verdict; \texttt{fail*} matches every word it begins}
+\opt{--sims POL [POL ...]}{only these simulations}
+\opt{--matrix NAME}{only this recorded matrix}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix show}{<target>}{One simulation (\texttt{POL}), point (\texttt{POL/DP-name}) or run record in full.}
+\opt{--point NAME}{only the run of this point within the target}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix history}{<target>}{The current and earlier records of a simulation or point: reruns, archives, deletions. It gives the run ids that \texttt{diff} takes.}
+\end{cmdblock}
+
+\columnbreak
+\begin{cmdblock}{cfd-matrix log}{}{The recorded events, in time order.}
+\opt{--problems}{only problems and failed outcomes}
+\opt{--since TIME}{since an ISO time, or \texttt{2h}, \texttt{7d}}
+\opt{--open}{runs started and not finished in the records}
+\opt{--sims POL [POL ...]}{only these simulations}
+\opt{--run ID}{only events naming this run}
+\opt{--stage NAME}{only this stage}
+\opt{--post MATRIX}{the saved post log of a matrix}
+\opt{--storage}{the recorded storage commands}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix trace}{<product>}{From a product file under \file{post/<matrix>/} back to the runs, inputs and hashes that made it.}
+\opt{--run ID}{trace this run instead of looking the product up}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix diff}{<run_a> <run_b>}{Two run records, field by field. Exit 1 when they differ.}
+\end{cmdblock}
+
+\hd{Shared by all six}
+\opt{--json}{the rows as one JSON document}
+\opt{--csv}{the rows as CSV}
+\opt{--runs NAME}{another run manifest than \file{runs.json}}
+\opt{--workspace DIR}{another folder than the current one}
+
+\columnbreak
+\hd{Files}
+\rd{runs.json}{the records, current and earlier}
+\rd{marks.json}{the verdicts you recorded (stage 6)}
+\rd{storage_management.json}{the storage commands (\texttt{log --storage})}
+\rd{post/<matrix>/post.log}{\texttt{log --post}}
+
+\hd{Examples}
+\ex{cfd-matrix status --points}\\
+\ex{cfd-matrix status --failed}\\
+\ex{cfd-matrix show 1001/DP-M200AL+020}\\
+\ex{cfd-matrix history 1001}\\
+\ex{cfd-matrix log --problems --since 2h}\\
+\ex{cfd-matrix status --points --csv}
+
+\hd{Common mistakes}
+\err{A point reads COMPLETED and its number is used without looking further.}{COMPLETED says the run ended. Read the verdict beside it.}
+\err{A submitted point stays SUBMITTED although its job ended.}{These commands never ask the scheduler. Run \texttt{cfd-matrix collect} (stage 5).}
+\err{The command is typed outside the workspace and shows nothing.}{Change to the workspace folder, or add \texttt{--workspace DIR}.}
+\end{multicols}
+\foot
+
+% ============================================================ stage 5 ======
+\stagepage{5}{Collect and post}{Collect reads the results of every point, picks up finished cluster jobs and rebuilds the tables of the matrix. Post rebuilds the same tables from what is already saved.}
+\begin{multicols}{3}
+\hd{Commands}
+\begin{cmdblock}{cfd-matrix collect}{[matrix]}{Reads the saved results, updates the records, rebuilds the products. Without a name: every recorded matrix.}
+\opt{--watch}{repeat until no submitted point is outstanding}
+\opt{--watch-interval S}{seconds between sweeps (default 60)}
+\opt{--rounds N}{stop the watch after N sweeps}
+\opt{--interval S}{seconds between the two looks that decide an output file is settled}
+\opt{--archive}{keep a copy of each replaced file}
+\opt{--sims POL [POL ...]}{only these simulations}
+\opt{--points NAME [NAME ...]}{only these points}
+\opt{--hpc NAME}{the profile, when there are several}
+\opt{--local}{this machine only}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix post}{[matrix]}{Rebuilds every product from \file{runs.json} and the saved outputs, running nothing.}
+\opt{--archive}{keep a copy of each replaced product}
+\opt{--sims POL [POL ...]}{only these simulations}
+\opt{--points NAME [NAME ...]}{only these points}
+\end{cmdblock}
+
+\columnbreak
+\hd{Files}
+\rd{runs.json}{which points exist and where}
+\rd{sims/sim_<POL>/datapoints/DP-<name>/}{the solver's output}
+\wf{runs.json}{status and verdict of the points read}
+\wf{post/<matrix>/campaign_summary.json}{every recorded point with its result}
+\wf{post/<matrix>/campaign_sweep.csv}{one row per point}
+\wf{post/<matrix>/polars/P<POL>.csv}{the same columns, one file per simulation}
+\wf{post/<matrix>/products.json}{each product written or skipped, with the reason}
+\wf{post/<matrix>/post.log}{the same, as text}
+
+\hd{The columns of a table}
+\texttt{POL}, \texttt{point}; the flight condition and air state (\texttt{ALPHA}, \texttt{BETA}, \texttt{MACH}, \texttt{RE} in millions, \texttt{VINF}, \texttt{RHO}, \texttt{TEMP}, \texttt{MU}, ...); the references (\texttt{SREF}, \texttt{CREF}); \texttt{status}, \texttt{classification} (the verdict), \texttt{iterations}, \texttt{residual}, \texttt{wall\_time\_s}, \texttt{solver\_version}; then every coefficient the solver reported, under the solver's own names. A missing value is \texttt{NA}.
+
+\columnbreak
+\hd{Exit codes}
+\begin{tabular}{@{}p{6mm}p{76mm}@{}}
+0 & done\\
+1 & done, and at least one point failed\\
+2 & refused; nothing was written\\
+3 & done, and submitted work is still outstanding\\
+\end{tabular}
+
+\hd{Examples}
+\ex{cfd-matrix collect polar}\\
+\ex{cfd-matrix collect polar --watch}\\
+\ex{cfd-matrix collect}\\
+\ex{cfd-matrix post polar --archive}
+
+\hd{Common mistakes}
+\err{The table is edited by hand.}{It is rebuilt by every collect. Correct the input or the record instead.}
+\err{A cluster point stays outstanding.}{Its output files are not in the point folder yet: the job is running, or its output went elsewhere. Point the scheduler's output at the point folder.}
+\err{Two solvers are compared by column name.}{Coefficient names are the solver's own (\texttt{CL}, \texttt{Cl}); guide 3 has the table.}
+\err{A converged number is taken as accurate.}{The verdict is about the run, not about the mesh or the model.}
+\end{multicols}
+\foot
+
+% ============================================================ stage 6 ======
+\stagepage{6}{Correct the records}{For the day a record does not say what happened: overrule a verdict with a reason, bring an archived file back, rebuild records from the folders, or retire a simulation.}
+\begin{multicols}{3}
+\hd{Commands}
+\begin{cmdblock}{cfd-matrix mark-failed}{}{Records your verdict that points failed, whatever they ended in.}
+\opt{--sims POL [POL ...]}{required: the simulations}
+\opt{--points NAME [NAME ...]}{only these points of them}
+\opt{--reason TEXT}{why, recorded as given}
+\opt{--apply}{change the records}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix mark-converged}{}{Records your verdict that completed points converged.}
+\opt{--sims POL [POL ...]}{required: the simulations}
+\opt{--points NAME [NAME ...]}{only these points of them}
+\opt{--reason TEXT}{required: why}
+\opt{--apply}{change the records}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix restore}{<kind>}{Brings a file back from \file{archive/<stamp>/}. Kind: \texttt{runs}, \texttt{storage}, \texttt{products} or \texttt{plan}.}
+\opt{--stamp STAMP}{which archive (default: the latest)}
+\opt{--matrix NAME}{for \texttt{products} and \texttt{plan}: whose file}
+\opt{--apply}{change files}
+\end{cmdblock}
+
+\columnbreak
+\begin{cmdblock}{cfd-matrix rebuild}{}{Rebuilds run records from the simulation folders on disk.}
+\opt{--sims POL [POL ...]}{these simulations}
+\opt{--all-sims}{every simulation folder, recorded or not}
+\opt{--matrix NAME}{the matrix the simulations ran from}
+\opt{--out NAME}{write to this manifest instead}
+\opt{--apply}{change files}
+\end{cmdblock}
+\begin{cmdblock}{cfd-workspace archive}{[root] <sim_id>}{Moves one recorded simulation's folder into \file{archive/<stamp>/} and records it, so the simulation can run again in a clean folder.}
+\opt{--workspace DIR}{the campaign root}
+\end{cmdblock}
+
+\hd{Preview first}
+The four \texttt{cfd-matrix} commands print what they would do and change nothing until \texttt{--apply}. \texttt{cfd-workspace archive} acts at once.
+
+\hd{Files}
+\rd{runs.json}{the records to correct}
+\rd{archive/<stamp>/}{what \texttt{restore} brings back}
+\wf{marks.json}{your verdicts, kept apart from the solver's}
+\wf{runs.json}{by \texttt{restore runs}, \texttt{rebuild} and \texttt{archive}}
+\wf{archive/<stamp>/}{the copy made before a file is replaced}
+
+\columnbreak
+\hd{Examples}
+\ex{cfd-matrix mark-failed --sims 1001 --points DP-M200AL+040 --reason "separated, not settled"}\\[2pt]
+\ex{cfd-matrix mark-converged --sims 1002 --reason "forces flat over the last 500 iterations" --apply}\\[2pt]
+\ex{cfd-matrix restore runs}\\[2pt]
+\ex{cfd-matrix rebuild --all-sims}
+
+\hd{When to use which}
+\textbf{The solver says converged and you disagree:} \texttt{mark-failed}.\par
+\textbf{The solver stopped at the limit and you judge it settled:} \texttt{mark-converged}, with the reason.\par
+\textbf{A record file was damaged or a command went too far:} \texttt{restore}.\par
+\textbf{Simulation folders arrived without records:} \texttt{rebuild}.
+
+\hd{Common mistakes}
+\err{The command printed its preview and the records did not change.}{Repeat it with \texttt{--apply}.}
+\err{A mark is used to hide a point that should be run again.}{Redo the point: \texttt{cfd-matrix run <matrix> --force-rerun POINT}.}
+\err{\file{runs.json} is edited by hand.}{Use these commands: each keeps the earlier state in \file{archive/<stamp>/}.}
+\end{multicols}
+\foot
+
+% ============================================================ stage 7 ======
+\stagepage{7}{Manage storage}{See what takes the space, free it by recipe, delete whole simulations, and bring records and results from another workspace. The commands that change files preview until \texttt{--apply}.}
+\begin{multicols}{3}
+\hd{Commands}
+\begin{cmdblock}{cfd-matrix space-in-use}{}{Sizes by folder, by simulation and by file extension.}
+\opt{--top N}{rows per grouping (default 15)}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix free-space}{<recipe>}{Runs the storage recipe \file{inputs/management/<recipe>.toml}: deletes the files it names, except those a record needs.}
+\opt{--list}{every path a step touches, its size and what happens to it}
+\opt{--apply}{delete}
+\end{cmdblock}
+\begin{cmdblock}{cfd-matrix delete-sims}{}{Deletes simulations, their folders and their records.}
+\opt{--sims POL [POL ...]}{required: the simulations}
+\opt{--matrix-products MODE}{\texttt{points-only} or \texttt{regenerate}: what happens to a product that also holds the deleted points}
+\opt{--archive}{keep the replaced products when regenerating}
+\opt{--force}{delete whatever the status; without it a SUBMITTED point refuses}
+\opt{--apply}{delete}
+\end{cmdblock}
+
+\columnbreak
+\begin{cmdblock}{cfd-matrix sync}{<level>}{Brings records and results from the workspaces of \file{inputs/sync-workspaces.toml}. Level: \texttt{runs}, \texttt{post} or \texttt{all}; each adds to the one before.}
+\opt{--from NAME}{one workspace of that file (default: all)}
+\opt{--prefer-other}{on a record conflict, take the other's record}
+\opt{--overwrite}{on a file conflict, archive this copy and take the other's}
+\opt{--include-archives}{also the files under folders named \texttt{archive}}
+\opt{--restore}{with \texttt{--apply}: remind to rebuild the records of folders no record carries}
+\opt{--apply}{change files}
+\end{cmdblock}
+
+\hd{Files}
+\rd{inputs/management/<recipe>.toml}{a storage recipe, written by you}
+\rd{inputs/sync-workspaces.toml}{the other workspaces, written by you}
+\wf{storage_management.json}{the record of every storage command}
+\wf{runs.json}{records retired by \texttt{delete-sims}, brought by \texttt{sync}}
+\wf{sims/}{folders deleted, or brought by \texttt{sync all}}
+\wf{post/}{products brought by \texttt{sync post}}
+
+\columnbreak
+\hd{Examples}
+\ex{cfd-matrix space-in-use --top 5}\\
+\ex{cfd-matrix free-space clean --list}\\
+\ex{cfd-matrix free-space clean --apply}\\
+\ex{cfd-matrix delete-sims --sims 1003}\\
+\ex{cfd-matrix sync runs}\\
+\ex{cfd-matrix sync post --from cluster --apply}
+
+\hd{A workstation and a cluster}
+Run the long matrix in the cluster's workspace. On the workstation, \texttt{sync runs} brings the records, \texttt{sync post} the tables as well, \texttt{sync all} the simulation files too. Leave the heavy files where they were written until you need one.
+
+\hd{Common mistakes}
+\err{\texttt{free-space} is applied without reading its preview.}{Read the preview, with \texttt{--list} for every path. Deleted solver output does not come back.}
+\err{A simulation is deleted from the file manager.}{Use \texttt{delete-sims}: it retires the records as well.}
+\err{A sync conflict is settled by copying files by hand.}{Choose with \texttt{--prefer-other} and \texttt{--overwrite}; the replaced copy is archived.}
+\err{The disk fills up with what reruns archived.}{\texttt{space-in-use} shows \file{archive/}; decide what to keep there.}
+\end{multicols}
+\foot

@@ -1,0 +1,86 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% solvers/main.tex
+%
+% Guide 3 of the cfdbender guides: what each of the six library solvers reads
+% and writes in a workspace, what differs between them, and how to choose.
+% Built by ../build_guides.py with this folder and ../shared/ as include
+% directories.
+%
+% No em dashes and no en dashes. No underscores in frame or section titles
+% outside \code: beamer writes titles to .nav and .toc. A brace group right
+% after a frame title is read as the subtitle and vanishes: a frame body that
+% starts with a group starts with \relax.
+
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\input{preamble-slides.tex}
+\input{hooks-slides.tex}
+\cfdbinput{boxes}
+\cfdbinput{hooks-contract}
+
+\usepackage[nohyphen]{underscore}
+
+\input{info.tex}
+\guidepdftitle{3}{Solvers}
+
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{R}{>{\RaggedRight\arraybackslash}X}
+
+\begin{document}
+
+\guidetitleframe{3}{Solvers}{Solvers}
+  {What each solver reads and writes, and how to choose}
+  {Sources: the package pages of each solver and ``Matrix columns''
+   [1 to 6].}
+
+\begin{frame}{Who reads what}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{This guide}
+\begin{itemize}\small
+  \item Part 1: the six solvers side by side.
+  \item Parts 2 to 6: one part per solver, always in the same order: the
+        mesh, the setup file, the row, what converged means, the result.
+  \item Part 7: how to choose, and what no solver here does.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{Before this guide}
+\begin{itemize}\small
+  \item Guide 1: the idea and the workflow.
+  \item Guide 2: the tree, the matrix and every stage. This guide does not
+        repeat them.
+\end{itemize}
+\end{block}
+Installing a solver is in the package's page of that solver [2 to 6]. Here a
+solver is assumed to be on the machine.
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Contents}
+\begin{multicols}{2}
+\tableofcontents
+\end{multicols}
+\end{frame}
+
+\input{text/01-side-by-side.tex}
+\input{text/02-su2-openfoam-pyfr.tex}
+\input{text/03-xfoil-qprop-choosing.tex}
+
+\begin{frame}{References}
+\begin{reflist}
+  \bibitem{g3r01} \docref{matrix-columns}{Matrix columns}
+  \bibitem{g3r02} \docref{su2-workspaces}{SU2 workspaces}
+  \bibitem{g3r03} \docref{openfoam-workspaces}{OpenFOAM workspaces}
+  \bibitem{g3r04} \docref{pyfr-workspaces}{PyFR workspaces}
+  \bibitem{g3r05} \docref{xfoil-workspaces}{XFOIL workspaces}
+  \bibitem{g3r06} \docref{qprop-workspaces}{QPROP workspaces}
+  \bibitem{g3r07} \docref{workspace-files}{Workspace files}
+  \bibitem{g3r08} \docref{flightstream-workspaces}{FlightStream workspaces}
+\end{reflist}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,45 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% shared/info.tex
+%
+% Identity of the four guides, 1 to 4: the version they are written for, the
+% authorship and licence notice, and the citation. Every guide reads this one
+% file, so no two guides can state different versions or notices.
+
+% ------------------------------------------------------------ the series ---
+% Printed on every cover: "The cfdbender guides, guide N of 4, numbered 1 to
+% 4". The files are named cfdb-guide-NN-<topic>.pdf.
+\newcommand{\guideseries}{The cfdbender guides}
+\newcommand{\guidecount}{4}
+\newcommand{\guiderange}{1 to 4}
+
+% ----------------------------------------------- the version written for ---
+% One statement per guide, printed on its title page. No history of earlier
+% releases: the guides describe this version and nothing else.
+\newcommand{\pkgname}{cfdbender}
+\newcommand{\pkgversion}{0.5.0}
+\newcommand{\guidewritten}{Written for \pkgname{} \pkgversion}
+
+% ----------------------------------------- authorship and the licence ------
+\newcommand{\pkgauthor}{Geovana Neves}
+\newcommand{\pkglicense}{MIT}
+\newcommand{\pkgrepo}{https://github.com/nevesgeovana/cfdbender}
+
+% The package's documentation site. A deck cites one page of it as a
+% numbered reference, by the page's slug (its file name under docs/ without
+% .md) and its title:
+%   \bibitem{key} \docref{workspace-layout}{Workspace layout}
+% A tier-1 test of the repository checks that every slug names a page that
+% exists under docs/.
+\newcommand{\pkgsite}{https://nevesgeovana.github.io/cfdbender}
+\newcommand{\docref}[2]{\pkgauthor, \emph{\pkgname{} documentation}, page
+  ``#2''. \url{\pkgsite/#1/}}
+
+% The sister package that drives FlightStream, and its own guides.
+\newcommand{\pyfsname}{pyflightstream}
+\newcommand{\pyfssite}{https://nevesgeovana.github.io/pyflightstream}
+
+\newcommand{\guidenotice}{Copyright (c) 2026 Geovana Neves. Licensed under
+  CC BY 4.0 (\url{https://creativecommons.org/licenses/by/4.0/}). See
+  LICENSE-AND-AUTHORSHIP.md.}
+\newcommand{\guidefootnotice}{Copyright (c) 2026 Geovana Neves, CC BY 4.0}

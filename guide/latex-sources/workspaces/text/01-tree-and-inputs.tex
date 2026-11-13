@@ -1,0 +1,237 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% workspaces/text/01-tree-and-inputs.tex
+%
+% Parts 1 and 2 of guide 2: the tree and the inputs.
+
+\section{The tree}
+
+\begin{frame}[fragile]{One folder holds the campaign}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\begin{lstlisting}
+campaign/
+  init.toml              the solver of this workspace
+  inputs/                yours: everything a run reads
+    matrices/<name>.fs
+    setups/s<id>.toml
+    references/r<id>.toml
+    pproc/p<id>.toml
+    mesh/
+  sims/                  one folder per simulation
+    sim_<POL>/datapoints/DP-<point name>/
+  post/<matrix>/         plan receipt, tables
+  archive/<stamp>/       earlier evidence
+  runs.json              the record of every point
+\end{lstlisting}
+\end{column}
+\begin{column}{0.4\textwidth}
+\begin{itemize}\small
+  \item The tree is the same for every solver.
+  \item A study moves to another machine by copying or syncing the folder.
+  \item Nothing lives in a database or in a hidden folder of your account.
+\end{itemize}
+\begin{takeaway}If it is not in the folder, it is not part of the
+campaign.\end{takeaway}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Who writes what}
+\relax{\cfdbbodysize
+\begin{tabularx}{\linewidth}{@{}P{0.27\linewidth}P{0.27\linewidth}R@{}}
+\toprule
+\textbf{Where} & \textbf{Written by} & \textbf{Yours to edit?} \\
+\midrule
+\code{init.toml} & \code{cfd-workspace init} & no \\
+\code{inputs/} & you & yes, and only here \\
+\code{sims/} & \code{cfd-matrix run} & no \\
+\code{post/<matrix>/} & \code{plan}, \code{collect}, \code{post} & no:
+  rebuilt each time \\
+\code{runs.json} & \code{run}, \code{collect} & no \\
+\code{marks.json} & \code{mark-failed}, \code{mark-converged} & no \\
+\code{archive/<stamp>/} & any command that replaces something & no \\
+\code{logs/} & \code{run}, \code{collect}, \code{post} & no \\
+\bottomrule
+\end{tabularx}}
+\vspace{2mm}
+\begin{takeaway}The files under \code{post/} are derived: deleting them loses
+nothing, since \code{collect} rebuilds them from the records.\end{takeaway}
+\end{frame}
+
+\begin{frame}[fragile]{Creating a workspace}
+\begin{lstlisting}
+cfd-workspace init campaign --solver openfoam
+\end{lstlisting}
+\begin{itemize}
+  \item Creates the folder if needed, \code{init.toml}, the input folders,
+        \code{sims/}, \code{post/} and \code{archive/}.
+  \item \code{--solver} is required. The names are lower case: \code{su2},
+        \code{openfoam}, \code{pyfr}, \code{xfoil}, \code{qprop},
+        \code{mock}, \code{flightstream}.
+  \item A folder that already is a workspace is refused: a workspace keeps
+        its solver.
+  \item It also writes \code{inputs/.gitignore}, so the file that holds this
+        machine's solver paths stays out of a repository.
+\end{itemize}
+\begin{cfdbpitfall}[One solver per workspace]
+To compare two solvers on the same matrix, make two workspaces and copy the
+matrix. The columns mean the same in both.
+\end{cfdbpitfall}
+\end{frame}
+
+\section{The inputs}
+
+\begin{frame}{The matrix columns}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.25\linewidth}R@{}}
+\toprule
+\textbf{Column} & \textbf{Meaning} \\
+\midrule
+\code{POL} (required) & the simulation; its folder is \code{sims/sim_<POL>/}.
+  Unique per matrix \\
+\code{RUN} (required) & \code{1} plans and runs the row, \code{0} keeps it
+  without running it \\
+\code{SET}, \code{REF}, \code{PPROC} (required) & the setup, reference and
+  post file of the row \\
+\code{FLIGHT_CONDITION}, \code{SWEEP_VALUES} & the flow state and attitude;
+  the values of the one key written \code{sweep} \\
+\code{GEOMETRY} & the mesh or geometry file in \code{inputs/mesh/} \\
+\code{AIRCRAFT}, \code{CONFIGURATION}, \code{DESCRIPTION} & your labels; they
+  reach the plan listing and the summary \\
+\code{NCPUS}, \code{WALLTIME} & what a cluster job asks for; \code{WALLTIME}
+  carries its unit: \code{90s}, \code{240m}, \code{4h}, \code{1d} \\
+\code{SOLVER_BUILD} & the solver version the row runs \\
+\code{VAR_NAMES_VALUES} & per-row overrides of setup keys \\
+\code{HIDDEN}, \code{SYMMETRY}, \code{SYMMETRY_LOADS}, \code{WORKFLOW} &
+  kept so one layout serves every solver; the library solvers carry them or
+  accept \code{-} only \\
+\bottomrule
+\end{tabularx}}
+\vspace{1mm}
+{\small An optional column may be left out of the header. A column the layout
+does not know is refused before anything is planned.\par}
+\end{frame}
+
+\begin{frame}{The flight condition: the air}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.24\linewidth}P{0.2\linewidth}R@{}}
+\toprule
+\textbf{Key} & \textbf{Unit} & \textbf{Role} \\
+\midrule
+\code{MACH} & - & velocity \\
+\code{TASmps} & m/s & velocity \\
+\code{REmi} & millions & density, from the Reynolds number \\
+\code{ALTFT} & ft & pressure and temperature \\
+\code{dISA} & K & temperature offset \\
+\code{RHOkgm3} & kg/m3 & pins the density \\
+\code{MUPas} & Pa s & pins the viscosity \\
+\code{ASMPS} & m/s & pins the speed of sound \\
+\code{TK} & K & pins the temperature \\
+\code{PPA} & Pa & pins the pressure \\
+\bottomrule
+\end{tabularx}}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item A key carries its unit in its name.
+  \item State exactly one of \code{MACH} or \code{TASmps}.
+  \item No altitude means sea level of the standard atmosphere [5]; no
+        \code{dISA} means zero.
+  \item The viscosity follows Sutherland's law [6] unless pinned.
+  \item \code{REmi} is measured against the \code{length} of the reference
+        file.
+  \item \code{REmi} beside \code{RHOkgm3} is refused: both fix the density.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{The flight condition: attitude and sweep}
+\begin{lstlisting}
+FLIGHT_CONDITION                              | SWEEP_VALUES
+MACH:0.85, REmi:5, ALPHA:sweep, BETA:0        | 0,1,2,2.5,3
+TASmps:40, ALTFT:5000, ALPHA:4                | -
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{ALPHA} and \code{BETA} are in degrees. Keys match without
+        regard to case; a key written twice is refused.
+  \item Exactly one key may say \code{sweep}. Each value of
+        \code{SWEEP_VALUES} is one \textbf{point} of the simulation.
+  \item The point's folder name is built from its flight condition, so the
+        same operating point has the same name in every workspace.
+  \item A solver may read keys of its own, such as the rotation rate of a
+        propeller. Guide 3 lists them.
+\end{itemize}
+\begin{cfdbpitfall}[A bare Mach number]
+For some solvers a row that states only \code{MACH} and angles keeps the flow
+state of its setup file. State the air in the row when you want the row to
+decide it.
+\end{cfdbpitfall}
+\end{frame}
+
+\begin{frame}[fragile]{Overriding a setup key in one row}
+\begin{lstlisting}
+VAR_NAMES_VALUES
+iterations: 4000 / solver.threads: 4
+\end{lstlisting}
+\begin{itemize}
+  \item \code{KEY: value} pairs separated by \code{ / }.
+  \item Each key replaces the key of the same name in the row's setup file.
+        A dotted key reaches inside a table: \code{solver.threads} is
+        \code{threads} in \code{[solver]}.
+  \item Use the name the setup file uses.
+  \item A key that is a matrix column, such as \code{NCPUS}, is refused
+        here: state it in its column.
+\end{itemize}
+\begin{takeaway}One setup file and a column of overrides is easier to review
+than ten setup files that differ in one line.\end{takeaway}
+\end{frame}
+
+\begin{frame}{The mesh is stored once}
+\begin{itemize}
+  \item The \code{GEOMETRY} cell names a file in \code{inputs/mesh/}: a file
+        name, or a stem that names exactly one file there.
+  \item A mesh is \textbf{never copied} into a point folder. Each point
+        folder holds a link to the file in \code{inputs/mesh/}.
+  \item The link is relative, so it still resolves after the whole workspace
+        moves to another machine.
+  \item The mesh's hash is recorded with the plan and checked before the
+        run.
+\end{itemize}
+\begin{cfdbpitfall}[Do not edit a mesh in place]
+Points already run are linked to that file. A changed mesh is a new file with
+a new name.
+\end{cfdbpitfall}
+\end{frame}
+
+\begin{frame}[fragile]{Where the solver is: executables}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/executables.toml
+[su2]
+"8.3.0" = "/opt/su2-8.3.0/bin/SU2_CFD"
+\end{lstlisting}
+\begin{lstlisting}[style=cfdbtoml]
+# inputs/executables.local.toml
+[su2]
+"8.3.0" = "D:/solvers/su2-8.3.0/SU2_CFD.exe"
+\end{lstlisting}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{itemize}\small
+  \item The first file declares the builds a row may name in
+        \code{SOLVER_BUILD}. It travels with the workspace.
+  \item The second gives \textbf{this machine's} paths for those builds. It
+        stays out of version control.
+  \item A build no file declares refuses the run before anything is
+        written.
+  \item Without these files, the setup's \code{[solver]} table says where
+        the solver is.
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}

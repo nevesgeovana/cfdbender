@@ -1,0 +1,99 @@
+% Copyright (c) 2026 Geovana Neves. Licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). See LICENSE-AND-AUTHORSHIP.md.
+%
+% overview/main.tex
+%
+% Guide 1 of the cfdbender guides: what a solver-agnostic workspace is, the
+% spectrum of fidelities the library solvers cover, the workflow in one
+% picture, a first campaign on the mock solver, and a map of guides 2 to 4.
+% Built by ../build_guides.py with this folder and ../shared/ as include
+% directories.
+%
+% No em dashes and no en dashes. No underscores in frame or section titles
+% outside \code: beamer writes titles to .nav and .toc. A brace group right
+% after a frame title is read as the subtitle and vanishes: a frame body that
+% starts with a group starts with \relax.
+
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\input{preamble-slides.tex}
+\input{hooks-slides.tex}
+\cfdbinput{boxes}
+\cfdbinput{hooks-contract}
+
+\usepackage[nohyphen]{underscore}
+
+\input{info.tex}
+\guidepdftitle{1}{Overview}
+
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{R}{>{\RaggedRight\arraybackslash}X}
+
+\begin{document}
+
+\guidetitleframe{1}{Overview}{Overview}
+  {One workspace, many fidelities}
+  {Sources: the package pages ``Workspace layout'', ``Command line'' and
+   ``Matrix columns'' [1, 2, 3].}
+
+\begin{frame}{Who reads what}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{This guide}
+\begin{itemize}\small
+  \item Part 1: what a solver-agnostic workspace is.
+  \item Part 2: the solvers, as a spectrum of fidelities.
+  \item Part 3: the workflow, the same for every solver.
+  \item Part 4: a first campaign, with no solver installed.
+  \item Part 5: the other guides and the order to read them in.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{The other guides}
+\begin{itemize}\small
+  \item 2: workspaces. The tree, the inputs, plan, run, collect, post, a
+        workstation and a cluster.
+  \item 3: solvers. What each one reads and writes, what differs, how to
+        choose.
+  \item 4: the cheatsheet. Every command and option, and one page per stage
+        of the workflow.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Contents}
+\tableofcontents
+\end{frame}
+
+\input{text/01-idea-and-spectrum.tex}
+\input{text/02-workflow-and-first-campaign.tex}
+
+\begin{frame}{References}
+\begin{reflist}
+  \bibitem{g1r01} \docref{workspace-layout}{Workspace layout}
+  \bibitem{g1r02} \docref{cli}{Command line}
+  \bibitem{g1r03} \docref{matrix-columns}{Matrix columns}
+  \bibitem{g1r04} \docref{flightstream-workspaces}{FlightStream workspaces}
+  \bibitem{g1r05} M. Drela, ``XFOIL: an analysis and design system for low
+        Reynolds number airfoils'', in \emph{Low Reynolds Number
+        Aerodynamics}, Lecture Notes in Engineering 54, Springer, 1989.
+  \bibitem{g1r06} M. Drela, ``QPROP formulation'', MIT Aero and Astro, 2006.
+  \bibitem{g1r07} T. D. Economon, F. Palacios, S. R. Copeland, T. W. Lukaczyk
+        and J. J. Alonso, ``SU2: an open-source suite for multiphysics
+        simulation and design'', \emph{AIAA Journal}, 54(3), pp. 828-846,
+        2016.
+  \bibitem{g1r08} H. G. Weller, G. Tabor, H. Jasak and C. Fureby, ``A
+        tensorial approach to computational continuum mechanics using
+        object-oriented techniques'', \emph{Computers in Physics}, 12(6),
+        pp. 620-631, 1998.
+  \bibitem{g1r09} F. D. Witherden, A. M. Farrington and P. E. Vincent,
+        ``PyFR: an open source framework for solving advection-diffusion type
+        problems on streaming architectures using the flux reconstruction
+        approach'', \emph{Computer Physics Communications}, 185(11),
+        pp. 3028-3040, 2014.
+\end{reflist}
+\end{frame}
+
+\end{document}
