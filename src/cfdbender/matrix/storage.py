@@ -323,7 +323,14 @@ def _copy_files(
         count += 1
         if args.apply:
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(path, target)
+            # Replace the name, never write into the file it names: a staged mesh is a
+            # symbolic or hard link to inputs/, and a write would change that input.
+            fresh = target.with_name(f".sync-{target.name}.tmp")
+            try:
+                shutil.copy2(path, fresh)
+                os.replace(fresh, target)
+            finally:
+                fresh.unlink(missing_ok=True)
     return count
 
 
