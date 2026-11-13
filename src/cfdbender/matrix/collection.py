@@ -27,6 +27,7 @@ from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.plan import PlanError, matrix_homes, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
+from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix.exports import write_tables
 from cfdbender.matrix.products import write_products
 from cfdbender.matrix.selection import chosen
@@ -260,6 +261,7 @@ def collect_workspace(
     keep = chosen((r.point for r in records), sims, points)
     previous = {name: _previous_rows(target, name) for name in {r.matrix for r in records}}
     unsettled = _unsettled(target, records, settle) if settle is not None else set()
+    marked = verdicts(target)
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
     failed_ids: set[str] = set()
@@ -329,12 +331,18 @@ def collect_workspace(
                     outputs_sha256=dict(record.outputs_sha256),
                     error=record.error,
                 )
-            if result.classification != record.classification:
+            # mark-converged is a verdict on a completed point: the record carries it and
+            # the result keeps the class the numerical evidence gives.
+            judged = (
+                record.classification == "converged"
+                and marked.get(record.point_id) == "converged"
+            )
+            if result.classification != record.classification and not judged:
                 raise RegistryError(
                     f"{record.point_id}: collected classification differs from record"
                 )
             row["result"] = result.to_dict()
-            if result.classification == "failed":
+            if record.classification == "failed":
                 failed += 1
                 failed_ids.add(record.point_id)
             else:

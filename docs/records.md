@@ -171,7 +171,9 @@ Without `--points`, every point of the named sims is marked.
 
 `cfd-matrix mark-converged --sims POL --reason TEXT` records that completed
 points converged, for example a point that reached its iteration limit with
-steady forces. It needs a reason. It refuses a point that has not completed and
+steady forces. It needs a reason. `collect` then reads the point as before: its
+row carries your verdict in `classification`, and the result keeps the class the
+solver's own evidence gives. It refuses a point that has not completed and
 a point that was marked failed:
 
 ```text
