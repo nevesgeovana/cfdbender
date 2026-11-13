@@ -16,8 +16,10 @@ import json
 import os
 import re
 import tempfile
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -101,6 +103,60 @@ def _write_summary(root: Path, matrix: str, solver: str, rows: list[dict[str, ob
     return target
 
 
+def _unsettled(root: Path, records: Sequence[RunRecord], settle: float) -> set[str]:
+    """Return the submitted points whose job outputs changed between two observations."""
+
+    def observe() -> dict[str, tuple[object, ...] | None]:
+        seen: dict[str, tuple[object, ...] | None] = {}
+        for record in records:
+            if record.status != "SUBMITTED":
+                continue
+            states = []
+            for name in _job_outputs(record):
+                path = workspace_path(root, name)
+                states.append(
+                    (path.stat().st_size, path.stat().st_mtime_ns) if path.is_file() else None
+                )
+            seen[record.point_id] = None if None in states else tuple(states)
+        return seen
+
+    first = observe()
+    if first:
+        time.sleep(settle)
+    second = observe()
+    return {
+        point_id
+        for point_id, state in second.items()
+        if state is None or state != first.get(point_id)
+    }
+
+
+def _snapshot(root: Path, grouped: dict[str, list[dict[str, object]]]) -> dict[Path, bytes]:
+    found: dict[Path, bytes] = {}
+    for name in grouped:
+        folder = root / "post" / Path(name).stem
+        if folder.is_dir():
+            for path in folder.rglob("*"):
+                if path.is_file() and not path.name.startswith(".collect-"):
+                    found[path] = path.read_bytes()
+    return found
+
+
+def _archive_replaced(root: Path, before: dict[Path, bytes]) -> None:
+    """Copy each product the collect replaced to archive/<stamp>/, leaving unchanged ones."""
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    target = root / "archive" / stamp
+    suffix = 1
+    while target.exists():
+        target = root / "archive" / f"{stamp}-{suffix}"
+        suffix += 1
+    for path, data in before.items():
+        if not path.is_file() or path.read_bytes() != data:
+            destination = target / path.relative_to(root)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+
+
 def _previous_rows(root: Path, matrix: str) -> dict[str, dict[str, object]]:
     path = root / "post" / Path(matrix).stem / "campaign_summary.json"
     try:
@@ -116,6 +172,9 @@ def collect_workspace(
     *,
     sims: Sequence[str] = (),
     points: Sequence[str] = (),
+    runs: str = "runs.json",
+    archive: bool = False,
+    settle: float | None = None,
 ) -> CollectReport:
     """Read saved results through the declared adapter and rebuild neutral summaries.
 
@@ -131,6 +190,13 @@ def collect_workspace(
         Point names (DP-name or POL/DP-name) to collect; empty collects every point.
         Points outside the selection are neither read nor counted; the summary
         keeps their rows from the previous summary, or their identity rows.
+    runs : str, optional
+        The run manifest in the workspace root to read (default runs.json).
+    archive : bool, optional
+        Keep a copy of each replaced summary, table or polar under archive/<stamp>/.
+    settle : float, optional
+        Seconds between the two observations that decide a submitted point's outputs
+        are settled (size and modification time stable); None skips the check.
 
     Returns
     -------
@@ -154,7 +220,7 @@ def collect_workspace(
     ):
         raise RegistryError(f"{matrix!r}: name a .fs matrix in inputs/matrices/")
     selected = None if matrix is None else f"inputs/matrices/{matrix.removesuffix('.fs')}.fs"
-    registry = RunRegistry(target)
+    registry = RunRegistry(target, runs)
     records = tuple(r for r in registry.read() if selected is None or r.matrix == selected)
     if not records:
         raise RegistryError("no recorded points for this collection")
@@ -162,6 +228,7 @@ def collect_workspace(
         raise RegistryError("init.toml solver differs from the recorded solver")
     keep = chosen((r.point for r in records), sims, points)
     previous = {name: _previous_rows(target, name) for name in {r.matrix for r in records}}
+    unsettled = _unsettled(target, records, settle) if settle is not None else set()
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
     for record in records:
@@ -189,7 +256,7 @@ def collect_workspace(
             grouped.setdefault(record.matrix, []).append(row)
             continue
         grouped.setdefault(record.matrix, []).append(row)
-        if record.status not in ("COMPLETED", "SUBMITTED"):
+        if record.status not in ("COMPLETED", "SUBMITTED") or record.point_id in unsettled:
             outstanding += 1
             continue
         try:
@@ -242,10 +309,13 @@ def collect_workspace(
         except (OSError, ValueError) as error:
             row["error"] = str(error)
             failed += 1
+    before = _snapshot(target, grouped) if archive else {}
     summaries = tuple(
         _write_summary(target, name, config.solver, rows) for name, rows in sorted(grouped.items())
     )
     tables = tuple(
         path for name, rows in sorted(grouped.items()) for path in write_tables(target, name, rows)
     )
+    if archive:
+        _archive_replaced(target, before)
     return CollectReport(collected, failed, outstanding, summaries, tables)

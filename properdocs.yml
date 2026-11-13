@@ -52,6 +52,7 @@ nav:
   - Home: index.md
   - Start here: getting-started.md
   - Matrix columns: matrix-columns.md
+  - Commands: commands.md
   - FlightStream workspaces: flightstream-workspaces.md
   - SU2 workspaces: su2-workspaces.md
   - OpenFOAM workspaces: openfoam-workspaces.md

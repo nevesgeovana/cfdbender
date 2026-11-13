@@ -5,12 +5,23 @@ from __future__ import annotations
 import argparse
 import shlex
 import sys
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter
 from cfdbender.core.run import execute_plan
 from cfdbender.core.settings import WorkspaceError
+from cfdbender.matrix import queries, records, storage
+from cfdbender.matrix._console import (
+    Console,
+    add_console_options,
+    add_runs_option,
+    add_warning_option,
+    held_warnings,
+    level_of,
+)
 from cfdbender.matrix.collection import collect_workspace
 from cfdbender.matrix.rerun import decide
 from cfdbender.matrix.selection import select_plan, split_ids
@@ -20,25 +31,32 @@ from cfdbender.solvers.flightstream import dispatch
 from cfdbender.workspace.planning import plan_workspace
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Plan, run or collect a matrix, printing refusals to stderr with exit code 2.
+def _seconds(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a number of seconds") from error
+    if value < 0:
+        raise argparse.ArgumentTypeError("seconds cannot be negative")
+    return value
 
-    Parameters
-    ----------
-    argv : list of str, optional
-        Command arguments, excluding the program name.
 
-    Returns
-    -------
-    int
-        Plan and successful runs return 0; run failures and refusals return 2.
-        Collect returns 0 for complete, 1 for failures, 3 for outstanding work,
-        or 2 for a refusal or summary write error. Help exits with zero.
-    """
-    argv = sys.argv[1:] if argv is None else argv
-    if (forwarded := dispatch(argv, workspace=False)) is not None:
-        return forwarded
+def _rounds(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a whole number") from error
+    if value < 1:
+        raise argparse.ArgumentTypeError("--rounds must be at least 1")
+    return value
+
+
+def build_parser() -> tuple[
+    argparse.ArgumentParser, dict[str, Callable[[argparse.Namespace], int]]
+]:
+    """Return the cfd-matrix parser and the handlers of the verbs that read or change records."""
     parser = argparse.ArgumentParser(prog="cfd-matrix", allow_abbrev=False)
+    add_warning_option(parser)
     commands = parser.add_subparsers(dest="command", required=True)
     plan_parser = commands.add_parser(
         "plan", help="print proposed work without writing files", allow_abbrev=False
@@ -111,25 +129,126 @@ def main(argv: list[str] | None = None) -> int:
             action="store_true",
             help="keep work on THIS machine instead of submitting it",
         )
+    run_parser.add_argument(
+        "--no-local",
+        dest="local",
+        action="store_false",
+        help="the opposite of --local: submit when a profile exists (the default)",
+    )
+    run_parser.set_defaults(local=False)
+    for command_parser in (plan_parser, run_parser, collect_parser):
+        add_console_options(command_parser)
+    add_runs_option(collect_parser)
+    collect_parser.add_argument(
+        "--archive",
+        action="store_true",
+        help="keep a copy of each replaced summary, table and polar under archive/<stamp>/; "
+        "without it they are overwritten in place",
+    )
+    collect_parser.add_argument(
+        "--watch",
+        action="store_true",
+        help="keep sweeping until no submitted point is outstanding, instead of once",
+    )
+    collect_parser.add_argument(
+        "--interval",
+        type=_seconds,
+        default=None,
+        help="seconds between the two observations that decide an output is settled "
+        "(size and modification time stable); without it or --watch no settle check is made",
+    )
+    collect_parser.add_argument(
+        "--watch-interval",
+        dest="watch_interval",
+        type=_seconds,
+        default=None,
+        help="seconds between sweeps under --watch (default: 60)",
+    )
+    collect_parser.add_argument(
+        "--rounds",
+        type=_rounds,
+        default=None,
+        help="stop a watch after this many sweeps, whatever is still outstanding",
+    )
+    verbs: dict[str, Callable[[argparse.Namespace], int]] = {}
+    for module in (queries, records, storage):
+        verbs.update(module.register(commands))
+    for name in verbs:
+        add_console_options(commands.choices[name])
+    return parser, verbs
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Plan, run or collect a matrix, printing refusals to stderr with exit code 2.
+
+    Parameters
+    ----------
+    argv : list of str, optional
+        Command arguments, excluding the program name.
+
+    Returns
+    -------
+    int
+        Plan and successful runs return 0; run failures and refusals return 2.
+        Collect returns 0 for complete, 1 for failures, 3 for outstanding work,
+        or 2 for a refusal or summary write error. Help exits with zero.
+    """
+    argv = sys.argv[1:] if argv is None else argv
+    if (forwarded := dispatch(argv, workspace=False)) is not None:
+        return forwarded
+    parser, verbs = build_parser()
     args = parser.parse_args(argv)
     try:
+        console = Console(level_of(args))
+    except WorkspaceError as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    with held_warnings(Path(args.workspace).resolve(), show=args.console_warnings):
+        return _execute(args, verbs, console)
+
+
+def _collect(args: argparse.Namespace, console: Console) -> int:
+    """Collect once, or sweep repeatedly under --watch; the last sweep's exit code wins."""
+    watching = bool(args.watch)
+    settle = args.interval if args.interval is not None else (2.0 if watching else None)
+    pause = 60.0 if args.watch_interval is None else args.watch_interval
+    sweeps = 0
+    while True:
+        sweeps += 1
+        report = collect_workspace(
+            args.workspace,
+            args.matrix,
+            sims=split_ids(args.sims),
+            points=split_ids(args.points),
+            runs=args.runs,
+            archive=args.archive,
+            settle=settle,
+        )
+        for path in report.summaries:
+            console.say(f"collected summary: {path}")
+        for path in report.tables:
+            console.say(f"collected table: {path}")
+        console.final(
+            f"collected {report.collected}, failed {report.failed}, "
+            f"outstanding {report.outstanding}"
+        )
+        if not watching or not report.outstanding or (args.rounds and sweeps >= args.rounds):
+            return report.exit_code
+        console.detail(f"sweep {sweeps}: {report.outstanding} outstanding; next in {pause:g} s")
+        time.sleep(pause)
+
+
+def _execute(
+    args: argparse.Namespace,
+    verbs: dict[str, Callable[[argparse.Namespace], int]],
+    console: Console,
+) -> int:
+    try:
+        if args.command in verbs:
+            return verbs[args.command](args)
         profile = select_profile(Path(args.workspace).resolve(), args.hpc)
         if args.command == "collect":
-            report = collect_workspace(
-                args.workspace,
-                args.matrix,
-                sims=split_ids(args.sims),
-                points=split_ids(args.points),
-            )
-            for path in report.summaries:
-                print(f"collected summary: {path}")
-            for path in report.tables:
-                print(f"collected table: {path}")
-            print(
-                f"collected {report.collected}, failed {report.failed}, "
-                f"outstanding {report.outstanding}"
-            )
-            return report.exit_code
+            return _collect(args, console)
         plan = select_plan(
             plan_workspace(args.workspace, args.matrix),
             split_ids(args.sims),
@@ -146,9 +265,9 @@ def main(argv: list[str] | None = None) -> int:
                 submitting=submitting,
             )
             if decision.archive is not None:
-                print(f"archived previous evidence: {decision.archive}")
+                console.say(f"archived previous evidence: {decision.archive}")
             for point_id, reason in decision.skipped:
-                print(f"  {point_id}  skipped: {reason}")
+                console.say(f"  {point_id}  skipped: {reason}")
             plan = decision.plan
             jobs = submission_plans(plan, profile) if submitting and profile is not None else ()
             adapter = cast(SolverAdapter, load_solver(plan.solver))
@@ -158,7 +277,7 @@ def main(argv: list[str] | None = None) -> int:
                 else execute_plan(plan, adapter)
             )
             for record in records:
-                print(f"  {record.point_id}  {record.status} {record.classification}")
+                console.say(f"  {record.point_id}  {record.status} {record.classification}")
                 if record.error:
                     print(f"  {record.point_id}: {record.error}", file=sys.stderr)
                 elif record.submission and record.submission["timed_out"]:
@@ -171,18 +290,18 @@ def main(argv: list[str] | None = None) -> int:
                 print("matrix run with failures", file=sys.stderr)
                 return 2
             if any(record.status == "SUBMITTED" for record in records):
-                print("submitted; extraction pending collect")
+                console.final("submitted; extraction pending collect")
             return 0
     except (WorkspaceError, OSError, ValueError) as error:
         prefix = "matrix not run: " if args.command == "run" else ""
         print(prefix + str(error), file=sys.stderr)
         return 2
-    print(f"matrix: {plan.matrix}")
-    print(f"solver: {plan.solver}")
-    print(f"{len(plan.points)} point(s)")
+    console.final(f"matrix: {plan.matrix}")
+    console.final(f"solver: {plan.solver}")
+    console.final(f"{len(plan.points)} point(s)")
     for point in plan.points:
         condition = ", ".join(f"{key}={value:g}" for key, value in sorted(point.condition.items()))
-        print(
+        console.say(
             f"  {point.point_id}: SET={point.setup_id} REF={point.reference_id} "
             f"PPROC={point.post_id} WALLTIME={point.walltime or 'NA'}"
         )
@@ -196,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
             if value
         ]
         if labels:
-            print(f"    {' '.join(labels)}")
+            console.say(f"    {' '.join(labels)}")
         columns = [
             f"{name}={value}"
             for name, value in (
@@ -208,19 +327,20 @@ def main(argv: list[str] | None = None) -> int:
             if value is not None
         ]
         if columns:
-            print(f"    {' '.join(columns)}")
+            console.say(f"    {' '.join(columns)}")
         for key, value in point.variables.items():
-            print(f"    variable {key} = {value!r}")
-        print(f"    {condition or 'no condition stated'}")
-        print(f"    would: {'; '.join(point.actions)}")
+            console.say(f"    variable {key} = {value!r}")
+        console.say(f"    {condition or 'no condition stated'}")
+        console.say(f"    would: {'; '.join(point.actions)}")
         for output in point.outputs:
-            print(f"    output: {output}")
+            console.say(f"    output: {output}")
     for job in jobs:
         for warning in job.warnings:
             print(f"warning: {warning}", file=sys.stderr)
-        print(f"descriptor: {job.descriptor_path.as_posix()}")
-        print(job.descriptor_text, end="")
-        print(f"would submit: {shlex.join(job.command)}")
+        console.say(f"descriptor: {job.descriptor_path.as_posix()}")
+        if console.level != "quiet":
+            print(job.descriptor_text, end="")
+        console.say(f"would submit: {shlex.join(job.command)}")
     return 0
 
 
