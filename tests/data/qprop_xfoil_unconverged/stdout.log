@@ -1,0 +1,63 @@
+
+ ===================================================
+  XFOIL Version 6.99
+  Copyright (C) 2000   Mark Drela, Harold Youngren
+
+  This software comes with ABSOLUTELY NO WARRANTY,
+    subject to the GNU General Public License.
+
+  Caveat computor
+ ===================================================
+
+ File  xfoil.def  not found
+
+   QUIT    Exit program
+
+  .OPER    Direct operating point(s)
+  .MDES    Complex mapping design routine
+  .QDES    Surface speed design routine
+  .GDES    Geometry design routine
+
+   SAVE f  Write airfoil to labeled coordinate file
+   PSAV f  Write airfoil to plain coordinate file
+   ISAV f  Write airfoil to ISES coordinate file
+   MSAV f  Write airfoil to MSES coordinate file
+   REVE    Reverse written-airfoil node ordering
+ ... (output between the quoted parts removed) ...
+ Side 1  free  transition at x/c =  0.1654   55
+ Side 2 forced transition at x/c =  1.0000   63
+
+ 153   rms: 0.5328E+00   max: 0.1679E+01   D at   76  1   RLX: 0.894
+       a = 14.000      CL =  0.9200
+      Cm = -0.0481     CD =  0.16405   =>   CDf =  0.00725    CDp =  0.15680
+
+ Side 1  free  transition at x/c =  0.1696   53
+ Side 2 forced transition at x/c =  1.0000   66
+
+ 154   rms: 0.3214E+00   max: -.4515E+00   D at   87  2   RLX: 0.924
+       a = 14.000      CL =  1.1982
+      Cm = -0.0196     CD =  0.08740   =>   CDf =  0.00575    CDp =  0.08165
+
+ Side 1  free  transition at x/c =  0.1676   55
+ Side 2 forced transition at x/c =  1.0000   64
+
+ 155   rms: 0.7046E-01   max: 0.3482E+00   T at   55  1
+       a = 14.000      CL =  1.2001
+      Cm = -0.0281     CD =  0.10247   =>   CDf =  0.00636    CDp =  0.09611
+ VISCAL:  Convergence failed
+      9.000   17.8556   0.102471   0.038626   0.015114  -0.023512    0.1676     #
+ Calculating wake trajectory ...
+ Calculating source influence matrix ...
+
+ Solving BL system ...
+
+ Side 1  free  transition at x/c =  0.1649   54
+ Side 2 forced transition at x/c =  1.0000   64
+
+ ...
+ Point added to stored polar  1
+ Point written to save file  polar.txt                                       
+ Dump file unspecified or not available
+
+.OPERva   c>  
+ XFOIL   c>  

@@ -1,0 +1,16 @@
+PLOP
+G
+
+LOAD airfoil.dat
+
+PANE
+OPER
+VISC 129261
+MACH 0.184
+ITER 150
+PACC
+polar.txt
+
+ASEQ -8 16 1
+
+QUIT
