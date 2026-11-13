@@ -217,3 +217,34 @@ def test_the_shared_contract_assertions_hold_for_every_adapter(case, rule):
     solver, root = case
     adapter, point = prepared(root, solver)
     getattr(testing, f"assert_{rule}")(adapter, point)
+
+
+#: Neutral columns each solver states from its own coefficients; qprop and pyfr state fewer.
+NEUTRAL_STATED = {
+    "su2": ("CL", "CD", "CM"),
+    "openfoam": ("CL", "CD", "CM"),
+    "xfoil": ("CL", "CD", "CM"),
+    "mock": ("CL", "CD", "CM"),
+    "pyfr": ("CL", "CD"),
+    "qprop": (),
+}
+
+
+def test_every_table_carries_neutral_cl_cd_cm_beside_the_solvers_own_columns(case):
+    solver, root = case
+    state_no_build(root)
+    write_receipt(plan_workspace(root, "full"))
+    assert local(root) == 0, solver
+    assert main(["collect", "full", "--workspace", str(root)]) == 0
+    for table in (root / "post/full/campaign_sweep.csv", *(root / "post/full/polars").glob("*.csv")):
+        with table.open(encoding="utf-8", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+        assert rows and {"CL", "CD", "CM"} <= set(rows[0])
+        assert list(rows[0]).count("CL") == 1
+        for name in ("CL", "CD", "CM"):
+            stated = name in NEUTRAL_STATED[solver]
+            assert all((row[name] != "NA") == stated for row in rows), (solver, name)
+        if solver == "openfoam":
+            assert all(row["CL"] == row["Cl"] and row["CM"] == row["CmPitch"] for row in rows)
+        if solver == "su2":
+            assert all(row["CM"] == row["CMy"] for row in rows)

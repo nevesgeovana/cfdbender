@@ -320,7 +320,7 @@ def collect_workspace(
     products: list[Path] = []
     for name, rows in sorted(grouped.items()):
         summary = _write_summary(target, name, config.solver, rows)
-        written = write_tables(target, name, rows)
+        written = write_tables(target, name, rows, config.solver)
         summaries.append(summary)
         tables.extend(written)
         products.extend(write_products(target, name, config.solver, rows, summary, written))

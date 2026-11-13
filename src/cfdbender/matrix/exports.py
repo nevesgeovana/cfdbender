@@ -7,8 +7,9 @@ simulation, in the pyflightstream spelling of a polar file's ``P<sim>`` stem
 columns are POL, point, the fixed context block of pyflightstream (ALPHA, BETA,
 MACH, RE in millions, VINF, VREF, ALT, RHO, TEMP, MU, J, J_CLOCK, RPM_CLOCK, then
 SREF, CREF, BREF), any other FLIGHT_CONDITION key the matrix states, status,
-classification, iterations, residual, wall_time_s, solver_version and every
-coefficient the solver reported. A value a point does not have is the token NA;
+classification, iterations, residual, wall_time_s, solver_version, the neutral
+coefficients CL, CD and CM (NA where the solver reports none) and every coefficient
+the solver reported under its own name. A value a point does not have is the token NA;
 no cell holds a comma, a double quote or a line break and none is quoted, so
 numpy.genfromtxt reads every row to the header's count. Every table of a matrix
 has the same columns. The tables are derived and rebuilt by every collect.
@@ -25,6 +26,7 @@ from pathlib import Path
 from typing import cast
 
 from cfdbender.core.flight import FlightConditionError, resolve_flow
+from cfdbender.core.neutral import NEUTRAL, neutral_values
 from cfdbender.core.plan import workspace_path
 
 FIXED = ("status", "classification", "iterations", "residual", "wall_time_s", "solver_version")
@@ -139,7 +141,7 @@ def _context(
     return cells, extra
 
 
-def _cells(row: Mapping[str, object]) -> dict[str, object]:
+def _cells(row: Mapping[str, object], solver: str | None = None) -> dict[str, object]:
     result = cast(Mapping[str, object] | None, row.get("result")) or {}
     history = cast(Sequence[Mapping[str, object]], result.get("history") or ())
     last = history[-1] if history else {}
@@ -162,6 +164,8 @@ def _cells(row: Mapping[str, object]) -> dict[str, object]:
     coefficients = cast(Mapping[str, Mapping[str, object]], result.get("coefficients") or {})
     for name, value in coefficients.items():
         cells[name] = value["value"]
+    own = {name: cast(float, value["value"]) for name, value in coefficients.items()}
+    cells.update(neutral_values(solver, own))
     return cells
 
 
@@ -174,13 +178,23 @@ def _header(rows: Sequence[Mapping[str, object]]) -> list[str]:
         result = cast(Mapping[str, object] | None, row.get("result")) or {}
         names = cast(Mapping[str, object], result.get("coefficients") or {})
         coefficients.update(dict.fromkeys(names))
-    taken = {"POL", "point", *CONTEXT, *extras, *FIXED}
-    return ["POL", "point", *CONTEXT, *extras, *FIXED, *(c for c in coefficients if c not in taken)]
+    taken = {"POL", "point", *CONTEXT, *extras, *FIXED, *NEUTRAL}
+    return [
+        "POL",
+        "point",
+        *CONTEXT,
+        *extras,
+        *FIXED,
+        *NEUTRAL,
+        *(c for c in coefficients if c not in taken),
+    ]
 
 
-def _text(header: Sequence[str], rows: Sequence[Mapping[str, object]]) -> str:
+def _text(
+    header: Sequence[str], rows: Sequence[Mapping[str, object]], solver: str | None = None
+) -> str:
     lines = [",".join(header)]
-    for cell in (_cells(row) for row in rows):
+    for cell in (_cells(row, solver) for row in rows):
         lines.append(",".join(_cell(cell.get(name)) for name in header))
     return chr(10).join(lines) + chr(10)
 
@@ -204,7 +218,12 @@ def _write(target: Path, text: str) -> Path:
     return target
 
 
-def write_tables(root: Path, matrix: str, rows: Sequence[Mapping[str, object]]) -> tuple[Path, ...]:
+def write_tables(
+    root: Path,
+    matrix: str,
+    rows: Sequence[Mapping[str, object]],
+    solver: str | None = None,
+) -> tuple[Path, ...]:
     """Rebuild campaign_sweep.csv and polars/P<POL>.csv for one matrix.
 
     Parameters
@@ -215,6 +234,8 @@ def write_tables(root: Path, matrix: str, rows: Sequence[Mapping[str, object]]) 
         Recorded matrix path, inputs/matrices/<name>.fs.
     rows : sequence of mapping
         The campaign summary's point rows, in record order.
+    solver : str, optional
+        Registered solver name; it selects the neutral CL, CD and CM columns.
 
     Returns
     -------
@@ -223,10 +244,10 @@ def write_tables(root: Path, matrix: str, rows: Sequence[Mapping[str, object]]) 
     """
     folder = workspace_path(root, f"post/{Path(matrix).stem}")
     header = _header(rows)
-    written = [_write(folder / "campaign_sweep.csv", _text(header, rows))]
+    written = [_write(folder / "campaign_sweep.csv", _text(header, rows, solver))]
     by_pol: dict[str, list[Mapping[str, object]]] = {}
     for row in rows:
         by_pol.setdefault(str(row["pol"]), []).append(row)
     for pol, members in by_pol.items():
-        written.append(_write(folder / "polars" / f"P{pol}.csv", _text(header, members)))
+        written.append(_write(folder / "polars" / f"P{pol}.csv", _text(header, members, solver)))
     return tuple(written)

@@ -34,7 +34,7 @@ def test_collect_writes_one_row_per_point_with_every_coefficient(tmp_path, capsy
         "wall_time_s",
         "solver_version",
     ]
-    assert header[24:] == ["CX", "CY", "CZ", "Cl", "Cm", "Cn"]
+    assert header[24:] == ["CL", "CD", "CM", "CX", "CY", "CZ", "Cl", "Cm", "Cn"]
     for row, point in zip(rows, summary, strict=True):
         result = point["result"]
         assert row["POL"] == point["pol"]
