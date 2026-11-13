@@ -95,7 +95,7 @@ def reverse_columns(text: str, solver: str) -> str:
     return buffer.getvalue()
 
 
-TABLES = {"su2": "history.csv", "pyfr": "forces.csv", "xfoil": "polar.txt"}
+TABLES = {"su2": "history.csv", "pyfr": "forces.csv", "xfoil": "polar.txt", "mock": "history.csv"}
 
 
 @pytest.mark.parametrize("solver_name", sorted(TABLES))

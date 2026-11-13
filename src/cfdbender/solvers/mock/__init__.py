@@ -184,7 +184,7 @@ def _read(point: AdapterPoint) -> tuple[ExecutionResult, dict[str, Coefficient]]
     if metadata["iteration_limit"] < 2 or metadata["solver_version"] != "mock-1":
         raise ValueError("execution.json has invalid iteration_limit or solver_version")
     reader = csv.DictReader(io.StringIO((folder / "history.csv").read_text(encoding="ascii")))
-    if tuple(reader.fieldnames or ()) != _HEADER:
+    if len(reader.fieldnames or ()) != len(_HEADER) or set(reader.fieldnames or ()) != set(_HEADER):
         raise ValueError("history.csv has invalid columns")
     history: list[Iteration] = []
     coefficients: dict[str, Coefficient] = {}
