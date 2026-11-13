@@ -26,6 +26,7 @@ from cfdbender.core.plan import workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
 from cfdbender.matrix.exports import write_tables
+from cfdbender.matrix.products import write_products
 from cfdbender.matrix.selection import chosen
 from cfdbender.solvers import available_solvers, load_solver
 
@@ -35,7 +36,8 @@ class CollectReport:
     """One sweep's counts and derived summary paths; failures take exit precedence.
 
     ``tables`` are the CSV tables written beside each summary: campaign_sweep.csv
-    and polars/P<POL>.csv per matrix.
+    and polars/P<POL>.csv per matrix. ``products`` are the products.json and
+    post.log written beside each summary.
     """
 
     collected: int
@@ -43,6 +45,7 @@ class CollectReport:
     outstanding: int
     summaries: tuple[Path, ...]
     tables: tuple[Path, ...] = ()
+    products: tuple[Path, ...] = ()
 
     @property
     def exit_code(self) -> int:
@@ -242,10 +245,15 @@ def collect_workspace(
         except (OSError, ValueError) as error:
             row["error"] = str(error)
             failed += 1
-    summaries = tuple(
-        _write_summary(target, name, config.solver, rows) for name, rows in sorted(grouped.items())
+    summaries: list[Path] = []
+    tables: list[Path] = []
+    products: list[Path] = []
+    for name, rows in sorted(grouped.items()):
+        summary = _write_summary(target, name, config.solver, rows)
+        written = write_tables(target, name, rows)
+        summaries.append(summary)
+        tables.extend(written)
+        products.extend(write_products(target, name, config.solver, rows, summary, written))
+    return CollectReport(
+        collected, failed, outstanding, tuple(summaries), tuple(tables), tuple(products)
     )
-    tables = tuple(
-        path for name, rows in sorted(grouped.items()) for path in write_tables(target, name, rows)
-    )
-    return CollectReport(collected, failed, outstanding, summaries, tables)

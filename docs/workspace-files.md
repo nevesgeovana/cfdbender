@@ -153,6 +153,12 @@ coefficients of a point not yet run, is `NA`. No cell holds a comma, a double
 quote or a line break and none is quoted, so `numpy.genfromtxt` reads every row
 to the header's count. The tables are derived files and are rebuilt by every collect.
 
+Beside them, `post/<matrix>/products.json` names every product written and every
+product skipped with its reason (a point that never ran, or whose result could
+not be read), with `complete` true only when nothing was skipped, and
+`post/<matrix>/post.log` says the same in text. A skipped point never blocks the
+other products.
+
 ## Selecting simulations and points
 
 `plan`, `run` and `collect` take `--sims POL [POL ...]` (or `--sims 1001,1002`) and
