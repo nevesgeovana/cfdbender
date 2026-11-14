@@ -22,6 +22,7 @@ from cfdbender.solvers._host._exe import check_host_free, resolve_executable
 from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._single import process_lease
+from cfdbender.solvers._host._version import refuse_wrong_build
 from cfdbender.solvers.su2._config import config, mesh_name, number, options, render, staged_mesh
 from cfdbender.solvers.su2.routes import select_route
 
@@ -207,7 +208,17 @@ def check_executable(point: AdapterPoint) -> None:
 
 
 def preflight(point: AdapterPoint) -> None:
-    """Resolve the executable and ask the host for a slot and RAM, writing nothing."""
+    """Resolve the executable and ask the host for a slot and RAM, writing nothing.
+
+    A row's SOLVER_BUILD is checked here when the executable can say its version
+    (``--version``), so a wrong build refuses the run before any point starts.
+    """
     check_executable(point)
     opts = options(point.setup, read_init(point.root, available_solvers=("su2",)).solver_options)
+    chosen = (
+        str(opts["route"]) if "route" in opts else ("executable" if "executable" in opts else None)
+    )
+    if point.point.solver_build and chosen == "executable":
+        launcher = len(cast(list[str], opts.get("mpi_launcher", [])))
+        refuse_wrong_build(point.point.solver_build, _argv(opts, point.root)[launcher:-1])
     check_host_free("SU2", number(opts["ram_estimate_gib"], "ram_estimate_gib"))

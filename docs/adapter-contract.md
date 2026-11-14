@@ -253,7 +253,12 @@ returns (SU2 adds the route it ran, PyFR the averaging window). It never
 removes or renames a common field.
 
 **C-44.** `solver_version` is the version the solver printed in its own
-output, or the text `unknown` when the solver prints none.
+output, or the text `unknown` when the solver prints none. A row's `SOLVER_BUILD`
+must be the version that ran. When the executable can state its version without a
+case (`--version`: SU2 on its executable route, PyFR), `preflight` checks it and
+the run is refused before any point starts; for every other solver, and for an
+executable that does not answer, the version a point printed is checked after
+the run and a mismatch fails that point.
 
 ## Cluster jobs: optional
 

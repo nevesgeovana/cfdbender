@@ -49,3 +49,22 @@ def probe_version(
     text = (done.stdout + b"\n" + done.stderr).decode("utf-8", errors="replace")
     found = _VERSION.search(text)
     return found[1] if found else UNKNOWN
+
+
+def refuse_wrong_build(build: str | None, command: Sequence[str]) -> None:
+    """Refuse before any point runs when the executable's version is not the row's SOLVER_BUILD.
+
+    The probe asks the executable for its version without a case. A solver that does not
+    answer cannot be checked here: its version is judged after the run, as before.
+
+    Raises
+    ------
+    ValueError
+        The version the executable printed differs from the row's SOLVER_BUILD.
+    """
+    from cfdbender.core.executables import build_mismatch
+
+    if not build:
+        return
+    if message := build_mismatch(build, probe_version(command)):
+        raise ValueError(message)
