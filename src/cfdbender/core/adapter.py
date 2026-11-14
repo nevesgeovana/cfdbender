@@ -19,7 +19,14 @@ from typing import Protocol, runtime_checkable
 
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.mesh import resolve_setup_paths
-from cfdbender.core.plan import InputFiles, Point, is_matrix_file, RowInputs, RowRequirements, apply_variables
+from cfdbender.core.plan import (
+    InputFiles,
+    Point,
+    is_matrix_file,
+    RowInputs,
+    RowRequirements,
+    apply_variables,
+)
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import read_init
 

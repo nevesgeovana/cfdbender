@@ -98,8 +98,10 @@ the products of polar hold the deleted points; choose --matrix-products points-o
 | `points-only` | Deletes the sim and leaves the tables as they are. |
 | `regenerate` | Deletes the sim and rebuilds the tables without it. `--archive` keeps the replaced tables under `archive/<stamp>/`. |
 
-A sim with a point that is still `SUBMITTED` is refused; `--force` deletes it
-anyway.
+A sim with a point that is still `SUBMITTED` or `RUNNING` is refused; `--force`
+deletes it anyway. A sim that a manifest other than the one named by `--runs` still
+records is refused, because every manifest shares the folder `sims/sim_<id>`: delete
+its points from that manifest first.
 
 To clear a sim and keep its files, use `cfd-workspace archive` instead; see
 [Run again, resume, records](records.md).
@@ -132,7 +134,7 @@ before:
 | Option | Effect |
 |---|---|
 | `--from NAME` | Reads one of the named workspaces instead of all of them. |
-| `--prefer-other` | When both workspaces have a record of the same point, takes the other one. Without it this workspace keeps its own. |
+| `--prefer-other` | When both workspaces have a record of the same point, takes the other one. Without it this workspace keeps its own. At level `post` or `all` it needs `--overwrite` too, and is refused without it: records taken without their files would not match. |
 | `--overwrite` | When both have a file of the same name, archives the file of this workspace and takes the other one. The files of a point whose record this workspace keeps are never replaced: a record and the files it describes stay together. |
 | `--include-archives` | Also brings the files under folders named `archive`. |
 

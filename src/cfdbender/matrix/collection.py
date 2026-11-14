@@ -348,8 +348,9 @@ def collect_workspace(
                 )
             # mark-converged is a verdict on a completed point: the record carries it and
             # the result keeps the class the numerical evidence gives.
-            judged = (
-                record.classification == "converged" and marked.get(record.point_id) == "converged"
+            # mark-failed is the same kind of verdict: the row keeps the mark's reason.
+            judged = record.classification in ("converged", "failed") and (
+                marked.get(record.point_id) == record.classification
             )
             if result.classification != record.classification and not judged:
                 raise RegistryError(

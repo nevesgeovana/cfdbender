@@ -170,7 +170,11 @@ marking 1001/DP-M200AL+040 failed (was COMPLETED converged)
 marked 1 point(s) failed; the manifest before is in /home/you/campaign/archive/20261113T140213Z
 ```
 
-Without `--points`, every point of the named sims is marked.
+Without `--points`, every point of the named sims is marked. A point that is
+`RUNNING` is refused with `stop the run first`: a live run would seal it over
+the mark. After a mark, `status` and the `error` of the point in the collected
+summary read `FAILED_MARKED: <your reason>`; `collect` keeps the reason and
+the result keeps the class the solver's own evidence gives.
 
 `cfd-matrix mark-converged --sims POL --reason TEXT` records that completed
 points converged, for example a point that reached its iteration limit with

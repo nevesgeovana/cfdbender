@@ -191,6 +191,27 @@ def _sim_folder(root: Path, sim: str) -> Path:
     return folder
 
 
+def _refuse_shared_sims(root: Path, runs: str, sims: list[str]) -> None:
+    """Refuse a sim that a manifest other than ``runs`` still records.
+
+    The sim folder is shared by every manifest; deleting it would leave the other
+    manifest's records without their files.
+    """
+    for path in sorted(root.glob("*.json")):
+        if path.name == runs or path.name.endswith(".lock.json"):
+            continue
+        try:
+            others = RunRegistry(root, path.name).read()
+        except (RegistryError, ValueError, OSError):
+            continue  # not a run manifest
+        for sim in sims:
+            if any(r.point.pol == sim for r in others):
+                raise RegistryError(
+                    f"--sims {sim}: {path.name} still records points of that simulation; "
+                    f"delete them there first (--runs {path.name}) or choose another sim"
+                )
+
+
 def run_delete_sims(args: argparse.Namespace) -> int:
     """Keep an applied management operation under the run writer lock."""
     registry = RunRegistry(Path(args.workspace).resolve(), args.runs)
@@ -208,9 +229,10 @@ def _run_delete_sims(args: argparse.Namespace, registry: RunRegistry) -> int:
         if all(r.point.pol != sim for r in records) and not (root / "sims" / f"sim_{sim}").is_dir():
             raise RegistryError(f"--sims {sim}: no record or folder of that simulation")
     doomed = [r for r in records if r.point.pol in sims]
-    if blocked := [r.point_id for r in doomed if r.status == "SUBMITTED"]:
-        if not args.force:
-            raise RegistryError(f"{blocked[0]} is still SUBMITTED; --force deletes it anyway")
+    for live in ("SUBMITTED", "RUNNING"):
+        if (blocked := [r.point_id for r in doomed if r.status == live]) and not args.force:
+            raise RegistryError(f"{blocked[0]} is still {live}; --force deletes it anyway")
+    _refuse_shared_sims(root, args.runs, sims)
     matrices = sorted({r.matrix for r in doomed})
     products = [m for m in matrices if (root / "post" / Path(m).stem).is_dir()]
     if products and args.matrix_products is None:
@@ -364,6 +386,11 @@ def run_sync(args: argparse.Namespace) -> int:
 def _run_sync(args: argparse.Namespace, registry: RunRegistry) -> int:
     """Bring records and results from the workspaces named in inputs/sync-workspaces.toml."""
     root = Path(args.workspace).resolve()
+    if args.prefer_other and args.level != "runs" and not args.overwrite:
+        raise RegistryError(
+            "--prefer-other takes the other workspace's records, and at this level their files "
+            "too only with --overwrite; add --overwrite, or use level runs to bring records alone"
+        )
     main = registry
     mine = {r.point_id: r for r in main.read()}
     for name, other in _sync_sources(root, args.source).items():

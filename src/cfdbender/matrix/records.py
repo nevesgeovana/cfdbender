@@ -66,6 +66,12 @@ def _mark_locked(args: argparse.Namespace, verdict: str, registry: RunRegistry) 
     changes: dict[str, RunRecord] = {}
     refused: list[str] = []
     for record in (r for r in records if r.point_id in keep):
+        if verdict == "failed" and record.status == "RUNNING":
+            refused.append(
+                f"{record.point_id}: RUNNING; stop the run first, then mark the point "
+                "(a live run would seal it over the mark)"
+            )
+            continue
         if verdict == "converged" and record.status != "COMPLETED":
             refused.append(f"{record.point_id}: {record.status}, not COMPLETED")
             continue
