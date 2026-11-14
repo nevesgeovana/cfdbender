@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 import pytest
@@ -99,8 +98,8 @@ def test_su2_row_flight_condition_geometry_and_variables_reach_the_deck(tmp_path
     assert float(values["FREESTREAM_TEMPERATURE"]) == pytest.approx(310.928)
     assert float(values["REYNOLDS_NUMBER"]) == pytest.approx(5e6)
     assert float(values["REYNOLDS_LENGTH"]) == 0.5
-    density, pressure = float(values["FREESTREAM_DENSITY"]), float(values["FREESTREAM_PRESSURE"])
-    assert math.isclose(pressure, density * 287.05287 * 310.928, rel_tol=1e-9)
+    # A RANS run with REYNOLDS_NUMBER takes both from the Reynolds number (FIX87I, audit A4).
+    assert "FREESTREAM_DENSITY" not in values and "FREESTREAM_PRESSURE" not in values
     plan = plan_workspace(tmp_path, "dpw")
     assert "inputs/geometries/wb.su2" in plan.points[0].inputs_sha256
 

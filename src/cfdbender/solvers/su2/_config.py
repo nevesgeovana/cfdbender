@@ -203,6 +203,35 @@ def _flow(
     return kept, derived
 
 
+#: The compressible viscous solvers, which take the free-stream density from REYNOLDS_NUMBER.
+VISCOUS = {"NAVIER_STOKES", "RANS", "FEM_NAVIER_STOKES", "FEM_RANS", "FEM_LES"}
+
+
+def _upper(values: Mapping[str, object], key: str) -> str:
+    return str(values.get(key, "")).strip().upper()
+
+
+def _ignored_freestream(values: Mapping[str, object]) -> set[str]:
+    """Return the free-stream keys this deck would state and SU2 would not read.
+
+    Under SU2's default FREESTREAM_OPTION, TEMPERATURE_FS, the density follows from the
+    pressure and the temperature, so FREESTREAM_DENSITY is unread. A compressible viscous
+    run with REYNOLDS_NUMBER and SU2's default INIT_OPTION, REYNOLDS, also takes the
+    density from the Reynolds number and recomputes the pressure, so FREESTREAM_PRESSURE
+    is unread too. The flight condition still resolves both; the deck omits them.
+    """
+    ignored = set()
+    if _upper(values, "FREESTREAM_OPTION") != "DENSITY_FS":
+        ignored.add("FREESTREAM_DENSITY")
+    if (
+        _upper(values, "SOLVER") in VISCOUS
+        and "REYNOLDS_NUMBER" in values
+        and _upper(values, "INIT_OPTION") != "TD_CONDITIONS"
+    ):
+        ignored.add("FREESTREAM_PRESSURE")
+    return ignored
+
+
 def _same(stated: object, derived: object) -> bool:
     if isinstance(derived, float) and isinstance(stated, (int, float)):
         return not isinstance(stated, bool) and math.isclose(stated, derived, rel_tol=1e-9)
@@ -267,6 +296,7 @@ def config(
                     raise unknown_keys(file, [key], [*NEUTRAL_KEYS, "moment_origin"]) from None
                 target = key
             add(target, value)
+    stated = set(values)
     for key, value in derived.items():
         if key in values and not _same(values[key], value):
             source = "GEOMETRY" if key == "MESH_FILENAME" else "FLIGHT_CONDITION"
@@ -275,6 +305,8 @@ def config(
                 f"{value!r} from the matrix {source}; state it in one place"
             )
         values[key] = value
+    for key in _ignored_freestream(values) - stated:
+        values.pop(key, None)
     if "MACH_NUMBER" not in values:
         warnings.warn(
             "FLIGHT_CONDITION and the setup file state no MACH_NUMBER: SU2 runs with its own "

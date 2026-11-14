@@ -83,7 +83,7 @@ level like any other air statement.
 
 | Solver | Row state becomes | GEOMETRY becomes |
 |---|---|---|
-| SU2 | `MACH_NUMBER`, `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE`, `FREESTREAM_DENSITY`, `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` (see the SU2 page) | `MESH_FILENAME` |
+| SU2 | `MACH_NUMBER`, `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them, `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` (see the SU2 page) | `MESH_FILENAME` |
 | OpenFOAM | `speed` (the velocity) and `nu` (viscosity over density) | `mesh` |
 | PyFR | `mach` and `reynolds` | `mesh` |
 | XFOIL | `mach` and `reynolds`; a bare `MACH` is the setup's `mach` | `airfoil_file` |

@@ -16,9 +16,10 @@ Duplicate assignments to a SU2 key refuse, including matrix conditions.
 The matrix GEOMETRY column may name the mesh instead of the setup. A row whose
 FLIGHT_CONDITION states the air with more than MACH (for example
 MACH:0.85, REmi:5, TK:310.928) is resolved in the core and written as
-MACH_NUMBER, FREESTREAM_TEMPERATURE, FREESTREAM_PRESSURE, FREESTREAM_DENSITY,
-REYNOLDS_NUMBER and REYNOLDS_LENGTH (the r file's length); a MUPas pin writes a
-constant viscosity. A value the s/r/p files also state must agree with it.
+MACH_NUMBER, FREESTREAM_TEMPERATURE, REYNOLDS_NUMBER and REYNOLDS_LENGTH (the r
+file's length), with FREESTREAM_PRESSURE and FREESTREAM_DENSITY only where SU2 reads
+them; a MUPas pin writes a constant viscosity. A value the s/r/p files also state
+must agree with it.
 
 The s file's optional [solver] table accepts route="pysu2" or "executable",
 executable="<path>" (else CFDBENDER_SU2_EXE), threads=1, timeout_s=600 and

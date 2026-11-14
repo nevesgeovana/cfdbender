@@ -125,12 +125,14 @@ This starts `mpirun -np 192 /opt/su2/bin/SU2_CFD su2.cfg` in the point folder. U
 |---|---|
 | resolved Mach number | `MACH_NUMBER` |
 | `ALPHA`, `BETA` | `AOA`, `SIDESLIP_ANGLE` |
-| resolved temperature, pressure, density | `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE`, `FREESTREAM_DENSITY` |
+| resolved temperature, pressure, density | `FREESTREAM_TEMPERATURE`, and `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them (below) |
 | `REmi` x 1e6 and the reference file's `length` | `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` |
 | `MUPas` | `VISCOSITY_MODEL= CONSTANT_VISCOSITY`, `MU_CONSTANT` |
 | `GEOMETRY` | `MESH_FILENAME` |
 
 A row that states only `MACH` and angles keeps the setup's flow state. When neither the row nor the setup states a Mach number, `plan` warns that SU2 will run with its own default free stream. When the air is stated without `REmi`, the Reynolds number written is the outcome of the resolved density, velocity and viscosity over the reference file's `length`. A value that the setup also states must agree with the row, or the point is refused: `conflict: <key> is <value> in the s/r/p files and <value> from the matrix FLIGHT_CONDITION; state it in one place`. `ASMPS` is refused unless it equals the speed of sound SU2 derives from the temperature: `ASMPS pins a speed of sound SU2 cannot hold: SU2 derives it from the temperature; pin TK instead`. See [Matrix columns](matrix-columns.md) for every column.
+
+The deck states no free-stream value that SU2 recomputes and ignores. Under SU2's default `FREESTREAM_OPTION`, `TEMPERATURE_FS`, the density follows from the pressure and the temperature, so the resolved density is written only with `FREESTREAM_OPTION = "DENSITY_FS"`. A compressible viscous run (`SOLVER` `NAVIER_STOKES` or `RANS`) with a Reynolds number, under SU2's default `INIT_OPTION`, `REYNOLDS`, takes the density from the Reynolds number and recomputes the pressure from it, so the resolved pressure is not written either; `INIT_OPTION = "TD_CONDITIONS"` keeps it. An Euler run gets the pressure. A value you state in the setup is always written. cfdbender writes no `REF_DIMENSIONALIZATION`, so SU2 keeps its default, `DIMENSIONAL`; state `REF_DIMENSIONALIZATION = "FREESTREAM_PRESS_EQ_ONE"`, as SU2's own NACA 0012 case does, to scale the equations by the free stream.
 
 ## What converged means
 
