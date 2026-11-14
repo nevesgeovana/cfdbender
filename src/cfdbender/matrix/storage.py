@@ -335,15 +335,15 @@ def _copy_files(
         if not args.include_archives and "archive" in relative.parts:
             continue
         target = owned_path(base, relative.as_posix())
+        name = relative.as_posix()
+        if any(name.startswith(folder + "/") for folder in kept):
+            print(f"  conflict {name}: main's copy kept, with the record of its point")
+            continue
         if target.exists():
             if (
                 hashlib.sha256(target.read_bytes()).digest()
                 == hashlib.sha256(path.read_bytes()).digest()
             ):
-                continue
-            name = relative.as_posix()
-            if any(name.startswith(folder + "/") for folder in kept):
-                print(f"  conflict {name}: main's copy kept, with the record of its point")
                 continue
             if not args.overwrite:
                 print(f"  conflict {name}: main's copy kept")
@@ -418,6 +418,18 @@ def _run_sync(args: argparse.Namespace, registry: RunRegistry) -> int:
                     print(f"  conflict {record.point_id}: main's record kept")
         saved: list[str] = []
         copied = 0
+        if args.level == "all" and not args.overwrite:
+            # A new or automatically accepted SUBMITTED record needs its own files too.
+            # Refuse before copying anything when the file policy would keep other bytes.
+            for record in changes.values():
+                for path in _own_files(owned_path(other, record.point.directory)):
+                    relative = path.relative_to(other).as_posix()
+                    target = owned_path(root, relative)
+                    if target.exists() and target.read_bytes() != path.read_bytes():
+                        raise RegistryError(
+                            f"{relative}: taking record {record.point_id} requires replacing "
+                            "its conflicting files; add --overwrite"
+                        )
         if args.level in ("post", "all"):
             copied += _copy_files(root, other, "post", args, saved)
         if args.level == "all":

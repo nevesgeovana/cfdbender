@@ -152,3 +152,5 @@ sync needs inputs/sync-workspaces.toml: [workspaces] name = "path"
 ```
 
 Sync creates a fresh temporary file exclusively, so a pre-existing temporary-name link cannot redirect a copy.
+
+Sync leaves missing files of a kept point missing instead of filling them from a conflicting run. When importing records with sync all, conflicting point files require --overwrite before any copy begins.

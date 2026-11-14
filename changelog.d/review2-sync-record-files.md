@@ -1,0 +1,1 @@
+Sync leaves missing files of a kept point missing instead of filling them from a conflicting run. When importing records with sync all, conflicting point files require --overwrite before any copy begins.
