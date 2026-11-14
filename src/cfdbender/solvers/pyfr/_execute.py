@@ -89,12 +89,15 @@ def _launch(
     code = 1
     timed_out = False
     process = None
+    failed_command: int | None = 0 if argv else None
     try:
         with (
             (folder / "stdout.log").open("xb") as stdout,
             (folder / "stderr.log").open("xb") as stderr,
         ):
-            for command in argv:
+            for index, command in enumerate(argv):
+                failed_command = index
+                code = 1
                 check_ram()
                 _ram.require_ram(0, solver="PyFR")
                 process = subprocess.Popen(
@@ -118,12 +121,16 @@ def _launch(
                         code = 124
                         break
                     try:
-                        code = process.wait(timeout=min(0.1, remaining))
+                        status = process.wait(timeout=min(0.1, remaining))
+                        check_ram()
+                        _ram.require_ram(0, solver="PyFR")
+                        code = status
                         break
                     except subprocess.TimeoutExpired:
                         continue
                 if code != 0:
                     break
+                failed_command = None
     finally:
         if process is not None and process.poll() is None:
             _kill_tree(process)
@@ -132,6 +139,7 @@ def _launch(
                 {
                     "argv": argv,
                     "exit_code": code,
+                    "failed_command": failed_command,
                     "timed_out": timed_out,
                     "timeout_s": timeout,
                     "version": version,

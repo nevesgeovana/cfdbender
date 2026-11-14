@@ -136,9 +136,10 @@ def _launch(
                     code = 124
                     break
                 try:
-                    code = process.wait(timeout=min(0.1, remaining))
+                    status = process.wait(timeout=min(0.1, remaining))
                     check_ram()
                     _ram.require_ram(0, solver="OpenFOAM")
+                    code = status
                     break
                 except subprocess.TimeoutExpired:
                     continue
