@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shutil
 import sys
 from contextlib import nullcontext
@@ -197,8 +198,13 @@ def run_restore(args: argparse.Namespace) -> int:
     source = owned_path(root, (candidates[-1] / relative).relative_to(root).as_posix())
     target = owned_path(root, relative)
     if source.is_dir():
-        for item in iter_files(source):
-            owned_path(root, item.relative_to(root).as_posix())
+        # Inspect links themselves before copytree can follow them. iter_files intentionally
+        # omits linked entries, so it cannot validate a tree that copytree will copy.
+        for current, folders, files in os.walk(long_path(source), followlinks=False):
+            for name in (*folders, *files):
+                item = Path(current, name)
+                if item.is_symlink() or os.path.isjunction(item):
+                    raise WorkspaceError(f"{item}: linked restore source; refusing to follow it")
     print(
         f"{'restoring' if args.apply else 'would restore'} {args.kind} "
         f"from {source.relative_to(root).as_posix()}"

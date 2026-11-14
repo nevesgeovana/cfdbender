@@ -278,3 +278,5 @@ campaign first.
 Management destinations must stay inside the workspace without passing through a
 symbolic link or Windows junction. Sync skips linked source folders; restore
 refuses linked source trees.
+
+Restore refuses symbolic links and junctions anywhere in an archived product tree before replacing live products.
