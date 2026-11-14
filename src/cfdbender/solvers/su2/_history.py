@@ -98,6 +98,13 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
         int(metadata["exit_code"]), (), int(cfg["ITER"]), version[1] if version else "unknown"
     )
     # Affirmative lines only. 'Exit Success' says nothing about numerical convergence.
+    # The message counts only when no iteration line follows it: a banner printed before
+    # later iterations belongs to an earlier state of the log, not to the last iteration.
+    lines = log.splitlines()
+    last_iteration = max(
+        (n for n, line in enumerate(lines) if re.match(r"\s*[|]\s*\d+\s*[|]", line)),
+        default=-1,
+    )
     converged = any(
         re.fullmatch(
             "(?:[|* ]*)(?:(?:All )?Convergence criteria (?:were )?satisfied[.!]?|"
@@ -106,7 +113,7 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
             re.IGNORECASE,
         )
         is not None
-        for line in log.splitlines()
+        for line in lines[last_iteration + 1 :]
     )
     history: list[Iteration] = []
     coefficients: dict[str, Coefficient] = {}

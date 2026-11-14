@@ -191,7 +191,7 @@ adapter states in its documentation what that evidence is:
 
 | Solver | A point is `converged` when |
 | --- | --- |
-| SU2 | the solver states convergence on its last iteration |
+| SU2 | the solver prints its convergence message after the last iteration line of its log (a message followed by more iterations does not count) |
 | OpenFOAM | the force output and the log end on the same iteration, and on it SIMPLE reports convergence or every required initial residual is below the residual target |
 | PyFR | no value is non-finite and the two halves of the averaging window agree within the row's tolerance |
 | XFOIL | the polar holds a row at the requested angle of attack |
