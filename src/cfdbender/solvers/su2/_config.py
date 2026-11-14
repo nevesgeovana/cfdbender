@@ -49,7 +49,7 @@ def reads_key(key: str) -> bool:
     """Return whether SU2 translates a neutral key or forwards a native key."""
     return (
         key.lower() in NEUTRAL_KEYS
-        or key == "moment_origin"
+        or key in {"moment_origin", *RAMP_KEYS}
         or re.fullmatch("[A-Z][A-Z0-9_]*", key) is not None
     )
 
@@ -260,6 +260,7 @@ def config(
     if geometry is not None:
         derived["MESH_FILENAME"] = geometry
     values: dict[str, object] = {}
+    ramp: dict[str, float] = {}
 
     def add(key: str, value: object) -> None:
         if key in values:
@@ -282,6 +283,9 @@ def config(
                 and table is post
             ):
                 continue
+            if key in RAMP_KEYS and table is setup:
+                ramp[key] = number(value, key)
+                continue
             if key == "moment_origin":
                 if not isinstance(value, list) or len(value) != 3:
                     raise ValueError("moment_origin needs three finite coordinates")
@@ -293,7 +297,9 @@ def config(
                 if re.fullmatch("[A-Z][A-Z0-9_]*", key) is None:
                     if table is reference or table is post:
                         continue
-                    raise unknown_keys(file, [key], [*NEUTRAL_KEYS, "moment_origin"]) from None
+                    raise unknown_keys(
+                        file, [key], [*NEUTRAL_KEYS, "moment_origin", *RAMP_KEYS]
+                    ) from None
                 target = key
             add(target, value)
     stated = set(values)
@@ -360,7 +366,7 @@ def config(
             raise ValueError(f"conflict: {key} must be {value}")
         values.setdefault(key, value)
     _history_output(values)
-    _cfl_ramp(values)
+    _cfl_ramp(values, ramp)
     _fluid_model(values)
     _sa_variant(values)
     _heatflux_values(values)
@@ -490,10 +496,37 @@ CFL_RAMP: dict[str, object] = {
 }
 
 
-def _cfl_ramp(values: dict[str, object]) -> None:
-    """Write the default CFL ramp unless the user states any CFL key (no merging)."""
-    if not any(key in values for key in CFL_KEYS):
-        values.update(CFL_RAMP)
+#: Neutral keys that set one slot of the CFL ramp: its maximum and its growth factor.
+RAMP_KEYS = ("cfl_max", "cfl_growth")
+
+
+def _cfl_ramp(values: dict[str, object], ramp: Mapping[str, float]) -> None:
+    """Write the CFL ramp.
+
+    Without any CFL key the default ramp is written whole. A native CFL key without a
+    ramp key switches the default off (no merging). cfl_max and cfl_growth write the
+    default ramp with those slots replaced: the start is cfl (else 5) and is also the
+    ramp's minimum.
+    """
+    if not ramp:
+        if not any(key in values for key in CFL_KEYS):
+            values.update(CFL_RAMP)
+        return
+    if "CFL_ADAPT_PARAM" in values:
+        raise ValueError(
+            "conflict: cfl_max and cfl_growth set CFL_ADAPT_PARAM; state either, not both"
+        )
+    if "CFL_ADAPT" in values and values["CFL_ADAPT"] is not True:
+        raise ValueError("conflict: cfl_max and cfl_growth need CFL_ADAPT; remove CFL_ADAPT")
+    start = number(values.get("CFL_NUMBER", CFL_RAMP["CFL_NUMBER"]), "cfl")
+    down, growth, _, top = cast(list[float], CFL_RAMP["CFL_ADAPT_PARAM"])
+    growth = ramp.get("cfl_growth", growth)
+    top = ramp.get("cfl_max", top)
+    if growth <= 1:
+        raise ValueError("cfl_growth must be above 1")
+    if start <= 0 or top < start:
+        raise ValueError("cfl_max must be at least the start CFL (cfl, else 5)")
+    values.update(CFL_NUMBER=start, CFL_ADAPT=True, CFL_ADAPT_PARAM=[down, growth, start, top])
 
 
 #: The history groups the reader needs: the iteration counter, the residuals and the
