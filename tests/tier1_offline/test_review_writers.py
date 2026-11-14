@@ -43,11 +43,13 @@ def test_nested_registry_write_keeps_outer_transaction_locked(tmp_path):
 
 
 def test_delete_keeps_lock_until_folder_removal(tmp_path, monkeypatch):
-    from cfdbender.matrix import storage
+    import shutil
+
+    from cfdbender.matrix import storage  # noqa: F401
 
     workspace(tmp_path)
     (tmp_path / "sims/sim_1001").mkdir(parents=True)
-    real = storage.shutil.rmtree
+    real = shutil.rmtree
 
     def remove(path):
         assert (tmp_path / "runs.json.lock").exists()
@@ -55,5 +57,5 @@ def test_delete_keeps_lock_until_folder_removal(tmp_path, monkeypatch):
             RunRegistry(tmp_path).replace_records({})
         real(path)
 
-    monkeypatch.setattr(storage.shutil, "rmtree", remove)
+    monkeypatch.setattr(shutil, "rmtree", remove)
     assert main(["delete-sims", "--workspace", str(tmp_path), "--sims", "1001", "--apply"]) == 0

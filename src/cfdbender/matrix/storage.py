@@ -11,6 +11,7 @@ import hashlib
 import os
 import tempfile
 import tomllib
+from collections.abc import Sequence
 from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
@@ -192,7 +193,7 @@ def _sim_folder(root: Path, sim: str) -> Path:
     return folder
 
 
-def _refuse_shared_sims(root: Path, runs: str, sims: list[str]) -> None:
+def _refuse_shared_sims(root: Path, runs: str, sims: Sequence[str]) -> None:
     """Refuse a sim that a manifest other than ``runs`` still records.
 
     The sim folder is shared by every manifest; deleting it would leave the other
@@ -519,7 +520,7 @@ def register(commands: Any) -> dict[str, Any]:
         "--prefer-other",
         dest="prefer_other",
         action="store_true",
-        help="on a record conflict, take the other workspace's record",
+        help="on a record conflict, take the other record (levels post and all need --overwrite)",
     )
     sync.add_argument(
         "--overwrite",

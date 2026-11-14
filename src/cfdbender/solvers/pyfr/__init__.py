@@ -107,7 +107,6 @@ def check_executable(point: AdapterPoint) -> None:
 def preflight(point: AdapterPoint) -> None:
     """Refuse before any point starts: executable, host slot and free RAM."""
     from cfdbender.solvers._host._exe import check_host_free
-
     from cfdbender.solvers._host._version import refuse_wrong_build
     from cfdbender.solvers.pyfr._execute import launch_prefix
 

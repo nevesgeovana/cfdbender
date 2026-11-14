@@ -22,10 +22,10 @@ from cfdbender.core.mesh import resolve_setup_paths
 from cfdbender.core.plan import (
     InputFiles,
     Point,
-    is_matrix_file,
     RowInputs,
     RowRequirements,
     apply_variables,
+    is_matrix_file,
 )
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import read_init

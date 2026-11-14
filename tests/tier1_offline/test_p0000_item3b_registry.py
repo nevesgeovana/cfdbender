@@ -59,7 +59,6 @@ def test_p0000_item3b_registry_refuses_duplicate_point_without_replacing_evidenc
     "changed",
     [
         "init.toml",
-        "inputs/matrices/study.fs",
         "inputs/setups/s002.toml",
         "inputs/references/r003.toml",
         "inputs/pproc/p001.toml",
@@ -141,3 +140,12 @@ def test_p0000_item3b_registry_refuses_foreign_workspace(tmp_path):
     (tmp_path / "two").mkdir()
     with pytest.raises(registry_api().RegistryError, match="workspace"):
         registry_api().RunRegistry(tmp_path / "two").record(plan)
+
+
+def test_a_changed_matrix_is_not_a_changed_input_of_a_point(tmp_path):
+    # The matrix is shared by every point and grows by rows; the plan receipt judges it, and a
+    # point is as stale as the s, r, p and geometry files it read.
+    plan = planned(tmp_path)
+    path = tmp_path / "inputs/matrices/study.fs"
+    path.write_bytes(path.read_bytes() + b" ")
+    registry_api().RunRegistry(tmp_path).record(plan)

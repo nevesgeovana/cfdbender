@@ -462,7 +462,7 @@ cfd-matrix sync {runs,post,all} [options]
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--from SOURCE` | One workspace name from sync-workspaces.toml (default: every one) |
 | `--apply` | Change files; without it the command previews and changes nothing |
-| `--prefer-other` | On a record conflict, take the other workspace's record |
+| `--prefer-other` | On a record conflict, take the other record (levels post and all need --overwrite) |
 | `--overwrite` | On a file conflict, archive main's copy and take the other's |
 | `--restore` | With --apply, remind to rebuild the records of sim folders no record carries |
 | `--include-archives` | Also bring the files under folders named archive |
