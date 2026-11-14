@@ -330,7 +330,22 @@ def config(
     _history_output(values)
     _cfl_ramp(values)
     _fluid_model(values)
+    _sa_variant(values)
     return values
+
+
+#: The standard SA-neg of the NASA turbulence modeling resource, as SU2 8.x names it.
+#: SU2's default for SA is SA-noft2, which limits each nu-tilde update to 99 percent of
+#: the local value and cancels it below 1e-10; that stalled the TMR NACA 0012 runs.
+#: SU2 refuses NEGATIVE without WITHFT2 unless EXPERIMENTAL is added.
+SA_NEG = ["NEGATIVE", "WITHFT2"]
+
+
+def _sa_variant(values: dict[str, object]) -> None:
+    """Write SA_OPTIONS for standard SA-neg when SA runs without the user's own."""
+    model = str(values.get("KIND_TURB_MODEL", "")).strip().upper()
+    if model == "SA" and "SA_OPTIONS" not in values:
+        values["SA_OPTIONS"] = list(SA_NEG)
 
 
 #: SU2's own gas constants: STANDARD_AIR forces them, and IDEAL_GAS falls back to them.
