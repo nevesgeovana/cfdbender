@@ -42,6 +42,11 @@ def test_c39_fixed_references_are_the_ones_the_page_states(case):  # noqa: F811
         assert tuple(refs.moment_origin) == (0.0, 0.0, 0.0)
     elif solver == "su2":
         assert (refs.area, refs.length) == (1.0, 1.0)
+    elif solver == "mock":
+        assert (refs.area, refs.length) == (1.5, 1.0)
+        assert tuple(refs.moment_origin) == (0.0, 0.0, 0.0)
+    else:
+        raise AssertionError(f"C-39 has no reference assertion for {solver}")
 
 
 def test_c40_every_adapter_history_counts_from_one_with_a_linear_residual(case):  # noqa: F811
@@ -52,6 +57,20 @@ def test_c40_every_adapter_history_counts_from_one_with_a_linear_residual(case):
     numbers = [item.iteration for item in result.history]
     assert numbers[0] == 1 and numbers == sorted(numbers), (solver, numbers)
     assert all(math.isfinite(i.residual) and i.residual >= 0 for i in result.history)
+
+
+def test_c39_reference_probe_rejects_wrong_mock_references(tmp_path, monkeypatch):
+    """R2-08: a broken mock result must fail the same reference check as other adapters."""
+    import sys
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "run_and_collect",
+        lambda *args: (None, None, SimpleNamespace(references=REFS)),
+    )
+    with pytest.raises(AssertionError):
+        test_c39_fixed_references_are_the_ones_the_page_states(("mock", tmp_path))
 
 
 @pytest.mark.parametrize(
