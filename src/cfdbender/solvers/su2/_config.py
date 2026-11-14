@@ -10,6 +10,8 @@ from typing import cast
 
 from cfdbender.core.flight import (
     ATTITUDE_KEYS,
+    GAMMA,
+    GAS_CONSTANT,
     STATE_KEYS,
     resolve_flow,
     speed_of_sound,
@@ -34,6 +36,7 @@ NEUTRAL_KEYS = {
     "area": "REF_AREA",
     "length": "REF_LENGTH",
     "iterations": "ITER",
+    "cfl": "CFL_NUMBER",
     "convergence_field": "CONV_FIELD",
     "convergence_residual": "CONV_RESIDUAL_MINVAL",
     "output_frequency": "OUTPUT_WRT_FREQ",
@@ -325,7 +328,33 @@ def config(
             raise ValueError(f"conflict: {key} must be {value}")
         values.setdefault(key, value)
     _history_output(values)
+    _cfl_ramp(values)
+    # SU2's STANDARD_AIR holds R = 287.058, while the estate atmosphere uses ISO 2533;
+    # stating both keeps every solver on one free stream. A native value of the user wins.
+    values.setdefault("GAS_CONSTANT", GAS_CONSTANT)
+    values.setdefault("GAMMA_VALUE", GAMMA)
     return values
+
+
+#: The CFL ramp written when the setup states no CFL key.
+#: SU2 8.x ramps the CFL number itself: CFL_NUMBER is the start value and CFL_ADAPT_PARAM
+#: is (factor down, factor up, CFL min, CFL max). Start 5 and max 25 because real runs on
+#: the TMR NACA 0012 stalled near rms -4.2 at CFL 50 or above and under SU2's own adaptive
+#: CFL, while fixed CFL 25 converged at alpha 10 only. The up factor 1.2 raises the CFL 20
+#: percent per iteration while the residual falls; the down factor 0.5 halves it when the
+#: residual grows, so a bad start recovers. Min 5 keeps the ramp from falling below the start.
+CFL_KEYS = ("CFL_NUMBER", "CFL_ADAPT", "CFL_ADAPT_PARAM")
+CFL_RAMP: dict[str, object] = {
+    "CFL_NUMBER": 5,
+    "CFL_ADAPT": True,
+    "CFL_ADAPT_PARAM": [0.5, 1.2, 5, 25],
+}
+
+
+def _cfl_ramp(values: dict[str, object]) -> None:
+    """Write the default CFL ramp unless the user states any CFL key (no merging)."""
+    if not any(key in values for key in CFL_KEYS):
+        values.update(CFL_RAMP)
 
 
 #: The history groups the reader needs: the iteration counter, the residuals and the

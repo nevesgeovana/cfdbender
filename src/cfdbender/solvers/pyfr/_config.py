@@ -4,7 +4,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from cfdbender.core.flight import agree, mach_reynolds
+from cfdbender.core.flight import GAMMA, agree, mach_reynolds
 from cfdbender.core.mesh import MESH_PREFIXES
 from cfdbender.solvers._host._config import number, unknown_keys
 
@@ -135,14 +135,14 @@ rank-allocator = linear
 device-id = round-robin
 
 [constants]
-gamma = 1.4
+gamma = {GAMMA!r}
 mu = {_n(1 / case.reynolds)}
 Pr = 0.72
 cpTref = 1
 cpTs = 1
 uinf = {_n(math.cos(angle))}
 vinf = {_n(math.sin(angle))}
-pinf = {_n(1 / (1.4 * case.mach**2))}
+pinf = {_n(1 / (GAMMA * case.mach**2))}
 
 [solver]
 system = navier-stokes

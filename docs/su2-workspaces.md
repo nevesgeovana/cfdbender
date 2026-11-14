@@ -53,11 +53,30 @@ Marker names come from the setup file, never from the mesh. Match the names and 
 | `convergence_field` | `CONV_FIELD` | - | SU2's own |
 | `convergence_residual` | `CONV_RESIDUAL_MINVAL` | log10 of the residual | SU2's own |
 | `output_frequency` | `OUTPUT_WRT_FREQ` | iterations | SU2's own |
+| `cfl` | `CFL_NUMBER` | - | a ramp from 5 to 25, see below |
 | `mesh_link` | none | - | `true`; `false` is refused |
 
 Temperature, pressure, density and velocity use SU2's units, SI by default. `mesh_link = true` changes nothing; `mesh_link = false` is refused with `mesh_link = false asks for a mesh copy; meshes are always linked, never copied: remove mesh_link`.
 
 cfdbender also writes `MESH_FORMAT` to match the mesh, `CONV_FILENAME= history` and `TABULAR_FORMAT= CSV`, because the history must be a CSV file. If you state one of these with another value, it refuses with `conflict: <key> must be <value>`. The history must contain at least one `rms[...]` residual column and one coefficient column; cfdbender writes `HISTORY_OUTPUT= ( ITER, RMS_RES, AERO_COEFF )` when the setup states none, and a `HISTORY_OUTPUT` of the setup that lacks one of these groups is extended with it and a warning, because SU2's own default history holds neither residuals nor coefficients.
+
+### Gas constants
+
+cfdbender also writes `GAS_CONSTANT= 287.05287` and `GAMMA_VALUE= 1.4`, the constants of its own standard atmosphere, so the free-stream speed SU2 computes equals the one the other solvers receive (SU2's built-in air uses 287.058). State `GAS_CONSTANT` or `GAMMA_VALUE` in the setup to use your own value; yours wins.
+
+### CFL ramp
+
+The CFL number is the size of the pseudo-time step relative to the stability limit: a larger CFL converges faster until it is too large and the residual stalls or the run diverges. When the setup states no CFL key, cfdbender writes a ramp that starts gentle and grows as the residual falls:
+
+```
+CFL_NUMBER= 5
+CFL_ADAPT= YES
+CFL_ADAPT_PARAM= ( 0.5, 1.2, 5, 25 )
+```
+
+`CFL_ADAPT_PARAM` is (factor down, factor up, CFL minimum, CFL maximum). The start 5 is safe on a poor initial field. The maximum 25 is the value that converged the TMR NACA 0012; CFL 50 or more, and SU2's own unbounded adaptive CFL, stalled near rms -4.2. The factor 1.2 raises the CFL 20 percent per iteration while the residual falls, and 0.5 halves it when the residual grows. The minimum 5 never lets the ramp fall below the start.
+
+To change it, state `cfl` (or `CFL_NUMBER`), `CFL_ADAPT` or `CFL_ADAPT_PARAM` in `s<id>.toml`, for example `CFL_ADAPT_PARAM = [0.5, 1.2, 5, 50]`. Any one of these three keys switches the default off completely: cfdbender then writes only the CFL keys you stated and merges nothing, so a lone `cfl = 10` is a fixed CFL 10 and a lone `CFL_ADAPT_PARAM` without `CFL_ADAPT = true` is written as stated. Your keys always win.
 
 **`[solver]` table**
 
