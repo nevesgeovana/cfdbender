@@ -353,7 +353,9 @@ def _post(args: argparse.Namespace, console: Console) -> int:
     console.final(
         f"post read {report.collected}, failed {report.failed}, outstanding {report.outstanding}"
     )
-    return report.exit_code
+    # pyflightstream's post exits 0 once the products are written, and 3 for a partial
+    # rebuild; a failed point is a row of the tables, not a failure of the rebuild.
+    return 3 if report.outstanding else 0
 
 
 def _execute(

@@ -80,6 +80,10 @@ The `error` of a failed point starts with one of these words:
 | 2 | Refused. The message says what is at fault. |
 | 3 | No point failed, and cluster jobs are still outstanding. |
 
+These are pyflightstream's codes, so a script written for one library reads the other. A point that failed is also in the tables, with `NA` where it has no value.
+
+`post` follows pyflightstream's `post` the same way: it exits 0 once the tables are written, even when points failed (the count is on its last line), 3 when points are still outstanding and so left unread, and 2 when it is refused. Use `collect` when the exit code must say that a point failed.
+
 ## The columns
 
 Every table of a matrix has the same header, in this order:
