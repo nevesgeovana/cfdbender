@@ -20,6 +20,7 @@ from test_conformance_workspace import case, local, prepared, staging_case, stat
 from cfdbender import testing
 from cfdbender.core.adapter import load_point
 from cfdbender.core.registry import RunRegistry
+from cfdbender.matrix.submission import job_outputs
 from cfdbender.solvers import load_solver
 from cfdbender.solvers._host._single import process_lease
 from cfdbender.workspace.planning import plan_workspace
@@ -141,11 +142,16 @@ def test_c47_collect_works_from_the_job_outputs_alone(staging_case, tmp_path_fac
     adapter.execute(point, check_ram=lambda: None)
     expected = adapter.collect(point).classification
     folder = root / point.point.directory
-    keep = set(adapter.JOB_OUTPUTS) | staged
+    # JOB_OUTPUTS names files among the declared outputs: OpenFOAM lists the logs of both
+    # applications and declares only the one its route runs (FIX87I).
+    prefix = point.point.directory.rstrip("/") + "/"
+    awaited = {name.removeprefix(prefix) for name in job_outputs(adapter, point.point)}
+    assert awaited, solver
+    keep = awaited | staged
     for path in folder.rglob("*"):
         if path.is_file() and path.relative_to(folder).as_posix() not in keep:
             path.unlink()
-    assert all((folder / name).is_file() for name in adapter.JOB_OUTPUTS), solver
+    assert all((folder / name).is_file() for name in awaited), solver
     assert adapter.collect(point).classification == expected, solver
 
 

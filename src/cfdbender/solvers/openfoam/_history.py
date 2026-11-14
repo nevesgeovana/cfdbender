@@ -10,7 +10,7 @@ from pathlib import Path
 
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.results import Coefficient, ExecutionResult, Iteration, References
-from cfdbender.solvers.openfoam._config import config
+from cfdbender.solvers.openfoam._config import config, solver_log
 
 
 @dataclass(frozen=True)
@@ -83,8 +83,8 @@ def read(folder: Path, point: AdapterPoint) -> tuple[Evidence, dict[str, Coeffic
     execution = folder / "execution.json"
     metadata = json.loads(execution.read_bytes()) if execution.is_file() else {"exit_code": 0}
     application_log = (
-        (folder / "log.simpleFoam").read_text(encoding="utf-8", errors="replace")
-        if (folder / "log.simpleFoam").is_file()
+        (folder / solver_log(case)).read_text(encoding="utf-8", errors="replace")
+        if (folder / solver_log(case)).is_file()
         else ""
     )
     logs = "\n".join(

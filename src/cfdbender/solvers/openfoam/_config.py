@@ -285,6 +285,16 @@ def staged_mesh(case: Case) -> str:
     return "mesh." + case.mesh.rsplit(".", 1)[1]
 
 
+def application(case: Case) -> str:
+    """Return the OpenFOAM application the case runs: pimpleFoam on the LTS route."""
+    return "pimpleFoam" if case.time_integration == "lts" else "simpleFoam"
+
+
+def solver_log(case: Case) -> str:
+    """Return the log the application writes, named after it (log.<application>)."""
+    return f"log.{application(case)}"
+
+
 def files(case: Case, opts: Mapping[str, object]) -> dict[str, str]:
     """Render case files in fixed order, ending with the sourced Allrun script."""
     c, s = math.cos(math.radians(case.alpha)), math.sin(math.radians(case.alpha))
@@ -294,7 +304,8 @@ def files(case: Case, opts: Mapping[str, object]) -> dict[str, str]:
     target = _n(case.target)
     turbulent = case.turbulence == "SpalartAllmaras"
     lts = case.time_integration == "lts"
-    application = "pimpleFoam" if lts else "simpleFoam"
+    solver = application(case)
+    log = solver_log(case)
     relaxation = case.relaxation if case.relaxation is not None else DEFAULT_RELAXATION
     relaxation_block = (
         "relaxationFactors { " + relaxation + " }" if not lts or case.relaxation is not None else ""
@@ -340,7 +351,7 @@ def files(case: Case, opts: Mapping[str, object]) -> dict[str, str]:
     result = {
         "system/controlDict": _file(
             "controlDict",
-            f"""application {application};
+            f"""application {solver};
 startFrom startTime;
 startTime 0;
 stopAt endTime;
@@ -467,7 +478,7 @@ boundaryField
         )
     )
     processes = cast(int, opts.get("processes", 1))
-    solve = f"{application} > log.simpleFoam 2>&1\n"
+    solve = f"{solver} > {log} 2>&1\n"
     if processes > 1:
         result["system/decomposeParDict"] = _file(
             "decomposeParDict", f"numberOfSubdomains {processes};\nmethod scotch;"
@@ -475,7 +486,7 @@ boundaryField
         mpi = shlex.join(cast(list[str], opts.get("mpi_launcher", ["mpirun"])))
         solve = (
             "decomposePar > log.decomposePar 2>&1\n"
-            f"{mpi} -np {processes} {application} -parallel > log.simpleFoam 2>&1\n"
+            f"{mpi} -np {processes} {solver} -parallel > {log} 2>&1\n"
             "reconstructPar -latestTime > log.reconstructPar 2>&1\n"
         )
     mesh_import = "gmshToFoam mesh.msh > log.gmshToFoam 2>&1\n"

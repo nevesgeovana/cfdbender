@@ -104,7 +104,7 @@ nothing else from the workspace:
 | Solver | Prepared in the folder of the point | `{config_path}` | The job must write |
 |---|---|---|---|
 | su2 | `su2.cfg`, the mesh (`mesh.su2` or `mesh.cgns`) | `su2.cfg` | `history.csv`, `stdout.log` |
-| openfoam | the case folders `system`, `constant`, `0`, the script `Allrun`, the mesh | `Allrun` | `log.simpleFoam`, `postProcessing/forceCoeffs/0/coefficient.dat` |
+| openfoam | the case folders `system`, `constant`, `0`, the script `Allrun`, the mesh | `Allrun` | `log.simpleFoam` (`log.pimpleFoam` on the LTS route), `postProcessing/forceCoeffs/0/coefficient.dat` |
 | pyfr | `case.ini`, `mesh.msh` | `case.ini` | `forces.csv` |
 | xfoil | `xfoil.in`, and `airfoil.dat` when the row names a coordinate file | `xfoil.in` | `polar.txt`, `stdout.log` |
 | qprop | `propeller.prop`, `qcon.def`, `sections.json` | `propeller.prop` | `stdout.log` |

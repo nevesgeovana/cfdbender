@@ -149,17 +149,17 @@ rDeltaTDampingCoeff 0.2;
 
 `maxCo` is the Courant number each cell may reach, and the ceiling of the ramp. `rDeltaTDampingCoeff` limits how fast the step may grow: with 0.2 a local step grows at most 1 / (1 - 0.2) = 1.25 times per iteration, which is the ramp from a small first step up to the ceiling (1 removes the limit). `rDeltaTSmoothingCoeff` smooths the step field between neighbouring cells. OpenFOAM has no schedule for `maxCo` itself, so the ramp is carried by the damping. State `lts_max_co`, `lts_damping`, `lts_smoothing` or `lts_max_delta_t` to change a value. State `PIMPLE` to replace the whole generated dictionary body with your own; its text wins entirely and the `lts_*` keys are then not written. No `relaxationFactors` is written on this route unless you state it. The `lts_*` keys and `PIMPLE` are refused with `time_integration = "steady"`, because they would do nothing.
 
-The run still writes `log.simpleFoam` (the name is kept so the collect step finds it) and the same `forceCoeffs` file. The LTS route has no `SIMPLE solution converged` line, and cfdbender judges convergence by the same residual rule as the steady route: the run is `converged` when the initial residuals of the last iteration are all below `residual_target`; otherwise it is `iteration_limit` at `iterations`. The run always goes to `iterations`, so set it with that in mind.
+The solver log is named after the application that ran, `log.pimpleFoam`, and the run writes the same `forceCoeffs` file. The LTS route has no `SIMPLE solution converged` line, and cfdbender judges convergence by the same residual rule as the steady route: the run is `converged` when the initial residuals of the last iteration are all below `residual_target`; otherwise it is `iteration_limit` at `iterations`. The run always goes to `iterations`, so set it with that in mind.
 
 SU2 has its own robust default, a CFL ramp; see [Solvers, side by side](solvers.md#convergence-control-of-the-rans-solvers) for why the keys are not shared.
 
 ## What converged means
 
-cfdbender reads `postProcessing/forceCoeffs/0/coefficient.dat` and the logs (`log.simpleFoam` and the other `log.*` files, `stdout.log`, `stderr.log`).
+cfdbender reads `postProcessing/forceCoeffs/0/coefficient.dat` and the logs (the solver log `log.simpleFoam`, or `log.pimpleFoam` on the LTS route, the other `log.*` files, `stdout.log` and `stderr.log`).
 
 | Result | Rule |
 |---|---|
-| `converged` | The exit code is 0, the force file is valid and ends at the same iteration as `log.simpleFoam`, and either the log says `SIMPLE solution converged in <N> iterations` with N equal to that last iteration, or the initial residuals of that iteration are all below `residual_target`. For the residual route, `Ux`, `Uy` and `p` must be present, and `nuTilda` with `SpalartAllmaras`. |
+| `converged` | The exit code is 0, the force file is valid and ends at the same iteration as the solver log, and either the log says `SIMPLE solution converged in <N> iterations` with N equal to that last iteration, or the initial residuals of that iteration are all below `residual_target`. For the residual route, `Ux`, `Uy` and `p` must be present, and `nuTilda` with `SpalartAllmaras`. |
 | `iteration_limit` | The evidence is valid, the run is not converged, and the last iteration reached `iterations`. |
 | `failed` | A nonzero exit code, a `FOAM FATAL ERROR` in a log, a missing, malformed or non-finite force file, force file and log that end at different iterations, or a run that stops before `iterations` without converging. |
 

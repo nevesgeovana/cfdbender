@@ -48,7 +48,7 @@ def test_lts_dictionaries_use_valid_keys(tmp_path):
         assert line in solution
     assert "relaxationFactors" not in solution and "SIMPLE" not in solution
     assert "maxDeltaT" not in solution
-    assert "pimpleFoam > log.simpleFoam" in files["Allrun"]
+    assert "pimpleFoam > log.pimpleFoam" in files["Allrun"]
 
 
 def test_lts_parameters_and_native_pimple(tmp_path):

@@ -47,6 +47,7 @@ from cfdbender.solvers.openfoam._config import (
     config,
     files,
     options,
+    solver_log,
     staged_mesh,
 )
 from cfdbender.solvers.openfoam._execute import run, stage_case
@@ -55,7 +56,12 @@ from cfdbender.solvers.openfoam._history import Evidence, read
 SOLVER_NAME = "openfoam"
 STAGED_CONFIG = "Allrun"
 EXECUTABLE_KEYS = {"path": "foam_bashrc", "launcher": "launcher"}
-JOB_OUTPUTS = ("log.simpleFoam", "postProcessing/forceCoeffs/0/coefficient.dat")
+#: The outputs a cluster job writes; only the solver log the point declares is awaited.
+JOB_OUTPUTS = (
+    "log.simpleFoam",
+    "log.pimpleFoam",
+    "postProcessing/forceCoeffs/0/coefficient.dat",
+)
 
 
 def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
@@ -101,7 +107,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             "stage mesh",
             "mesh_converter" if case.mesh_converter is not None else "gmshToFoam",
             "fix patches",
-            "simpleFoam",
+            solver_log(case).removeprefix("log."),
             "read forceCoeffs",
         ),
         tuple(
@@ -113,7 +119,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
                 "stdout.log",
                 "stderr.log",
                 "execution.json",
-                "log.simpleFoam",
+                solver_log(case),
                 *(("log.decomposePar", "log.reconstructPar") if opts["processes"] != 1 else ()),
                 "postProcessing/forceCoeffs/0/coefficient.dat",
             )

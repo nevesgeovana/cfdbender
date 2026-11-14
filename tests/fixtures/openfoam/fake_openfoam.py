@@ -39,7 +39,12 @@ if mode == "converged":
     log.append("SIMPLE solution converged in 2 iterations")
 if mode == "fatal":
     log.append("--> FOAM FATAL ERROR: planted failure")
-Path("log.simpleFoam").write_text("\n".join(log) + "\n", encoding="ascii")
+application = next(
+    line.split()[1].rstrip(";")
+    for line in Path("system/controlDict").read_text().splitlines()
+    if line.startswith("application ")
+)
+Path(f"log.{application}").write_text("\n".join(log) + "\n", encoding="ascii")
 if mode != "missing":
     target = Path("postProcessing/forceCoeffs/0/coefficient.dat")
     target.parent.mkdir(parents=True)
