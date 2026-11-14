@@ -164,7 +164,7 @@ def test_c23_ram_is_checked_before_launch_and_a_refusal_writes_nothing(case):  #
 
 
 def test_c23_ram_is_checked_again_during_the_run(case):  # noqa: F811
-    """C-23: a refusal on a later check_ram call stops a running solver and raises."""
+    """C-23: execute calls the supplied RAM guard more than once."""
     solver, root = case
     adapter, point = prepared(root, solver)
     calls = []
@@ -182,15 +182,34 @@ def test_c23_a_refusal_during_the_run_stops_the_solver(case):  # noqa: F811
     if solver == "mock":
         pytest.skip("the mock adapter launches no solver process")
     adapter, point = prepared(root, solver)
-    calls = []
+    processes = []
+    tripped = []
+    real = subprocess.Popen
+
+    def launch(command, *args, **kwargs):
+        process = real(command, *args, **kwargs)
+        if "--version" not in command and Path(command[0]).stem.lower() != "taskkill":
+            processes.append(process)
+        return process
 
     def refuse_late():
-        calls.append(1)
-        if len(calls) > 1:
+        if any(process.poll() is None for process in processes):
+            tripped.append(True)
             raise ValueError("free RAM below 0.5 GiB")
 
-    with pytest.raises(ValueError, match="RAM"):
-        adapter.execute(point, check_ram=refuse_late)
+    try:
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(subprocess, "Popen", launch)
+            with pytest.raises(ValueError, match="RAM"):
+                adapter.execute(point, check_ram=refuse_late)
+        assert processes and tripped, "the guard must trip while a solver child is alive"
+        assert all(process.poll() is not None for process in processes), "child was not reaped"
+    finally:
+        from cfdbender.solvers._host._execute import _kill_tree
+
+        for process in processes:
+            if process.poll() is None:
+                _kill_tree(process)
 
 
 def test_c24_one_solver_process_per_host(case, monkeypatch):  # noqa: F811
