@@ -78,9 +78,58 @@ def dimensions(folder: Path) -> int | None:
     return None
 
 
+#: SU2's CONV_FIELD names and the history.csv columns they converge on.
+CONV_COLUMNS = {
+    "RMS_DENSITY": "rms[Rho]",
+    "RMS_MOMENTUM-X": "rms[RhoU]",
+    "RMS_MOMENTUM-Y": "rms[RhoV]",
+    "RMS_MOMENTUM-Z": "rms[RhoW]",
+    "RMS_ENERGY": "rms[RhoE]",
+    "RMS_NU_TILDE": "rms[nu]",
+    "RMS_TKE": "rms[k]",
+    "RMS_DISSIPATION": "rms[w]",
+    "RMS_PRESSURE": "rms[P]",
+    "RMS_VELOCITY-X": "rms[U]",
+    "RMS_VELOCITY-Y": "rms[V]",
+    "RMS_VELOCITY-Z": "rms[W]",
+    "RMS_TEMPERATURE": "rms[T]",
+}
+#: The name recorded when CONV_FIELD names no residual column (a Cauchy coefficient).
+LARGEST_RMS = "largest rms"
+
+
+def _cfg(folder: Path) -> dict[str, str]:
+    lines = (folder / "su2.cfg").read_text().splitlines()
+    return {key.strip(): value.strip() for key, value in (line.split("=", 1) for line in lines)}
+
+
+def _convergence_columns(cfg: dict[str, str], residuals: list[str]) -> tuple[list[str], str]:
+    """Return the residual columns SU2 converges on and the name they are recorded under.
+
+    The columns are those of CONV_FIELD (SU2's default RMS_DENSITY). A CONV_FIELD that
+    names no residual column, such as a Cauchy criterion on a coefficient, falls back to
+    the largest of all rms columns.
+    """
+    fields = re.split(r"[\s,()]+", cfg.get("CONV_FIELD", "RMS_DENSITY").upper())
+    columns = [CONV_COLUMNS[name] for name in fields if CONV_COLUMNS.get(name) in residuals]
+    if not columns:
+        return residuals, LARGEST_RMS
+    return columns, ", ".join(columns)
+
+
+def residual_field(folder: Path) -> str | None:
+    """Return the name of the residual the history records, or None without a history."""
+    try:
+        with (folder / "history.csv").open(encoding="utf-8-sig", newline="") as stream:
+            headers = [key.strip() for key in next(csv.reader(stream, skipinitialspace=True))]
+        residuals = [key for key in headers if key.startswith("rms[")]
+        return _convergence_columns(_cfg(folder), residuals)[1] if residuals else None
+    except (OSError, ValueError, StopIteration):
+        return None
+
+
 def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], References]:
-    cfg = dict(line.split("=", 1) for line in (folder / "su2.cfg").read_text().splitlines())
-    cfg = {key.strip(): value.strip() for key, value in cfg.items()}
+    cfg = _cfg(folder)
     refs = references(cfg)
     # A cluster job leaves no execution.json: its exit code is not seen here and
     # classification rests on the history and the solver log alone.
@@ -126,6 +175,8 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
             residuals = [key for key in headers if key.startswith("rms[")]
             if not residuals or not any(key in _AXES for key in headers):
                 raise ValueError("history.csv needs residual and coefficient columns")
+            # The residual recorded is the one SU2 converges on, so it shows the criterion.
+            residuals = _convergence_columns(cfg, residuals)[0]
             for cells in reader:
                 row = dict(zip(headers, cells, strict=True))
                 # Reject non-finite numerical history, including uncollected coefficient fields.

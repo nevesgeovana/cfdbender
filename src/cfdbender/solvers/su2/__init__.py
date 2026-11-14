@@ -56,7 +56,7 @@ from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers.su2._config import config, mesh_name, options, reads_key, render, staged_mesh
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
-from cfdbender.solvers.su2._history import dimensions, read
+from cfdbender.solvers.su2._history import dimensions, read, residual_field
 
 SOLVER_NAME = "su2"
 SOLVER_TYPE = "SU2"
@@ -70,16 +70,19 @@ JOB_OUTPUTS = ("history.csv", "stdout.log")
 
 @dataclass(frozen=True)
 class _SU2Result(NeutralResult):
-    """Add the executed route and the problem dimension to SU2's neutral result evidence."""
+    """Add the route, the problem dimension and the residual's name to SU2's evidence."""
 
     route: str
     dimensions: int | None = None
+    residual_field: str | None = None
 
     def to_dict(self) -> dict[str, object]:
-        """Serialize the common fields, the route and, when SU2 stated it, the dimension."""
+        """Serialize the common fields, the route and, when known, dimension and residual."""
         data: dict[str, object] = {**super().to_dict(), "route": self.route}
         if self.dimensions is not None:
             data["dimensions"] = self.dimensions
+        if self.residual_field is not None:
+            data["residual_field"] = self.residual_field
         return data
 
 
@@ -239,4 +242,5 @@ def collect(point: AdapterPoint) -> NeutralResult:
         result.solver_version,
         route,
         dimensions(folder),
+        residual_field(folder),
     )
