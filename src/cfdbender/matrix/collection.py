@@ -28,6 +28,7 @@ from cfdbender.core.executables import build_mismatch
 from cfdbender.core.plan import PlanError, matrix_homes, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
+from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix.exports import write_tables
 from cfdbender.matrix.products import write_products
 from cfdbender.matrix.selection import chosen
@@ -204,6 +205,7 @@ def collect_workspace(
     runs: str = "runs.json",
     archive: bool = False,
     settle: float | None = None,
+    pickup: bool = True,
 ) -> CollectReport:
     """Read saved results through the declared adapter and rebuild neutral summaries.
 
@@ -226,6 +228,10 @@ def collect_workspace(
     settle : float, optional
         Seconds between the two observations that decide a submitted point's outputs
         are settled (size and modification time stable); None skips the check.
+    pickup : bool, optional
+        Read a SUBMITTED point whose job outputs are present and seal its record
+        COMPLETED. False leaves every submitted point outstanding and changes no
+        record; the post stage passes it.
 
     Returns
     -------
@@ -261,6 +267,7 @@ def collect_workspace(
     keep = chosen((r.point for r in records), sims, points)
     previous = {name: _previous_rows(target, name) for name in {r.matrix for r in records}}
     unsettled = _unsettled(target, records, settle) if settle is not None else set()
+    marked = verdicts(target)
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
     failed_ids: set[str] = set()
@@ -289,7 +296,11 @@ def collect_workspace(
             grouped.setdefault(record.matrix, []).append(row)
             continue
         grouped.setdefault(record.matrix, []).append(row)
-        if record.status not in ("COMPLETED", "SUBMITTED") or record.point_id in unsettled:
+        if (
+            record.status not in ("COMPLETED", "SUBMITTED")
+            or record.point_id in unsettled
+            or (record.status == "SUBMITTED" and not pickup)
+        ):
             outstanding += 1
             continue
         try:
@@ -335,12 +346,17 @@ def collect_workspace(
                     outputs_sha256=dict(record.outputs_sha256),
                     error=record.error,
                 )
-            if result.classification != record.classification:
+            # mark-converged is a verdict on a completed point: the record carries it and
+            # the result keeps the class the numerical evidence gives.
+            judged = (
+                record.classification == "converged" and marked.get(record.point_id) == "converged"
+            )
+            if result.classification != record.classification and not judged:
                 raise RegistryError(
                     f"{record.point_id}: collected classification differs from record"
                 )
             row["result"] = result.to_dict()
-            if result.classification == "failed":
+            if record.classification == "failed":
                 failed += 1
                 failed_ids.add(record.point_id)
             else:

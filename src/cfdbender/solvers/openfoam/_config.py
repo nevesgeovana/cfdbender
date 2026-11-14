@@ -15,6 +15,10 @@ from cfdbender.core.mesh import MESH_PREFIXES
 from cfdbender.core.results import References
 from cfdbender.solvers._host._config import number, unknown_keys
 
+#: The keys of the REF and PPROC files the OpenFOAM case reads; any other is skipped.
+REFERENCE_KEYS = ("area", "length", "moment_origin")
+POST_KEYS = ("history",)
+
 
 @dataclass(frozen=True)
 class Case:

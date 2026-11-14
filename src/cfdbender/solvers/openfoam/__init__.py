@@ -41,7 +41,14 @@ from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate, read_init
 from cfdbender.solvers._host._config import steady_only
-from cfdbender.solvers.openfoam._config import config, files, options, staged_mesh
+from cfdbender.solvers.openfoam._config import (
+    POST_KEYS,
+    REFERENCE_KEYS,
+    config,
+    files,
+    options,
+    staged_mesh,
+)
 from cfdbender.solvers.openfoam._execute import run, stage_case
 from cfdbender.solvers.openfoam._history import Evidence, read
 
@@ -67,9 +74,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("openfoam",)
     )
     opts = options(workspace.setup, declaration.solver_options)
-    workspace.warn_unread(
-        "OpenFOAM", reference=("area", "length", "moment_origin"), post=("history",)
-    )
+    workspace.warn_unread("OpenFOAM", reference=REFERENCE_KEYS, post=POST_KEYS)
     conditions = [dict(row.condition)]
     if row.sweep_key:
         conditions = [dict(row.condition, **{row.sweep_key: value}) for value in row.sweep_values]

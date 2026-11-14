@@ -49,6 +49,35 @@ def references(cfg: dict[str, str]) -> References:
     )
 
 
+def dimensions(folder: Path) -> int | None:
+    """Return 2 or 3, the dimension of the problem SU2 solved, or None when unstated.
+
+    SU2 prints "Two dimensional problem." or "Three dimensional problem." while it
+    reads the mesh; a native mesh states NDIME near its top. The dimension decides
+    which body moment is the pitching moment: CMz in two dimensions (the flow is in
+    the x-y plane), CMy in three.
+    """
+    for name in ("stdout.log", "stderr.log"):
+        path = folder / name
+        if path.is_file():
+            found = re.search(
+                "(Two|Three) dimensional problem[.]",
+                path.read_text(encoding="utf-8", errors="replace"),
+            )
+            if found:
+                return 2 if found[1] == "Two" else 3
+    mesh = folder / "mesh.su2"
+    try:
+        with mesh.open(encoding="ascii", errors="replace") as stream:
+            for _, line in zip(range(200), stream, strict=False):
+                stated = re.fullmatch("NDIME[ ]*=[ ]*([23])[ ]*", line.strip())
+                if stated:
+                    return int(stated[1])
+    except OSError:
+        return None
+    return None
+
+
 def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], References]:
     cfg = dict(line.split("=", 1) for line in (folder / "su2.cfg").read_text().splitlines())
     cfg = {key.strip(): value.strip() for key, value in cfg.items()}

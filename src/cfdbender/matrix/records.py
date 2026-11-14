@@ -167,6 +167,12 @@ def run_restore(args: argparse.Namespace) -> int:
         stem = stems[0]
     else:
         stem = Path(args.matrix).name.removesuffix(".fs") if args.matrix else ""
+        # The stem becomes a folder of post/: an empty one or a step would name post/
+        # itself or the workspace root, and the restore would replace all of it.
+        if args.kind in ("products", "plan") and (not stem or stem.strip(". ") != stem):
+            raise WorkspaceError(
+                f"restore {args.kind}: --matrix {args.matrix!r}: not a matrix name"
+            )
     relative = {
         "runs": "runs.json",
         "storage": STORAGE,

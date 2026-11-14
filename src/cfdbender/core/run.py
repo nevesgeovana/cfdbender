@@ -77,6 +77,43 @@ def check_available_ram() -> None:
         raise RegistryError(f"free RAM {available:.3f} GiB is below the 0.5 GiB floor")
 
 
+def judge_environment(
+    plan: RunPlan,
+    adapter: SolverAdapter,
+    *,
+    check_ram: Callable[[], None] | None = None,
+) -> None:
+    """Refuse, changing nothing, when this machine cannot run the plan's points now.
+
+    The same judgment ``execute_plan`` makes before its first record (free RAM, each
+    row's executable, the adapter's preflight), offered separately so that a caller
+    about to archive recorded points can ask first.
+
+    Parameters
+    ----------
+    plan : RunPlan
+        The points about to run.
+    adapter : SolverAdapter
+        The workspace's adapter.
+    check_ram : callable, optional
+        The RAM guard; ``check_available_ram`` by default.
+
+    Raises
+    ------
+    RegistryError
+        Free RAM below the floor, an undeclared build, a missing executable or a busy host.
+    """
+    (check_ram or check_available_ram)()
+    preflight = getattr(adapter, "preflight", None)
+    for point in plan.points:
+        try:
+            context = bind_executable(load_point(plan.root, point, solver=plan.solver), adapter)
+            if preflight is not None:
+                preflight(context)
+        except (OSError, ValueError) as failure:
+            raise RegistryError(str(failure)) from failure
+
+
 def execute_plan(
     plan: RunPlan,
     adapter: SolverAdapter,

@@ -34,6 +34,15 @@ def read_journal(root: Path, name: str) -> list[dict[str, object]]:
     return entries
 
 
+def verdicts(root: Path) -> dict[str, str]:
+    """Return the last verdict (failed or converged) marked on each point."""
+    return {
+        str(entry["point_id"]): str(entry.get("verdict"))
+        for entry in read_journal(root, MARKS)
+        if "point_id" in entry
+    }
+
+
 def append_journal(root: Path, name: str, entry: dict[str, object]) -> None:
     """Append one entry to a journal, replacing the file atomically."""
     entries = [*read_journal(root, name), entry]

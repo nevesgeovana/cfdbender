@@ -65,6 +65,7 @@ def decide(
     force_all: bool = False,
     submitting: bool = False,
     slot_free: Callable[[], bool] | None = None,
+    before_archive: Callable[[RunPlan], None] | None = None,
 ) -> RerunDecision:
     """Archive the points to redo and return the plan the run executes.
 
@@ -82,6 +83,9 @@ def decide(
         True for a cluster submission: a RUNNING point is then never presumed gone.
     slot_free : callable, optional
         Reports whether the host's solver process slot is free; host_slot_free by default.
+    before_archive : callable, optional
+        Called with the plan to execute just before any point is archived; a refusal it
+        raises leaves every record and folder as it was.
 
     Returns
     -------
@@ -130,5 +134,8 @@ def decide(
             )
         else:
             skipped.append((point.point_id, record.status))
+    chosen = replace(plan, points=tuple(run))
+    if redo and before_archive is not None:
+        before_archive(chosen)
     archive = registry.archive(tuple(redo)) if redo else None
-    return RerunDecision(replace(plan, points=tuple(run)), tuple(skipped), archive)
+    return RerunDecision(chosen, tuple(skipped), archive)

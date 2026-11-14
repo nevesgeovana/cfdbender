@@ -167,7 +167,7 @@ def _cells(row: Mapping[str, object], solver: str | None = None) -> dict[str, ob
     for name, value in coefficients.items():
         cells[name] = value["value"]
     own = {name: cast(float, value["value"]) for name, value in coefficients.items()}
-    cells.update(neutral_values(solver, own))
+    cells.update(neutral_values(solver, own, dimensions=result.get("dimensions")))
     return cells
 
 

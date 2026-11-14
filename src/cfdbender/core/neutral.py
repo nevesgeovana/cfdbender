@@ -27,8 +27,16 @@ NATIVE_NAMES: Mapping[str, Mapping[str, str]] = {
     "qprop": {},
 }
 
+#: The names that differ when the solver states a two-dimensional problem. SU2 solves a
+#: planar case in the x-y plane, so its pitching moment is CMz and CMy is identically zero.
+PLANAR_NAMES: Mapping[str, Mapping[str, str]] = {
+    "su2": {"CM": "CMz"},
+}
 
-def neutral_values(solver: str | None, native: Mapping[str, float]) -> dict[str, float]:
+
+def neutral_values(
+    solver: str | None, native: Mapping[str, float], *, dimensions: object = None
+) -> dict[str, float]:
     """Return the neutral coefficients a point's own coefficients state.
 
     Parameters
@@ -37,11 +45,15 @@ def neutral_values(solver: str | None, native: Mapping[str, float]) -> dict[str,
         Registered solver name; None or an unknown name states nothing.
     native : mapping
         The solver's own coefficient values by its own names.
+    dimensions : object, optional
+        The problem dimension the result states (2 or 3); 2 selects PLANAR_NAMES.
 
     Returns
     -------
     dict
         CL, CD and CM, each present only when the solver reported it.
     """
-    names = NATIVE_NAMES.get(solver or "", {})
+    names = dict(NATIVE_NAMES.get(solver or "", {}))
+    if dimensions == 2:
+        names.update(PLANAR_NAMES.get(solver or "", {}))
     return {key: native[own] for key, own in names.items() if own in native}
