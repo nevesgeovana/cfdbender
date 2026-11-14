@@ -60,7 +60,10 @@ def read(
                         2 * (fx * math.cos(angle) + fy * math.sin(angle)),
                     )
                 )
-        exhausted = bool(rows) and rows[-1][0] >= case.tend
+        # The force plugin writes every nsteps, so the last sample can fall one
+        # output interval short of tend; that still means the budget ran out.
+        gap = rows[-1][0] - rows[-2][0] if len(rows) > 1 else 0.0
+        exhausted = bool(rows) and rows[-1][0] + gap >= case.tend * (1 - 1e-9)
         window = [row for row in rows if case.window_start <= row[0] <= case.tend]
         if not window:
             return (
