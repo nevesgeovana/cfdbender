@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from cfdbender.core.registry import RunRecord
 from cfdbender.core.settings import WorkspaceError
 
 MARKS = "marks.json"
@@ -34,13 +36,29 @@ def read_journal(root: Path, name: str) -> list[dict[str, object]]:
     return entries
 
 
-def verdicts(root: Path) -> dict[str, str]:
-    """Return the last verdict (failed or converged) marked on each point."""
-    return {
-        str(entry["point_id"]): str(entry.get("verdict"))
-        for entry in read_journal(root, MARKS)
-        if "point_id" in entry
-    }
+def verdicts(root: Path, records: Iterable[RunRecord]) -> dict[str, str]:
+    """Return the last verdict on each current execution, excluding archived runs' marks."""
+    current = {record.point_id: record for record in records}
+    found: dict[str, str] = {}
+    for entry in read_journal(root, MARKS):
+        record = current.get(str(entry.get("point_id")))
+        if record is None:
+            continue
+        if "created_at" in entry:
+            if entry["created_at"] != record.created_at:
+                continue
+        else:
+            # Older journals predate explicit execution identity. Their timestamp must
+            # at least belong to this run, rather than an earlier incarnation of its ID.
+            try:
+                if datetime.fromisoformat(str(entry.get("at"))) < datetime.fromisoformat(
+                    record.created_at
+                ):
+                    continue
+            except (ValueError, TypeError):
+                continue
+        found[record.point_id] = str(entry.get("verdict"))
+    return found
 
 
 def append_journal(root: Path, name: str, entry: dict[str, object]) -> None:

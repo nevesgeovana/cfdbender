@@ -32,7 +32,7 @@ from cfdbender.core.registry import (
 )
 from cfdbender.core.settings import WorkspaceError, read_init
 from cfdbender.matrix._console import WORKSPACE_HELP, add_runs_option
-from cfdbender.matrix._journal import MARKS, STORAGE, append_journal, now, read_journal
+from cfdbender.matrix._journal import MARKS, STORAGE, append_journal, now, verdicts
 from cfdbender.matrix.selection import chosen, split_ids
 from cfdbender.solvers import available_solvers, load_solver
 from cfdbender.workspace.planning import plan_workspace
@@ -47,13 +47,6 @@ def _digests(root: Path, record: RunRecord) -> dict[str, str]:
     return found
 
 
-def _marked_failed(root: Path, point_id: str) -> bool:
-    verdicts = [
-        e.get("verdict") for e in read_journal(root, MARKS) if e.get("point_id") == point_id
-    ]
-    return bool(verdicts) and verdicts[-1] == "failed"
-
-
 def _mark(args: argparse.Namespace, verdict: str) -> int:
     registry = RunRegistry(Path(args.workspace).resolve(), args.runs)
     with registry.transaction() if args.apply else nullcontext():
@@ -63,6 +56,7 @@ def _mark(args: argparse.Namespace, verdict: str) -> int:
 def _mark_locked(args: argparse.Namespace, verdict: str, registry: RunRegistry) -> int:
     root = Path(args.workspace).resolve()
     records = registry.read()
+    marked = verdicts(root, records)
     keep = chosen((r.point for r in records), split_ids(args.sims), split_ids(args.points))
     stamp = now()
     changes: dict[str, RunRecord] = {}
@@ -77,7 +71,7 @@ def _mark_locked(args: argparse.Namespace, verdict: str, registry: RunRegistry) 
         if verdict == "converged" and record.status != "COMPLETED":
             refused.append(f"{record.point_id}: {record.status}, not COMPLETED")
             continue
-        if verdict == "converged" and _marked_failed(root, record.point_id):
+        if verdict == "converged" and marked.get(record.point_id) == "failed":
             refused.append(f"{record.point_id}: marked failed")
             continue
         outputs = _digests(root, record)
@@ -128,6 +122,7 @@ def _mark_locked(args: argparse.Namespace, verdict: str, registry: RunRegistry) 
             {
                 "at": stamp,
                 "point_id": point_id,
+                "created_at": before.created_at,
                 "verdict": verdict,
                 "reason": args.reason,
                 "from_status": before.status,

@@ -267,7 +267,7 @@ def collect_workspace(
     keep = chosen((r.point for r in records), sims, points)
     previous = {name: _previous_rows(target, name) for name in {r.matrix for r in records}}
     unsettled = _unsettled(target, records, settle) if settle is not None else set()
-    marked = verdicts(target)
+    marked = verdicts(target, records)
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
     failed_ids: set[str] = set()
