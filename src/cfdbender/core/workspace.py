@@ -57,7 +57,13 @@ def _declaration_text(solver: str) -> str:
     )
 
 
-def init_workspace(root: str | Path, *, solver: str, available_solvers: Collection[str]) -> Path:
+def init_workspace(
+    root: str | Path,
+    *,
+    solver: str,
+    available_solvers: Collection[str],
+    declaration_only: bool = False,
+) -> Path:
     """Create a workspace and bind it to one registered solver.
 
     Parameters
@@ -68,6 +74,9 @@ def init_workspace(root: str | Path, *, solver: str, available_solvers: Collecti
         Exact registered solver name to put in init.toml.
     available_solvers : Collection[str]
         Names passed as data by the application, without loading adapters.
+    declaration_only : bool, default False
+        Write only init.toml; the caller already made the layout (FlightStream keeps
+        pyflightstream's own tree, with inputs/geometries).
 
     Returns
     -------
@@ -86,6 +95,11 @@ def init_workspace(root: str | Path, *, solver: str, available_solvers: Collecti
     if declaration.exists() or declaration.is_symlink():
         raise WorkspaceError(f"{declaration} already exists; choose a new workspace root")
     config = _validate({"schema_version": 1, "solver": solver}, declaration, available_solvers)
+    if declaration_only:
+        target.mkdir(parents=True, exist_ok=True)
+        with declaration.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(_declaration_text(config.solver))
+        return target
     folders = [
         target,
         target / "inputs",

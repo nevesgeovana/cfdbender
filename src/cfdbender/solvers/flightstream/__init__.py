@@ -45,7 +45,9 @@ def init_workspace(root: str) -> Path:
     if declaration.exists() or declaration.is_symlink():
         raise WorkspaceError(f"{declaration} already exists; choose a new workspace root")
     _pyfs.init_workspace(target)
-    return write_init(target, solver=SOLVER_NAME, available_solvers=(SOLVER_NAME,))
+    return write_init(
+        target, solver=SOLVER_NAME, available_solvers=(SOLVER_NAME,), declaration_only=True
+    )
 
 
 def _root(argv: list[str], workspace: bool) -> Path:

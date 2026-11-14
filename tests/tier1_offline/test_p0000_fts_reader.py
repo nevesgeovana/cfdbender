@@ -25,6 +25,7 @@ EXPECTED_STATUSES = {
     "SUBMITTED": None,
     "FAILED_MARKED": "failed",
     "RAN_MISSING_LOG": "failed",
+    "GEOMETRY_FAILED": "failed",
 }
 
 

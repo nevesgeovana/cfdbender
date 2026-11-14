@@ -33,6 +33,7 @@ STATUS_CLASSIFICATIONS: dict[str, Classification | None] = {
     "SUBMITTED": None,
     "FAILED_MARKED": "failed",
     "RAN_MISSING_LOG": "failed",
+    "GEOMETRY_FAILED": "failed",
 }
 
 _BODY_COLUMNS: dict[str, tuple[Literal["x", "y", "z"], Literal["force", "moment"]]] = {
