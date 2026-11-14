@@ -230,7 +230,13 @@ coefficient unless it documents it and reports both. Where a solver reports
 in two frames, each coefficient states its frame. The tables of `collect` add
 the neutral columns `CL`, `CD` and `CM` beside the solver's own names; which
 of its names an adapter gives them is stated in one table, `core/neutral.py`,
-and a solver with no such coefficient writes `NA`.
+and a solver with no such coefficient writes `NA`. The neutral `CL`, `CD` and `CM`
+are therefore aliases of each solver's native coefficients, in its native axes and
+sign and with its native references, not one signed physical quantity; the table
+of [Results](results.md) names, per solver, the native column, the axis and the
+sign behind each. QPROP's efficiency, advance ratio and power entries are not
+forces or moments but use the coefficient record shape (a value, an axis and a kind)
+by convention, so the result has one format.
 
 **C-39.** The references in the result are the ones the solver used: read
 from the r file, or read back from the solver's own input, or, for a solver

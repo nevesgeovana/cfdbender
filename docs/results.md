@@ -117,20 +117,29 @@ Three rules make the tables safe to read with any tool:
   row, with `NA` where it has no value.
 
 The columns after `CM` carry the solver's own names, so they differ between
-solvers. `CL`, `CD` and `CM` do not: they are filled from the solver's own
-columns by the table below, and a script that reads them works on every solver.
-A solver that reports no such coefficient writes `NA`. The page of each solver
-lists its own names, their axes and their reference values.
+solvers. `CL`, `CD` and `CM` have the same names on every solver: they are filled
+from the solver's own columns by the table below, and a script that reads them
+works on every solver. **They are aliases of each solver's native coefficients, not
+one signed physical quantity.** Each keeps its solver's axes, sign and reference
+area, length and moment origin, so two solvers' values are comparable only after
+the reference values and the axis of the table below are matched. A solver that
+reports no such coefficient writes `NA`. The page of each solver lists its own
+names, their axes and their reference values.
 
 | Solver | `CL` | `CD` | `CM` |
 |---|---|---|---|
-| SU2 | `CL` | `CD` | `CMy`; `CMz` when SU2 states a two-dimensional problem |
-| OpenFOAM | `Cl` | `Cd` | `CmPitch` |
-| PyFR | `Cl` | `Cd` | `NA`, PyFR reports no moment |
-| XFOIL | `CL` | `CD` | `CM` |
+| SU2 | `CL`, wind z | `CD`, wind x | `CMy`, body y (pitch of a three-dimensional case); `CMz`, body z, when SU2 states a two-dimensional problem |
+| OpenFOAM | `Cl`, along (-sin alpha, cos alpha, 0) | `Cd`, along (cos alpha, sin alpha, 0) | `CmPitch`, ESI's pitch axis (body minus z), sign as OpenFOAM prints it |
+| PyFR | `Cl`, wind y | `Cd`, wind x | `NA`, PyFR reports no moment |
+| XFOIL | `CL`, wind z | `CD`, wind x | `CM`, nose-up about the quarter chord |
 | QPROP | `NA` | `NA` | `NA`, a propeller has thrust and power instead; see its page |
 | FlightStream | `CLB` | `CDB` | `CMB25` |
 | mock | `CZ` | `CX` | `Cm` |
+
+QPROP's efficiency, advance ratio and power entries are not forces or moments, yet
+they use the coefficient record shape (a value, an axis and a kind of `force` or
+`moment`) by convention, so that every solver's result has one format. Read their
+meaning from the QPROP page, not from the `kind` field.
 
 `RE` is in millions: a Reynolds number of 500000 is `0.5`.
 

@@ -24,6 +24,7 @@ matrix -> plan -> run or submit -> collect -> tables
 | run | `cfd-matrix run <matrix>` | the plan, `runs.json` | one folder per point under `sims/`, one record per point in `runs.json` |
 | submit | `cfd-matrix run <matrix> --hpc <profile>` | the plan, the profile in `inputs/hpc/` | the staged point folder, the job descriptor, the record as `SUBMITTED` |
 | collect | `cfd-matrix collect [<matrix>]` | `runs.json`, the saved solver outputs | `post/<matrix>/campaign_summary.json`, `campaign_sweep.csv`, `polars/P<POL>.csv`, `products.json`, `post.log` |
+| post | `cfd-matrix post [<matrix>]` | `runs.json`, the saved solver outputs; no pickup of submitted jobs | the same products as collect; no record changes |
 
 Planning launches no solver. A run executes every selected point, records a
 failed point and continues with the next. Collect launches nothing: it reads
@@ -48,7 +49,7 @@ beside the core  cfdbender.hpc   cfdbender.testing   cfdbender.geometry
 | Adapters | `cfdbender.solvers.<name>` | One package per solver: `su2`, `openfoam`, `pyfr`, `xfoil`, `qprop`, and `mock`, a licence-free adapter that exercises the contract offline. |
 | Host helpers | `cfdbender.solvers._host` | What every adapter shares when it launches a process: the free memory floor, the one-process lease, the mesh link, the timeout and the child process cleanup. |
 | Job planner | `cfdbender.hpc` | Renders a job descriptor and a submit command from a profile, and computes walltime. It knows no solver. |
-| Applications | `cfdbender.matrix`, `cfdbender.workspace` | The `cfd-matrix` and `cfd-workspace` commands. They read `init.toml`, load the one declared adapter by name and pass it to the core. |
+| Applications | `cfdbender.matrix`, `cfdbender.workspace` | The `cfd-matrix` and `cfd-workspace` commands. They read `init.toml`, load the one declared adapter by name and pass it to the core. The two depend on each other in one direction each: `cfdbender.workspace` imports the console and record helpers of `cfdbender.matrix`, and `cfdbender.matrix` imports the planning of `cfdbender.workspace`; neither is imported by the core, the adapters or the job planner. |
 | Conformance kit | `cfdbender.testing` | Assertions an adapter's tests call to prove the contract. |
 | Geometry | `cfdbender.geometry` | Blade slicing on the standard library alone. |
 | Facade | `cfdbender._pyfs` | The only module that imports pyflightstream. |
@@ -110,14 +111,22 @@ the guarantees listed below the table.
   changed input refuses with the instruction to plan again.
 - **Nothing is overwritten.** A point folder or an output that already exists
   refuses the run before anything is written.
-- **Nothing is deleted.** Redoing a point moves its folder and its record to
-  `archive/<stamp>/`.
+- **Nothing is deleted by a run.** Redoing a point moves its folder and its record
+  to `archive/<stamp>/`. The management verbs are the exception, and only when
+  applied with `--apply`: `delete-sims` removes a simulation's folder and records
+  (a `SUBMITTED` or `RUNNING` point needs `--force`; the removed records stay in
+  the history), `free-space` removes the files of its recipe, `sync --overwrite`
+  replaces a file after archiving the old one, and `restore` replaces the live
+  files after archiving them. Without `--apply` each previews and changes nothing.
 - **A point is named from its flight condition.** The folder is
   `DP-<point name>`, written the way pyflightstream writes it, so both
   libraries name the same operating point the same way.
 - **A run record has four transitions.** `PLANNED` to `RUNNING`, `RUNNING` to
   `COMPLETED`, `RUNNING` to `SUBMITTED` and `SUBMITTED` to `COMPLETED`. A
-  finished record is never rewritten. One writer at a time holds
+  finished record is never rewritten by a run. The verbs that correct records
+  (`mark-failed`, `mark-converged`, `restore`, `rebuild`, `sync` and `delete-sims`),
+  applied with `--apply`, are the exception: each archives the manifest first, and
+  `mark-failed` refuses a `RUNNING` point. One writer at a time holds
   `runs.json.lock`.
 - **Process success is not convergence.** A point is `converged`,
   `iteration_limit` or `failed` from numerical evidence. Exit code zero alone
