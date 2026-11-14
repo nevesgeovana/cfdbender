@@ -35,7 +35,6 @@ from cfdbender.core.plan import (
     Point,
     RunPlan,
     check_claims,
-    is_matrix_file,
     owned_path,
     workspace_path,
 )
@@ -548,7 +547,7 @@ class RunRegistry:
                     raise RegistryError("submission evidence is immutable")
                 if status == "RUNNING":
                     for name, digest in previous.point.inputs_sha256.items():
-                        if is_matrix_file(name):
+                        if name == previous.matrix:
                             continue
                         if (
                             hashlib.sha256(workspace_path(self.root, name).read_bytes()).hexdigest()
@@ -742,7 +741,7 @@ class RunRegistry:
                 records = tuple(_decode(_encode(r), self.root) for r in records)
                 for record in records:
                     for name, expected in record.point.inputs_sha256.items():
-                        if is_matrix_file(name):
+                        if name == record.matrix:
                             continue
                         path = workspace_path(self.root, name)
                         try:

@@ -282,3 +282,5 @@ refuses linked source trees.
 Restore refuses symbolic links and junctions anywhere in an archived product tree before replacing live products.
 
 Marks apply to the execution they judged. A forced rerun keeps the old mark in the journal but does not inherit its verdict.
+
+The grown-matrix digest exception applies to matrix inputs. A tracked geometry file with the .fs extension is still checked for changed bytes.
