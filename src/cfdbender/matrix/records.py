@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import os
 import shutil
 import sys
 from contextlib import nullcontext
@@ -20,6 +19,8 @@ from typing import Any, cast
 
 from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.executables import build_mismatch
+from cfdbender.core.longpath import copy2, copytree, iter_files, long_path, rmtree
+from cfdbender.core.longpath import replace as long_replace
 from cfdbender.core.plan import owned_path, workspace_path
 from cfdbender.core.registry import (
     RegistryError,
@@ -196,7 +197,7 @@ def run_restore(args: argparse.Namespace) -> int:
     source = owned_path(root, (candidates[-1] / relative).relative_to(root).as_posix())
     target = owned_path(root, relative)
     if source.is_dir():
-        for item in source.rglob("*"):
+        for item in iter_files(source):
             owned_path(root, item.relative_to(root).as_posix())
     print(
         f"{'restoring' if args.apply else 'would restore'} {args.kind} "
@@ -218,12 +219,12 @@ def run_restore(args: argparse.Namespace) -> int:
     if target.exists():
         destination = saved / relative
         destination.parent.mkdir(parents=True)
-        os.replace(target, destination)
+        long_replace(target, destination)
     target.parent.mkdir(parents=True, exist_ok=True)
     if source.is_dir():
-        shutil.copytree(source, target)
+        copytree(source, target)
     else:
-        shutil.copy2(source, target)
+        copy2(source, target)
     print(f"restored {relative}")
     return 0
 
@@ -272,7 +273,7 @@ def _rebuild_locked(args: argparse.Namespace, registry: RunRegistry) -> int:
         )
         if not selected or not folder.is_dir():
             continue
-        times = [p.stat().st_mtime for p in [folder, *folder.rglob("*")] if not p.is_symlink()]
+        times = [long_path(p).stat().st_mtime for p in [folder, *iter_files(folder)]]
         first = datetime.fromtimestamp(min(times), UTC).isoformat()
         last = datetime.fromtimestamp(max(times), UTC).isoformat()
         base = RunRecord(point, plan.matrix, plan.solver, "COMPLETED", first)
@@ -337,11 +338,11 @@ def _archive_sim_locked(root: Path, sim_id: str, registry: RunRegistry) -> Path:
         for item in sorted(leftover.iterdir()):
             moved = destination / item.name
             if moved.exists() and item.is_dir():
-                shutil.copytree(item, moved, dirs_exist_ok=True)
-                shutil.rmtree(item)
+                shutil.copytree(long_path(item), long_path(moved), dirs_exist_ok=True)
+                rmtree(item)
             else:
                 destination.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(item), str(moved))
+                shutil.move(str(long_path(item)), str(long_path(moved)))
         leftover.rmdir()
     return target
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
-import shutil
 import tempfile
 import tomllib
 from contextlib import nullcontext
@@ -17,6 +16,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from cfdbender.core.longpath import copy2, file_size, iter_files, rmtree
+from cfdbender.core.longpath import replace as long_replace
 from cfdbender.core.plan import owned_path, workspace_path
 from cfdbender.core.registry import (
     RegistryError,
@@ -35,7 +36,7 @@ def _size(path: Path) -> int:
         return 0
     if path.is_file():
         return path.stat().st_size
-    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file() and not p.is_symlink())
+    return sum(file_size(p) for p in iter_files(path))
 
 
 def _human(count: int) -> str:
@@ -263,7 +264,7 @@ def _run_delete_sims(args: argparse.Namespace, registry: RunRegistry) -> int:
     for sim in sims:
         folder = root / "sims" / f"sim_{sim}"
         if folder.exists():
-            shutil.rmtree(folder)
+            rmtree(folder)
     append_journal(
         root,
         STORAGE,
@@ -359,7 +360,7 @@ def _copy_files(
                     / relative
                 )
                 backup.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(target, backup)
+                copy2(target, backup)
                 saved.append(relative.as_posix())
         print(f"  {'copy' if args.apply else 'would copy'} {relative.as_posix()}")
         count += 1
@@ -369,8 +370,8 @@ def _copy_files(
             # symbolic or hard link to inputs/, and a write would change that input.
             fresh = target.with_name(f".sync-{target.name}.tmp")
             try:
-                shutil.copy2(path, fresh)
-                os.replace(fresh, target)
+                copy2(path, fresh)
+                long_replace(fresh, target)
             finally:
                 fresh.unlink(missing_ok=True)
     return count

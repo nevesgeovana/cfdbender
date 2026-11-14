@@ -28,6 +28,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast
 
+from cfdbender.core.longpath import replace as long_replace
 from cfdbender.core.plan import (
     POINT_EXTRAS,
     PlanError,
@@ -655,7 +656,7 @@ class RunRegistry:
                     if folder.exists():
                         moved = target / record.point.directory
                         moved.parent.mkdir(parents=True, exist_ok=True)
-                        os.replace(folder, moved)
+                        long_replace(folder, moved)
                         _relink(folder, moved)
                     history.append(
                         {

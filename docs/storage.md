@@ -7,6 +7,13 @@ The three commands that delete or copy show what they would do and change
 nothing until you add `--apply`. Every call is recorded in
 `storage_management.json`, and `cfd-matrix log --storage` lists the calls.
 
+On Windows a deep solver tree, such as an OpenFOAM case with processor and time
+folders, can pass the 260-character path limit. The space, delete-sims, sync,
+archive and restore verbs, and the move that `--force-rerun` makes, use the
+extended-length spelling for the files under `sims/`, so they work at any depth.
+The solver itself is not changed: a solver that cannot write a path that long still
+fails, so keep the workspace path short.
+
 ## See the space in use
 
 ```console

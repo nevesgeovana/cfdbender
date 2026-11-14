@@ -1,4 +1,4 @@
-"""A real SU2 run exited 0 yet failed: its default history.csv lacks the columns the adapter reads."""
+"""A real SU2 run exited 0 yet failed: SU2's default history.csv lacks the columns read."""
 
 from __future__ import annotations
 
