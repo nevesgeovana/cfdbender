@@ -332,7 +332,29 @@ def config(
     _fluid_model(values)
     _sa_variant(values)
     _heatflux_values(values)
+    _wall_outputs(values)
     return values
+
+
+#: The SU2 markers that are walls: their names are plotted and monitored by default.
+WALL_MARKERS = ("MARKER_EULER", "MARKER_HEATFLUX", "MARKER_ISOTHERMAL")
+
+
+def _wall_outputs(values: dict[str, object]) -> None:
+    """Default MARKER_PLOTTING and MARKER_MONITORING to the wall markers.
+
+    SU2 integrates the forces only over MARKER_MONITORING and writes surface rows only
+    for MARKER_PLOTTING; without them the coefficients are zero and surface.csv holds a
+    header alone. A list of the user wins.
+    """
+    walls: list[object] = []
+    for key in WALL_MARKERS:
+        given = values.get(key)
+        items = given if isinstance(given, list) else [] if given is None else [given]
+        walls.extend(item for item in items if not _is_value(item) and item not in walls)
+    if walls:
+        values.setdefault("MARKER_PLOTTING", list(walls))
+        values.setdefault("MARKER_MONITORING", list(walls))
 
 
 def _is_value(item: object) -> bool:
