@@ -7,7 +7,7 @@ import os
 import shlex
 import string
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import cast
 
 from cfdbender.core.flight import agree, row_flow
@@ -33,6 +33,29 @@ class Case:
     alpha: float
     references: References
     mesh_converter: str | None = None
+    time_integration: str = "steady"
+    relaxation: str | None = None
+    pimple: str | None = None
+    lts: Mapping[str, float] = field(default_factory=dict)
+
+
+#: Steady SIMPLE under-relaxation written when the setup states no relaxationFactors.
+#: p 0.3 with consistent yes and U, nuTilda 0.7 is the stock simpleFoam recipe for a
+#: steady RANS airfoil: low enough that a poor initial field does not diverge, high
+#: enough that the residual still falls within a few hundred iterations.
+DEFAULT_RELAXATION = "fields { p 0.3; } equations { U 0.7; nuTilda 0.7; }"
+#: Local time stepping (pimpleFoam, ddtSchemes localEuler) defaults. maxCo is the
+#: ceiling of the local Courant number; rDeltaTDampingCoeff bounds how fast the local
+#: step may grow, 1 / (1 - 0.2) = 1.25 per iteration, which is the ramp from the first
+#: small step up to that ceiling; rDeltaTSmoothingCoeff smooths the step field between
+#: neighbouring cells.
+LTS_DEFAULTS = {
+    "lts_max_co": 5.0,
+    "lts_smoothing": 0.1,
+    "lts_damping": 0.2,
+}
+LTS_KEYS = (*LTS_DEFAULTS, "lts_max_delta_t")
+TIME_INTEGRATIONS = ("steady", "lts")
 
 
 def options(
@@ -130,6 +153,10 @@ def config(
                 "iterations",
                 "residual_target",
                 "solver",
+                "time_integration",
+                "relaxationFactors",
+                "PIMPLE",
+                *LTS_KEYS,
             },
             "setup file",
         ),
@@ -174,6 +201,30 @@ def config(
     turbulence = setup.get("turbulence")
     if turbulence not in ("SpalartAllmaras", "laminar"):
         raise ValueError("turbulence must be SpalartAllmaras or laminar")
+    integration = setup.get("time_integration", "steady")
+    if integration not in TIME_INTEGRATIONS:
+        raise ValueError('time_integration must be "steady" or "lts"')
+    if integration == "steady" and (stated := [k for k in (*LTS_KEYS, "PIMPLE") if k in setup]):
+        raise ValueError(
+            f'{", ".join(stated)} apply only with time_integration = "lts"; '
+            "remove them or select the pseudo-transient route"
+        )
+    for key in ("relaxationFactors", "PIMPLE"):
+        if key in setup:
+            text = setup[key]
+            if (
+                not isinstance(text, str)
+                or not text.strip()
+                or any((ord(c) < 32 and c not in "\n\t") or ord(c) > 126 for c in text)
+            ):
+                raise ValueError(f"{key} must be a nonempty ASCII OpenFOAM dictionary body")
+    lts = {key: number(setup.get(key, default), key) for key, default in LTS_DEFAULTS.items()}
+    if "lts_max_delta_t" in setup:
+        lts["lts_max_delta_t"] = number(setup["lts_max_delta_t"], "lts_max_delta_t")
+    if lts["lts_max_co"] <= 0 or lts.get("lts_max_delta_t", 1.0) <= 0:
+        raise ValueError("lts_max_co and lts_max_delta_t must be positive")
+    if not 0 < lts["lts_smoothing"] < 1 or not 0 < lts["lts_damping"] <= 1:
+        raise ValueError("lts_smoothing must be in (0, 1) and lts_damping in (0, 1]")
     iterations = setup.get("iterations")
     if type(iterations) is not int or iterations < 1:
         raise ValueError("iterations must be a positive integer")
@@ -207,6 +258,10 @@ def config(
         number(condition.get("alpha", 0), "alpha"),
         refs,
         cast(str | None, converter),
+        str(integration),
+        cast(str | None, setup.get("relaxationFactors")),
+        cast(str | None, setup.get("PIMPLE")),
+        lts,
     )
 
 
@@ -238,10 +293,54 @@ def files(case: Case, opts: Mapping[str, object]) -> dict[str, str]:
     refs = case.references
     target = _n(case.target)
     turbulent = case.turbulence == "SpalartAllmaras"
+    lts = case.time_integration == "lts"
+    application = "pimpleFoam" if lts else "simpleFoam"
+    relaxation = case.relaxation if case.relaxation is not None else DEFAULT_RELAXATION
+    relaxation_block = (
+        "relaxationFactors { " + relaxation + " }" if not lts or case.relaxation is not None else ""
+    )
+    nu_tilda_residual = f"nuTilda {target};" if turbulent else ""
+    if lts:
+        extra = (
+            f"    maxDeltaT {_n(case.lts['lts_max_delta_t'])};\n"
+            if "lts_max_delta_t" in case.lts
+            else ""
+        )
+        control = case.pimple or (
+            "momentumPredictor yes;\nnOuterCorrectors 1;\nnCorrectors 2;\n"
+            "nNonOrthogonalCorrectors 1;\n"
+            f"maxCo {_n(case.lts['lts_max_co'])};\n"
+            f"rDeltaTSmoothingCoeff {_n(case.lts['lts_smoothing'])};\n"
+            f"rDeltaTDampingCoeff {_n(case.lts['lts_damping'])};\n" + extra
+        )
+        algorithm = "PIMPLE\n{\n" + control + "\n}\n"
+        # pimpleFoam solves the Final correctors under their own names.
+        solvers = (
+            '    "p.*" { solver GAMG; tolerance 1e-8; relTol 0.05; smoother GaussSeidel; }\n'
+            '    "(U|nuTilda).*" { solver smoothSolver; smoother symGaussSeidel; '
+            "tolerance 1e-9; relTol 0.1; }\n"
+        )
+        ddt = "localEuler"
+        div_u = "Gauss linearUpwind grad(U)"
+        div_nu = "Gauss upwind"
+    else:
+        algorithm = (
+            "SIMPLE\n{\n    nNonOrthogonalCorrectors 1;\n    consistent yes;\n    pRefCell 0;\n"
+            "    pRefValue 0;\n"
+            f"    residualControl {{ p {target}; U {target}; {nu_tilda_residual} }}\n}}\n"
+        )
+        solvers = (
+            "    p { solver GAMG; tolerance 1e-8; relTol 0.05; smoother GaussSeidel; }\n"
+            '    "(U|nuTilda)" { solver smoothSolver; smoother symGaussSeidel; '
+            "tolerance 1e-9; relTol 0.1; }\n"
+        )
+        ddt = "steadyState"
+        div_u = "bounded Gauss linearUpwind grad(U)"
+        div_nu = "bounded Gauss upwind"
     result = {
         "system/controlDict": _file(
             "controlDict",
-            f"""application simpleFoam;
+            f"""application {application};
 startFrom startTime;
 startTime 0;
 stopAt endTime;
@@ -277,36 +376,23 @@ functions
         ),
         "system/fvSchemes": _file(
             "fvSchemes",
-            """ddtSchemes { default steadyState; }
-gradSchemes { default cellLimited Gauss linear 1; }
+            f"""ddtSchemes {{ default {ddt}; }}
+gradSchemes {{ default cellLimited Gauss linear 1; }}
 divSchemes
-{
+{{
     default none;
-    div(phi,U) bounded Gauss linearUpwind grad(U);
-    div(phi,nuTilda) bounded Gauss upwind;
+    div(phi,U) {div_u};
+    div(phi,nuTilda) {div_nu};
     div((nuEff*dev2(T(grad(U))))) Gauss linear;
-}
-laplacianSchemes { default Gauss linear corrected; }
-interpolationSchemes { default linear; }
-snGradSchemes { default corrected; }
-wallDist { method meshWave; }""",
+}}
+laplacianSchemes {{ default Gauss linear corrected; }}
+interpolationSchemes {{ default linear; }}
+snGradSchemes {{ default corrected; }}
+wallDist {{ method meshWave; }}""",
         ),
         "system/fvSolution": _file(
             "fvSolution",
-            f"""solvers
-{{
-    p {{ solver GAMG; tolerance 1e-8; relTol 0.05; smoother GaussSeidel; }}
-    \"(U|nuTilda)\" {{ solver smoothSolver; smoother symGaussSeidel; tolerance 1e-9; relTol 0.1; }}
-}}
-SIMPLE
-{{
-    nNonOrthogonalCorrectors 1;
-    consistent yes;
-    pRefCell 0;
-    pRefValue 0;
-    residualControl {{ p {target}; U {target}; {f"nuTilda {target};" if turbulent else ""} }}
-}}
-relaxationFactors {{ fields {{ p 0.3; }} equations {{ U 0.7; nuTilda 0.7; }} }}""",
+            "solvers\n{\n" + solvers + "}\n" + algorithm + relaxation_block,
         ),
         "constant/transportProperties": _file(
             "transportProperties",
@@ -381,7 +467,7 @@ boundaryField
         )
     )
     processes = cast(int, opts.get("processes", 1))
-    solve = "simpleFoam > log.simpleFoam 2>&1\n"
+    solve = f"{application} > log.simpleFoam 2>&1\n"
     if processes > 1:
         result["system/decomposeParDict"] = _file(
             "decomposeParDict", f"numberOfSubdomains {processes};\nmethod scotch;"
@@ -389,7 +475,7 @@ boundaryField
         mpi = shlex.join(cast(list[str], opts.get("mpi_launcher", ["mpirun"])))
         solve = (
             "decomposePar > log.decomposePar 2>&1\n"
-            f"{mpi} -np {processes} simpleFoam -parallel > log.simpleFoam 2>&1\n"
+            f"{mpi} -np {processes} {application} -parallel > log.simpleFoam 2>&1\n"
             "reconstructPar -latestTime > log.reconstructPar 2>&1\n"
         )
     mesh_import = "gmshToFoam mesh.msh > log.gmshToFoam 2>&1\n"

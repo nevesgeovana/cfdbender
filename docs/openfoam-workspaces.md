@@ -57,6 +57,13 @@ iterations = 500
 | `turbulence` | `"laminar"` or `"SpalartAllmaras"` | - | required |
 | `iterations` | SIMPLE iterations (`endTime`), integer above 0 | - | required |
 | `residual_target` | initial residual that counts as converged | - | 1e-5 |
+| `time_integration` | `"steady"` (`simpleFoam`) or `"lts"` (`pimpleFoam`), see Convergence control | - | `"steady"` |
+| `relaxationFactors` | body of the `relaxationFactors` dictionary, as OpenFOAM reads it | - | `fields { p 0.3; } equations { U 0.7; nuTilda 0.7; }` |
+| `lts_max_co` | local Courant ceiling of the LTS route | - | 5 |
+| `lts_damping` | `rDeltaTDampingCoeff`, in (0, 1], see Convergence control | - | 0.2 |
+| `lts_smoothing` | `rDeltaTSmoothingCoeff`, in (0, 1) | - | 0.1 |
+| `lts_max_delta_t` | `maxDeltaT`, upper bound of the local time step | s | not written |
+| `PIMPLE` | body of the `PIMPLE` dictionary of the LTS route | - | generated, see below |
 
 Any other key is refused as `<file>: unknown key '<key>' (closest known key: <name>); known keys: ...`, naming the file.
 
@@ -106,6 +113,45 @@ Each step writes its own `log.*` file, and a failed step stops `Allrun`. ESI wri
 | `GEOMETRY` | `mesh` |
 
 A bare `MACH` resolves at sea level. A setup value that disagrees with the row is refused: `conflict: <key> is <value> in the inputs and <value> from the matrix row; state it in one place`.
+
+### Convergence control
+
+A steady RANS case diverges easily from a poor initial field. cfdbender therefore always starts from a conservative control, and you can switch to a more patient one for a hard case.
+
+**Default: steady `simpleFoam` with under-relaxation.** Under-relaxation blends each new solution with the previous one; a factor below 1 slows each iteration and keeps it stable. When the setup states no `relaxationFactors`, cfdbender writes, in `system/fvSolution`:
+
+```
+relaxationFactors { fields { p 0.3; } equations { U 0.7; nuTilda 0.7; } }
+```
+
+with `consistent yes` (SIMPLEC) in `SIMPLE`, which tolerates a pressure factor as high as 0.3. `nuTilda` is written only for the turbulent case, and the convergence test stays `residualControl { p <residual_target>; U <residual_target>; nuTilda <residual_target>; }`. To change it, state `relaxationFactors` (above the `[solver]` table):
+
+```toml
+relaxationFactors = "fields { p 0.2; } equations { U 0.5; nuTilda 0.5; }"
+```
+
+The text replaces the default whole: cfdbender merges nothing from its own factors.
+
+**Pseudo-transient: local time stepping (LTS).** For a case the steady route cannot converge, set `time_integration = "lts"`. cfdbender then runs `pimpleFoam` with `ddtSchemes { default localEuler; }`, which gives every cell its own time step, large where the flow is slow and small where it is fast, so the solution marches to the steady state without a global step. The `PIMPLE` keys follow the OpenFOAM v2412 LTS tutorial `rhoPimpleFoam/RAS/angledDuctLTS`. `fvSolution` gets:
+
+```
+PIMPLE
+{
+momentumPredictor yes;
+nOuterCorrectors 1;
+nCorrectors 2;
+nNonOrthogonalCorrectors 1;
+maxCo 5;
+rDeltaTSmoothingCoeff 0.1;
+rDeltaTDampingCoeff 0.2;
+}
+```
+
+`maxCo` is the Courant number each cell may reach, and the ceiling of the ramp. `rDeltaTDampingCoeff` limits how fast the step may grow: with 0.2 a local step grows at most 1 / (1 - 0.2) = 1.25 times per iteration, which is the ramp from a small first step up to the ceiling (1 removes the limit). `rDeltaTSmoothingCoeff` smooths the step field between neighbouring cells. OpenFOAM has no schedule for `maxCo` itself, so the ramp is carried by the damping. State `lts_max_co`, `lts_damping`, `lts_smoothing` or `lts_max_delta_t` to change a value. State `PIMPLE` to replace the whole generated dictionary body with your own; its text wins entirely and the `lts_*` keys are then not written. No `relaxationFactors` is written on this route unless you state it. The `lts_*` keys and `PIMPLE` are refused with `time_integration = "steady"`, because they would do nothing.
+
+The run still writes `log.simpleFoam` (the name is kept so the collect step finds it) and the same `forceCoeffs` file. The LTS route has no `SIMPLE solution converged` line, and cfdbender judges convergence by the same residual rule as the steady route: the run is `converged` when the initial residuals of the last iteration are all below `residual_target`; otherwise it is `iteration_limit` at `iterations`. The run always goes to `iterations`, so set it with that in mind.
+
+SU2 has its own robust default, a CFL ramp; see [Solvers, side by side](solvers.md#convergence-control-of-the-rans-solvers) for why the keys are not shared.
 
 ## What converged means
 

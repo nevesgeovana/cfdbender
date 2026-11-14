@@ -14,3 +14,14 @@ You choose a solver once, when you run `cfd-workspace init --solver <name>`, and
 | Coefficients | `CL`, `CD`, `CSF`, `CFx`..`CFz`, `CMx`..`CMz` | `Cd`, `Cl`, `CmPitch` | `Cl`, `Cd` | `CL`, `CD`, `CDp`, `CM` | `J`, `CT`, `CP`, `CT_QPROP`, `CP_QPROP`, `EFFICIENCY`, `EFFICIENCY_OVERALL`, `T`, `Q`, `P` | see [FlightStream](flightstream-workspaces.md) |
 | Neutral `CL`, `CD`, `CM` in the tables | `CL`, `CD`, `CMy` (`CMz` in a two-dimensional case) | `Cl`, `Cd`, `CmPitch` | `Cl`, `Cd`, none | `CL`, `CD`, `CM` | none | see [Results and tables](results.md) |
 | Parallel option | `mpi_launcher` (executable route) | `processes`, `mpi_launcher` | none | none | none | see [FlightStream](flightstream-workspaces.md) |
+
+## Convergence control of the RANS solvers
+
+The two solvers that solve the Reynolds-averaged equations, SU2 and OpenFOAM, start from a robust convergence control when the setup states none, so a poor initial field does not diverge. Each uses the control of its own solver, so the setup keys are native and differ: there is no neutral key, because a CFL number (SU2) and a set of under-relaxation factors or a local Courant limit (OpenFOAM) are not the same quantity and do not map onto each other.
+
+| Solver | Default | Other route | Keys |
+|---|---|---|---|
+| SU2 | CFL ramp from 5 to 25 | any CFL key of yours replaces it | see [CFL ramp](su2-workspaces.md#cfl-ramp) |
+| OpenFOAM | steady `simpleFoam` with under-relaxation p 0.3, U 0.7, nuTilda 0.7 | pseudo-transient local time stepping with `time_integration = "lts"` | see [Convergence control](openfoam-workspaces.md#convergence-control) |
+
+In both, a value you state natively wins entirely: cfdbender writes what you stated and merges nothing from its default. PyFR (not RANS), XFOIL and QPROP have no such control.
