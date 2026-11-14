@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from cfdbender.core.longpath import copy2, file_size, iter_files, rmtree
+from cfdbender.core.longpath import copy2, file_size, iter_files, long_path, rmtree
 from cfdbender.core.longpath import replace as long_replace
 from cfdbender.core.plan import owned_path, workspace_path
 from cfdbender.core.registry import (
@@ -369,7 +369,10 @@ def _copy_files(
             target.parent.mkdir(parents=True, exist_ok=True)
             # Replace the name, never write into the file it names: a staged mesh is a
             # symbolic or hard link to inputs/, and a write would change that input.
-            fresh = target.with_name(f".sync-{target.name}.tmp")
+            with tempfile.NamedTemporaryFile(
+                dir=long_path(target.parent), prefix=".sync-", suffix=".tmp", delete=False
+            ) as stream:
+                fresh = Path(stream.name)
             try:
                 copy2(path, fresh)
                 long_replace(fresh, target)
