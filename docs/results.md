@@ -121,29 +121,86 @@ Three rules make the tables safe to read with any tool:
   row, with `NA` where it has no value.
 
 The columns after `CM` carry the solver's own names, so they differ between
-solvers. `CL`, `CD` and `CM` have the same names on every solver: they are filled
-from the solver's own columns by the table below, and a script that reads them
-works on every solver. **They are aliases of each solver's native coefficients, not
-one signed physical quantity.** Each keeps its solver's axes, sign and reference
-area, length and moment origin, so two solvers' values are comparable only after
-the reference values and the axis of the table below are matched. A solver that
-reports no such coefficient writes `NA`. The page of each solver lists its own
-names, their axes and their reference values.
+solvers and stay exactly as the solver states them. `CL`, `CD` and `CM` have the same
+names **and the same meaning** on every solver: cfdbender transforms each solver's
+native axes into the one standard frame below, so a script that reads them works on
+every solver. A solver that reports no such coefficient writes `NA`. The page of each
+solver lists its own names, their axes and their reference values.
 
-| Solver | `CL` | `CD` | `CM` |
+## The standard frame of `CL`, `CD` and `CM`
+
+The geometry frame is x aft (downstream), y to the right, z up, the frame
+pyflightstream's loads export states. A two-dimensional case lies in the x-y plane
+with y up.
+
+- **Freestream direction:** `V = (cos a cos b, sin b, sin a cos b)` for the row's `ALPHA`
+  `a` and `BETA` `b`. In two dimensions `V = (cos a, sin a)`.
+- **`CD`** is the force along `V`. **`CL`** is the force along `(-sin a, 0, cos a)`
+  (two dimensions: `(-sin a, cos a)`), normal to `V` and in the plane of symmetry. Both are
+  normalised by the dynamic pressure and the row's reference area. Positive `ALPHA`
+  gives positive lift on a lifting body.
+- **`CM`** is the pitching moment about the axis through the row's moment reference point
+  that is perpendicular to the plane of symmetry (y; in two dimensions the axis normal to the
+  plane), **positive nose-up**, normalised by the dynamic pressure, the reference area and
+  the reference length. It is not turned by `BETA`.
+
+This is pyflightstream's geometry frame and its wind axes (drag opposes the stream, lift
+opposes the wind-axis z), with one stated difference: pyflightstream turns sideslip before
+incidence for FlightStream (its angles differ from `ALPHA` and `BETA` at second order),
+while cfdbender uses the textbook order above for every solver, so the two agree whenever
+`ALPHA` or `BETA` is zero.
+
+| Solver | Native column, axes | Transform to the standard frame | Sign |
 |---|---|---|---|
-| SU2 | `CL`, wind z | `CD`, wind x | `CMy`, body y (pitch of a three-dimensional case); `CMz`, body z, when SU2 states a two-dimensional problem |
-| OpenFOAM | `Cl`, along (-sin alpha, cos alpha, 0) | `Cd`, along (cos alpha, sin alpha, 0) | `CmPitch`, ESI's pitch axis (body minus z), sign as OpenFOAM prints it |
-| PyFR | `Cl`, wind y | `Cd`, wind x | `NA`, PyFR reports no moment |
-| XFOIL | `CL`, wind z | `CD`, wind x | `CM`, nose-up about the quarter chord |
-| QPROP | `NA` | `NA` | `NA`, a propeller has thrust and power instead; see its page |
-| FlightStream | `CLB` | `CDB` | `CMB25` |
-| mock | `CZ` | `CX` | `Cm` |
+| SU2 | `CL`, `CD`: wind axes from `AOA` and `SIDESLIP_ANGLE` | none: SU2's wind axes are the standard ones | `CL` up, `CD` along the stream |
+| SU2, three dimensions | `CMy`: body y | none (the mesh follows SU2's convention: x streamwise, y spanwise, z up) | nose-up positive |
+| SU2, two dimensions (`NDIME= 2`, or the line SU2 prints) | `CMz`: body z, counterclockwise in the x-y plane | `CM = -CMz` | counterclockwise is nose-down for a flow along +x with y up, so the sign flips |
+| OpenFOAM | `Cl`, `Cd`: along `liftDir (-sin a, cos a, 0)` and `dragDir (cos a, sin a, 0)` as the adapter writes them | none | up, along the stream |
+| OpenFOAM | `CmPitch` about `pitchAxis (0 0 -1)` (the adapter writes lift cross drag) | none | positive about -z is nose-up |
+| PyFR | raw force components `px, py, vx, vy` | `Cl = 2 (Fy cos a - Fx sin a)`, `Cd = 2 (Fx cos a + Fy sin a)` by `ALPHA`, in the adapter | up, along the stream; no moment, `NA` |
+| XFOIL | `CL`, `CD` wind axes; `CM` about the quarter chord | none | nose-up positive |
+| FlightStream | `CDB`, `CYB`, `CLB`: body axes (forward, right, down), force on the body (aft, right, up) = `(CDB, CYB, CLB)` | `CD = F . V`, `CL = F . (-sin a, 0, cos a)` with `ALPHA`, `BETA` | up, along the stream |
+| FlightStream | `CMB25`: body y | none | nose-up positive |
+| mock | `CZ`, `CX`, `Cm` | none: the stand-in states its values in the standard frame | as stated |
+| QPROP | none | `NA` for `CL`, `CD`, `CM`; see the rotor frame | |
 
-QPROP's efficiency, advance ratio and power entries are not forces or moments, yet
-they use the coefficient record shape (a value, an axis and a kind of `force` or
-`moment`) by convention, so that every solver's result has one format. Read their
-meaning from the QPROP page, not from the `kind` field.
+## The rotor frame
+
+A rotor or propeller has its own standard frame, and its coefficients are the columns
+`CT`, `CQ`, `CP`, `CN`, `CY`, `J` and `EFFICIENCY`, written beside the solver's own columns
+by every rotor-capable adapter (QPROP now). `CL`, `CD` and `CM` of a propeller are `NA`.
+
+- **Axes:** x along the thrust direction, positive forward; z positive up (the normal force
+  direction); y = z cross x, completing a right-handed frame.
+- **Normalisation:** `n` in revolutions per second, `D` the diameter, `rho` the air density.
+- `J = V / (n D)`, with `V` the speed along the thrust axis.
+- `CT = T / (rho n^2 D^4)`: positive when the thrust points forward (+x).
+- `CQ = Q / (rho n^2 D^5)`: the shaft torque about +x, signed by the right-hand rule. A
+  positive `CQ` is a torque vector along +x, a rotor turning right-handed about +x
+  (counterclockwise to an observer behind the rotor looking forward). Reversing the rotation
+  reverses the torque and so the sign of `CQ`; `CT`, `CP` and the efficiency keep their meaning.
+- `CP = P / (rho n^3 D^5)`: the shaft power. `CP = 2 pi CQ` for the positive rotation sense,
+  and `CP = 2 pi CQ sign(rotation)` in general.
+- `CN = N / (rho n^2 D^4)`: the in-plane normal force, positive up (+z). `CY = Y / (rho n^2 D^4)`:
+  the side force, along +y.
+- `EFFICIENCY = J CT / CP`, as the solver states it.
+
+pyflightstream agrees on `J`, `CT`, `CQ`, `CP` and the in-plane normal force: the same
+normalisations, `CP = 2 pi CQ sign(RPM)`, a signed `CQ`, and a normal force along up (+z of the
+loads frame). It differs in two names and one frame choice: its side force is `CS` where
+cfdbender's is `CY`; its columns carry a rotor alias suffix (`CT_<alias>`); and its thrust axis
+is the reference's rotor axis in the loads frame (x aft), where cfdbender's rotor x is the
+thrust direction itself.
+
+| Solver | `CT` | `CQ` | `CP` | `CN`, `CY` | `J` | `EFFICIENCY` |
+|---|---|---|---|---|---|---|
+| QPROP | from the printed `T` (positive forward), `T / (rho n^2 D^4)` | from the printed `Q` (shaft torque, positive for a right-handed rotation about the thrust axis), `Q / (rho n^2 D^5)` | from the printed `Pshaft` | `NA`: an isolated propeller in axial flow has no in-plane force | `V / (n D)` | QPROP's `effprop` |
+
+QPROP's own columns follow, unchanged: `CT_QPROP` and `CP_QPROP` (its tip-speed
+normalisation), `EFFICIENCY_OVERALL`, `T`, `Q` and `P`. Entries such as the efficiency,
+the advance ratio and the power use the coefficient record shape (a value, an axis and a
+kind of `force` or `moment`) by convention, so that every solver's result has one format.
+Read their meaning from this page, not from the `kind` field.
 
 `RE` is in millions: a Reynolds number of 500000 is `0.5`.
 

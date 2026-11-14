@@ -126,7 +126,7 @@ The axis of each value is the rotation axis. The references are the disk area (p
 | `EFFICIENCY_OVERALL` | overall efficiency including the motor, as QPROP prints it (`eff`) |
 | `T`, `Q`, `P` | thrust (N), shaft torque (N m), shaft power (W) |
 
-Here `n` is the rotation rate in revolutions per second and `D = 2 R`. A propeller has no lift, drag or pitching moment in the sense of the other solvers, so the neutral columns `CL`, `CD` and `CM` of the collected tables are `NA` for QPROP; its own columns follow them. `Q`, `P`, `CP` and `CP_QPROP` are listed as moments only to fit the common result format. A QPROP result is a blade-element estimate with the fitted two-dimensional polars, not a validation of the propeller.
+Here `n` is the rotation rate in revolutions per second and `D = 2 R`. A propeller has no lift, drag or pitching moment in the sense of the other solvers, so the neutral columns `CL`, `CD` and `CM` of the collected tables are `NA` for QPROP; its own columns follow them. The rotor columns `CT`, `CQ`, `CP`, `CN`, `CY`, `J` and `EFFICIENCY` are in the rotor frame of [Results and tables](results.md) (`CN` and `CY` are `NA`: an isolated propeller in axial flow has no in-plane force); `CQ` is the printed shaft torque `Q` over `rho n^2 D^5`, positive for a rotation right-handed about the thrust axis. `Q`, `P`, `CP` and `CP_QPROP` are listed as moments only to fit the common result format. A QPROP result is a blade-element estimate with the fitted two-dimensional polars, not a validation of the propeller.
 
 ## Worked example
 

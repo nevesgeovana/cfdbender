@@ -110,6 +110,7 @@ def test_p0000_qprop_collect_returns_both_normalisations_and_the_standard_ones(t
         "CP",
         "CT_QPROP",
         "CP_QPROP",
+        "CQ",
         "EFFICIENCY",
         "EFFICIENCY_OVERALL",
         "T",

@@ -93,7 +93,7 @@ _OUTPUTS = (
     "execution.json",
     "sections.json",
 )
-_MOMENTS = {"Q", "P", "CP", "CP_QPROP"}
+_MOMENTS = {"Q", "P", "CP", "CP_QPROP", "CQ"}
 
 
 def _with_geometry(values: Mapping[str, object], geometry: str | None) -> Mapping[str, object]:

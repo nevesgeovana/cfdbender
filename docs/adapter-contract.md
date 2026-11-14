@@ -231,10 +231,14 @@ in two frames, each coefficient states its frame. The tables of `collect` add
 the neutral columns `CL`, `CD` and `CM` beside the solver's own names; which
 of its names an adapter gives them is stated in one table, `core/neutral.py`,
 and a solver with no such coefficient writes `NA`. The neutral `CL`, `CD` and `CM`
-are therefore aliases of each solver's native coefficients, in its native axes and
-sign and with its native references, not one signed physical quantity; the table
-of [Results](results.md) names, per solver, the native column, the axis and the
-sign behind each. QPROP's efficiency, advance ratio and power entries are not
+are defined once, in one standard frame (lift normal to the freestream, drag along it,
+both from the row's `ALPHA` and `BETA`; pitching moment nose-up positive about the row's
+moment reference point), and the adapter's own reading is transformed into it by
+`core/neutral.py`, the only place that does so; the [Results](results.md) page gives the
+frame and, per solver, the native column, the transform and the sign. A rotor-capable adapter
+also maps into the rotor frame (`CT`, `CQ`, `CP`, `CN`, `CY`, `J`, `EFFICIENCY`; x along the
+thrust, z up, y completing the right-handed frame). The solver's own columns stay unchanged
+beside the neutral ones. QPROP's efficiency, advance ratio and power entries are not
 forces or moments but use the coefficient record shape (a value, an axis and a kind)
 by convention, so the result has one format.
 

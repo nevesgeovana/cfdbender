@@ -57,7 +57,7 @@ def _run(root, line, cmy, cmz):
 def test_a_two_dimensional_case_reports_cmz_as_the_neutral_cm(tmp_path):
     row = _run(tmp_path, "Two dimensional problem.", 0.0, -0.0258)
     assert float(row["CMy"]) == 0.0 and float(row["CMz"]) == -0.0258
-    assert float(row["CM"]) == -0.0258, "CM must be the pitching moment, not the zero CMy"
+    assert float(row["CM"]) == 0.0258, "CM is the nose-up pitching moment: minus CMz in 2D"
     summary = json.loads((tmp_path / "post/study/campaign_summary.json").read_bytes())
     assert summary["points"][0]["result"]["dimensions"] == 2
 
@@ -77,7 +77,7 @@ def test_the_dimension_falls_back_to_the_native_mesh_and_may_be_unstated(tmp_pat
     assert dimensions(tmp_path) == 3, "what SU2 printed outranks the mesh header"
 
 
-@pytest.mark.parametrize("stated,expected", [(2, 7.0), (3, 5.0), (None, 5.0)])
+@pytest.mark.parametrize("stated,expected", [(2, -7.0), (3, 5.0), (None, 5.0)])
 def test_only_a_stated_planar_case_changes_the_name(stated, expected):
     native = {"CL": 1.0, "CD": 2.0, "CMy": 5.0, "CMz": 7.0}
     assert neutral_values("su2", native, dimensions=stated)["CM"] == expected

@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import cast
 
 from cfdbender.core.flight import FlightConditionError, resolve_flow
-from cfdbender.core.neutral import NEUTRAL, neutral_values
+from cfdbender.core.neutral import NEUTRAL, ROTOR, ROTOR_NAMES, neutral_values, rotor_values
 from cfdbender.core.plan import workspace_path
 
 FIXED = ("status", "classification", "iterations", "residual", "wall_time_s", "solver_version")
@@ -167,11 +167,19 @@ def _cells(row: Mapping[str, object], solver: str | None = None) -> dict[str, ob
     for name, value in coefficients.items():
         cells[name] = value["value"]
     own = {name: cast(float, value["value"]) for name, value in coefficients.items()}
-    cells.update(neutral_values(solver, own, dimensions=result.get("dimensions")))
+    cells.update(
+        neutral_values(
+            solver,
+            own,
+            dimensions=result.get("dimensions"),
+            condition=cast(Mapping[str, object], row["condition"]),
+        )
+    )
+    cells.update(rotor_values(solver, own))
     return cells
 
 
-def _header(rows: Sequence[Mapping[str, object]]) -> list[str]:
+def _header(rows: Sequence[Mapping[str, object]], solver: str | None = None) -> list[str]:
     extras: dict[str, None] = {}
     coefficients: dict[str, None] = {}
     for row in rows:
@@ -180,7 +188,8 @@ def _header(rows: Sequence[Mapping[str, object]]) -> list[str]:
         result = cast(Mapping[str, object] | None, row.get("result")) or {}
         names = cast(Mapping[str, object], result.get("coefficients") or {})
         coefficients.update(dict.fromkeys(names))
-    taken = {"POL", "point", *CONTEXT, *extras, *FIXED, *NEUTRAL}
+    rotor = ROTOR if solver in ROTOR_NAMES else ()
+    taken = {"POL", "point", *CONTEXT, *extras, *FIXED, *NEUTRAL, *rotor}
     return [
         "POL",
         "point",
@@ -188,6 +197,7 @@ def _header(rows: Sequence[Mapping[str, object]]) -> list[str]:
         *extras,
         *FIXED,
         *NEUTRAL,
+        *rotor,
         *(c for c in coefficients if c not in taken),
     ]
 
@@ -245,7 +255,7 @@ def write_tables(
         The written tables, campaign_sweep.csv first.
     """
     folder = workspace_path(root, f"post/{Path(matrix).stem}")
-    header = _header(rows)
+    header = _header(rows, solver)
     written = [_write(folder / "campaign_sweep.csv", _text(header, rows, solver))]
     by_pol: dict[str, list[Mapping[str, object]]] = {}
     for row in rows:

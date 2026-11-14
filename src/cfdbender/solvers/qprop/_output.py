@@ -59,6 +59,9 @@ def coefficients(row: dict[str, float], *, rho: float, radius: float) -> dict[st
         "J": speed / (n * diameter),
         "CT": thrust / (rho * n**2 * diameter**4),
         "CP": power / (rho * n**3 * diameter**5),
+        # Shaft torque about +x (the thrust axis) as QPROP prints it: positive for a rotation
+        # right-handed about +x. CP = 2 pi CQ for that sense.
+        "CQ": torque / (rho * n**2 * diameter**5),
         "CT_QPROP": row["CT"],
         "CP_QPROP": row["CP"],
         # Both efficiencies are QPROP's own printed values, never recomputed: effprop is the
