@@ -77,6 +77,15 @@ def test_c42_a_result_that_is_not_failed_must_carry_a_coefficient():
 
 def reverse_columns(text: str, solver: str) -> str:
     """Return the table with its columns in the opposite order, header included."""
+    if solver == "openfoam":
+        lines = []
+        for line in text.splitlines():
+            if line.startswith("# Time"):
+                line = "# " + " ".join(reversed(line[1:].split()))
+            elif line.strip() and not line.lstrip().startswith("#"):
+                line = " ".join(reversed(line.split()))
+            lines.append(line)
+        return "\n".join(lines) + "\n"
     if solver == "xfoil":
         lines, out, seen = text.splitlines(), [], False
         for line in lines:
@@ -95,7 +104,13 @@ def reverse_columns(text: str, solver: str) -> str:
     return buffer.getvalue()
 
 
-TABLES = {"su2": "history.csv", "pyfr": "forces.csv", "xfoil": "polar.txt", "mock": "history.csv"}
+TABLES = {
+    "su2": "history.csv",
+    "pyfr": "forces.csv",
+    "xfoil": "polar.txt",
+    "mock": "history.csv",
+    "openfoam": "postProcessing/forceCoeffs/0/coefficient.dat",
+}
 
 
 @pytest.mark.parametrize("solver_name", sorted(TABLES))

@@ -387,3 +387,5 @@ testing.assert_deterministic(adapter, point)
    the conformance suite and to the all-solvers matrix test.
 6. Add `docs/<name>-workspaces.md` and its navigation entry.
 7. Run the gates listed in `CONTRIBUTING.md`.
+
+The OpenFOAM force-table reader accepts Time in any header position, as required by C-41; the shared reorder test covers it.

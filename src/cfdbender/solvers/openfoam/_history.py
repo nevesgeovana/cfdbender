@@ -46,8 +46,9 @@ def _rows(folder: Path) -> list[dict[str, float]]:
     headers: list[str] = []
     rows: list[dict[str, float]] = []
     for line in paths[0].read_text(encoding="ascii").splitlines():
-        if line.startswith("# Time"):
-            headers = line[1:].split()
+        tokens = line.lstrip().removeprefix("#").split()
+        if line.lstrip().startswith("#") and "Time" in tokens:
+            headers = tokens
             if len(set(headers)) != len(headers) or not {"Time", "Cd", "Cl", "CmPitch"} <= set(
                 headers
             ):
