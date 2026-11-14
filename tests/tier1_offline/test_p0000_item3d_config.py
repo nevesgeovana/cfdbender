@@ -218,4 +218,4 @@ def test_review6_passthrough_keys_in_reference_and_post(tmp_path):
     post.write_text(post.read_text() + '\nHISTORY_OUTPUT = ["ITER", "RMS_RES"]', encoding="utf-8")
     text = api().translate(prepared(tmp_path))
     assert "REF_DIMENSIONALIZATION= DIMENSIONAL" in text
-    assert "HISTORY_OUTPUT= ( ITER, RMS_RES )" in text
+    assert "HISTORY_OUTPUT= ( ITER, RMS_RES, AERO_COEFF )" in text, "the missing group is added"

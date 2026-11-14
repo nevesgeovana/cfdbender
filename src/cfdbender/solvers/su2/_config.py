@@ -324,7 +324,36 @@ def config(
         if key in values and values[key] != value:
             raise ValueError(f"conflict: {key} must be {value}")
         values.setdefault(key, value)
+    _history_output(values)
     return values
+
+
+#: The history groups the reader needs: the iteration counter, the residuals and the
+#: aerodynamic coefficients. SU2's own default history holds none of the last two.
+HISTORY_GROUPS = ("ITER", "RMS_RES", "AERO_COEFF")
+
+
+def _history_output(values: dict[str, object]) -> None:
+    """Make history.csv hold the columns the adapter reads.
+
+    Without HISTORY_OUTPUT the adapter writes the default groups; a HISTORY_OUTPUT that
+    lacks one is extended with it, with a warning, never refused.
+    """
+    given = values.get("HISTORY_OUTPUT")
+    if given is None:
+        values["HISTORY_OUTPUT"] = list(HISTORY_GROUPS)
+        return
+    groups = [str(item) for item in given] if isinstance(given, list) else [str(given)]
+    present = {item.strip().upper() for item in groups}
+    missing = [group for group in HISTORY_GROUPS if group not in present]
+    if missing:
+        warnings.warn(
+            f"HISTORY_OUTPUT lacks {', '.join(missing)}, which the SU2 adapter reads from "
+            "history.csv: they are added",
+            UserWarning,
+            stacklevel=3,
+        )
+        values["HISTORY_OUTPUT"] = [*groups, *missing]
 
 
 def mesh_name(values: Mapping[str, object]) -> str:
