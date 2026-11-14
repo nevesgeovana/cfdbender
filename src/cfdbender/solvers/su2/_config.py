@@ -329,11 +329,55 @@ def config(
         values.setdefault(key, value)
     _history_output(values)
     _cfl_ramp(values)
-    # SU2's STANDARD_AIR holds R = 287.058, while the estate atmosphere uses ISO 2533;
-    # stating both keeps every solver on one free stream. A native value of the user wins.
-    values.setdefault("GAS_CONSTANT", GAS_CONSTANT)
-    values.setdefault("GAMMA_VALUE", GAMMA)
+    _fluid_model(values)
     return values
+
+
+#: SU2's own gas constants: STANDARD_AIR forces them, and IDEAL_GAS falls back to them.
+SU2_AIR = {"GAS_CONSTANT": 287.058, "GAMMA_VALUE": 1.4}
+
+
+def _fluid_model(values: dict[str, object]) -> None:
+    """Make SU2 run on cfdbender's gas constants, or say why it will not.
+
+    SU2's default FLUID_MODEL, STANDARD_AIR, replaces GAS_CONSTANT and GAMMA_VALUE with
+    287.058 and 1.4, so the constants of the ISO 2533 atmosphere take effect only under
+    IDEAL_GAS. Without FLUID_MODEL the adapter writes IDEAL_GAS and the core constants (a
+    native constant of the user wins). A native FLUID_MODEL wins: the adapter then writes
+    neither constant, and warns when the gas SU2 will use differs from the core one.
+    """
+    solver = str(values.get("SOLVER", "")).strip().upper()
+    if solver.startswith("INC_"):
+        # The incompressible fluid models have their own names; IDEAL_GAS is not one.
+        values.setdefault("GAS_CONSTANT", GAS_CONSTANT)
+        values.setdefault("GAMMA_VALUE", GAMMA)
+        return
+    if "FLUID_MODEL" not in values:
+        values["FLUID_MODEL"] = "IDEAL_GAS"
+        values.setdefault("GAS_CONSTANT", GAS_CONSTANT)
+        values.setdefault("GAMMA_VALUE", GAMMA)
+        return
+    model = str(values["FLUID_MODEL"]).strip().upper()
+    core = {"GAS_CONSTANT": GAS_CONSTANT, "GAMMA_VALUE": GAMMA}
+    if model == "STANDARD_AIR":
+        used = dict(SU2_AIR)
+    elif model == "IDEAL_GAS":
+        used = {key: number(values.get(key, SU2_AIR[key]), key) for key in core}
+    else:
+        used = {}
+    if not used or not all(math.isclose(used[key], core[key], rel_tol=1e-9) for key in core):
+        gas = (
+            ", ".join(f"{key} {format(value, '.15g')}" for key, value in used.items())
+            if used
+            else "a gas that is not an ideal gas"
+        )
+        warnings.warn(
+            f"FLUID_MODEL {model} of the setup makes SU2 use {gas}, not the core "
+            f"GAS_CONSTANT {GAS_CONSTANT} and GAMMA_VALUE {GAMMA}: the free stream SU2 "
+            "derives differs from the one the other solvers receive",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 #: The CFL ramp written when the setup states no CFL key.
