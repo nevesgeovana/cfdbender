@@ -331,7 +331,33 @@ def config(
     _cfl_ramp(values)
     _fluid_model(values)
     _sa_variant(values)
+    _heatflux_values(values)
     return values
+
+
+def _is_value(item: object) -> bool:
+    """Return whether a marker list item is a number rather than a marker name."""
+    if isinstance(item, (int, float)) and not isinstance(item, bool):
+        return True
+    try:
+        float(str(item))
+    except ValueError:
+        return False
+    return True
+
+
+def _heatflux_values(values: dict[str, object]) -> None:
+    """Pair every MARKER_HEATFLUX name with 0.0 when the setup gives names alone.
+
+    SU2 reads MARKER_HEATFLUX as (name, flux, ...). A list of names alone is parsed as
+    adiabatic only by a parser detail; the adapter writes the adiabatic value it means.
+    """
+    given = values.get("MARKER_HEATFLUX")
+    if given is None:
+        return
+    items = given if isinstance(given, list) else [given]
+    if items and not any(_is_value(item) for item in items):
+        values["MARKER_HEATFLUX"] = [part for item in items for part in (item, "0.0")]
 
 
 #: The standard SA-neg of the NASA turbulence modeling resource, as SU2 8.x names it.
