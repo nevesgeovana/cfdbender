@@ -19,7 +19,7 @@ from typing import Protocol, runtime_checkable
 
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.mesh import resolve_setup_paths
-from cfdbender.core.plan import InputFiles, Point, RowInputs, RowRequirements, apply_variables
+from cfdbender.core.plan import InputFiles, Point, is_matrix_file, RowInputs, RowRequirements, apply_variables
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import read_init
 
@@ -47,6 +47,8 @@ class AdapterPoint:
             raise ValueError("init.toml solver differs from the planned solver")
         files = InputFiles(self.root)
         for name, digest in self.point.inputs_sha256.items():
+            if is_matrix_file(name):
+                continue  # records of earlier plans carry it; a grown matrix is not stale
             if hashlib.sha256(files.read_bytes(name)).hexdigest() != digest:
                 raise ValueError(f"input changed after planning: {name}; plan again")
 

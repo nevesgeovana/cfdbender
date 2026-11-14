@@ -50,7 +50,10 @@ cfd-matrix run polar --resume
 
 `--resume` skips every point recorded `COMPLETED` or `SUBMITTED`, whatever its
 verdict, and runs the rest. Use it after adding rows or sweep values to a
-matrix, and after a run that was interrupted. A skipped point whose verdict is
+matrix, and after a run that was interrupted. Plan the grown matrix first: the
+points already recorded stay valid, because a point is stale when a file it read
+(its setup, reference, pproc or geometry file) changed, never because the matrix
+gained a row. `collect` and `post` read the old points as before. A skipped point whose verdict is
 `failed` says how to run it again:
 
 ```text

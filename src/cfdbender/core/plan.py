@@ -98,6 +98,16 @@ def owned_path(root: Path, name: str) -> Path:
     return path
 
 
+def is_matrix_file(name: str) -> bool:
+    """Return whether a workspace-relative input name is a matrix file (.fs).
+
+    Every point records the matrix's digest, but a point is as stale as the files it read
+    (its s, r and p files, its geometry), not as the matrix, which a new row changes: the
+    digest is kept in the record and never judged as a point's input.
+    """
+    return name.endswith(".fs")
+
+
 class InputFiles:
     """Read byte snapshots once, tracking workspace-relative SHA-256 keys."""
 
