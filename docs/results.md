@@ -202,6 +202,8 @@ the advance ratio and the power use the coefficient record shape (a value, an ax
 kind of `force` or `moment`) by convention, so that every solver's result has one format.
 Read their meaning from this page, not from the `kind` field.
 
+`J` occupies its existing fixed-context column once, including rotor tables.
+
 `RE` is in millions: a Reynolds number of 500000 is `0.5`.
 
 ## Part of a matrix

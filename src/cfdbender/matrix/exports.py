@@ -188,7 +188,7 @@ def _header(rows: Sequence[Mapping[str, object]], solver: str | None = None) -> 
         result = cast(Mapping[str, object] | None, row.get("result")) or {}
         names = cast(Mapping[str, object], result.get("coefficients") or {})
         coefficients.update(dict.fromkeys(names))
-    rotor = ROTOR if solver in ROTOR_NAMES else ()
+    rotor = tuple(c for c in ROTOR if c not in CONTEXT) if solver in ROTOR_NAMES else ()
     taken = {"POL", "point", *CONTEXT, *extras, *FIXED, *NEUTRAL, *rotor}
     return [
         "POL",
