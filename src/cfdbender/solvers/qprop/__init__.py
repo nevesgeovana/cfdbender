@@ -82,7 +82,7 @@ from cfdbender.solvers.qprop._sections import (
 )
 
 SOLVER_NAME = "qprop"
-STAGED_CONFIG = "sections.plan"
+STAGED_CONFIG = "propeller.prop"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "launcher"}
 JOB_OUTPUTS = ("stdout.log",)
 _OUTPUTS = (

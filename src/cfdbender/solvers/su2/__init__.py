@@ -61,6 +61,8 @@ from cfdbender.solvers.su2._history import dimensions, read
 SOLVER_NAME = "su2"
 SOLVER_TYPE = "SU2"
 STAGED_CONFIG = "su2.cfg"
+#: The namespace of the s file that SU2 forwards unread (contract C-09): its own option names.
+NATIVE_PASSTHROUGH = "upper-case native option names"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "mpi_launcher"}
 BUILD_OPTIONS = {"route": "executable"}
 JOB_OUTPUTS = ("history.csv", "stdout.log")

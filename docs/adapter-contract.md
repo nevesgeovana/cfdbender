@@ -86,14 +86,22 @@ The core adds the data row and the POL.
 planning, never ignored: the refusal names the file, the key as written and the
 closest known key. A key of the r or p file that the adapter does not read is
 not refused: it is warned about once, naming the row, the file and the key, and
-skipped (`RowInputs.warn_unread`).
+skipped (`RowInputs.warn_unread`). One exception is explicit: an adapter may
+declare a native passthrough namespace of the s file with the attribute
+`NATIVE_PASSTHROUGH`, and a key inside that namespace is forwarded to the solver
+unread. SU2 declares the upper-case native option names (`MARKER_FAR`, `CFL_NUMBER`,
+and so on); every other unknown key, such as a lower-case one, is refused, and every
+other adapter has no namespace, so it refuses an upper-case key too.
 
 **C-10.** `validate_row` returns at least one action (a short phrase the plan
 listing prints after "would:" under `--verbose`) and every output file the point will write, as
 templates under `sims/sim_{pol}/datapoints/{point}/`. An adapter that declares
 no action or no output is refused by the core, as is an output outside
 `sims/` or `post/`. After a run that is not failed every declared output
-exists; the core records a point with a missing declared output as failed.
+exists; the core records a point with a missing declared output as failed, and
+the record holds a digest of every declared output. A solver may write other files
+(QPROP's `sections.plan` and section folders, OpenFOAM's time directories); they are
+not declared, not digested and not part of the record.
 
 **C-11.** The adapter accepts the full shared matrix header. It reads the
 parsed row it is given and never reads the matrix file itself.
@@ -267,7 +275,7 @@ An adapter declares these behaviours by providing the attribute.
 | Attribute | Meaning |
 | --- | --- |
 | `stage(point)` | Write every file a job reads into a new point folder, without running the solver. |
-| `STAGED_CONFIG` | The file in the point folder that the job's solver reads. |
+| `STAGED_CONFIG` | The file in the point folder that the job's solver actually reads (QPROP: `propeller.prop`; SU2: `su2.cfg`). It is the file the recorded staged config names whenever it exists at staging. A descriptor such as QPROP's `sections.plan` (the plan of section polars) is recorded in its place only for a point whose polars are computed at execution; staging itself refuses such a point, so it never reaches a cluster job without `propeller.prop`. |
 | `JOB_OUTPUTS` | The declared outputs a cluster job writes. |
 | `SOLVER_TYPE` | The solver's name as a cluster profile spells it, when it differs from the registered name. |
 | `EXECUTABLE_KEYS` | The adapter's own `[solver]` option names for the executable path and the launcher. |
