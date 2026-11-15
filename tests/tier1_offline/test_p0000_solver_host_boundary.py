@@ -72,17 +72,3 @@ def test_p0000_solver_host_ram_refusal_names_solver(
     with pytest.raises(ValueError, match=f"refusing {label}"):
         adapter.execute(point, check_ram=lambda: None)
     assert not (point.root / point.point.directory).exists()
-
-
-@pytest.mark.parametrize(
-    "solver,label", [("su2", "SU2"), ("xfoil", "XFOIL"), ("openfoam", "OpenFOAM"), ("pyfr", "PyFR")]
-)
-def test_p0000_solver_host_thread_refusal_names_solver(tmp_path, solver, label):
-    point = prepared(tmp_path, solver)
-    execution = importlib.import_module(f"cfdbender.solvers.{solver}._execute")
-    with execution._RUNNING:
-        with pytest.raises(ValueError, match=f"{label} is already running"):
-            importlib.import_module(f"cfdbender.solvers.{solver}").execute(
-                point, check_ram=lambda: None
-            )
-    assert not (point.root / point.point.directory).exists()

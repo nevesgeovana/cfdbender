@@ -16,7 +16,6 @@ def test_p0000_solver_host_helpers_are_neutral(solver):
         execution._ram.require_ram,
         execution._timeout,
         execution._kill_tree,
-        execution.process_lease,
     ):
         assert helper.__module__.startswith("cfdbender.solvers._host.")
 

@@ -6,7 +6,6 @@ names its clause of docs/adapter-contract.md.
 
 from __future__ import annotations
 
-import importlib
 import shutil
 import subprocess
 import sys
@@ -218,15 +217,15 @@ def test_c23_a_refusal_during_the_run_stops_the_solver(case):  # noqa: F811
                 _kill_tree(process)
 
 
-def test_c24_one_solver_process_per_host(case, monkeypatch):  # noqa: F811
-    """C-24: while another process holds the host lease, execute refuses."""
+def test_p0000_c24_guard_is_opt_in(case, monkeypatch, capsys):  # noqa: F811
+    """C-24: an unguarded local run proceeds while a guarded run is refused."""
     solver, root = case
     if solver == "mock":
         pytest.skip("the mock adapter launches no solver process")
-    # The suite replaces every adapter's lease with a no-op; this test needs the real one.
-    module = importlib.import_module(f"cfdbender.solvers.{solver}._execute")
-    monkeypatch.setattr(module, "process_lease", process_lease)
-    adapter, point = prepared(root, solver)
+    from cfdbender.solvers._host import _exe
+
+    monkeypatch.setattr(_exe, "process_lease", process_lease)
+    state_no_build(root)
     held, release = threading.Event(), threading.Event()
 
     def hold():
@@ -234,7 +233,7 @@ def test_c24_one_solver_process_per_host(case, monkeypatch):  # noqa: F811
             try:
                 with process_lease():
                     held.set()
-                    release.wait(10)
+                    release.wait(30)
                 return
             except ValueError:
                 time.sleep(0.1)
@@ -244,11 +243,12 @@ def test_c24_one_solver_process_per_host(case, monkeypatch):  # noqa: F811
     try:
         if not held.wait(2):
             pytest.skip("another process holds the host solver slot")
-        with pytest.raises(ValueError, match="already running"):
-            adapter.execute(point, check_ram=lambda: None)
+        assert local(root) == 0
+        assert local(root, "--one-run-at-a-time") == 2
+        assert "holds this machine" in capsys.readouterr().err
     finally:
         release.set()
-        thread.join(10)
+        thread.join(30)
 
 
 def test_c28_an_unexpected_exception_propagates_and_leaves_the_record_running(case, monkeypatch):  # noqa: F811

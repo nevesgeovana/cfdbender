@@ -45,7 +45,8 @@ def test_u05_a_missing_executable_refuses_the_run_before_any_record(case, capsys
     assert not (root / "sims").exists() or not list((root / "sims").rglob("datapoints/*"))
 
 
-def test_u05_a_busy_host_slot_refuses_the_run_before_any_record(case, monkeypatch, capsys):  # noqa: F811
+@pytest.mark.parametrize("guard", ["default", "flag", "init"])
+def test_p0000_pguard_busy_host_slot(case, monkeypatch, capsys, guard):  # noqa: F811
     solver, root = case
     if solver == "mock":
         pytest.skip("the mock runs no process")
@@ -63,10 +64,36 @@ def test_u05_a_busy_host_slot_refuses_the_run_before_any_record(case, monkeypatc
         yield
 
     monkeypatch.setattr(_exe, "process_lease", lease)
-    assert local(root) == 2
+    if guard == "init":
+        path = root / "init.toml"
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"^\[solver\]$", text, flags=re.M):
+            text = re.sub(r"^\[solver\]$", "[solver]\none_run_at_a_time = true", text, flags=re.M)
+        else:
+            text = text.replace(
+                f'solver = "{solver}"', f'[solver]\nname = "{solver}"\none_run_at_a_time = true'
+            )
+        path.write_text(text, encoding="utf-8")
+        _planned(root)
+    result = local(root, *(["--one-run-at-a-time"] if guard == "flag" else []))
     err = capsys.readouterr().err
-    assert "matrix not run" in err and "holds this machine" in err, err
-    assert RunRegistry(root).read() == ()
+    if guard == "default":
+        assert result == 0, err
+        assert all(not record.one_run_at_a_time for record in RunRegistry(root).read())
+    else:
+        assert result == 2
+        assert "matrix not run" in err and "holds this machine" in err, err
+        assert RunRegistry(root).read() == ()
+
+
+def test_p0000_pguard_record_and_notice(case, capsys):  # noqa: F811
+    solver, root = case
+    if solver == "mock":
+        pytest.skip("the mock runs no process")
+    _planned(root)
+    assert local(root, "--one-run-at-a-time") == 0
+    assert capsys.readouterr().out.count("one run at a time guard is on") == 1
+    assert all(record.one_run_at_a_time for record in RunRegistry(root).read())
 
 
 def test_u05_the_ram_floor_refuses_the_run_before_any_record(case, monkeypatch, capsys):  # noqa: F811
