@@ -47,3 +47,13 @@ def test_readme_does_not_describe_su2_as_absent():
 def test_p0200_item5_release_target():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     assert project["version"] == "0.5.0"
+
+
+def test_citation_date_matches_current_release_notes():
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    version = project["project"]["version"]
+    notes = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+    release = re.search(rf"(?m)^## \[{re.escape(version)}\] - (\d{{4}}-\d{{2}}-\d{{2}})$", notes)
+    dated = re.search(r"(?m)^date-released: (\d{4}-\d{2}-\d{2})$", citation)
+    assert release and dated and release[1] == dated[1]
