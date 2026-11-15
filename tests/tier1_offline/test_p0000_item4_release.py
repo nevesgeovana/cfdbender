@@ -49,6 +49,12 @@ def test_p0200_item5_release_target():
     assert project["version"] == "0.5.1"
 
 
+def test_guide_version_matches_the_package_version():
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    info = (ROOT / "guide/latex-sources/shared/info.tex").read_text(encoding="utf-8")
+    assert "\\newcommand{\\pkgversion}{" + project["version"] + "}" in info
+
+
 def test_citation_date_matches_current_release_notes():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     version = project["project"]["version"]
