@@ -53,8 +53,8 @@ Marker names come from the setup file, never from the mesh. Match the names and 
 | `convergence_field` | `CONV_FIELD` | - | SU2's own |
 | `convergence_residual` | `CONV_RESIDUAL_MINVAL` | log10 of the residual | -12 with `FREESTREAM_PRESS_EQ_ONE` (the default scaling of compressible decks), else SU2's own (-8) |
 | `output_frequency` | `OUTPUT_WRT_FREQ` | iterations | SU2's own |
-| `cfl` | `CFL_NUMBER` | - | a ramp, from 5 to 25, or from 1000 to 1e5 for RANS, see below |
-| `cfl_max`, `cfl_growth` | the maximum and the up factor of `CFL_ADAPT_PARAM` | - | 25 and 1.2 (RANS: 1e5 and 1.2), see below |
+| `cfl` | `CFL_NUMBER` | - | a ramp from 5 to 25, see below |
+| `cfl_max`, `cfl_growth` | the maximum and the up factor of `CFL_ADAPT_PARAM` | - | 25 and 1.2, see below |
 | `mesh_link` | none | - | `true`; `false` is refused |
 
 Temperature, pressure, density and velocity use SU2's units, SI by default. `mesh_link = true` changes nothing; `mesh_link = false` is refused with `mesh_link = false asks for a mesh copy; meshes are always linked, never copied: remove mesh_link`.
@@ -87,23 +87,11 @@ CFL_ADAPT= YES
 CFL_ADAPT_PARAM= ( 0.5, 1.2, 5, 25 )
 ```
 
-`CFL_ADAPT_PARAM` is (factor down, factor up, CFL minimum, CFL maximum). The start 5 is safe on a poor initial field. The factor 1.2 raises the CFL 20 percent per iteration while the residual falls, and 0.5 halves it when the residual grows. The minimum 5 never lets the ramp fall below the start.
-
-A `RANS` setup gets the recipe that converged the TMR NACA 0012 (225 x 65 grid) at alpha 0 and 10 instead, together with two keys it needs, each written only when the setup does not state it:
-
-```
-CFL_NUMBER= 1000
-CFL_ADAPT= YES
-CFL_ADAPT_PARAM= ( 1, 1.2, 1000, 100000, 1, 300 )
-LINEAR_SOLVER_ITER= 50
-NUM_METHOD_GRAD_RECON= LEAST_SQUARES
-```
-
-The two extra slots are the acceptable linear residual and the iteration where the ramp starts. CFL 1000 holds for 300 iterations while the start-up transient settles; then the CFL rises 20 percent per iteration to 1e5. The factor down of 1 matters: SU2 lowers the CFL whenever the residual has flip-flopped over the last 100 iterations without falling half an order, which is exactly what a plateau looks like, and with 1 it can only hold the CFL. On the TMR NACA 0012 at alpha 0 the residual of a smaller CFL stalls in the thin wake-cut cells (aspect ratio up to 1e7), where the pseudo-time step is set by their height; only a CFL near 1e5 clears it. SU2 resets the CFL to its minimum when the linear residual exceeds 0.99, which 50 FGMRES iterations prevent, and the unweighted least-squares reconstruction gradient (SU2 8.6 defaults to the inverse-distance weighted one) keeps CFL 1000 stable on those cells without a limiter. The recipe needs `REF_DIMENSIONALIZATION= FREESTREAM_PRESS_EQ_ONE`, which cfdbender writes by default (see the flow state below): with SU2's dimensional default the same deck stalls at CFL 1000. The recipe is measured on that 2D case only.
+`CFL_ADAPT_PARAM` is (factor down, factor up, CFL minimum, CFL maximum). The start 5 is safe on a poor initial field. The maximum 25 is conservative. The stalls once measured on the TMR NACA 0012 at CFL 50 or more ran with SU2's dimensional scaling; with the free-stream scaling cfdbender now writes, SU2's own NACA 0012 deck runs at CFL 1000. A larger CFL often converges much faster, but no larger default is yet proven both convergent and accurate there with these numerics, so state one in the setup when you need it. The factor 1.2 raises the CFL 20 percent per iteration while the residual falls, and 0.5 halves it when the residual grows. The minimum 5 never lets the ramp fall below the start.
 
 To change it, state `cfl` (or `CFL_NUMBER`), `CFL_ADAPT` or `CFL_ADAPT_PARAM` in `s<id>.toml`, for example `CFL_ADAPT_PARAM = [0.5, 1.2, 5, 50]`. Any one of these three keys switches the default off completely: cfdbender then writes only the CFL keys you stated and merges nothing, so a lone `cfl = 10` is a fixed CFL 10 and a lone `CFL_ADAPT_PARAM` without `CFL_ADAPT = true` is written as stated. Your keys always win.
 
-To keep the ramp and move only its ceiling or its speed, state `cfl_max` or `cfl_growth`. cfdbender then writes the default ramp with those values in place, starting at `cfl` (5 if not stated, 1000 for RANS), which is also the ramp's minimum; a RANS ramp keeps its last two slots and gets the two extra keys. For example `cfl_max = 1000` writes `CFL_NUMBER= 5`, `CFL_ADAPT= YES` and `CFL_ADAPT_PARAM= ( 0.5, 1.2, 5, 1000 )`, and `cfl = 10` with `cfl_growth = 1.5` and `cfl_max = 500` writes `CFL_ADAPT_PARAM= ( 0.5, 1.5, 10, 500 )`. `cfl_growth` must be above 1 and `cfl_max` at least the start. With either key, `CFL_ADAPT_PARAM` is refused (`conflict: cfl_max and cfl_growth set CFL_ADAPT_PARAM; state either, not both`), and so is `CFL_ADAPT = false`.
+To keep the ramp and move only its ceiling or its speed, state `cfl_max` or `cfl_growth`. cfdbender then writes the default ramp with those values in place, starting at `cfl` (5 if not stated), which is also the ramp's minimum. For example `cfl_max = 1000` writes `CFL_NUMBER= 5`, `CFL_ADAPT= YES` and `CFL_ADAPT_PARAM= ( 0.5, 1.2, 5, 1000 )`, and `cfl = 10` with `cfl_growth = 1.5` and `cfl_max = 500` writes `CFL_ADAPT_PARAM= ( 0.5, 1.5, 10, 500 )`. `cfl_growth` must be above 1 and `cfl_max` at least the start. With either key, `CFL_ADAPT_PARAM` is refused (`conflict: cfl_max and cfl_growth set CFL_ADAPT_PARAM; state either, not both`), and so is `CFL_ADAPT = false`.
 
 **`[solver]` table**
 

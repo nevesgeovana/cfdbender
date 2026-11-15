@@ -507,43 +507,19 @@ def _fluid_model(values: dict[str, object]) -> None:
         )
 
 
-#: The CFL ramp written when a non-RANS setup states no CFL key.
+#: The CFL ramp written when the setup states no CFL key.
 #: SU2 8.x ramps the CFL number itself: CFL_NUMBER is the start value and CFL_ADAPT_PARAM
-#: is (factor down, factor up, CFL min, CFL max). Start 5 and max 25: a gentle ramp with no
-#: measured case behind a larger one outside RANS. The up factor 1.2 raises the CFL 20
-#: percent per iteration while the residual falls; the down factor 0.5 halves it when the
+#: is (factor down, factor up, CFL min, CFL max). Start 5 and max 25: a conservative ramp.
+#: The CFL 50 stalls measured on the TMR NACA 0012 ran dimensional; with the free-stream
+#: scaling written by default SU2's own deck takes CFL 1000, but no larger default is proven
+#: both convergent and accurate on that case with cfdbender's numerics. The up factor 1.2
+#: raises the CFL 20 percent per iteration while the residual falls; the down factor 0.5 halves it when the
 #: residual grows, so a bad start recovers. Min 5 keeps the ramp from falling below the start.
 CFL_KEYS = ("CFL_NUMBER", "CFL_ADAPT", "CFL_ADAPT_PARAM")
 CFL_RAMP: dict[str, object] = {
     "CFL_NUMBER": 5,
     "CFL_ADAPT": True,
     "CFL_ADAPT_PARAM": [0.5, 1.2, 5, 25],
-}
-
-#: The CFL ramp written when a RANS setup states no CFL key: the recipe that converged the TMR
-#: NACA 0012 at alpha 0 and 10 on the 225 x 65 grid. CFL_ADAPT_PARAM is
-#: (factor down, factor up, CFL min, CFL max, acceptable linear residual, starting iteration).
-#: CFL 1000 holds for 300 iterations while the cold-start transient settles; then the CFL rises
-#: 20 percent per iteration to 1e5, fast enough to get there before SU2's 100-iteration
-#: flip-flop test fires, and a down factor of 1 means that test can only hold it, never cut
-#: it. The alpha 0 plateau is pseudo-time stiffness of the wake-cut cells (aspect ratio up to
-#: 1e7) that only a CFL near 1e5 removes. An acceptable linear residual of 1 lets the CFL grow
-#: although the linear solve barely reduces the residual at such CFL.
-RANS_CFL_RAMP: dict[str, object] = {
-    "CFL_NUMBER": 1000,
-    "CFL_ADAPT": True,
-    "CFL_ADAPT_PARAM": [1.0, 1.2, 1000, 100000, 1.0, 300],
-}
-
-#: Keys the RANS ramp needs and writes when the setup states none of them. SU2 resets the CFL
-#: to its minimum when the linear residual exceeds 0.99; 50 FGMRES iterations keep it below.
-#: SU2 8.6 reconstructs with inverse-distance weighted least squares by default, which on
-#: the wake-cut cells weights a neighbour 3.6e-6 away a million times more than one several
-#: chords away and made CFL 1000 diverge without a limiter; SU2's own NACA 0012 case states
-#: the unweighted gradient.
-RANS_COMPANIONS: dict[str, object] = {
-    "LINEAR_SOLVER_ITER": 50,
-    "NUM_METHOD_GRAD_RECON": "LEAST_SQUARES",
 }
 
 
@@ -556,18 +532,12 @@ def _cfl_ramp(values: dict[str, object], ramp: Mapping[str, float]) -> None:
 
     Without any CFL key the default ramp is written whole. A native CFL key without a
     ramp key switches the default off (no merging). cfl_max and cfl_growth write the
-    default ramp with those slots replaced: the start is cfl (else the default start) and is
-    also the ramp's minimum. A RANS deck gets RANS_CFL_RAMP and, when it writes the ramp,
-    the RANS_COMPANIONS the setup does not state.
+    default ramp with those slots replaced: the start is cfl (else 5) and is also the
+    ramp's minimum.
     """
-    rans = _upper(values, "SOLVER") == "RANS"
-    default = RANS_CFL_RAMP if rans else CFL_RAMP
     if not ramp:
         if not any(key in values for key in CFL_KEYS):
-            values.update(default)
-            if rans:
-                for key, value in RANS_COMPANIONS.items():
-                    values.setdefault(key, value)
+            values.update(CFL_RAMP)
         return
     if "CFL_ADAPT_PARAM" in values:
         raise ValueError(
@@ -575,22 +545,15 @@ def _cfl_ramp(values: dict[str, object], ramp: Mapping[str, float]) -> None:
         )
     if "CFL_ADAPT" in values and values["CFL_ADAPT"] is not True:
         raise ValueError("conflict: cfl_max and cfl_growth need CFL_ADAPT; remove CFL_ADAPT")
-    start = number(values.get("CFL_NUMBER", default["CFL_NUMBER"]), "cfl")
-    down, growth, _, top, *rest = cast(list[float], default["CFL_ADAPT_PARAM"])
+    start = number(values.get("CFL_NUMBER", CFL_RAMP["CFL_NUMBER"]), "cfl")
+    down, growth, _, top = cast(list[float], CFL_RAMP["CFL_ADAPT_PARAM"])
     growth = ramp.get("cfl_growth", growth)
     top = ramp.get("cfl_max", top)
     if growth <= 1:
         raise ValueError("cfl_growth must be above 1")
     if start <= 0 or top < start:
-        raise ValueError(
-            f"cfl_max must be at least the start CFL (cfl, else {default['CFL_NUMBER']})"
-        )
-    values.update(
-        CFL_NUMBER=start, CFL_ADAPT=True, CFL_ADAPT_PARAM=[down, growth, start, top, *rest]
-    )
-    if rans:
-        for key, value in RANS_COMPANIONS.items():
-            values.setdefault(key, value)
+        raise ValueError("cfl_max must be at least the start CFL (cfl, else 5)")
+    values.update(CFL_NUMBER=start, CFL_ADAPT=True, CFL_ADAPT_PARAM=[down, growth, start, top])
 
 
 #: The history groups the reader needs: the iteration counter, the residuals and the
