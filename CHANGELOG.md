@@ -28,10 +28,15 @@ versions follow SemVer and are independent of solver versions.
 - A local run whose row states `SOLVER_BUILD` is recorded failed, with a clear message, when the version the solver printed differs from it (`8.3.0-mpi` is an alias of `8.3.0`); an unreadable version cannot be checked and is not refused.
 - A plan receipt, `post/<matrix>/plan.json`: the matrix digest and every planned point's input digests, written by `cfdbender.matrix.receipt.write_receipt` and checked by `require_receipt`, which refuses a missing or stale receipt with a message naming what changed.
 - `collect` also writes `post/<matrix>/products.json`, listing each product written and each skipped with its reason and a `complete` flag, and `post/<matrix>/post.log`; `cfdbender.matrix.post.post_workspace` rebuilds them from runs.json and the saved outputs without running a solver.
+- SU2 setups accept the neutral keys `cfl_max` and `cfl_growth`, which keep the default CFL ramp and replace only its maximum or its up factor; `cfl` sets the start and the minimum. `cfl_max = 1000` writes `CFL_ADAPT_PARAM= ( 0.5, 1.2, 5, 1000 )`. The default ramp is unchanged.
+- OpenFOAM accepts tracked .cgns and .ugrid meshes with a user-supplied `mesh_converter` shell template using `{mesh}` and `{case}` before patch fixes.
+- OpenFOAM accepts `solver.processes` and `solver.mpi_launcher`, emitting scotch decomposition, MPI simpleFoam execution, and final-field reconstruction.
+- SU2 accepts tracked CGNS meshes and optional `mesh_link = true` staging using a relative symbolic link or hard link, with no copy fallback.
+- SU2 executable runs accept a `solver.mpi_launcher` argument list before the solver command, including explicit mpirun task counts or scheduler launchers.
 
 ### Changed
 
-- Warnings of a command are held and printed together at the end under `Warnings (n)`, and `--warning-off` keeps them in `logs/warnings.log` instead of the console.
+- Warnings of a command are held and printed together at the end under `Warnings (n)`; `--warning-off` silences them at the console (they are always in `logs/warnings.log`).
 - `cfd-matrix post [matrix]` rebuilds every product from the records without running anything; `plan` writes the plan receipt and `run` refuses a missing or stale one.
 - `cfd-workspace init` creates `inputs/mesh/` for every library solver (su2, openfoam, pyfr, xfoil, qprop), in place of `inputs/geometries/`. One mesh resolver reads `inputs/mesh/` first, then the older `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/`, for the GEOMETRY column and for every mesh path a setup names.
 - The collected CSV tables (`campaign_sweep.csv`, `polars/P<POL>.csv`) carry the fixed flight-condition and reference columns of pyflightstream after `POL` and `point`, write `NA` for a missing value instead of an empty cell, and quote no cell, so `numpy.genfromtxt` reads them.
@@ -57,6 +62,15 @@ versions follow SemVer and are independent of solver versions.
 - Every warning is now written to `logs/warnings.log`; `--warning-off` only silences the console.
 - The 0.5 GiB free-RAM floor and the host memory measurement have one home, `cfdbender.core.run` (`free_ram_gib`, `check_available_ram`); the adapters' `require_ram` imports it, so the two guards cannot drift.
 - An entry that does not apply to a row is now warned and skipped instead of silently ignored or refused: a GEOMETRY cell for a solver that does not read geometry (it was refused), and REF or PPROC keys that XFOIL and QPROP never read. The warning names the row, the file, the entry and why.
+- SU2 runs now default to a CFL ramp (`CFL_NUMBER= 5`, `CFL_ADAPT= YES`, `CFL_ADAPT_PARAM= ( 0.5, 1.2, 5, 25 )`) when the setup states no CFL key; stating `cfl`, `CFL_NUMBER`, `CFL_ADAPT` or `CFL_ADAPT_PARAM` replaces the default entirely. The new neutral setup key `cfl` maps to `CFL_NUMBER`.
+- OpenFOAM steady runs keep the under-relaxation default (`p 0.3`, `U 0.7`, `nuTilda 0.7`) and now let the setup replace it whole with `relaxationFactors`. The new `time_integration = "lts"` selects a pseudo-transient route (`pimpleFoam`, `ddtSchemes localEuler`) with `lts_max_co`, `lts_smoothing`, `lts_damping`, `lts_max_delta_t` and a native `PIMPLE` body that wins entirely. See the OpenFOAM page.
+- SU2 decks no longer state free-stream values SU2 recomputes and ignores: the resolved `FREESTREAM_DENSITY` is written only with `FREESTREAM_OPTION = "DENSITY_FS"`, and the resolved `FREESTREAM_PRESSURE` is left out of a compressible viscous run with a Reynolds number unless `INIT_OPTION = "TD_CONDITIONS"`. Values stated in the setup are always written. Compressible EULER, NAVIER_STOKES and RANS decks default to `FREESTREAM_PRESS_EQ_ONE` unless the setup states another scaling.
+- The residual cfdbender records for an SU2 iteration, and the `residual` column of the `collect` tables, is now the residual of `CONV_FIELD` (`rms[Rho]` by default), the one SU2 converges on, instead of the largest `rms[...]` column. The SU2 result names it under `residual_field`. A `CONV_FIELD` without a residual column keeps the largest `rms[...]`, named `largest rms`.
+- SU2 setups that state `KIND_TURB_MODEL = "SA"` without `SA_OPTIONS` now get `SA_OPTIONS= ( NEGATIVE, WITHFT2 )`, the standard SA-neg, instead of SU2's default SA-noft2, whose nu-tilde update limiter stalled the NACA 0012 runs. A stated `SA_OPTIONS` replaces the default entirely.
+- SU2 decks now write `MARKER_PLOTTING` and `MARKER_MONITORING` with the wall markers of `MARKER_EULER`, `MARKER_HEATFLUX` and `MARKER_ISOTHERMAL` when the setup states neither, so the forces are summed over the walls and `surface.csv` has rows. A list stated in the setup wins.
+- SU2 compressible setups (`SOLVER` `EULER`, `NAVIER_STOKES` or `RANS`) that state no `REF_DIMENSIONALIZATION` now get `REF_DIMENSIONALIZATION= FREESTREAM_PRESS_EQ_ONE`, as SU2's own NACA 0012 case does. SU2's default, `DIMENSIONAL`, made the implicit system so badly scaled that SU2's official NACA 0012 deck stalled at CFL 1000. Coefficients are unchanged; residual levels in `history.csv` become relative to the free stream.
+- SU2 decks scaled with `REF_DIMENSIONALIZATION= FREESTREAM_PRESS_EQ_ONE` (the default for compressible setups) that state no convergence level now get `CONV_RESIDUAL_MINVAL= -12`, the level of SU2's own NACA 0012 case, instead of SU2's built-in -8. A point is `converged` only when SU2's log reports the criteria satisfied, so this is also the classification threshold.
+- A selected build replaces the setup launcher even when the build is serial. An empty build launcher no longer inherits an unrelated setup launcher.
 
 ### Fixed
 
@@ -66,6 +80,32 @@ versions follow SemVer and are independent of solver versions.
 - QPROP collection reports EFFICIENCY as the printed effprop and adds EFFICIENCY_OVERALL (the printed eff), instead of recomputing J CT / CP.
 - The contract and architecture pages state their exceptions: declared outputs, the native passthrough, the applied management verbs, the per-solver axes behind the neutral `CL`, `CD` and `CM`, and the post stage.
 - QPROP writes its staged `propeller.prop`, `qcon.def` and `sections.json` with LF line ends on Windows, as on Linux.
+- A run stopped by the RAM floor, or by any exception after a command finished, now records a non-zero `exit_code` in `execution.json` in every adapter; the PyFR record also names the `failed_command` index.
+- PyFR classifies a run whose last force sample falls one output interval short of `tend` as `iteration_limit`, not `failed`.
+- SU2 decks now write `FLUID_MODEL= IDEAL_GAS` with `GAS_CONSTANT= 287.05287` and `GAMMA_VALUE= 1.4` from cfdbender's atmosphere constants, so the free stream matches the other solvers; the PyFR case reads its `gamma` from the same constant. Under SU2's default `STANDARD_AIR` the two constants were replaced by 287.058 and 1.4. A `FLUID_MODEL` stated in the setup wins; cfdbender then writes neither constant and warns when the gas differs from the core one.
+- The OpenFOAM LTS route (`time_integration = "lts"`) now writes its solver log as `log.pimpleFoam`, named after the application that ran, instead of `log.simpleFoam`; collect and cluster jobs read and await that log. The steady route keeps `log.simpleFoam`.
+- An SU2 `MARKER_HEATFLUX` given as marker names alone is now written with the adiabatic value for each name, `MARKER_HEATFLUX= ( airfoil, 0.0 )`, instead of names without a value. A list that holds a number is written as stated.
+- The C-52 archive test now rejects missing or replaced mesh links even when their size differs. A planted corruption control proves the assertion fails for all three mesh adapters. Generated PyFR mesh files are not mistaken for input links.
+- Cluster collection stores the reported solver version and rejects SOLVER_BUILD mismatches just like local execution. Rebuild applies the same identity check.
+- The mock adapter accepts reordered history columns by name, as C-41 requires. The shared column-order contract test now includes the mock adapter.
+- Management operations refuse linked destination paths, including Windows junctions in parent folders. Sync skips linked source folders. Restore refuses linked trees.
+- PyFR only reports iteration_limit when the force history reaches tend. Truncated nonconverged evidence is failed, rather than claiming the whole budget was used.
+- PyFR collection returns failed evidence when no force sample lies in the averaging window. It no longer constructs an invalid iteration_limit result without coefficients.
+- QPROP rejects incomplete or duplicate operating-table headers as failed evidence. Missing coefficient columns no longer escape collection as a KeyError.
+- QPROP reads section polar alpha, CL and CD by header name rather than the first three positions. Reordered columns no longer silently change the fitted blade.
+- QPROP staging refuses before writing when any section needs XFOIL. It no longer submits an incomplete point without propeller.prop. The staging contract fixtures use supplied polars and the refusal has a separate regression test.
+- Malformed plan receipts now refuse with a planning instruction. Planning replaces invalid receipts instead of crashing on a missing point id. Receipt schema, solver, matrix identity and duplicate point ids are checked.
+- Every overwritten sync file gets a unique archive folder, including repeated syncs within one second. Earlier archived bytes are never replaced.
+- Sync previews no longer write storage_management.json. A preview changes no file.
+- SU2 and OpenFOAM warn and skip unread reference and post keys instead of refusing them. Mock now warns about its unread keys too. The C-09 test covers both files on all six adapters and verifies that translation still succeeds.
+- Applied storage and record management operations hold the destination manifest's writer lock from selection through file changes and record replacement. Nested registry writes retain the outer lock. A competing writer refuses before changes.
+- Marks apply to the execution they judged. A forced rerun keeps the old mark in the journal but does not inherit its verdict.
+- The OpenFOAM force-table reader accepts Time in any header position, as required by C-41; the shared reorder test covers it.
+- Restore refuses symbolic links and junctions anywhere in an archived product tree before replacing live products.
+- QPROP tables emit the advance ratio J once, sharing the fixed-context column.
+- Sync leaves missing files of a kept point missing instead of filling them from a conflicting run. When importing records with sync all, conflicting point files require --overwrite before any copy begins.
+- Sync creates a fresh temporary file exclusively, so a pre-existing temporary-name link cannot redirect a copy.
+- The grown-matrix digest exception applies to matrix inputs. A tracked geometry file with the .fs extension is still checked for changed bytes.
 
 ### Removed
 
@@ -75,6 +115,16 @@ versions follow SemVer and are independent of solver versions.
 ### Migration
 
 - A workspace that keeps its meshes in `inputs/geometry/`, `inputs/geometries/` or `inputs/meshes/` still plans and runs; the first use of an older name prints one warning. Move the files to `inputs/mesh/` to silence it. When a file exists in both `inputs/mesh/` and an older folder, `inputs/mesh/` wins.
+- A script that read `log.simpleFoam` of an OpenFOAM LTS point reads `log.pimpleFoam`.
+- A setup that relied on SU2's `STANDARD_AIR` states `FLUID_MODEL = "STANDARD_AIR"`.
+- A script that compared SU2 `residual` values across runs reads them again; they now follow `CONV_FIELD`.
+- To keep SU2's SA-noft2, state `SA_OPTIONS = ["NONE"]`.
+- A `CONV_RESIDUAL_MINVAL` chosen for a dimensional SU2 run now measures a different level; state `REF_DIMENSIONALIZATION = "DIMENSIONAL"` to keep the old scaling.
+- To keep another SU2 convergence level, state `convergence_residual` or `CONV_RESIDUAL_MINVAL`.
+- Install and validate the OpenFOAM mesh converter separately. Native gmsh import is unchanged; no CGNS or UGRID reader is included.
+- The OpenFOAM default process count remains 1. Parallel force coefficients retain the case-root postProcessing path used by serial collection.
+- Existing SU2 .su2 setups retain their format and copy staging by default.
+- The default empty SU2 launcher retains serial execution; pysu2 remains serial.
 
 ## [0.4.2] - 2026-11-12
 
