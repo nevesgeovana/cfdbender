@@ -340,6 +340,27 @@ the r file, or on the fixed length the adapter states (unit chord for XFOIL
 and PyFR). The adapter's documentation states the direction of positive
 `ALPHA` and `BETA` in its axis system.
 
+## Optional capability declarations
+
+**C-57.** An adapter declares optional behaviours with a module attribute
+`CAPABILITIES = frozenset({...})`. The closed vocabulary lives in
+`cfdbender.core.adapter.CAPABILITIES`: `restart`, `unsteady`,
+`boundary_groups` (per-boundary force groups) and `cluster_staging`.
+The core reader `capabilities(adapter)` returns the declaration; a missing
+attribute means none. The registry validates it when loading the adapter.
+An unknown name or a declaration other than a frozenset of names is a
+developer error, refused with the known names listed.
+
+Declare only behaviours the adapter implements today. PyFR's time marching
+counts as `unsteady`, even though its matrix WORKFLOW is `steady` (the product
+is a time-averaged force). An adapter with `cluster_staging` supplies `stage`
+and `STAGED_CONFIG` under C-45. See
+[What each solver supports](solvers.md#what-each-solver-supports).
+`test_p051_f3c_each_declared_capability` checks every capability for every
+adapter; `test_p051_f3c_unknown_capability_refused_at_load` checks the load
+refusal, and `test_p051_f3c_documented_capabilities_match_declarations` keeps
+the documentation table aligned with the declarations.
+
 ## Proving an adapter
 
 `cfdbender.testing` provides one assertion per group of clauses. Each takes

@@ -15,7 +15,7 @@ import hashlib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.mesh import resolve_setup_paths
@@ -29,6 +29,38 @@ from cfdbender.core.plan import (
 )
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import read_init
+
+CAPABILITIES = frozenset({"restart", "unsteady", "boundary_groups", "cluster_staging"})
+
+
+def capabilities(adapter: object) -> frozenset[str]:
+    """Read optional behaviours, refusing an invalid adapter declaration.
+
+    Parameters
+    ----------
+    adapter : object
+        Adapter module. A missing CAPABILITIES declaration means no support.
+
+    Returns
+    -------
+    frozenset of str
+        Validated capability names from the core's closed vocabulary.
+
+    Raises
+    ------
+    ValueError
+        If CAPABILITIES is not a frozenset of known names, a developer error.
+    """
+    declared: object = getattr(adapter, "CAPABILITIES", frozenset())
+    label = getattr(adapter, "__name__", type(adapter).__name__)
+    known = ", ".join(sorted(CAPABILITIES))
+    if not isinstance(declared, frozenset) or any(not isinstance(x, str) for x in declared):
+        raise ValueError(f"{label}: CAPABILITIES must be a frozenset of known names: {known}")
+    if unknown := declared - CAPABILITIES:
+        raise ValueError(
+            f"{label}: unknown CAPABILITIES {', '.join(sorted(unknown))}; known names: {known}"
+        )
+    return cast(frozenset[str], declared)
 
 
 @dataclass(frozen=True)

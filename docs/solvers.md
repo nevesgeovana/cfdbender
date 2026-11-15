@@ -15,6 +15,31 @@ You choose a solver once, when you run `cfd-workspace init --solver <name>`, and
 | Neutral `CL`, `CD`, `CM` in the tables | `CL`, `CD`, `CMy` (`CMz` in a two-dimensional case) | `Cl`, `Cd`, `CmPitch` | `Cl`, `Cd`, none | `CL`, `CD`, `CM` | none | see [Results and tables](results.md) |
 | Parallel option | `mpi_launcher` (executable route) | `processes`, `mpi_launcher` | none | none | none | see [FlightStream](flightstream-workspaces.md) |
 
+## What each solver supports
+
+These are cfdbender adapter capabilities, rather than everything a solver can
+do natively. A missing declaration means no optional behaviour. The table is
+checked against the declarations by
+`test_p051_f3c_documented_capabilities_match_declarations`.
+
+| Capability | mock | openfoam | pyfr | qprop | su2 | xfoil |
+| --- | --- | --- | --- | --- | --- | --- |
+| `restart` | No | No | No | No | No | No |
+| `unsteady` | No | No | Yes | No | No | No |
+| `boundary_groups` | No | No | No | No | No | No |
+| `cluster_staging` | Yes | Yes | Yes | Yes | Yes | Yes |
+
+`restart` means resuming a solver from saved solution state. The run command's
+`--resume` selects unfinished points and is not a solver restart.
+`boundary_groups` means separate per-boundary force results; none of the
+adapters implements that today. PyFR marches in time and reduces its
+`window_start` to `tend` window to time-averaged forces; its matrix WORKFLOW
+remains `steady`. Every adapter can stage a cluster point. QPROP requires a
+supplied polar for every section; staging never runs XFOIL to make missing
+polars. The mock stages deterministic offline inputs for contract tests.
+FlightStream forwards commands to pyflightstream unchanged and is not an
+adapter under this capability contract.
+
 ## Convergence control of the RANS solvers
 
 The two solvers that solve the Reynolds-averaged equations, SU2 and OpenFOAM, start from a robust convergence control when the setup states none, so a poor initial field does not diverge. Each uses the control of its own solver, so the controls differ: SU2 accepts the neutral keys `cfl`, `cfl_max` and `cfl_growth` as well as native keys. A CFL number and OpenFOAM under-relaxation factors or local Courant limit do not map onto each other.

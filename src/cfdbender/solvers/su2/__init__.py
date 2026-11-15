@@ -60,6 +60,7 @@ from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import dimensions, read, residual_field
 
 SOLVER_NAME = "su2"
+CAPABILITIES = frozenset({"cluster_staging"})
 SOLVER_TYPE = "SU2"
 STAGED_CONFIG = "su2.cfg"
 #: The namespace of the s file that SU2 forwards unread (contract C-09): its own option names.

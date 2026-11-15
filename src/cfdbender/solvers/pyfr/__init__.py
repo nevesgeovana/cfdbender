@@ -14,6 +14,7 @@ from cfdbender.solvers.pyfr._execute import run, stage_case
 from cfdbender.solvers.pyfr._history import Evidence, read
 
 SOLVER_NAME = "pyfr"
+CAPABILITIES = frozenset({"unsteady", "cluster_staging"})
 STAGED_CONFIG = "case.ini"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "launcher"}
 JOB_OUTPUTS = ("forces.csv",)

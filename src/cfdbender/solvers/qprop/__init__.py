@@ -82,6 +82,7 @@ from cfdbender.solvers.qprop._sections import (
 )
 
 SOLVER_NAME = "qprop"
+CAPABILITIES = frozenset({"cluster_staging"})
 STAGED_CONFIG = "propeller.prop"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "launcher"}
 JOB_OUTPUTS = ("stdout.log",)

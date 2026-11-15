@@ -55,6 +55,7 @@ from cfdbender.solvers.xfoil._execute import stage as _stage
 from cfdbender.solvers.xfoil._polar import read, references
 
 SOLVER_NAME = "xfoil"
+CAPABILITIES = frozenset({"cluster_staging"})
 STAGED_CONFIG = "xfoil.in"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "launcher"}
 JOB_OUTPUTS = ("polar.txt", "stdout.log")

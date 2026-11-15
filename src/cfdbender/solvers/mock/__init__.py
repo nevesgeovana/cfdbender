@@ -28,6 +28,7 @@ from cfdbender.core.results import (
 from cfdbender.solvers._host._config import steady_only, unknown_keys
 
 SOLVER_NAME = "mock"
+CAPABILITIES = frozenset({"cluster_staging"})
 STAGED_CONFIG = "mock.in"
 JOB_OUTPUTS = ("history.csv", "execution.json")
 _COEFFICIENTS = ("CX", "CY", "CZ", "Cl", "Cm", "Cn")

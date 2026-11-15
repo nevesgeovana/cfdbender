@@ -54,6 +54,7 @@ from cfdbender.solvers.openfoam._execute import run, stage_case
 from cfdbender.solvers.openfoam._history import Evidence, read
 
 SOLVER_NAME = "openfoam"
+CAPABILITIES = frozenset({"cluster_staging"})
 STAGED_CONFIG = "Allrun"
 EXECUTABLE_KEYS = {"path": "foam_bashrc", "launcher": "launcher"}
 #: The outputs a cluster job writes; only the solver log the point declares is awaited.

@@ -3,6 +3,8 @@
 from importlib import import_module
 from types import ModuleType
 
+from cfdbender.core.adapter import capabilities
+
 _SOLVERS = {
     "flightstream": "cfdbender.solvers.flightstream",
     "mock": "cfdbender.solvers.mock",
@@ -42,6 +44,7 @@ def load_solver(name: str) -> ModuleType:
             f"unknown solver {name!r}; available solvers: {', '.join(available_solvers())}"
         )
     adapter = import_module(_SOLVERS[name])
+    capabilities(adapter)
     if name == "flightstream":
         adapter.require_support()
     return adapter
