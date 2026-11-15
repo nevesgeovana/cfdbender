@@ -5,6 +5,8 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
 ### Added
 
 - The architecture page describes the layers, the pipeline, the files each stage writes and what the core guarantees.
