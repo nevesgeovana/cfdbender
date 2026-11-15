@@ -13,3 +13,10 @@ def test_solver_comparison_acknowledges_neutral_cfl_controls():
     text = (root / "docs/solvers.md").read_text(encoding="utf-8")
     assert "there is no neutral key" not in text
     assert "`cfl`, `cfl_max` and `cfl_growth`" in text
+
+
+def test_openfoam_docs_distinguish_relaxation_from_residual_control():
+    root = Path(__file__).resolve().parents[2]
+    text = (root / "docs/openfoam-workspaces.md").read_text(encoding="utf-8")
+    assert "`nuTilda` is written only for the turbulent case" not in text
+    assert "default relaxation factors include `nuTilda` even for laminar cases" in text

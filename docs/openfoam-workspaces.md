@@ -124,7 +124,7 @@ A steady RANS case diverges easily from a poor initial field. cfdbender therefor
 relaxationFactors { fields { p 0.3; } equations { U 0.7; nuTilda 0.7; } }
 ```
 
-with `consistent yes` (SIMPLEC) in `SIMPLE`, which tolerates a pressure factor as high as 0.3. `nuTilda` is written only for the turbulent case, and the convergence test stays `residualControl { p <residual_target>; U <residual_target>; nuTilda <residual_target>; }`. To change it, state `relaxationFactors` (above the `[solver]` table):
+with `consistent yes` (SIMPLEC) in `SIMPLE`, which tolerates a pressure factor as high as 0.3. The default relaxation factors include `nuTilda` even for laminar cases. The convergence test uses `residualControl { p <residual_target>; U <residual_target>; nuTilda <residual_target>; }` for turbulent cases and omits `nuTilda` for laminar cases. To change it, state `relaxationFactors` (above the `[solver]` table):
 
 ```toml
 relaxationFactors = "fields { p 0.2; } equations { U 0.5; nuTilda 0.5; }"
