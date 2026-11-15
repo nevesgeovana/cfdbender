@@ -69,3 +69,16 @@ def test_gas_constants_come_from_core(tmp_path):
 def test_native_gas_constant_wins(tmp_path):
     lines = _lines(tmp_path, "GAS_CONSTANT = 287.058")
     assert "GAS_CONSTANT= 287.058" in lines
+
+
+def test_rans_uses_shared_ramp_without_withdrawn_companions(tmp_path):
+    su2_case.workspace(tmp_path)
+    setup = tmp_path / "inputs/setups/s001.toml"
+    text = setup.read_text(encoding="utf-8").replace('SOLVER = "EULER"', 'SOLVER = "RANS"')
+    text = "\n".join(line for line in text.splitlines() if not line.startswith("CFL")) + "\n"
+    setup.write_text(text, encoding="utf-8")
+    lines = su2_case.api().translate(su2_case.prepared(tmp_path)).splitlines()
+    assert "CFL_NUMBER= 5" in lines
+    assert "CFL_ADAPT_PARAM= ( 0.5, 1.2, 5, 25 )" in lines
+    assert not any(line.startswith("LINEAR_SOLVER_ITER=") for line in lines)
+    assert not any(line.startswith("NUM_METHOD_GRAD_RECON=") for line in lines)
