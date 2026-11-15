@@ -28,3 +28,10 @@ def test_user_plotting_and_monitoring_win(tmp_path):
 def test_no_wall_marker_writes_no_plotting(tmp_path):
     lines = _lines(tmp_path)
     assert not any(line.startswith(("MARKER_PLOTTING=", "MARKER_MONITORING=")) for line in lines)
+
+
+def test_user_plotting_wins_when_monitoring_defaults(tmp_path):
+    extra = 'MARKER_HEATFLUX = ["main", "flap"]\nMARKER_PLOTTING = ["flap"]'
+    lines = _lines(tmp_path, extra)
+    assert "MARKER_PLOTTING= ( flap )" in lines
+    assert "MARKER_MONITORING= ( main, flap )" in lines
