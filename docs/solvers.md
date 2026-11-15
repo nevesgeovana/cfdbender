@@ -17,7 +17,7 @@ You choose a solver once, when you run `cfd-workspace init --solver <name>`, and
 
 ## Convergence control of the RANS solvers
 
-The two solvers that solve the Reynolds-averaged equations, SU2 and OpenFOAM, start from a robust convergence control when the setup states none, so a poor initial field does not diverge. Each uses the control of its own solver, so the setup keys are native and differ: there is no neutral key, because a CFL number (SU2) and a set of under-relaxation factors or a local Courant limit (OpenFOAM) are not the same quantity and do not map onto each other.
+The two solvers that solve the Reynolds-averaged equations, SU2 and OpenFOAM, start from a robust convergence control when the setup states none, so a poor initial field does not diverge. Each uses the control of its own solver, so the controls differ: SU2 accepts the neutral keys `cfl`, `cfl_max` and `cfl_growth` as well as native keys. A CFL number and OpenFOAM under-relaxation factors or local Courant limit do not map onto each other.
 
 | Solver | Default | Other route | Keys |
 |---|---|---|---|
