@@ -513,8 +513,9 @@ def _fluid_model(values: dict[str, object]) -> None:
 #: The CFL 50 stalls measured on the TMR NACA 0012 ran dimensional; with the free-stream
 #: scaling written by default SU2's own deck takes CFL 1000, but no larger default is proven
 #: both convergent and accurate on that case with cfdbender's numerics. The up factor 1.2
-#: raises the CFL 20 percent per iteration while the residual falls; the down factor 0.5 halves it when the
-#: residual grows, so a bad start recovers. Min 5 keeps the ramp from falling below the start.
+#: raises the CFL 20 percent per iteration while the residual falls; the down factor 0.5
+#: halves it when the residual grows, so a bad start recovers. Min 5 keeps the ramp from
+#: falling below the start.
 CFL_KEYS = ("CFL_NUMBER", "CFL_ADAPT", "CFL_ADAPT_PARAM")
 CFL_RAMP: dict[str, object] = {
     "CFL_NUMBER": 5,
