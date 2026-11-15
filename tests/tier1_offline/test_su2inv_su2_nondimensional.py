@@ -2,7 +2,7 @@
 
 SU2's default REF_DIMENSIONALIZATION is DIMENSIONAL. On the TMR NACA 0012 RANS case at CFL 1000
 that default alone turns SU2's official deck, which converges in 688 iterations, into a plateau at
-rms[Rho] -4.39 (GEO-ART-CFDBENDER-GOAL-087 VV-SU2-INVESTIGATION.md, run b2): the energy rows of a
+rms[Rho] -4.39 for 1500 iterations: the energy rows of a
 dimensional system are about 1e5 times the others and the linear solver no longer solves them.
 """
 
