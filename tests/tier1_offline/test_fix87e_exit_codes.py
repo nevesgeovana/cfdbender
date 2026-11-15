@@ -47,3 +47,39 @@ def test_qprop_refusal_after_a_clean_exit_is_not_recorded_as_success(tmp_path):
     with pytest.raises(ValueError, match="RAM"):
         qprop_run(tmp_path, TOUCH, 30, {"ram_estimate_gib": 0}, refuse_after_done(tmp_path))
     assert json.loads((tmp_path / "execution.json").read_bytes())["exit_code"] != 0
+
+@pytest.mark.parametrize("solver", ["su2", "xfoil"])
+def test_refusal_immediately_after_clean_exit_records_failure(tmp_path, monkeypatch, solver):
+    """Exercise the post-wait guard, after a child returns zero but before accepting it."""
+    import importlib
+
+    module = importlib.import_module(f"cfdbender.solvers.{solver}._execute")
+    waited = False
+
+    class Process:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def wait(self, timeout):
+            nonlocal waited
+            waited = True
+            return 0
+
+        def poll(self):
+            return 0
+
+    def check():
+        if waited:
+            raise ValueError("RAM below the floor")
+
+    monkeypatch.setattr(module.subprocess, "Popen", Process)
+    monkeypatch.setattr(module._ram, "require_ram", lambda *args, **kwargs: None)
+    folder = tmp_path / solver
+    opts = {"ram_estimate_gib": 0, "threads": 1}
+    with pytest.raises(ValueError, match="RAM"):
+        if solver == "su2":
+            monkeypatch.setattr(module, "stage_files", lambda point, values, target: target.mkdir())
+            module._run_owned(None, check, opts, {}, ["stand-in"], 30, folder, "executable", {})
+        else:
+            module._run_owned(check, opts, ["stand-in"], 30, folder, {}, b"")
+    assert json.loads((folder / "execution.json").read_bytes())["exit_code"] != 0
