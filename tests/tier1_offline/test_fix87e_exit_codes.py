@@ -48,6 +48,7 @@ def test_qprop_refusal_after_a_clean_exit_is_not_recorded_as_success(tmp_path):
         qprop_run(tmp_path, TOUCH, 30, {"ram_estimate_gib": 0}, refuse_after_done(tmp_path))
     assert json.loads((tmp_path / "execution.json").read_bytes())["exit_code"] != 0
 
+
 @pytest.mark.parametrize("solver", ["su2", "xfoil"])
 def test_refusal_immediately_after_clean_exit_records_failure(tmp_path, monkeypatch, solver):
     """Exercise the post-wait guard, after a child returns zero but before accepting it."""
