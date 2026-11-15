@@ -20,7 +20,7 @@ def probe_version(
 
     The probe runs in a scratch folder, so a stand-in that writes files when it
     does not know the argument leaves nothing in the point. Any failure to start,
-    a timeout or an answer without a dotted number gives ``unknown``; the caller
+    a timeout, a non-zero exit or an answer without a dotted number gives ``unknown``; the caller
     records it and never refuses on it.
 
     Parameters
@@ -45,6 +45,10 @@ def probe_version(
                 check=False,
             )
     except (OSError, subprocess.SubprocessError, ValueError):
+        return UNKNOWN
+    if done.returncode != 0:
+        # An executable that refused the flag may still print dotted numbers (an
+        # interpreter path in a traceback); only a successful answer is trusted.
         return UNKNOWN
     text = (done.stdout + b"\n" + done.stderr).decode("utf-8", errors="replace")
     found = _VERSION.search(text)

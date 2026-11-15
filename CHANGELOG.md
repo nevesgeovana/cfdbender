@@ -60,6 +60,7 @@ versions follow SemVer and are independent of solver versions.
 
 ### Fixed
 
+- The version probe trusts only an executable that answered `--version` with exit 0, so one that refuses the flag with a traceback naming a versioned path reads `unknown` instead of a false `SOLVER_BUILD` mismatch.
 - QPROP takes the blade from the row GEOMETRY alone on run and collect.
 - The mock refuses an unknown setup key and collects without `execution.json`; PyFR classifies exit 0 with an empty history as failed; XFOIL reads its polar by column name.
 - QPROP collection reports EFFICIENCY as the printed effprop and adds EFFICIENCY_OVERALL (the printed eff), instead of recomputing J CT / CP.
