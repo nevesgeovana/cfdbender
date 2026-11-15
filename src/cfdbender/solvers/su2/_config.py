@@ -438,6 +438,9 @@ def _sa_variant(values: dict[str, object]) -> None:
 #: The compressible finite-volume solvers, whose equations REF_DIMENSIONALIZATION scales.
 COMPRESSIBLE = {"EULER", "NAVIER_STOKES", "RANS"}
 
+#: The convergence level written with free-stream scaling when the setup states none.
+SCALED_RESIDUAL_MINVAL = -12
+
 
 def _dimensionalization(values: dict[str, object]) -> None:
     """Scale a compressible deck by the free stream unless the user states the scaling.
@@ -446,10 +449,15 @@ def _dimensionalization(values: dict[str, object]) -> None:
     the density rows, and the linear solver then no longer solves the other equations: on the
     TMR NACA 0012 at CFL 1000 SU2's official deck converges in 688 iterations with
     FREESTREAM_PRESS_EQ_ONE and stalls at rms[Rho] -4.4 with DIMENSIONAL. The coefficients do
-    not depend on it; the residual levels in history.csv do.
+    not depend on it; the residual levels in history.csv do. With this scaling and no stated
+    CONV_RESIDUAL_MINVAL the deck gets -12, the level SU2's own NACA 0012 case pairs with it
+    (SU2's built-in default is -8). The classifier reads SU2's own verdict, so this key is the
+    classifier's threshold too.
     """
     if _upper(values, "SOLVER") in COMPRESSIBLE:
         values.setdefault("REF_DIMENSIONALIZATION", "FREESTREAM_PRESS_EQ_ONE")
+    if _upper(values, "REF_DIMENSIONALIZATION") == "FREESTREAM_PRESS_EQ_ONE":
+        values.setdefault("CONV_RESIDUAL_MINVAL", SCALED_RESIDUAL_MINVAL)
 
 
 #: SU2's own gas constants: STANDARD_AIR forces them, and IDEAL_GAS falls back to them.

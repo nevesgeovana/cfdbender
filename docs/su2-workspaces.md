@@ -51,7 +51,7 @@ Marker names come from the setup file, never from the mesh. Match the names and 
 | `freestream_velocity` | `FREESTREAM_VELOCITY` | m/s, three components | none |
 | `reynolds`, `reynolds_length` | `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` | -, m | none |
 | `convergence_field` | `CONV_FIELD` | - | SU2's own |
-| `convergence_residual` | `CONV_RESIDUAL_MINVAL` | log10 of the residual | SU2's own |
+| `convergence_residual` | `CONV_RESIDUAL_MINVAL` | log10 of the residual | -12 with `FREESTREAM_PRESS_EQ_ONE` (the default scaling of compressible decks), else SU2's own (-8) |
 | `output_frequency` | `OUTPUT_WRT_FREQ` | iterations | SU2's own |
 | `cfl` | `CFL_NUMBER` | - | a ramp, from 5 to 25, or from 1000 to 1e5 for RANS, see below |
 | `cfl_max`, `cfl_growth` | the maximum and the up factor of `CFL_ADAPT_PARAM` | - | 25 and 1.2 (RANS: 1e5 and 1.2), see below |
