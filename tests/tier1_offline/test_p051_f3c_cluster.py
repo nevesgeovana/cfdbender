@@ -40,6 +40,7 @@ def test_p051_f3c_unsupported_cluster_warns_once_and_skips(
     assert output.err.count("cluster_staging") == 1
     assert "mock" in output.err and "skipped" in output.err
     assert "staging and submission" in output.err
+    assert "--local" in output.err
     assert "would submit:" not in output.out
     assert not (tmp_path / "sims").exists()
     assert RunRegistry(tmp_path).read() == ()

@@ -386,7 +386,7 @@ def _execute(
         if cluster and "cluster_staging" not in capabilities(load_solver(plan.solver)):
             warnings.warn(
                 f"solver {plan.solver!r} does not support cluster_staging; "
-                "cluster staging and submission skipped",
+                "cluster staging and submission skipped; use --local to run locally",
                 UserWarning,
                 stacklevel=2,
             )
