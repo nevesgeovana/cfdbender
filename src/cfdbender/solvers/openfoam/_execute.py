@@ -17,7 +17,6 @@ from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
-from cfdbender.solvers._host._single import process_lease
 from cfdbender.solvers.openfoam._config import config, options, staged_mesh
 
 _RUNNING = threading.Lock()
@@ -85,15 +84,8 @@ def run(point: AdapterPoint, text: str, check_ram: Callable[[], None]) -> None:
     _ram.require_ram(0.25, solver="OpenFOAM")
     if folder.exists():
         raise ValueError("existing OpenFOAM point directory; refusing overwrite")
-    if not _RUNNING.acquire(blocking=False):
-        raise ValueError("OpenFOAM is already running; only one process at a time")
-    try:
-        # All adapters reserve the same host process slot.
-        with process_lease("OpenFOAM"):
-            stage_case(point, text, folder)
-            _launch(command, folder, opts, timeout, check_ram)
-    finally:
-        _RUNNING.release()
+    stage_case(point, text, folder)
+    _launch(command, folder, opts, timeout, check_ram)
 
 
 def _launch(

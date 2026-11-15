@@ -16,7 +16,7 @@ from cfdbender.core.executables import check_builds, check_local_executables
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.registry import RunRecord
 from cfdbender.core.run import execute_plan, judge_environment
-from cfdbender.core.settings import WorkspaceError, require_workspace
+from cfdbender.core.settings import WorkspaceError, read_init, require_workspace
 from cfdbender.matrix import queries, records, storage
 from cfdbender.matrix._console import (
     SIMS_HELP,
@@ -37,7 +37,8 @@ from cfdbender.matrix.receipt import require_receipt, write_receipt
 from cfdbender.matrix.rerun import decide
 from cfdbender.matrix.selection import select_plan, split_ids
 from cfdbender.matrix.submission import select_profile, submission_plans, submit_plan
-from cfdbender.solvers import load_solver
+from cfdbender.solvers import available_solvers, load_solver
+from cfdbender.solvers._host import _exe
 from cfdbender.solvers.flightstream import dispatch
 from cfdbender.workspace.planning import plan_workspace
 
@@ -113,6 +114,11 @@ def build_parser() -> tuple[
     )
     run_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
     run_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
+    run_parser.add_argument(
+        "--one-run-at-a-time",
+        action="store_true",
+        help="reserve this machine for one guarded local run at a time",
+    )
     run_parser.add_argument(
         "--resume",
         action="store_true",
@@ -364,6 +370,38 @@ def _execute(
     verbs: dict[str, Callable[[argparse.Namespace], int]],
     console: Console,
 ) -> int:
+    try:
+        if args.command == "run":
+            config = read_init(args.workspace, available_solvers=available_solvers())
+            profile = select_profile(Path(args.workspace).resolve(), args.hpc)
+            args.guard_active = (profile is None or args.local) and (
+                args.one_run_at_a_time or config.one_run_at_a_time
+            )
+            if args.guard_active:
+                try:
+                    lease = _exe.process_lease("solver")
+                    lease.__enter__()
+                except ValueError as error:
+                    raise WorkspaceError(
+                        "another cfdbender solver run holds this machine (one run at a time); "
+                        "wait for it to end, then run again"
+                    ) from error
+                try:
+                    console.final("one run at a time guard is on")
+                    return _execute_inner(args, verbs, console)
+                finally:
+                    lease.__exit__(None, None, None)
+        return _execute_inner(args, verbs, console)
+    except (WorkspaceError, OSError, ValueError) as error:
+        console.error("matrix not run: " + str(error))
+        return 2
+
+
+def _execute_inner(
+    args: argparse.Namespace,
+    verbs: dict[str, Callable[[argparse.Namespace], int]],
+    console: Console,
+) -> int:
     receipt_rel: str | None = None
     try:
         require_workspace(args.workspace)
@@ -420,6 +458,7 @@ def _execute(
                 force=args.force_rerun,
                 force_all=args.force_rerun_all,
                 submitting=submitting,
+                slot_free=lambda: True,
                 # A local run this machine would refuse must refuse before a point is
                 # archived, not after: the refusal leaves the records as they were.
                 before_archive=None
@@ -451,7 +490,9 @@ def _execute(
 
             if live:
                 with progress_sink(console.say):
-                    records = execute_plan(plan, adapter, on_event=progress)
+                    records = execute_plan(
+                        plan, adapter, on_event=progress, one_run_at_a_time=args.guard_active
+                    )
             elif profile is not None:
                 records = submit_plan(plan, jobs, profile, adapter)
             else:

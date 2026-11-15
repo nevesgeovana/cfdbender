@@ -172,16 +172,18 @@ matrix not run: SU2 executable not found: 'SU2_CFD'; set executable in the [solv
 ```
 
 `plan --local` and `run --local` check the machine before they record
-anything: the solver program (every solver gives this one sentence), the machine-wide process slot
-and the free memory. When one of them fails the run is refused, no record is
+anything: the solver program (every solver gives this one sentence) and the free memory.
+When one of them fails the run is refused, no record is
 written, and the same command works once the cause is gone.
 
 ```text
 matrix not run: another cfdbender solver run holds this machine (one run at a time); wait for it to end, then run again
 ```
 
-Another solver run is going on this machine, from this workspace or another.
-One solver process runs at a time on a machine. Wait for it to end.
+This refusal occurs only when the one-run-at-a-time guard is enabled and another
+guarded run holds the lease. Wait for it to end. The guard is off by default;
+enable it with `cfd-matrix run MATRIX --local --one-run-at-a-time`, or add
+`one_run_at_a_time = true` under `[solver]` in `init.toml`.
 
 ```text
 matrix not run: free RAM ... GiB minus estimate ... GiB would breach the 0.5 GiB floor; refusing ...

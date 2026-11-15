@@ -5,6 +5,16 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-15
+
+### Changed
+
+- The one-run-at-a-time guard is off by default. A 0.5.1 user who relied on it can add `--one-run-at-a-time` or set `one_run_at_a_time = true` under `[solver]` in `init.toml`.
+
+### Added
+
+- The `--one-run-at-a-time` run flag and workspace `one_run_at_a_time` key enable the machine-wide guard.
+
 ## [0.5.1] - 2026-11-15
 
 ### Added

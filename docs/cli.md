@@ -118,6 +118,7 @@ cfd-matrix run MATRIX [options]
 |---|---|
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
+| `--one-run-at-a-time` | Reserve this machine for one guarded local run at a time |
 | `--resume` | Skip points already recorded COMPLETED or SUBMITTED and run the rest, so a grown matrix runs only its new points; a point left RUNNING by a crashed local run runs again when no solver process holds this host's slot. Without it a recorded point refuses the run |
 | `--force-rerun POINT` | Redo this recorded point, named POL/DP-name or DP-name; repeat for several. runs.json is copied to archive/&lt;stamp&gt;/runs.json, the point folder moves to archive/&lt;stamp&gt;/ and its record joins the runs.json history; nothing is deleted |
 | `--force-rerun-all` | Redo every recorded point of the matrix, archived as --force-rerun archives; a SUBMITTED job is not cancelled, cancel it in the scheduler first |

@@ -14,9 +14,8 @@ from cfdbender.core.plan import workspace_path
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._exe import resolve_executable
-from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
+from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
-from cfdbender.solvers._host._single import process_lease
 from cfdbender.solvers._host._version import UNKNOWN, probe_version
 from cfdbender.solvers.pyfr._config import config, options
 
@@ -67,15 +66,9 @@ def run(point: AdapterPoint, text: str, check_ram: Callable[[], None]) -> None:
     _ram.require_ram(0, solver="PyFR")
     if folder.exists():
         raise ValueError("existing PyFR point directory; refusing overwrite")
-    if not _RUNNING.acquire(blocking=False):
-        raise ValueError("PyFR is already running; only one process at a time")
-    try:
-        with process_lease("PyFR"):
-            version = probe_version(launch_prefix(opts, point.root))
-            stage_case(point, text, folder)
-            _launch(argv, folder, timeout, check_ram, version)
-    finally:
-        _RUNNING.release()
+    version = probe_version(launch_prefix(opts, point.root))
+    stage_case(point, text, folder)
+    _launch(argv, folder, timeout, check_ram, version)
 
 
 def _launch(

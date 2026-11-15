@@ -28,6 +28,7 @@ class WorkspaceConfig:
     schema_version: int
     solver: str
     solver_options: Mapping[str, object] = field(default_factory=dict)
+    one_run_at_a_time: bool = False
 
 
 def _validate(
@@ -45,8 +46,12 @@ def _validate(
         raise refuse("schema_version must be the integer 1")
     solver = values.get("solver")
     solver_options: dict[str, object] = {}
+    one_run_at_a_time = False
     if isinstance(solver, dict):
-        solver_options = {k: v for k, v in solver.items() if k != "name"}
+        one_run_at_a_time = solver.get("one_run_at_a_time", False)
+        if type(one_run_at_a_time) is not bool:
+            raise refuse("one_run_at_a_time must be a boolean")
+        solver_options = {k: v for k, v in solver.items() if k not in ("name", "one_run_at_a_time")}
         for key, value in solver_options.items():
             if type(value) not in (str, int, float, bool) or (
                 type(value) is float and not math.isfinite(value)
@@ -57,7 +62,12 @@ def _validate(
         raise refuse("solver must be a non-empty string")
     if solver not in available_solvers:
         raise refuse(f"unknown solver {solver!r}")
-    return WorkspaceConfig(schema_version=version, solver=solver, solver_options=solver_options)
+    return WorkspaceConfig(
+        schema_version=version,
+        solver=solver,
+        solver_options=solver_options,
+        one_run_at_a_time=one_run_at_a_time,
+    )
 
 
 def require_workspace(root: str | Path) -> Path:

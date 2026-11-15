@@ -154,8 +154,9 @@ the solver runs, and uses the host memory guard, which refuses below 0.5 GiB
 of free memory. When the guard trips during a run the child process tree is
 stopped and reaped.
 
-**C-24.** `execute` holds the host process lease while the solver runs: one
-solver process per machine, whichever the solver.
+**C-24.** A local solver run takes the one-run-per-machine lease only when the
+user turns the guard on with a flag or an `init.toml` key. By default concurrent
+runs are allowed and only the free-RAM floor refuses.
 
 **C-25.** The run is bounded: the adapter's `timeout_s` option, itself bounded
 by the row's `WALLTIME`. On a timeout the whole child process tree is stopped,

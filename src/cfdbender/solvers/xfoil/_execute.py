@@ -19,8 +19,7 @@ from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._config import number
 from cfdbender.solvers._host._exe import resolve_executable
-from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
-from cfdbender.solvers._host._single import process_lease
+from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers.xfoil._config import Config, config, options, render
 
 
@@ -125,13 +124,7 @@ def _launch(
     _ram.require_ram(number(opts["ram_estimate_gib"], "ram_estimate_gib"), solver="XFOIL")
     if folder.exists():
         raise ValueError("existing XFOIL point directory; refusing overwrite")
-    if not _RUNNING.acquire(blocking=False):
-        raise ValueError("XFOIL is already running; only one process at a time")
-    try:
-        with process_lease("XFOIL"):
-            _run_owned(check_ram, opts, command, timeout, folder, stage(), script)
-    finally:
-        _RUNNING.release()
+    _run_owned(check_ram, opts, command, timeout, folder, stage(), script)
 
 
 def _run_owned(

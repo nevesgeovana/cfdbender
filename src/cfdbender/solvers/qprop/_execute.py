@@ -20,8 +20,7 @@ from cfdbender.solvers import load_solver
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._config import number
 from cfdbender.solvers._host._exe import resolve_executable
-from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
-from cfdbender.solvers._host._single import process_lease
+from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers.qprop._config import Operating, Setup, options
 from cfdbender.solvers.qprop._polar import Fit, fit_polar, read_polar_rows
 from cfdbender.solvers.qprop._sections import Blade, Planned, deck
@@ -202,13 +201,7 @@ def run_qprop(
     estimate = number(opts["ram_estimate_gib"], "ram_estimate_gib")
     check_ram()
     _ram.require_ram(estimate, solver="QPROP")
-    if not _RUNNING.acquire(blocking=False):
-        raise ValueError("QPROP is already running; only one process at a time")
-    try:
-        with process_lease("QPROP"):
-            _run_owned(folder, command, timeout, opts, check_ram)
-    finally:
-        _RUNNING.release()
+    _run_owned(folder, command, timeout, opts, check_ram)
 
 
 def _run_owned(

@@ -19,9 +19,8 @@ from cfdbender.core.plan import workspace_path
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._exe import check_host_free, resolve_executable
-from cfdbender.solvers._host._execute import _NO_WINDOW, _RUNNING, _kill_tree, _timeout
+from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
-from cfdbender.solvers._host._single import process_lease
 from cfdbender.solvers._host._version import refuse_wrong_build
 from cfdbender.solvers.su2._config import config, mesh_name, number, options, render, staged_mesh
 from cfdbender.solvers.su2.routes import select_route
@@ -111,13 +110,7 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
     folder = workspace_path(point.root, point.point.directory)
     if folder.exists():
         raise ValueError("existing SU2 point directory; refusing overwrite")
-    if not _RUNNING.acquire(blocking=False):
-        raise ValueError("SU2 is already running; only one process at a time")
-    try:
-        with process_lease("SU2"):
-            _run_owned(point, check_ram, opts, values, argv, timeout, folder, route, env)
-    finally:
-        _RUNNING.release()
+    _run_owned(point, check_ram, opts, values, argv, timeout, folder, route, env)
 
 
 def _run_owned(

@@ -62,6 +62,7 @@ class RunRecord:
     error: str | None = None
     submission: Mapping[str, object] | None = None
     solver_version: str | None = None
+    one_run_at_a_time: bool = False
 
     @property
     def point_id(self) -> str:
@@ -225,6 +226,9 @@ def _decode(raw: object, root: Path) -> RunRecord:
     status = _text(row, "status")
     optional = {"submission"} if "submission" in row and status != "PLANNED" else set()
     optional |= set(row) & set(POINT_EXTRAS)
+    optional |= {"one_run_at_a_time"} & set(row)
+    if type(row.get("one_run_at_a_time", False)) is not bool:
+        raise RegistryError("one_run_at_a_time must be a boolean")
     if status != "PLANNED":
         optional |= {"solver_version"} & set(row)
     if set(row) != expected | (execution if status != "PLANNED" else set()) | optional:
@@ -292,7 +296,12 @@ def _decode(raw: object, root: Path) -> RunRecord:
         **_extras(row),
     )
     record = RunRecord(
-        point, matrix, _text(row, "solver"), status, _timestamp(_text(row, "created_at"))
+        point,
+        matrix,
+        _text(row, "solver"),
+        status,
+        _timestamp(_text(row, "created_at")),
+        one_run_at_a_time=bool(row.get("one_run_at_a_time", False)),
     )
     if status == "PLANNED":
         return record
@@ -379,6 +388,7 @@ def _encode(record: RunRecord) -> dict[str, object]:
         "solver": record.solver,
         "status": record.status,
         "created_at": record.created_at,
+        "one_run_at_a_time": record.one_run_at_a_time,
     }
     # Optional columns are written only when a row states them, so a record of
     # a matrix without them keeps its earlier bytes.
@@ -489,6 +499,7 @@ class RunRegistry:
         error: str | None = None,
         submission: Mapping[str, object] | None = None,
         solver_version: str | None = None,
+        one_run_at_a_time: bool = False,
     ) -> RunRecord:
         """Claim, submit or seal a point; never rewrite a finished one.
 
@@ -511,6 +522,9 @@ class RunRegistry:
             when moving from RUNNING to SUBMITTED; retained on completion.
         solver_version : str, optional
             The version the solver reported, kept on the record when sealing COMPLETED.
+
+        one_run_at_a_time : bool, optional
+            Record whether the local run holds the machine lease.
 
         Returns
         -------
@@ -563,6 +577,7 @@ class RunRegistry:
                         started_at=stamp,
                         classification=classification,
                         error=error,
+                        one_run_at_a_time=one_run_at_a_time,
                     )
                 elif status == "SUBMITTED":
                     updated = replace(previous, status=status, submission=submission)

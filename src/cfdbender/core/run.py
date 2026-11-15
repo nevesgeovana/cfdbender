@@ -120,6 +120,7 @@ def execute_plan(
     *,
     check_ram: Callable[[], None] = check_available_ram,
     on_event: Callable[[str, int, int, RunRecord | None, str], None] | None = None,
+    one_run_at_a_time: bool = False,
 ) -> tuple[RunRecord, ...]:
     """Run every point locally, recording failures and continuing to the next point.
 
@@ -134,6 +135,9 @@ def execute_plan(
     on_event : callable, optional
         Called as ``on_event("start", index, total, None, point_id)`` when a point starts and
         ``on_event("end", index, total, record, point_id)`` when it ends.
+
+    one_run_at_a_time : bool, optional
+        Record whether this run holds the machine lease.
 
     Returns
     -------
@@ -186,7 +190,7 @@ def execute_plan(
     total = len(prepared)
     for index, context in enumerate(prepared, 1):
         check_ram()
-        registry.transition(context.point.point_id, "RUNNING")
+        registry.transition(context.point.point_id, "RUNNING", one_run_at_a_time=one_run_at_a_time)
         if on_event is not None:
             on_event("start", index, total, None, context.point.point_id)
         error = None

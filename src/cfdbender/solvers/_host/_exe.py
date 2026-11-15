@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from cfdbender.solvers._host import _ram
-from cfdbender.solvers._host._single import process_lease
+from cfdbender.solvers._host._single import process_lease as process_lease
 
 
 def missing_executable(solver: str, tried: object, key: str = "executable") -> ValueError:
@@ -78,11 +78,3 @@ def check_host_free(solver: str, estimate_gib: float = 0.0) -> None:
         Memory the solver needs before it starts.
     """
     _ram.require_ram(estimate_gib, solver=solver)
-    try:
-        with process_lease(solver):
-            pass
-    except ValueError as error:
-        raise ValueError(
-            "another cfdbender solver run holds this machine (one run at a time); "
-            "wait for it to end, then run again"
-        ) from error
