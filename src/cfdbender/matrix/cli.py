@@ -6,11 +6,12 @@ import argparse
 import shlex
 import sys
 import time
+import warnings
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import cast
 
-from cfdbender.core.adapter import SolverAdapter
+from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.registry import RunRecord
@@ -381,6 +382,17 @@ def _execute(
         if not plan.points:
             console.final(f"no active row: every row of {Path(plan.matrix).name} has RUN = 0")
             return 0
+        cluster = profile is not None and not args.local
+        if cluster and "cluster_staging" not in capabilities(load_solver(plan.solver)):
+            warnings.warn(
+                f"solver {plan.solver!r} does not support cluster_staging; "
+                "cluster staging and submission skipped",
+                UserWarning,
+                stacklevel=2,
+            )
+            cluster = False
+            if args.command == "run":
+                return 0
         if args.command == "plan":
             receipt = write_receipt(plan)
             console.detail(f"plan receipt: {receipt}")
@@ -397,7 +409,7 @@ def _execute(
                 check_local_executables(
                     plan.root, plan.solver, load_solver(plan.solver), plan.points
                 )
-        jobs = submission_plans(plan, profile) if profile is not None and not args.local else ()
+        jobs = submission_plans(plan, profile) if cluster and profile is not None else ()
         if args.command == "run":
             require_receipt(plan)
             submitting = profile is not None and not args.local

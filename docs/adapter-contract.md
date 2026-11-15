@@ -361,6 +361,13 @@ adapter; `test_p051_f3c_unknown_capability_refused_at_load` checks the load
 refusal, and `test_p051_f3c_documented_capabilities_match_declarations` keeps
 the documentation table aligned with the declarations.
 
+When a cluster profile is selected, `plan` and `run --no-local` consult
+`cluster_staging`. If absent, one warning names the solver, the capability and
+the skipped staging and submission. The command continues successfully without
+submitting or falling back to a local solver run. Existing input validation
+still applies. No capability request key or CLI option is added: unsupported
+WORKFLOW values and unknown setup keys retain the refusals in C-16 and C-09.
+
 ## Proving an adapter
 
 `cfdbender.testing` provides one assertion per group of clauses. Each takes

@@ -40,6 +40,14 @@ polars. The mock stages deterministic offline inputs for contract tests.
 FlightStream forwards commands to pyflightstream unchanged and is not an
 adapter under this capability contract.
 
+A cluster request (`run --no-local` with a selected profile, or the cluster
+preview in `plan`) checks `cluster_staging`. Without it, the command warns
+once and skips staging and submission, with no local fallback. Without a
+profile, the existing local default is unchanged. There are no adapter
+restart or per-boundary group request keys today. Only PyFR accepts the time
+window setup keys; unknown setup keys and unsupported WORKFLOW values keep
+their existing validation errors.
+
 ## Convergence control of the RANS solvers
 
 The two solvers that solve the Reynolds-averaged equations, SU2 and OpenFOAM, start from a robust convergence control when the setup states none, so a poor initial field does not diverge. Each uses the control of its own solver, so the controls differ: SU2 accepts the neutral keys `cfl`, `cfl_max` and `cfl_growth` as well as native keys. A CFL number and OpenFOAM under-relaxation factors or local Courant limit do not map onto each other.
