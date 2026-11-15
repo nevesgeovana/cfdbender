@@ -38,3 +38,8 @@ def test_ramp_keys_refuse_contradictions(tmp_path, extra, problem):
 def test_ramp_keys_are_known_to_the_planner(tmp_path):
     su2_case.workspace(tmp_path, extra="cfl_max = 1000")
     su2_case.plan(tmp_path)
+
+
+def test_neutral_and_native_cfl_number_conflict(tmp_path):
+    with pytest.raises(ValueError, match="CFL_NUMBER"):
+        _lines(tmp_path, "cfl = 10\nCFL_NUMBER = 10")
