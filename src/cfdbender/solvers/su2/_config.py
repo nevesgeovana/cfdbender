@@ -368,6 +368,7 @@ def config(
     _history_output(values)
     _cfl_ramp(values, ramp)
     _fluid_model(values)
+    _dimensionalization(values)
     _sa_variant(values)
     _heatflux_values(values)
     _wall_outputs(values)
@@ -432,6 +433,23 @@ def _sa_variant(values: dict[str, object]) -> None:
     model = str(values.get("KIND_TURB_MODEL", "")).strip().upper()
     if model == "SA" and "SA_OPTIONS" not in values:
         values["SA_OPTIONS"] = list(SA_NEG)
+
+
+#: The compressible finite-volume solvers, whose equations REF_DIMENSIONALIZATION scales.
+COMPRESSIBLE = {"EULER", "NAVIER_STOKES", "RANS"}
+
+
+def _dimensionalization(values: dict[str, object]) -> None:
+    """Scale a compressible deck by the free stream unless the user states the scaling.
+
+    SU2's default, DIMENSIONAL, leaves the energy rows of the implicit system about 1e5 times
+    the density rows, and the linear solver then no longer solves the other equations: on the
+    TMR NACA 0012 at CFL 1000 SU2's official deck converges in 688 iterations with
+    FREESTREAM_PRESS_EQ_ONE and stalls at rms[Rho] -4.4 with DIMENSIONAL. The coefficients do
+    not depend on it; the residual levels in history.csv do.
+    """
+    if _upper(values, "SOLVER") in COMPRESSIBLE:
+        values.setdefault("REF_DIMENSIONALIZATION", "FREESTREAM_PRESS_EQ_ONE")
 
 
 #: SU2's own gas constants: STANDARD_AIR forces them, and IDEAL_GAS falls back to them.
