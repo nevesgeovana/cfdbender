@@ -73,9 +73,9 @@ def test_cli_page_check_detects_a_dropped_option_and_a_dropped_command():
     page = PAGE.read_text(encoding="utf-8")
     row = next(line for line in page.splitlines() if line.startswith("| `--force-rerun-all`"))
     assert _missing(page.replace(row + "\n", "")) == ["cfd-matrix run --force-rerun-all"]
-    assert "cfd-matrix sync" in _missing(page.replace("### `cfd-matrix sync`", "### `sync`"))
+    assert "cfd-workspace sync" in _missing(page.replace("### `cfd-workspace sync`", "### `sync`"))
     positional = next(line for line in page.splitlines() if line.startswith("| `[RECIPE]`"))
-    assert _missing(page.replace(positional + "\n", "")) == ["cfd-matrix free-space RECIPE"]
+    assert _missing(page.replace(positional + "\n", "")) == ["cfd-workspace free-space RECIPE"]
 
 
 def test_cli_page_is_what_the_parsers_give():

@@ -25,8 +25,8 @@ campaign/
   post/                         # cfd-matrix plan, collect and post
     <matrix>/plan.json
     <matrix>/campaign_summary.json
-    <matrix>/campaign_sweep.csv
-    <matrix>/polars/P<POL>.csv
+    <matrix>/polars/FAM-<KIND>-P<POL>.csv
+    <matrix>/polars/P<POL>-<GROUP>-<KIND>.csv
     <matrix>/products.json
     <matrix>/post.log
   archive/<stamp>/              # earlier evidence, moved here and never deleted
@@ -61,6 +61,9 @@ is read from `inputs/mesh/`. A stem that names exactly one file there is enough.
 The folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/`
 are still read, after `inputs/mesh/`, with one warning that names the folder to
 move the files to.
+A subfolder `inputs/geometry/<name>/` that holds a `geometry.json` sidecar is
+generated geometry, not a legacy mesh folder: a path inside it is used as named,
+with no warning.
 
 A mesh is never copied into a simulation folder. Each point folder holds a link
 to the file in `inputs/mesh/`, so a large mesh is stored once.
@@ -91,10 +94,33 @@ refuses a folder that already holds an `init.toml`, and a collect refuses
 records made by another solver. The solver names are lower case, and
 `cfd-workspace init --help` lists them.
 
-`init` writes this file and you do not need to edit it, except for the QPROP
-section settings. A key other than these, a `schema_version` other than the
+`init` writes this file. You may add workspace solver settings, `warning_refusals`
+and a `[defaults]` table of setup keys. A key other than these, a `schema_version` other than the
 integer `1` or a solver name that is not in the list is refused by every
 command, with the name of the file and the problem.
+
+## Default setup keys
+
+Use `[defaults]` to avoid repeating the same setup values for every row:
+
+```toml
+[defaults]
+iterations = 100
+cfl = 5
+
+[defaults.solver]
+threads = 2
+```
+
+The setup file overrides these values, including individual keys in nested tables.
+The row's `VAR_NAMES_VALUES` overrides apply last. Explicit row flight conditions
+and `GEOMETRY` also replace the corresponding
+fallback setup values. Explicit setup values still undergo the adapter's normal
+agreement checks with the row. The point records `defaults_omitted`, the default
+keys the row replaced, so planning and execution use the same effective setup.
+The adapter validates the composed setup, so an unknown default key is refused
+just like an unknown setup key. Plan
+again after changing defaults: `init.toml` is part of every point's input digest.
 
 ## What a run writes
 
@@ -112,7 +138,7 @@ on this machine also leaves `execution.json`, the record of the process that ran
 
 `runs.json`, in the workspace root, records every point: its inputs and their
 hashes, its status, when it started and finished, and the verdict on its
-convergence. `cfd-matrix status`, `show`, `history` and `log` read this file;
+convergence. `cfd-matrix status` and `cfd-workspace show`, `history` and `log` read this file;
 you never edit it.
 
 ## What plan, collect and post write
@@ -123,8 +149,8 @@ Everything derived from a matrix is under `post/<matrix>/`:
 |---|---|---|
 | `plan.json` | `cfd-matrix plan` | The plan receipt: the matrix and every input as planned. A run refuses to start when an input changed after it. |
 | `campaign_summary.json` | `collect`, `post` | Every recorded point with its result. |
-| `campaign_sweep.csv` | `collect`, `post` | One row per point: flight condition, air state, references, status, verdict and coefficients. |
-| `polars/P<POL>.csv` | `collect`, `post` | The same columns, one file per simulation. |
+| `polars/FAM-<KIND>-P<POL>.csv` | `collect`, `post` | One row per point and family: loads (DIM), airframe coefficients (ACOEF), rotor coefficients (RCOEF); see [Results](results.md). |
+| `polars/P<POL>-<GROUP>-<KIND>.csv` | `collect`, `post` | One row per point for each group TOTAL, AIRFRAME and each rotor. |
 | `products.json` | `collect`, `post` | Every product written, and every one skipped with the reason. |
 | `post.log` | `collect`, `post` | The same, as text. |
 
@@ -135,8 +161,8 @@ so deleting them loses nothing.
 
 Nothing is deleted without a command that says so. Running a point again moves
 its folder and its record to `archive/<stamp>/` first, where `<stamp>` is the
-UTC time of the move, and `cfd-matrix history` lists what is there.
-`cfd-matrix restore` brings a file back.
+UTC time of the move, and `cfd-workspace history` lists what is there.
+`cfd-workspace restore` brings a file back.
 
 ## Logs
 
@@ -146,7 +172,7 @@ write nothing.
 | File | Holds |
 |---|---|
 | `logs/<command>-<stamp>.log` | Every line one call of `run`, `collect` or `post` printed. |
-| `logs/activity.log` | One line per call: when it started and how it ended. `cfd-matrix log` lists these with the run events. |
+| `logs/activity.log` | One line per call: when it started and how it ended. `cfd-workspace log` lists these with the run events. |
 | `logs/warnings.log` | Every warning, also those that `--warning-off` kept out of the console. |
 
 ## Version control

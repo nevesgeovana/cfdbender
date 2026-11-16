@@ -35,14 +35,31 @@ campaign/
 |---|---|---|
 | `axis` | `"x"` | rotation axis, `"x"`, `"y"` or `"z"`; thrust points along its positive direction |
 | `hub_center` | `[0, 0, 0]` | a point on the axis, in model units |
-| `rotation` | `"ccw_from_front"` | counter-clockwise seen from +axis looking aft; or `"cw_from_front"` |
-| `cut` | `"cylinder"` | the cylinder r = const, unrolled; or `"plane"` normal to the radial direction |
+| `rotation` | `"ccw_from_front"` | counter-clockwise seen from +axis looking aft; or `"cw_from_front"`. Used by `cut = "cylinder"`; a `cut = "plane"` does not read it: the plane cut measures the motion from the blade itself |
+| `cut` | `"cylinder"` | the cylinder r = const, unrolled; or `"plane"`, the plane normal to the blade's radial direction, following its skew |
 | `scale` | `1` | model length unit in metres |
 | `radius` | blade tip | tip radius in m |
+| `mesh_frame` | `["aft", "right", "up"]` | directions of the OBJ's +x, +y and +z before conversion |
+
+An OBJ built in another axis-aligned frame declares it at the top level of the setup:
+
+```toml
+mesh_frame = ["forward", "left", "up"]
+blade = "inputs/mesh/blade.obj"
+n_blades = 3
+n_sections = 12
+```
+
+The declaration accepts `aft`, `forward`, `right`, `left`, `up` and `down`, one per
+axis, forming a right-handed set. The blade is converted in memory to x aft, y right,
+z up before either planning or slicing reads it; faces, groups and the source file are
+kept. `axis` and `hub_center` refer to that expected frame. `sections.json` records the
+declaration, conversion matrix and both byte digests, and `products.json` lists these
+under `frames.mesh.points` by full point id. A polars-2D set accepts no mesh declaration.
 
 The blade is the largest connected mesh component, so an OBJ may hold one blade or a full rotor. The radial direction runs from the axis to the blade centroid. The leading edge is the section point farthest ahead along the rotation direction; the trailing edge is the section point farthest from it; the chord is that distance. Beta is the angle in degrees between the chord line and the rotation plane, positive when the leading edge lies ahead along the thrust axis (nose up into the oncoming relative flow). The section shape is normalised to unit chord for XFOIL.
 
-**Polars-2D set.** A set holds `blade.csv` with the columns `r`, `chord` and `beta` (m, m, degrees, strictly ascending radius) and optional `airfoil` and `polar` columns naming files inside the set. A station with a `polar` file uses it directly (an XFOIL polar with columns named alpha, CL and CD). A station with only an `airfoil` file gets its polar from XFOIL. Each station needs one of the two. `n_sections` may be omitted; if given it must equal the number of stations.
+**Polars-2D set.** A set holds `blade.csv` with the columns `r`, `chord` and `beta` (m, m, degrees, strictly ascending radius) and optional `airfoil` and `polar` columns naming files inside the set. A station with a `polar` file uses it directly (an XFOIL polar with columns named alpha, CL and CD; the polar of an SU2 or OpenFOAM alpha sweep is such a file, see [2D polars](polars-2d.md)). A station with only an `airfoil` file gets its polar from XFOIL. Each station needs one of the two. `n_sections` may be omitted; if given it must equal the number of stations.
 
 **Section polars.** For each section, the polar fit gives CL0, CL_a (per radian), CLmin, CLmax, CD0, CD2u, CD2l, CLCD0 and the reference Reynolds number, as QPROP's per-station input. The lift line uses alpha between -4 and 6 degrees. When XFOIL fails for a section, the point retries with alpha -4 to 10 in steps of 0.5 degrees. If that fails as well, the station reuses the nearest successful station's parameters. If no station succeeds, the point fails. `run` prints a line when each section starts and another when it ends, with the time it took, so a long point is never silent:
 
@@ -71,6 +88,7 @@ on_unconverged_section = "warn"
 | Key | Meaning | Unit | Default |
 |---|---|---|---|
 | `blade` | OBJ or polars-2D set, see Mesh | - | required (or `GEOMETRY`) |
+| `mesh_frame` | OBJ axes before conversion, see Mesh | - | `["aft", "right", "up"]` |
 | `n_blades` | number of blades, integer from 1 | - | required |
 | `n_sections` | radial stations of an OBJ; the matrix key `N_SECTIONS` overrides it | - | required for an OBJ, unless the row states it |
 | `spacing`, `cut`, `axis`, `hub_center`, `rotation`, `scale`, `radius` | slicing convention, see Mesh | see Mesh | see Mesh |
@@ -126,7 +144,7 @@ The axis of each value is the rotation axis. The references are the disk area (p
 | `EFFICIENCY_OVERALL` | overall efficiency including the motor, as QPROP prints it (`eff`) |
 | `T`, `Q`, `P` | thrust (N), shaft torque (N m), shaft power (W) |
 
-Here `n` is the rotation rate in revolutions per second and `D = 2 R`. A propeller has no lift, drag or pitching moment in the sense of the other solvers, so the neutral columns `CL`, `CD` and `CM` of the collected tables are `NA` for QPROP; its own columns follow them. The rotor columns `CT`, `CQ`, `CP`, `CN`, `CY`, `J` and `EFFICIENCY` are in the rotor frame of [Results and tables](results.md) (`CN` and `CY` are `NA`: an isolated propeller in axial flow has no in-plane force); `CQ` is the printed shaft torque `Q` over `rho n^2 D^5`, positive for a rotation right-handed about the thrust axis. `Q`, `P`, `CP` and `CP_QPROP` are listed as moments only to fit the common result format. A QPROP result is a blade-element estimate with the fitted two-dimensional polars, not a validation of the propeller.
+Here `n` is the rotation rate in revolutions per second and `D = 2 R`. In the polar files the propeller is the family `BLADES` inside rotor 0, the group `PROPELLER` (`GROUP_ID` 10) and the group `TOTAL`; there is no `AIRFRAME` group. Its shaft points forward, so the rotor frame R0 is the body frame: `FAM-RCOEF-P<POL>.csv` states `T`, `Q`, `P` (kW), `CT`, `CQ`, `CP`, `ETA` and the disc loadings from the printed thrust and torque, and `CFZ`, `CFY`, `CMZ`, `CMY` are `NA` because QPROP prints no in-plane load; see [Results and tables](results.md). `RPM0` is the row's `RPM`, or `60 V / (J D)` when the row states `J`. In ACOEF the thrust is a negative `CDB`, and QPROP's own columns follow the frames. `Q`, `P`, `CP` and `CP_QPROP` are listed as moments in the campaign summary only to fit the common result format. A QPROP result is a blade-element estimate with the fitted two-dimensional polars, not a validation of the propeller.
 
 ## Worked example
 

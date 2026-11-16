@@ -33,7 +33,7 @@ def test_p0000_item3b_registry_records_per_point_digests_status_and_time(tmp_pat
     assert len(records) == 3, "every planned point needs its own record"
     assert records == registry.read()
     data = json.loads((tmp_path / "runs.json").read_text())
-    assert data["schema_version"] == 1
+    assert data["schema_version"] == 2
     assert len(data["records"]) == 3
     for raw, point in zip(data["records"], plan.points, strict=True):
         assert raw["point_id"] == point.point_id
@@ -108,7 +108,7 @@ def test_p0000_item3b_registry_serializes_writers_and_never_steals_a_lock(tmp_pa
     [
         "not json",
         "[]",
-        '{"schema_version": 2, "records": []}',
+        '{"schema_version": 3, "records": []}',
         '{"schema_version": 1, "records": [{}]}',
     ],
 )

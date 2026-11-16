@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import re
 import tomllib
-import warnings
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from cfdbender.core.refusals import warn_or_refuse
 
 HPC_FORMATS = ("yaml", "json", "toml", "text")
 HPC_VERSION_ALIAS = "solver_version_alias"
@@ -21,6 +22,7 @@ _PROFILE_KEYS = frozenset(
         "application_ids",
         "max_walltime",
         "walltime_arithmetic",
+        "job_end_files",
     }
 )
 _CLOCK = re.compile(r"(\d+):([0-5]\d):([0-5]\d)")
@@ -76,10 +78,12 @@ class HpcProfile:
     application_ids: dict[str, str] = field(default_factory=dict)
     walltime_arithmetic: str = "wall"
     max_walltime_s: float | None = None
+    job_end_files: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """Hold Python-created profiles to the same descriptor filename rule."""
         _descriptor_name(self.descriptor_name, self.path)
+        _end_files(list(self.job_end_files), self.path)
 
     def application_id_for(self, solver_version: object) -> str:
         """Return the version's application override, otherwise the required default."""
@@ -96,6 +100,18 @@ def _unknown(
             f"reads {', '.join(sorted(allowed))} there. A key nothing reads is a key that looks "
             "like it works. Correct the spelling, or move the key to the table that takes it."
         )
+
+
+def _end_files(value: object, source: Path) -> tuple[str, ...]:
+    """Validate point-relative marker paths without allowing workspace escapes."""
+    if not isinstance(value, list) or any(not isinstance(name, str) or not name for name in value):
+        raise ValueError(f"{source}: job_end_files must be a list of point-relative file paths")
+    for name in value:
+        for part in name.split("/"):
+            _descriptor_name(part, source)
+    if len(set(value)) != len(value):
+        raise ValueError(f"{source}: job_end_files repeats a path")
+    return tuple(value)
 
 
 def _aliases(target: Path, table: object, name: str, versions: Collection[str]) -> dict[str, str]:
@@ -183,7 +199,7 @@ def read_hpc_profile(path: str | Path, *, solver_versions: Collection[str] = ())
                 f"as [{name}], with its keys under it."
             )
     if "defaults" in table:
-        warnings.warn(
+        warn_or_refuse(
             f"the HPC profile {target} carries a defaults block, which has no effect; "
             "it is ignored. Delete it.",
             UserWarning,
@@ -193,7 +209,7 @@ def read_hpc_profile(path: str | Path, *, solver_versions: Collection[str] = ())
     for name, value in table.items():
         if name == "defaults" or not isinstance(value, dict):
             continue
-        for owned in ("max_walltime", "walltime_arithmetic"):
+        for owned in ("max_walltime", "walltime_arithmetic", "job_end_files"):
             if owned in value:
                 raise ValueError(
                     f"the HPC profile {target} states {owned} under [{name}], and this "
@@ -252,6 +268,7 @@ def read_hpc_profile(path: str | Path, *, solver_versions: Collection[str] = ())
         application_ids=applications,
         walltime_arithmetic=arithmetic,
         max_walltime_s=_max_walltime(target, table.get("max_walltime")),
+        job_end_files=_end_files(table.get("job_end_files", []), target),
     )
 
 

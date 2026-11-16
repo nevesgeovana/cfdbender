@@ -1,8 +1,7 @@
 """R2-04: marks judge one execution, not every future run of the point."""
 
+from cli_route import main
 from test_cli_verbs import FIRST, ran
-
-from cfdbender.matrix.cli import main
 
 
 def test_a_failed_mark_does_not_block_a_verdict_on_a_rerun(tmp_path):

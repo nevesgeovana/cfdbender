@@ -11,13 +11,13 @@ import argparse
 import fnmatch
 import json
 import re
-import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.core.registry import (
     RegistryError,
     RunRecord,
@@ -37,6 +37,7 @@ from cfdbender.matrix._console import (
     status_word,
 )
 from cfdbender.matrix._journal import MARKS, STORAGE, read_journal
+from cfdbender.matrix._tree_migration import refuse_retired
 from cfdbender.matrix.selection import split_ids
 
 
@@ -337,7 +338,11 @@ def run_diff(args: argparse.Namespace) -> int:
 
 
 def run_trace(args: argparse.Namespace) -> int:
-    """Follow a product file to the run, inputs and hashes that made it."""
+    """Follow a product file to the run, inputs and hashes that made it.
+
+    A retired product (the campaign sweep table) is refused by name.
+    """
+    refuse_retired(args.product)
     registry = _open(args)
     root = registry.root
     runs = load_runs(registry)
@@ -466,7 +471,7 @@ def _events(root: Path, runs: list[Run]) -> list[dict[str, Any]]:
             }
         )
     if skipped:
-        warnings.warn(
+        warn_or_refuse(
             f"{skipped} line(s) of logs/activity.log.jsonl could not be read and are left out; "
             "the other events are shown",
             UserWarning,
@@ -543,7 +548,7 @@ def _common(parser: argparse.ArgumentParser) -> None:
 
 
 def register(commands: Any) -> dict[str, Any]:
-    """Add the read-only verbs to the cfd-matrix subparsers and return their handlers."""
+    """Add the matrix-level read verb (status) to the cfd-matrix subparsers."""
     status = commands.add_parser(
         "status",
         help="list every recorded sim per matrix with its states, filterable",
@@ -562,6 +567,12 @@ def register(commands: Any) -> dict[str, Any]:
     )
     status.add_argument("--failed", action="store_true", help="only sims with a failed point")
     status.add_argument("--points", dest="per_point", action="store_true", help="one row per point")
+    _common(status)
+    return {"status": run_status}
+
+
+def register_workspace(commands: Any) -> dict[str, Any]:
+    """Add the read-only verbs on what the workspace holds to the cfd-workspace subparsers."""
     show = commands.add_parser(
         "show", help="print one sim, point or run record in full", allow_abbrev=False
     )
@@ -604,10 +615,9 @@ def register(commands: Any) -> dict[str, Any]:
     )
     diff.add_argument("run_a", help="a run id (see history)")
     diff.add_argument("run_b", help="a run id (see history)")
-    for parser in (status, show, history, log, trace, diff):
+    for parser in (show, history, log, trace, diff):
         _common(parser)
     return {
-        "status": run_status,
         "show": run_show,
         "history": run_history,
         "log": run_log,

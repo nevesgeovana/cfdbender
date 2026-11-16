@@ -24,15 +24,16 @@ checked against the declarations by
 
 | Capability | mock | openfoam | pyfr | qprop | su2 | xfoil |
 | --- | --- | --- | --- | --- | --- | --- |
-| `restart` | No | No | No | No | No | No |
+| `restart` | No | Yes | Yes | No | Yes | No |
 | `unsteady` | No | No | Yes | No | No | No |
-| `boundary_groups` | No | No | No | No | No | No |
+| `boundary_groups` | No | Yes | No | No | Yes | No |
 | `cluster_staging` | Yes | Yes | Yes | Yes | Yes | Yes |
 
 `restart` means resuming a solver from saved solution state. The run command's
 `--resume` selects unfinished points and is not a solver restart.
-`boundary_groups` means separate per-boundary force results; none of the
-adapters implements that today. PyFR marches in time and reduces its
+`boundary_groups` means separate per-boundary force results. SU2 and OpenFOAM
+accept a setup `[groups]` table and return `force_groups` with each set plus TOTAL.
+PyFR marches in time and reduces its
 `window_start` to `tend` window to time-averaged forces; its matrix WORKFLOW
 remains `steady`. Every adapter can stage a cluster point. QPROP requires a
 supplied polar for every section; staging never runs XFOIL to make missing
@@ -43,8 +44,8 @@ adapter under this capability contract.
 A cluster request (`run --no-local` with a selected profile, or the cluster
 preview in `plan`) checks `cluster_staging`. Without it, the command warns
 once and skips staging and submission, with no local fallback. Without a
-profile, the existing local default is unchanged. There are no adapter
-restart or per-boundary group request keys today. Only PyFR accepts the time
+profile, the existing local default is unchanged. `RESTART` and `run --restart`
+request a saved solution, as described in [records](records.md). Only PyFR accepts the time
 window setup keys; unknown setup keys and unsupported WORKFLOW values keep
 their existing validation errors.
 

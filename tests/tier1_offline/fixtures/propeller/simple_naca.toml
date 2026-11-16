@@ -1,0 +1,32 @@
+schema_version = 1
+
+[propeller]
+name = "SIMPLE_NACA"
+units = "mm"
+radius = 600.0
+hub_radius = 120.0
+blades = 3
+rotation = "positive_x"
+pitch_setting = 28.0
+pitch_reference_r_R = 0.7
+
+[stations]
+r_R = [0.20, 0.30, 0.45, 0.60, 0.75, 0.90, 1.00]
+c_R = [0.12, 0.15, 0.16, 0.15, 0.13, 0.10, 0.07]
+beta_deg = [52.0, 44.0, 36.0, 30.5, 26.5, 23.5, 22.0]
+t_c = [0.18, 0.15, 0.12, 0.11, 0.10, 0.09, 0.08]
+airfoil = ["n4412", "n4412", "n4412", "n4412", "n4412", "n4412", "n4412"]
+
+[airfoils.n4412]
+naca = "4412"
+
+[options]
+trailing_edge = "blunt"
+root_cap = "planar"
+tip = "planar"
+loft = "cubic"
+
+[output]
+iges = "simple_naca.igs"
+units = "mm"
+blades = "all"

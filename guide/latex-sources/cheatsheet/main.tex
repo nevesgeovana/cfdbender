@@ -2,10 +2,11 @@
 %
 % cheatsheet/main.tex
 %
-% Guide 4 of the cfdbender guides: the cheatsheet. One document of eight
+% Guide 4 of the cfdbender guides: the cheatsheet. One document of nine
 % pages, A4 landscape, for the version shared/info.tex names. Page 1 is every
 % command and every option of cfd-matrix and cfd-workspace, by stage; pages 2
-% to 8 are the seven stages of the workflow, one page each. The pages are in
+% to 8 are the seven stages of the workflow, one page each. Page 9 covers
+% geometry and mesh commands. The pages are in
 % text/ and are read by a tier-1 test that walks both parsers
 % (tests/tier1_offline/test_guide_cheatsheet_parsers.py), so a command or an
 % option cannot ship without its line here, and a line cannot name one that
@@ -108,4 +109,5 @@
 \newgeometry{margin=7mm,top=6mm,bottom=6mm}
 \setlength{\columnsep}{5mm}
 \input{text/02-by-stage.tex}
+\input{text/03-geometry-mesh.tex}
 \end{document}

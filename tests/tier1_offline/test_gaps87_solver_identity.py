@@ -8,11 +8,11 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
+from cli_route import main
 from test_p0000_item3c_adapter import workspace
 
 from cfdbender.core.registry import RunRegistry
 from cfdbender.core.run import execute_plan
-from cfdbender.matrix.cli import main
 from cfdbender.solvers import load_solver
 from cfdbender.workspace.planning import plan_workspace
 

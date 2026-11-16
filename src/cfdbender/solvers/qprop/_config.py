@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from typing import cast
 
 from cfdbender.core.flight import STATE_KEYS, agree, canonical_key, row_flow
-from cfdbender.geometry.blade_slicing import AXES, CUTS, ROTATIONS, SPACINGS
+from cfdbender.core.mesh_frame import declared_frame
+from cfdbender.geometry.blade_sections import AXES, CUTS, ROTATIONS, SPACINGS
 from cfdbender.solvers._host._config import number, unknown_keys
 
 _OPTIONS = {
@@ -23,6 +24,7 @@ _OPTIONS = {
 #: What `cfd-workspace init --solver qprop` writes under [solver], and the default when absent.
 SECTION_DEFAULTS = {"section_timeout_s": 60, "on_unconverged_section": "warn"}
 _SETUP = {
+    "mesh_frame",
     "blade",
     "n_blades",
     "n_sections",
@@ -69,6 +71,7 @@ class Setup:
     iterations: int
     re_exponent: float
     title: str
+    mesh_frame: tuple[str, str, str]
 
 
 @dataclass(frozen=True)
@@ -151,6 +154,14 @@ def setup(values: Mapping[str, object]) -> Setup:
         raise ValueError("blade must name inputs/mesh/<name>.obj or inputs/polars-2D/<set>")
     if "n_blades" not in values:
         raise ValueError("n_blades is required")
+    frame = values.get("mesh_frame")
+    if frame is not None and (
+        not isinstance(frame, list) or any(not isinstance(word, str) for word in frame)
+    ):
+        raise ValueError("mesh_frame must list three axis-direction words")
+    mesh_frame = declared_frame(frame)
+    if frame is not None and blade.startswith("inputs/polars-2D/"):
+        raise ValueError("mesh_frame applies to a blade OBJ, not a polars-2D set")
     hub = values.get("hub_center", [0.0, 0.0, 0.0])
     if not isinstance(hub, list) or len(hub) != 3:
         raise ValueError("hub_center must be a list of three numbers")
@@ -192,6 +203,7 @@ def setup(values: Mapping[str, object]) -> Setup:
         iterations=_count(values.get("iterations", 150), "iterations"),
         re_exponent=number(values.get("re_exponent", -0.5), "re_exponent"),
         title=title,
+        mesh_frame=mesh_frame,
     )
 
 

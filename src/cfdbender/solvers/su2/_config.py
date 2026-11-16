@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 import re
-import warnings
 from collections.abc import Mapping
 from typing import cast
 
@@ -17,8 +16,10 @@ from cfdbender.core.flight import (
     speed_of_sound,
     states_flow,
 )
+from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.solvers._host._config import number as number
 from cfdbender.solvers._host._config import unknown_keys
+from cfdbender.solvers._host._groups import groups
 from cfdbender.solvers.su2.routes import ROUTES
 
 NEUTRAL_KEYS = {
@@ -277,7 +278,7 @@ def config(
     ):
         for key, value in table.items():
             if (
-                key in {"solver", "mesh_link"}
+                key in {"solver", "mesh_link", "groups"}
                 and table is setup
                 or key == "history"
                 and table is post
@@ -298,7 +299,7 @@ def config(
                     if table is reference or table is post:
                         continue
                     raise unknown_keys(
-                        file, [key], [*NEUTRAL_KEYS, "moment_origin", *RAMP_KEYS]
+                        file, [key], [*NEUTRAL_KEYS, "moment_origin", "groups", *RAMP_KEYS]
                     ) from None
                 target = key
             add(target, value)
@@ -314,7 +315,7 @@ def config(
     for key in _ignored_freestream(values) - stated:
         values.pop(key, None)
     if "MACH_NUMBER" not in values:
-        warnings.warn(
+        warn_or_refuse(
             "FLIGHT_CONDITION and the setup file state no MACH_NUMBER: SU2 runs with its own "
             "default free stream",
             UserWarning,
@@ -372,6 +373,22 @@ def config(
     _sa_variant(values)
     _heatflux_values(values)
     _wall_outputs(values)
+    if requested := groups(setup):
+        monitored = values.get("MARKER_MONITORING", [])
+        monitoring = (
+            list(monitored)
+            if isinstance(monitored, list)
+            else re.split(r"[\s,()]+", str(monitored).strip())
+        )
+        for markers in requested.values():
+            for marker in markers:
+                if marker not in monitoring:
+                    monitoring.append(marker)
+        values["MARKER_MONITORING"] = monitoring
+        history_groups = list(cast(list[str], values["HISTORY_OUTPUT"]))
+        if "AERO_COEFF_SURF" not in history_groups:
+            history_groups.append("AERO_COEFF_SURF")
+        values["HISTORY_OUTPUT"] = history_groups
     return values
 
 
@@ -498,7 +515,7 @@ def _fluid_model(values: dict[str, object]) -> None:
             if used
             else "a gas that is not an ideal gas"
         )
-        warnings.warn(
+        warn_or_refuse(
             f"FLUID_MODEL {model} of the setup makes SU2 use {gas}, not the core "
             f"GAS_CONSTANT {GAS_CONSTANT} and GAMMA_VALUE {GAMMA}: the free stream SU2 "
             "derives differs from the one the other solvers receive",
@@ -576,7 +593,7 @@ def _history_output(values: dict[str, object]) -> None:
     present = {item.strip().upper() for item in groups}
     missing = [group for group in HISTORY_GROUPS if group not in present]
     if missing:
-        warnings.warn(
+        warn_or_refuse(
             f"HISTORY_OUTPUT lacks {', '.join(missing)}, which the SU2 adapter reads from "
             "history.csv: they are added",
             UserWarning,

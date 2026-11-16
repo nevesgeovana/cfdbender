@@ -17,13 +17,13 @@ from the HPC profile's ``[builds]`` table instead; these files serve local runs.
 from __future__ import annotations
 
 import tomllib
-import warnings
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from cfdbender.core.adapter import AdapterPoint, load_point
+from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.core.settings import WorkspaceError
 
 DECLARED = "inputs/executables.toml"
@@ -124,7 +124,7 @@ def check_builds(root: Path, solver: str, adapter: object, builds: Iterable[str 
         if has_registry(root):
             resolve_executable(root, solver, build)
         else:
-            warnings.warn(
+            warn_or_refuse(
                 f"SOLVER_BUILD {build} is carried but no {DECLARED} declares it; a local run "
                 "uses the executable the setup names",
                 UserWarning,

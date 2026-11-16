@@ -16,6 +16,7 @@ from typing import cast
 
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
+from cfdbender.core.restart import copy_solution
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._exe import check_host_free, resolve_executable
@@ -23,6 +24,7 @@ from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._version import refuse_wrong_build
 from cfdbender.solvers.su2._config import config, mesh_name, number, options, render, staged_mesh
+from cfdbender.solvers.su2._restart import restart_files, restart_values
 from cfdbender.solvers.su2.routes import select_route
 
 
@@ -40,7 +42,10 @@ def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path)
 
     A local run and a cluster submission stage the same files.
     """
+    solution = restart_files(point) if point.point.restart_from is not None else {}
+    values = restart_values(point, dict(values))
     folder.mkdir(parents=True, exist_ok=False)
+    copy_solution(folder, solution)
     (folder / "su2.cfg").write_bytes(render(values).encode("ascii"))
     link_mesh(
         workspace_path(point.root, mesh_name(values)),

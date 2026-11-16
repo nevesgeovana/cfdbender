@@ -30,31 +30,31 @@ STAGES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         "Follow",
         (
             ("cfd-matrix", "status"),
-            ("cfd-matrix", "show"),
-            ("cfd-matrix", "history"),
-            ("cfd-matrix", "log"),
-            ("cfd-matrix", "trace"),
-            ("cfd-matrix", "diff"),
+            ("cfd-workspace", "show"),
+            ("cfd-workspace", "history"),
+            ("cfd-workspace", "log"),
+            ("cfd-workspace", "trace"),
+            ("cfd-workspace", "diff"),
         ),
     ),
     ("Collect and post", (("cfd-matrix", "collect"), ("cfd-matrix", "post"))),
     (
         "Correct the records",
         (
-            ("cfd-matrix", "mark-failed"),
-            ("cfd-matrix", "mark-converged"),
-            ("cfd-matrix", "restore"),
-            ("cfd-matrix", "rebuild"),
+            ("cfd-workspace", "mark-failed"),
+            ("cfd-workspace", "mark-converged"),
+            ("cfd-workspace", "restore"),
+            ("cfd-workspace", "rebuild"),
             ("cfd-workspace", "archive"),
         ),
     ),
     (
         "Manage storage",
         (
-            ("cfd-matrix", "space-in-use"),
-            ("cfd-matrix", "free-space"),
-            ("cfd-matrix", "delete-sims"),
-            ("cfd-matrix", "sync"),
+            ("cfd-workspace", "space-in-use"),
+            ("cfd-workspace", "free-space"),
+            ("cfd-workspace", "delete-sims"),
+            ("cfd-workspace", "sync"),
         ),
     ),
 )
@@ -163,7 +163,7 @@ def reference() -> str:
     lines: list[str] = ["## Options before the command name", ""]
     lines += [
         "These go between the program name and the command, for example",
-        "`cfd-matrix --warning-off run polar`.",
+        "`cfd-matrix --warning-off run polar`; `--warning-refusals` works the same way.",
         "",
     ]
     rows = [

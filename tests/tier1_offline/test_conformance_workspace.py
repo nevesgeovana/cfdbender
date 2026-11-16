@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -21,7 +22,6 @@ from test_p0000_item3f_plan import FAKE as SUBMIT_FAKE
 
 from cfdbender.core.registry import RunRegistry
 from cfdbender.matrix.cli import main
-from cfdbender.matrix.exports import CONTEXT
 from cfdbender.matrix.receipt import receipt_path, require_receipt, write_receipt
 from cfdbender.matrix.submission import select_profile, submission_plans
 from cfdbender.workspace.planning import plan_workspace
@@ -176,16 +176,20 @@ def test_run_completes_resume_skips_and_collect_writes_the_common_csv(case):
     again = RunRegistry(root).read()
     assert {r.point_id: r.completed_at for r in again} == stamps
     assert main(["collect", "full", "--workspace", str(root)]) == 0
-    sweep = root / "post/full/campaign_sweep.csv"
-    with sweep.open(encoding="utf-8", newline="") as stream:
-        rows = list(csv.DictReader(stream))
-    assert list(rows[0])[:2] == ["POL", "point"] and list(rows[0])[2:18] == list(CONTEXT)
+    assert not (root / "post/full/campaign_sweep.csv").exists()
+    rows = []
+    for table in sorted((root / "post/full/polars").glob("FAM-ACOEF-P*.csv")):
+        with table.open(encoding="utf-8", newline="") as stream:
+            rows += list(csv.DictReader(stream))
+        text = table.read_text(encoding="utf-8")
+        assert '"' not in text and ",," not in text
+    assert list(rows[0])[:3] == ["POL", "POINT_ID", "POINT"]
     assert len(rows) == len(plan.points)
-    for row in rows:
-        assert row["status"] == "COMPLETED" and row["classification"] != "NA"
-        assert row["solver_version"] != "NA" and row["SREF"] != "NA"
-    text = sweep.read_text(encoding="utf-8")
-    assert '"' not in text and ",," not in text
+    assert all(row["SREF"] != "NA" for row in rows)
+    summary = json.loads((root / "post/full/campaign_summary.json").read_bytes())["points"]
+    for point in summary:
+        assert point["status"] == "COMPLETED" and point["classification"] is not None
+        assert point["result"]["solver_version"]
     products = json.loads((root / "post/full/products.json").read_bytes())
     assert products["complete"] is True and (root / "post/full/post.log").is_file()
 
@@ -261,18 +265,19 @@ def test_every_table_carries_neutral_cl_cd_cm_beside_the_solvers_own_columns(cas
     write_receipt(plan_workspace(root, "full"))
     assert local(root) == 0, solver
     assert main(["collect", "full", "--workspace", str(root)]) == 0
-    for table in (
-        root / "post/full/campaign_sweep.csv",
-        *(root / "post/full/polars").glob("*.csv"),
-    ):
+    # The family and group ACOEF files state the same neutral values as CLW, CDW and CmW.
+    for table in (root / "post/full/polars").glob("*ACOEF*.csv"):
         with table.open(encoding="utf-8", newline="") as stream:
             rows = list(csv.DictReader(stream))
-        assert rows and {"CL", "CD", "CM"} <= set(rows[0])
-        assert list(rows[0]).count("CL") == 1
-        for name in ("CL", "CD", "CM"):
+        if solver == "qprop":
+            assert all(row["CLW"] == row["CmW"] == "NA" for row in rows)
+            continue
+        for name, column in (("CL", "CLW"), ("CD", "CDW"), ("CM", "CmW")):
             stated = name in NEUTRAL_STATED[solver]
-            assert all((row[name] != "NA") == stated for row in rows), (solver, name)
+            assert all((row[column] != "NA") == stated for row in rows), (solver, table.name)
         if solver == "openfoam":
-            assert all(row["CL"] == row["Cl"] and row["CM"] == row["CmPitch"] for row in rows)
-        if solver == "su2":
-            assert all(row["CM"] == row["CMy"] for row in rows)
+            assert all(math.isclose(float(r["CLW"]), float(r["Cl"]), abs_tol=1e-12) for r in rows)
+            assert all(
+                math.isclose(float(r["CmW"]), float(r["CmPitch"]), abs_tol=1e-12) for r in rows
+            )
+        assert list(rows[0]).count("CLW") == 1

@@ -1,5 +1,11 @@
 # Matrix columns
 
+The optional `RESTART` column names a recorded point, for example
+`1001/DP-M300AL+020`. Each point of that row starts from a copy of the source
+point's saved solution. Write `-` for a cold start. SU2, OpenFOAM and PyFR
+support this entry; other adapters warn and skip it. A missing solution refuses
+the run and names its source. See [restart](records.md#restart-from-a-saved-solution).
+
 This page lists the columns of a run matrix and the keys of its
 `FLIGHT_CONDITION` cell. Every solver reads the same columns with the same
 meanings, so one layout serves every campaign.
@@ -40,7 +46,8 @@ with `columns are separated by |`.
 | `WALLTIME` | Wall clock with its unit: `90s`, `240m`, `4h`, `1d`. `{walltime}` in an HPC profile. |
 | `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [Executables](executables.md)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. The column may also be named `FS_BUILD`, with the same meaning; a header holding both names is refused. |
 | `WORKFLOW` | Run type; `-` means `steady`, the only type that runs. |
-| `VAR_NAMES_VALUES` | Per-row overrides of setup keys; see below. |
+| `VAR_NAMES_VALUES` | Per-row overrides of setup keys and optional HPC profile and cluster selection; see below. |
+| `RESTART` | Recorded source point as `POL/DP-name`, whose saved solution is copied into every point of the row. `-` requests a cold start. |
 
 ## FLIGHT_CONDITION
 
@@ -111,6 +118,12 @@ replaces a key inside a table of the setup (`solver.threads` is `threads` in the
 is refused, and so is a key that is a matrix column, such as `NCPUS`: state it in
 its column. Override the key under the name the setup uses: a setup stating
 `iterations` is overridden by `iterations`, not by the SU2 name `ITER`.
+
+`hpc: alpha` selects `inputs/hpc/alpha.toml` for this row. It takes precedence
+over `--hpc`, and is ignored with `--local`. Separate entries with `/`.
+`cluster: alpha` selects the cluster for this row when the HPC profile uses
+`{cluster}`. The key is case-insensitive and is not sent to the solver setup.
+See [cluster jobs](cluster-jobs.md#choosing-the-cluster-per-row).
 
 ## Where the values go
 

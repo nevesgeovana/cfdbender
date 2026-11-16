@@ -4,13 +4,18 @@ A workspace keeps its meshes and geometry files in ``inputs/mesh/``. Workspaces 
 earlier used ``inputs/geometry/``, ``inputs/geometries/`` or ``inputs/meshes/``;
 those are read too, in that order after ``inputs/mesh/``, and a legacy name is
 reported once per process. Every solver's GEOMETRY and mesh lookup goes through here.
+
+Generated geometry lives in ``inputs/geometry/<name>/``, a folder holding the sidecar
+``geometry.json``. Such a folder is not a legacy mesh folder: a path inside it is used as
+named, with no legacy warning and never replaced by a same-named file of ``inputs/mesh/``.
 """
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Mapping
 from pathlib import Path
+
+from cfdbender.core.refusals import warn_or_refuse
 
 MESH_FOLDER = "inputs/mesh"
 LEGACY_MESH_FOLDERS = ("inputs/geometry", "inputs/geometries", "inputs/meshes")
@@ -18,6 +23,14 @@ LEGACY_MESH_FOLDERS = ("inputs/geometry", "inputs/geometries", "inputs/meshes")
 MESH_FOLDERS = (MESH_FOLDER, *LEGACY_MESH_FOLDERS)
 #: Path prefixes a setup may use to name a mesh file.
 MESH_PREFIXES = tuple(f"{folder}/" for folder in MESH_FOLDERS)
+#: The folder whose named subfolders hold generated geometry.
+GEOMETRY_FOLDER = "inputs/geometry"
+#: The sidecar that marks ``inputs/geometry/<name>/`` as generated geometry.
+GEOMETRY_SIDECAR = "geometry.json"
+#: The sidecar a cfd-mesh verb writes beside each mesh, recording how it was made.
+PROVENANCE_SUFFIX = ".provenance.json"
+#: Files of a mesh folder that describe a mesh and are never a mesh themselves.
+SIDECAR_SUFFIXES = (PROVENANCE_SUFFIX, ".boundaries.toml")
 
 _warned: set[str] = set()
 
@@ -25,24 +38,24 @@ _warned: set[str] = set()
 def _note_legacy(folder: str) -> None:
     if folder in _warned:
         return
-    _warned.add(folder)
-    warnings.warn(
+    warn_or_refuse(
         f"{folder}/ is a legacy mesh folder name; move its files to {MESH_FOLDER}/",
         UserWarning,
         stacklevel=3,
     )
+    _warned.add(folder)
 
 
 def _note_both(folder: str, leaf: str) -> None:
     key = f"{folder}/{leaf}"
     if key in _warned:
         return
-    _warned.add(key)
-    warnings.warn(
+    warn_or_refuse(
         f"{key} and {MESH_FOLDER}/{leaf} both exist; the setup names {key}, so that file is used",
         UserWarning,
         stacklevel=3,
     )
+    _warned.add(key)
 
 
 def mesh_folder_of(name: str) -> str | None:
@@ -51,6 +64,32 @@ def mesh_folder_of(name: str) -> str | None:
         if name.startswith(folder + "/"):
             return folder
     return None
+
+
+def generated_geometry_of(root: Path, name: str) -> str | None:
+    """Return the generated-geometry folder a workspace-relative path lies in, or None.
+
+    Parameters
+    ----------
+    root : Path
+        Resolved workspace root.
+    name : str
+        Workspace-relative path.
+
+    Returns
+    -------
+    str or None
+        ``inputs/geometry/<name>`` when the path lies in that folder and the folder holds
+        :data:`GEOMETRY_SIDECAR`; None otherwise.
+    """
+    prefix = GEOMETRY_FOLDER + "/"
+    if not name.startswith(prefix):
+        return None
+    parts = name[len(prefix) :].split("/")
+    if len(parts) < 2 or not parts[0]:
+        return None
+    folder = f"{GEOMETRY_FOLDER}/{parts[0]}"
+    return folder if (root / folder / GEOMETRY_SIDECAR).is_file() else None
 
 
 def resolve_mesh_path(root: Path, name: str) -> str:
@@ -69,10 +108,11 @@ def resolve_mesh_path(root: Path, name: str) -> str:
         ``name`` itself when that file exists (a legacy path that names an existing file is
         honoured even when ``inputs/mesh`` holds a same-named file, with one warning that
         both exist); otherwise the path in the first folder (``inputs/mesh`` first) that
-        holds the file; ``name`` unchanged when it names no mesh folder or no folder holds it.
+        holds the file; ``name`` unchanged when it names no mesh folder, lies in a generated
+        geometry folder (:func:`generated_geometry_of`) or no folder holds it.
     """
     folder = mesh_folder_of(name)
-    if folder is None:
+    if folder is None or generated_geometry_of(root, name) is not None:
         return name
     leaf = name[len(folder) + 1 :]
     if (root / name).is_file():
@@ -105,7 +145,7 @@ def mesh_candidates(root: Path, cell: str) -> list[str]:
             found = [
                 p.relative_to(root).as_posix()
                 for p in sorted(base.glob(f"{cell}.*"))
-                if p.is_file()
+                if p.is_file() and not p.name.endswith(SIDECAR_SUFFIXES)
             ]
         else:
             found = []

@@ -1,5 +1,6 @@
 # OpenFOAM
 
+
 You run steady ESI OpenFOAM `simpleFoam` cases on a two-dimensional extruded mesh through cfdbender, and collect `forceCoeffs` and SIMPLE convergence evidence. This page lists only what is specific to OpenFOAM.
 
 ## Install
@@ -44,6 +45,29 @@ iterations = 500
 `Allrun` runs the template inside the point folder, before the patch fixes. `{mesh}` becomes the quoted staged file name and `{case}` becomes the quoted case folder `.`. Do not add your own quotes around them. No other placeholder is accepted; write `{{` and `}}` for literal braces, or planning refuses with `mesh_converter supports only {mesh} and {case} placeholders`. The output goes to `log.meshConverter`, and a nonzero exit stops the run.
 
 ## Setup file
+
+### Boundary force groups
+
+Use a setup `[groups]` table to read forces on selected mesh markers:
+
+```toml
+[groups]
+main = ["wing"]
+combined = ["wing", "tail"]
+```
+
+The mesh must declare these marker names. An unknown marker is refused with
+the mesh's marker names. Each group gets a native `forceCoeffs_<name>` function
+object with those patches, the same reference values and the same force axes.
+The complete wall set is also evaluated by the existing `forceCoeffs` object.
+Collect exposes its values as `TOTAL`, independently of overlapping groups.
+
+The result is in `NeutralResult.force_groups` and in
+`points[].result.force_groups` of `post/<matrix>/campaign_summary.json`.
+The solver's native `coefficient.dat` files are declared and digested outputs;
+cluster collect waits for all of them. No group CSV is written.
+See [results](results.md#boundary-force-sets).
+
 
 `inputs/setups/s001.toml`:
 

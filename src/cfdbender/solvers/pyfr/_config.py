@@ -178,6 +178,11 @@ soln-pts = williams-shunn
 [soln-plugin-nancheck]
 nsteps = 100
 
+[soln-plugin-writer]
+dt-out = {_n(case.tend)}
+basedir = .
+basename = solution-{{t}}
+
 [soln-plugin-fluidforce-wall]
 nsteps = 200
 file = forces.csv

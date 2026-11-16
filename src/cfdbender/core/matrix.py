@@ -44,6 +44,7 @@ OPTIONAL_COLUMNS = (
     "FS_BUILD",
     "WORKFLOW",
     "VAR_NAMES_VALUES",
+    "RESTART",
 )
 COLUMNS = (*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS)
 UNSTATED = ("", "-", "NA")
@@ -87,6 +88,7 @@ class MatrixRow:
     solver_build: str | None = None
     variables: Mapping[str, object] = field(default_factory=_no_variables)
     condition_order: tuple[str, ...] = ()
+    restart_from: str | None = None
 
 
 def _number(text: str, label: str) -> float:
@@ -171,6 +173,8 @@ def _variables(text: str, label: str) -> Mapping[str, object]:
     for pair in _split_outside(text, "/"):
         name, colon, raw = pair.partition(":")
         key, raw = name.strip(), raw.strip()
+        if key.casefold() in {"cluster", "hpc"}:
+            key = key.casefold()
         if not colon:
             raise MatrixError(
                 f"{label}: VAR_NAMES_VALUES entry {pair.strip()!r} is not a KEY: value pair; "
@@ -189,7 +193,13 @@ def _variables(text: str, label: str) -> Mapping[str, object]:
             )
         if not raw:
             raise MatrixError(f"{label}: VAR_NAMES_VALUES key {key} has no value")
-        found[key] = _value(raw)
+        value = _value(raw)
+        if key in {"cluster", "hpc"}:
+            # A quoted value is its string (RCL-1); an unquoted number-looking value stays text.
+            value = value if isinstance(value, str) else raw
+            if not value:
+                raise MatrixError(f"{label}: VAR_NAMES_VALUES key {key} has no value")
+        found[key] = value
     return MappingProxyType(found)
 
 
@@ -243,6 +253,12 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
     ):
         raise MatrixError(f"{label}: GEOMETRY {geometry!r} must name a file with / separators")
     workflow = cells.get("WORKFLOW", "")
+    restart = cells.get("RESTART", "")
+    if (
+        restart not in UNSTATED
+        and re.fullmatch(r"[A-Za-z0-9_-]+/DP-[A-Za-z0-9_+.-]+", restart) is None
+    ):
+        raise MatrixError(f"{label}: RESTART must name a recorded point as POL/DP-name, or -")
 
     def text(column: str) -> str:
         value = cells.get(column, "")
@@ -269,6 +285,7 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
         solver_build=None if build in UNSTATED else build,
         variables=_variables(cells.get("VAR_NAMES_VALUES", ""), label),
         condition_order=order,
+        restart_from=None if restart in UNSTATED else restart,
     )
 
 

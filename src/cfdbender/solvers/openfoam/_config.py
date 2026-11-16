@@ -14,6 +14,7 @@ from cfdbender.core.flight import agree, row_flow
 from cfdbender.core.mesh import MESH_PREFIXES
 from cfdbender.core.results import References
 from cfdbender.solvers._host._config import number, unknown_keys
+from cfdbender.solvers._host._groups import groups
 
 #: The keys of the REF and PPROC files the OpenFOAM case reads; any other is skipped.
 REFERENCE_KEYS = ("area", "length", "moment_origin")
@@ -37,6 +38,8 @@ class Case:
     relaxation: str | None = None
     pimple: str | None = None
     lts: Mapping[str, float] = field(default_factory=dict)
+    groups: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    wall_markers: tuple[str, ...] = ("airfoil",)
 
 
 #: Steady SIMPLE under-relaxation written when the setup states no relaxationFactors.
@@ -153,6 +156,7 @@ def config(
                 "iterations",
                 "residual_target",
                 "solver",
+                "groups",
                 "time_integration",
                 "relaxationFactors",
                 "PIMPLE",
@@ -262,6 +266,7 @@ def config(
         cast(str | None, setup.get("relaxationFactors")),
         cast(str | None, setup.get("PIMPLE")),
         lts,
+        groups=groups(setup),
     )
 
 
@@ -297,6 +302,8 @@ def solver_log(case: Case) -> str:
 
 def files(case: Case, opts: Mapping[str, object]) -> dict[str, str]:
     """Render case files in fixed order, ending with the sourced Allrun script."""
+    wall_names = case.wall_markers if case.groups else ('"airfoil(_base)?"',)
+    patches = " ".join(wall_names)
     c, s = math.cos(math.radians(case.alpha)), math.sin(math.radians(case.alpha))
     drag, lift = _vector((c, s, 0)), _vector((-s, c, 0))
     velocity = _vector((case.speed * c, case.speed * s, 0))
@@ -369,7 +376,7 @@ functions
     {{
         type forceCoeffs;
         libs (\"libforces.so\");
-        patches (airfoil);
+        patches ({patches});
         rho rhoInf;
         rhoInf 1;
         CofR {_vector(refs.moment_origin)};
@@ -423,13 +430,14 @@ wallDist {{ method meshWave; }}""",
     def field(
         name: str, dimensions: str, internal: str, wall: str, far: str, kind: str = "volScalarField"
     ) -> str:
+        walls = "\n".join(f"    {marker} {{ {wall} }}" for marker in wall_names)
         return _file(
             name,
             f"""dimensions [{dimensions}];
 internalField uniform {internal};
 boundaryField
 {{
-    airfoil {{ {wall} }}
+{walls}
     farfield {{ {far} }}
     front {{ type empty; }}
     back {{ type empty; }}
@@ -495,6 +503,17 @@ boundaryField
             mesh=shlex.quote(staged_mesh(case)), case=shlex.quote(".")
         )
         mesh_import = "(\n" + command + "\n) > log.meshConverter 2>&1\n"
+    wall_setup = "".join(
+        f"    foamDictionary constant/polyMesh/boundary -entry entry0/{marker}/type -set wall\n"
+        for marker in (case.wall_markers if case.groups else ("airfoil",))
+    )
+    if not case.groups:
+        wall_setup += (
+            "    if grep -q airfoil_base constant/polyMesh/boundary; then\n"
+            "        foamDictionary constant/polyMesh/boundary "
+            "-entry entry0/airfoil_base/type -set wall\n"
+            "    fi\n"
+        )
     result["Allrun"] = (
         # ESI's etc/bashrc returns nonzero from internal probes; errexit starts after it.
         "#!/usr/bin/env bash\n"
@@ -504,9 +523,24 @@ boundaryField
         + "{\n"
         "    foamDictionary constant/polyMesh/boundary -entry entry0/front/type -set empty\n"
         "    foamDictionary constant/polyMesh/boundary -entry entry0/back/type -set empty\n"
-        "    foamDictionary constant/polyMesh/boundary -entry entry0/airfoil/type -set wall\n"
-        "} > log.foamDictionary 2>&1\n" + solve
+        + wall_setup
+        + "} > log.foamDictionary 2>&1\n"
+        + solve
     )
+    if case.groups:
+        control = result["system/controlDict"]
+        prefix, functions = control.split("functions\n{\n", 1)
+        total = functions.rsplit("\n}", 1)[0]
+        group_objects = []
+        for name, markers in case.groups.items():
+            group_objects.append(
+                total.replace("forceCoeffs\n", f"forceCoeffs_{name}\n", 1).replace(
+                    f"patches ({patches});", f"patches ({' '.join(markers)});"
+                )
+            )
+        result["system/controlDict"] = (
+            prefix + "functions\n{\n" + total + "\n" + "\n".join(group_objects) + "\n}\n"
+        )
     if not all(text.isascii() for text in result.values()):
         raise ValueError("OpenFOAM translated case must be ASCII, including foam_bashrc")
     return result

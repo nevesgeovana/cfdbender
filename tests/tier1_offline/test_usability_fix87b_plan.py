@@ -62,7 +62,7 @@ def test_u20_collect_reports_recorded_points_the_matrix_no_longer_has(tmp_path, 
     assert run(capsys, "plan", "full", "--workspace", root)[0] == 0
     code, out, _ = run(capsys, "collect", "full", "--workspace", root)
     assert "2 recorded points are not in full.fs any more" in out
-    assert "7001/DP-M200AL+000" in out and "cfd-matrix delete-sims" in out
+    assert "7001/DP-M200AL+000" in out and "cfd-workspace delete-sims" in out
     assert code == 0
 
 
@@ -76,8 +76,8 @@ def test_u22_collect_and_post_print_workspace_relative_paths_the_same_way(tmp_pa
     run(capsys, "run", "full", "--workspace", root, "--local")
     _, collected, _ = run(capsys, "collect", "full", "--workspace", root)
     _, posted, _ = run(capsys, "post", "full", "--workspace", root)
-    assert "wrote post/full/campaign_sweep.csv" in collected
-    assert "wrote post/full/campaign_sweep.csv" in posted
+    assert "wrote post/full/polars/" in collected and "campaign_sweep" not in collected
+    assert "wrote post/full/polars/" in posted
     assert str(root) not in collected and str(root) not in posted
 
 

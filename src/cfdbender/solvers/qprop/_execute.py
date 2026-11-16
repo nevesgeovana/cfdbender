@@ -8,7 +8,6 @@ import re
 import subprocess
 import sys
 import time
-import warnings
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import cast
@@ -16,6 +15,7 @@ from typing import cast
 from cfdbender.core import progress
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
+from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.solvers import load_solver
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._config import number
@@ -75,7 +75,7 @@ def _unconverged(opts: Mapping[str, object], label: str, missing: list[float]) -
             f"{label}: XFOIL did not converge at alpha {angles}; "
             "on_unconverged_section is 'fail' (set it to 'warn' in init.toml to run on the rest)"
         )
-    warnings.warn(
+    warn_or_refuse(
         f"{label}: XFOIL did not converge at alpha {angles}; "
         "those angles are dropped from this section's polar",
         stacklevel=2,
@@ -174,6 +174,7 @@ def record(
             "beta_add": beta_add,
             "rpm": rpm,
             "sections": sections,
+            **({"mesh_frame": dict(blade.mesh_frame)} if blade.mesh_frame is not None else {}),
         },
         sort_keys=True,
         ensure_ascii=True,

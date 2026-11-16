@@ -188,6 +188,10 @@ def plan_submission(
     if not points:
         raise ValueError("cannot plan a submission with no points")
     first = points[0]
+    if any("hpc" in p and p["hpc"] not in (profile.path.stem, profile.path.name) for p in points):
+        raise ValueError("a job holds one HPC profile; a point names a different profile")
+    if any(p.get("cluster") != first.get("cluster") for p in points):
+        raise ValueError("a grouped job holds one cluster; the points name different values")
     for key in ("solver_version", "ncpus"):
         if any(p.get(key) != first.get(key) for p in points):
             raise ValueError(f"a grouped job holds one {key}; the points name different values")

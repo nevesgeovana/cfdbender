@@ -28,6 +28,8 @@ class WorkspaceConfig:
     schema_version: int
     solver: str
     solver_options: Mapping[str, object] = field(default_factory=dict)
+    warning_refusals: bool = False
+    defaults: Mapping[str, object] = field(default_factory=dict)
     one_run_at_a_time: bool = False
 
 
@@ -38,9 +40,15 @@ def _validate(
         choices = ", ".join(sorted(available_solvers)) or "(none)"
         return WorkspaceError(f"{source}: {problem}; available solvers: {choices}")
 
-    unknown = set(values) - {"schema_version", "solver"}
+    unknown = set(values) - {"schema_version", "solver", "warning_refusals", "defaults"}
     if unknown:
         raise refuse(f"unknown keys: {', '.join(sorted(unknown))}")
+    defaults = values.get("defaults", {})
+    if not isinstance(defaults, dict):
+        raise refuse("defaults must be a table of setup keys")
+    refusals = values.get("warning_refusals", False)
+    if type(refusals) is not bool:
+        raise refuse("warning_refusals must be true or false")
     version = values.get("schema_version")
     if type(version) is not int or version != 1:
         raise refuse("schema_version must be the integer 1")
@@ -67,7 +75,39 @@ def _validate(
         solver=solver,
         solver_options=solver_options,
         one_run_at_a_time=one_run_at_a_time,
+        warning_refusals=refusals,
+        defaults=defaults,
     )
+
+
+def setup_defaults(
+    defaults: Mapping[str, object], setup: Mapping[str, object], *, omitted: Collection[str] = ()
+) -> Mapping[str, object]:
+    """Merge setup values over workspace defaults, recursively for tables.
+
+    Parameters
+    ----------
+    defaults : mapping
+        The init.toml defaults table. It is never modified.
+    setup : mapping
+        Explicit setup values, which win over defaults. Row overrides apply last.
+    omitted : collection of str, optional
+        Known setup keys that explicit row columns replace, declared by the adapter.
+
+    Returns
+    -------
+    mapping
+        A new setup, validated by the adapter just as an explicit setup is.
+    """
+    result = {key: value for key, value in defaults.items() if key not in omitted}
+    for key, value in setup.items():
+        previous = result.get(key)
+        result[key] = (
+            dict(setup_defaults(previous, value))
+            if isinstance(previous, Mapping) and isinstance(value, Mapping)
+            else value
+        )
+    return result
 
 
 def require_workspace(root: str | Path) -> Path:
@@ -122,3 +162,25 @@ def read_init(root: str | Path, *, available_solvers: Collection[str]) -> Worksp
             f"{source}: {problem}: {error}; available solvers: {choices}"
         ) from error
     return _validate(values, source, available_solvers)
+
+
+def read_warning_refusals(root: str | Path) -> bool:
+    """Return the ``warning_refusals`` option of a workspace's init.toml (False when unset).
+
+    A folder without a readable init.toml answers False: the command's own workspace check
+    refuses it with its own message.
+
+    Raises
+    ------
+    WorkspaceError
+        The option is present and is not true or false.
+    """
+    source = Path(root) / "init.toml"
+    try:
+        values = tomllib.loads(source.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return False
+    value = values.get("warning_refusals", False)
+    if type(value) is not bool:
+        raise WorkspaceError(f"{source}: warning_refusals must be true or false")
+    return value

@@ -67,6 +67,10 @@ here Mach 0.2 and an angle of attack, in degrees, that takes each value of
 `SWEEP_VALUES` in turn. Each value is one point, so this row has three points.
 `SET`, `REF` and `PPROC` name the three files below by their number.
 
+Save every input file as UTF-8 without a byte order mark. A TOML file with one
+is refused as invalid TOML. Windows PowerShell 5.1 `Set-Content -Encoding UTF8`
+and some editors add the mark; PowerShell 7 and most editors do not.
+
 `inputs/setups/s001.toml`:
 
 ```toml
@@ -181,7 +185,7 @@ sim   matrix  point               status     classification  error
 ```
 
 `status` reads the records, so it works at any time, also while a long run is
-going in another terminal. `cfd-matrix show 1001/DP-M200AL+020` prints the card
+going in another terminal. `cfd-workspace show 1001/DP-M200AL+020` prints the card
 of one point: its status and verdict, its iterations and coefficients once
 collected, and its folder.
 
@@ -193,20 +197,25 @@ cfd-matrix collect polar
 
 ```text
 wrote post/polar/campaign_summary.json
-wrote post/polar/campaign_sweep.csv
-wrote post/polar/polars/P1001.csv
+wrote post/polar/polars/FAM-DIM-P1001.csv
+wrote post/polar/polars/FAM-ACOEF-P1001.csv
+wrote post/polar/polars/P1001-TOTAL-DIM.csv
+wrote post/polar/polars/P1001-TOTAL-ACOEF.csv
+wrote post/polar/polars/P1001-AIRFRAME-DIM.csv
+wrote post/polar/polars/P1001-AIRFRAME-ACOEF.csv
 collected 3, failed 0, outstanding 0
 ```
 
 `collect` reads the saved output of every recorded point and writes the tables
-of the matrix under `post/polar/`. `campaign_sweep.csv` has one row per point.
-Its first columns for this campaign, with the coefficients the mock reports:
+of the matrix under `post/polar/`. `polars/FAM-ACOEF-P1001.csv` has one row per point
+and family. Its first and last columns for this campaign, with the coefficients the mock
+reports under its own names:
 
 ```text
-POL,point,ALPHA,BETA,MACH,...,status,classification,iterations,residual,wall_time_s,solver_version,CL,CD,CM,CX,CY,CZ,Cl,Cm,Cn
-1001,DP-M200AL+000,0.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.031809,mock-1,0.03,0.01,0.05,0.01,0.02,0.03,0.04,0.05,0.06
-1001,DP-M200AL+020,2.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.024971,mock-1,0.03,0.01,0.05,0.01,0.02,0.03,0.04,0.05,0.06
-1001,DP-M200AL+040,4.0,NA,0.2,...,COMPLETED,converged,2,0.01,0.034441,mock-1,0.03,0.01,0.05,0.01,0.02,0.03,0.04,0.05,0.06
+POL,POINT_ID,POINT,RUN_TYPE,ALPHA,...,CX,CY,CZ,Cl,Cm,Cn,MESH_FACES
+1001,1,DP-M200AL+000,steady,0.0,...,0.01,0.02,0.03,0.04,0.05,0.06,NA
+1001,2,DP-M200AL+020,steady,2.0,...,0.01,0.02,0.03,0.04,0.05,0.06,NA
+1001,3,DP-M200AL+040,steady,4.0,...,0.01,0.02,0.03,0.04,0.05,0.06,NA
 ```
 
 The `...` stands for the air state columns, left out here to fit the page. The

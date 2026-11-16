@@ -13,18 +13,18 @@ import hashlib
 import os
 import re
 import tomllib
-import warnings
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Protocol
+from typing import Protocol, cast
 
 from cfdbender.core.flight import ATTITUDE_KEYS, STATE_KEYS
 from cfdbender.core.matrix import MatrixRow, parse_matrix
 from cfdbender.core.mesh import mesh_candidates, resolve_setup_paths
 from cfdbender.core.naming import PointNameError, datapoint_dir_name, point_name
-from cfdbender.core.settings import WorkspaceError, _validate
+from cfdbender.core.refusals import warn_or_refuse
+from cfdbender.core.settings import WorkspaceError, _validate, setup_defaults
 
 
 def _empty() -> Mapping[str, object]:
@@ -182,6 +182,8 @@ def apply_variables(
     """
     result: dict[str, object] = dict(setup)
     for key, value in variables.items():
+        if key.casefold() in {"cluster", "hpc"}:
+            continue
         *tables, name = key.split(".")
         target = result
         for part in tables:
@@ -234,13 +236,31 @@ class RowInputs(InputFiles):
     resolved GEOMETRY file, or None; an adapter reads it through read_bytes.
     """
 
-    def __init__(self, root: Path, row: MatrixRow, common: InputFiles) -> None:
+    def __init__(
+        self,
+        root: Path,
+        row: MatrixRow,
+        common: InputFiles,
+        default_overrides: Mapping[str, Collection[str]] | None = None,
+    ) -> None:
         super().__init__(root)
         self._bytes.update(common._bytes)
+        defaults = cast(Mapping[str, object], self.read_toml("init.toml").get("defaults", {}))
+        overridden = {
+            name
+            for key, names in (default_overrides or {}).items()
+            if key in row.condition or (key == "GEOMETRY" and row.geometry is not None)
+            for name in names
+        }
+        self.defaults_omitted = tuple(sorted(set(defaults) & overridden))
         self.setup = resolve_setup_paths(
             root,
             apply_variables(
-                self._named("SET", f"inputs/setups/{row.setup_id}.toml", row.setup_id),
+                setup_defaults(
+                    defaults,
+                    self._named("SET", f"inputs/setups/{row.setup_id}.toml", row.setup_id),
+                    omitted=self.defaults_omitted,
+                ),
                 row.variables,
             ),
         )
@@ -291,7 +311,7 @@ class RowInputs(InputFiles):
             for key in table:
                 if key not in read:
                     where = f"inputs/{kind}/{ident}.toml"
-                    warnings.warn(
+                    warn_or_refuse(
                         f"POL {row.pol}: {key!r} of {where} is skipped; {solver} does not read "
                         f"it ({'reads only ' + ', '.join(sorted(read)) if read else 'reads no key'}"
                         f" of this file)",
@@ -356,6 +376,10 @@ class Point:
     aircraft: str = ""
     configuration: str = ""
     hidden: bool = False
+    restart_from: str | None = None
+    restart_directory: str | None = None
+    restart_sha256: Mapping[str, str] = field(default_factory=dict)
+    defaults_omitted: tuple[str, ...] = ()
 
 
 #: Point fields beyond the original record, with the value an older record implies.
@@ -369,6 +393,10 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "aircraft": "",
         "configuration": "",
         "hidden": False,
+        "restart_from": None,
+        "restart_directory": None,
+        "restart_sha256": {},
+        "defaults_omitted": (),
     }
 )
 
@@ -447,6 +475,8 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 aircraft=row.aircraft,
                 configuration=row.configuration,
                 hidden=row.hidden,
+                restart_from=row.restart_from,
+                defaults_omitted=inputs.defaults_omitted,
             )
         )
     return points
@@ -585,13 +615,13 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
     for row in rows:
         names: Mapping[str, str] = {}
         try:
-            inputs = RowInputs(target, row, common)
-            names = inputs.file_names()
             hook = validators[config.solver]
+            inputs = RowInputs(target, row, common, getattr(hook, "default_setup_overrides", {}))
+            names = inputs.file_names()
             _closed_condition_keys(row, tuple(getattr(hook, "native_condition_keys", ())))
             needs = hook(row, inputs)
             if inputs.geometry is not None and inputs.geometry not in inputs.digests():
-                warnings.warn(
+                warn_or_refuse(
                     f"POL {row.pol}: GEOMETRY {row.geometry!r} is skipped; solver "
                     f"{config.solver!r} does not read the GEOMETRY column (name the geometry "
                     "where its setup documents it, and write - in the cell to silence this)",

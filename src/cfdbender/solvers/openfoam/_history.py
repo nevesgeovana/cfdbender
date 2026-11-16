@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.results import Coefficient, ExecutionResult, Iteration, References
+from cfdbender.solvers._host._groups import groups
 from cfdbender.solvers.openfoam._config import config, solver_log
 
 
@@ -39,8 +41,8 @@ def _residuals(log: str) -> dict[int, dict[str, float]]:
     return values
 
 
-def _rows(folder: Path) -> list[dict[str, float]]:
-    paths = sorted(folder.glob("postProcessing/forceCoeffs*/0/coefficient.dat"))
+def _rows(folder: Path, function: str = "forceCoeffs") -> list[dict[str, float]]:
+    paths = sorted(folder.glob(f"postProcessing/{function}/0/coefficient.dat"))
     if len(paths) != 1:
         raise ValueError("need exactly one forceCoeffs output")
     headers: list[str] = []
@@ -157,3 +159,24 @@ def read(folder: Path, point: AdapterPoint) -> tuple[Evidence, dict[str, Coeffic
             {},
             case.references,
         )
+
+
+def force_groups(
+    folder: Path, point: AdapterPoint, total: Mapping[str, Coefficient]
+) -> Mapping[str, Mapping[str, Coefficient]]:
+    """Read native per-group forceCoeffs; TOTAL is the solver's complete force set."""
+    requested = groups(point.setup)
+    if not requested:
+        return {}
+    result: dict[str, Mapping[str, Coefficient]] = {"TOTAL": dict(total)}
+    total_time = _rows(folder)[-1]["Time"]
+    for name in requested:
+        row = _rows(folder, f"forceCoeffs_{name}")[-1]
+        if row["Time"] != total_time:
+            raise ValueError(f"forceCoeffs group {name}: final time differs from TOTAL")
+        result[name] = {
+            "Cd": Coefficient(row["Cd"], "x", "force"),
+            "Cl": Coefficient(row["Cl"], "y", "force"),
+            "CmPitch": Coefficient(row["CmPitch"], "z", "moment"),
+        }
+    return result

@@ -33,7 +33,12 @@ def test_p051_f3c_each_declared_capability(solver, capability):
     adapter = load_solver(solver)
     declared = getattr(adapter, "CAPABILITIES", None)
     assert isinstance(declared, frozenset), "each adapter must state its supported behaviours"
-    expected = capability == "cluster_staging" or (solver == "pyfr" and capability == "unsteady")
+    expected = (
+        capability == "cluster_staging"
+        or (solver == "pyfr" and capability == "unsteady")
+        or (solver in {"su2", "openfoam", "pyfr"} and capability == "restart")
+        or (solver in {"su2", "openfoam"} and capability == "boundary_groups")
+    )
     assert (capability in reader()(adapter)) == expected
 
 

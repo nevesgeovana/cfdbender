@@ -1,9 +1,10 @@
 """Reduce the named fluid-force columns over a physical time window."""
 
+import configparser
 import csv
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from cfdbender.core.adapter import AdapterPoint
@@ -22,6 +23,11 @@ def read(
     folder: Path, point: AdapterPoint
 ) -> tuple[Evidence, dict[str, Coefficient], References, tuple[float, float]]:
     case = config(point.setup, point.point.condition, point.reference, point.geometry)
+    if point.point.restart_from is not None:
+        staged = configparser.ConfigParser()
+        staged.read(folder / "case.ini", encoding="ascii")
+        start = staged.getfloat("solver-time-integrator", "tstart")
+        case = replace(case, tend=case.tend + start, window_start=case.window_start + start)
     refs = References(
         1,
         1,

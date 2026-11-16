@@ -4,17 +4,23 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from cfdbender.core import WorkspaceError, init_workspace, input_kinds
+from cfdbender.core.refusals import warning_refusals
 from cfdbender.core.registry import RegistryError, RunRegistry
+from cfdbender.core.settings import require_workspace
+from cfdbender.matrix import queries, records, storage
 from cfdbender.matrix._console import (
     WORKSPACE_HELP,
     Console,
     add_console_options,
+    add_refusal_option,
     add_warning_option,
     held_warnings,
     level_of,
+    refusals_wanted,
 )
 from cfdbender.matrix.records import archive_sim
 from cfdbender.solvers import available_solvers
@@ -24,12 +30,17 @@ from cfdbender.solvers.flightstream import init_workspace as init_flightstream
 
 def build_parser() -> argparse.ArgumentParser:
     """Return the cfd-workspace argument parser."""
+    return _build()[0]
+
+
+def _build() -> tuple[argparse.ArgumentParser, dict[str, Callable[[argparse.Namespace], int]]]:
     parser = argparse.ArgumentParser(
         prog="cfd-workspace",
         description="Managed campaign workspace tooling for CFD studies.",
         allow_abbrev=False,
     )
     add_warning_option(parser)
+    add_refusal_option(parser)
     subparsers = parser.add_subparsers(dest="subcommand", required=True)
     init = subparsers.add_parser(
         "init",
@@ -80,11 +91,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     for command in (init, archive):
         add_console_options(command)
-    return parser
+    verbs: dict[str, Callable[[argparse.Namespace], int]] = {}
+    for module in (queries, records, storage):
+        verbs.update(module.register_workspace(subparsers))
+    for name in verbs:
+        add_console_options(subparsers.choices[name])
+    return parser, verbs
 
 
 def _campaign_root(args: argparse.Namespace) -> str:
-    root = "." if args.root is None else str(args.root)
+    positional = getattr(args, "root", None)
+    root = "." if positional is None else str(positional)
     if args.workspace is None:
         return root
     named = str(args.workspace)
@@ -111,20 +128,33 @@ def main(argv: list[str] | None = None) -> int:
         Argument parsing exits with 0 for help and 2 for invalid arguments.
     """
     argv = sys.argv[1:] if argv is None else argv
-    if (forwarded := dispatch(argv, workspace=True)) is not None:
+    parser, verbs = _build()
+    if (forwarded := dispatch(argv, workspace=True, matrix_verbs=frozenset(verbs))) is not None:
         return forwarded
-    args = build_parser().parse_args(argv)
+    args = parser.parse_args(argv)
     try:
         console = Console(level_of(args))
         root = Path(_campaign_root(args)).resolve()
+        refuse = refusals_wanted(args, root)
     except WorkspaceError as error:
         print(str(error), file=sys.stderr)
         return 2
-    with held_warnings(root, show=args.console_warnings):
-        return _run(args, console)
+    with held_warnings(root, show=args.console_warnings), warning_refusals(refuse):
+        return _run(args, console, verbs)
 
 
-def _run(args: argparse.Namespace, console: Console) -> int:
+def _run(
+    args: argparse.Namespace,
+    console: Console,
+    verbs: dict[str, Callable[[argparse.Namespace], int]],
+) -> int:
+    if args.subcommand in verbs:
+        try:
+            require_workspace(args.workspace)
+            return verbs[args.subcommand](args)
+        except (OSError, ValueError) as error:
+            console.error(str(error))
+            return 2
     if args.subcommand == "archive":
         try:
             root = Path(_campaign_root(args)).resolve()

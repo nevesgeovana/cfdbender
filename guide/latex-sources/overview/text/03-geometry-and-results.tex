@@ -1,0 +1,36 @@
+% Geometry, mesh and result products in the current workflow.
+\section{Geometry, mesh and results}
+
+\begin{frame}[fragile]{Build the shape, then the mesh}
+\begin{lstlisting}
+cfd-geom validate model.toml
+cfd-geom run model.toml
+cfd-mesh airfoil-2d --naca 0012 --reynolds 6000000
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{cfd-geom} builds parametric geometry and records its stages in
+        \code{inputs/geometry/<name>/}, with \code{geometry.json}.
+  \item \code{cfd-mesh} generates and transforms meshes in \code{inputs/mesh/},
+        with provenance sidecars. The airfoil command writes SU2 and gmsh files.
+  \item A 2D SU2 or OpenFOAM row that sweeps \code{ALPHA} can become a section
+        polar: \code{polars/P<POL>.txt}, readable by XFOIL and QPROP.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{From a saved solution to a recorded result}
+\begin{itemize}\small
+  \item \code{RESTART} in a row names a recorded source solution;
+        \code{run --restart} continues each point from its own solution.
+        SU2, OpenFOAM and PyFR support both. Earlier evidence is archived first.
+  \item The host guard is \textbf{off by default}. Add
+        \code{--one-run-at-a-time}, or set \code{one_run_at_a_time = true}
+        under \code{[solver]} in \code{init.toml}, to reserve the host.
+  \item In \code{VAR_NAMES_VALUES}, \code{hpc: alpha / cluster: west}
+        selects a profile and cluster per row. \code{hpc:} overrides
+        \code{--hpc}; \code{--local} ignores both row selections.
+  \item \code{collect} writes \code{campaign_summary.json}, family tables such as
+        \code{FAM-ACOEF-P<POL>.csv}, group tables and \code{products.json}.
+        Setup \code{[groups]} boundary forces stay in the summary, separately
+        from the family-based group CSV files. Guide 2 gives the file map.
+\end{itemize}
+\end{frame}

@@ -49,7 +49,12 @@ def _isolated_process_lease(request, monkeypatch):
         monkeypatch.setattr(module, "process_lease", lambda solver="SU2": nullcontext())
 
 
-_REAL_RECEIPT_MODULES = {"test_cli_plan_receipt", "test_plan_receipt"}
+_REAL_RECEIPT_MODULES = {
+    "test_cli_plan_receipt",
+    "test_plan_receipt",
+    "test_p053_rowhpc_profiles",
+    "test_p060_int060_rowhpc_merge",
+}
 
 
 @pytest.fixture(autouse=True)
@@ -63,8 +68,8 @@ def _planned_before_run(request, monkeypatch):
     from cfdbender.matrix import cli
     from cfdbender.matrix.receipt import require_receipt, write_receipt
 
-    def planned_first(plan):
-        write_receipt(plan)
-        require_receipt(plan)
+    def planned_first(plan, profiles=()):
+        write_receipt(plan, profiles)
+        require_receipt(plan, profiles)
 
     monkeypatch.setattr(cli, "require_receipt", planned_first)

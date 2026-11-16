@@ -1,10 +1,10 @@
 """R2-07: sync must not combine a point record with another execution's files."""
 
+from cli_route import main
 from test_cli_verbs import FIRST, ran
 from test_p0000_item3c_adapter import workspace
 
 from cfdbender.core.registry import RunRegistry
-from cfdbender.matrix.cli import main
 
 
 def _sources(root, other):

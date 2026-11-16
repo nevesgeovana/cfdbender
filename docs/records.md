@@ -7,6 +7,18 @@ to read and correct the records that every run leaves.
 status, its times and the verdict on its convergence. The commands on this page
 read it or change it. You never edit it by hand.
 
+Writers hold `runs.json.lock`, which names their process. A live writer or a
+lock with no readable process identity refuses another writer. If the named
+process is gone, the next writer takes over under an exclusive operating-system
+lease and warns. You do not need to remove a departed writer's lock by hand.
+
+The run manifest now uses schema version 2. Reading a valid version 1 manifest
+from 0.5.x validates it, copies its exact bytes to `archive/<stamp>/runs.json`,
+then atomically upgrades it under the writer lock. History and recorded evidence
+are preserved. An invalid or future manifest is refused without rewriting it.
+The first read therefore needs write access to the workspace. Restoring an old
+archive also reads version 1 and writes version 2.
+
 ## The status of a record
 
 | Status | Meaning |
@@ -21,6 +33,50 @@ verdict `failed`, and the record keeps the reason. The commands show such a
 point by the word of its reason, `FAILED_EXECUTION` or another `FAILED_` word,
 so that it is not read as a success. [Results and tables](results.md) explains
 the verdicts.
+
+## Restart from a saved solution
+
+Use a row's `RESTART` entry to start new points from a recorded solution. To
+continue each selected point from its own last solution instead:
+
+```console
+cfd-matrix run polar --local --restart
+cfd-matrix run polar --local --restart --sims 1001
+```
+
+Every selected source must have saved solution state. A source from another point
+must be completed. `run --local --restart` can also continue a point left
+`RUNNING` by an interrupted local run, after you confirm its process has stopped.
+Sources and local executables are checked before archiving. Add `--one-run-at-a-time`
+to reserve the machine against other guarded local runs before archiving. The previous folders
+and records are archived, then the solution files are copied into new point
+folders. Existing evidence is preserved. This option cannot be combined with
+`--resume` or the force-rerun options. `--resume` selects points to run and does
+not request saved solution state.
+
+SU2 copies its configured `RESTART_FILENAME` (default `restart_flow.dat` or
+`restart_flow.csv`) to `restart-input.dat` or `.csv` and sets `RESTART_SOL` and
+`SOLUTION_FILENAME`. `READ_BINARY_RESTART` matches the saved binary or ASCII
+output format. OpenFOAM copies every field of the latest positive time directory,
+requires `U` and `p`, sets `startFrom latestTime` and adds the requested
+iterations to the saved time. PyFR copies its most recently written `.pyfrs`
+output to `restart.pyfrs` together with its saved native `mesh.pyfrm`, and runs
+`pyfr restart` without reimporting the mesh. A different source mesh is refused.
+Its writer saves a solution
+every `tend` time units; a restarted run adds that duration to the saved time.
+PyFR keeps its existing force window relative to the new start time.
+
+The point fields `restart_from`, `restart_directory` and `restart_sha256` in
+runs.json name the source point, its saved folder and the SHA-256 of each copied
+solution input. A source whose solution is absent or changes before staging is
+refused with the source point named. Other adapters warn and skip a restart;
+`--warning-refusals` makes the skip a refusal.
+
+For grouped forces, the adapter returns `NeutralResult.force_groups`; collect
+places it at `points[].result.force_groups` in the campaign summary. Each
+requested group and `TOTAL` carries coefficient values with explicit axes and
+kinds, using the result's reference values. The per-group values are read from
+the retained solver history files; no group CSV is written.
 
 ## Running a matrix again
 
@@ -120,11 +176,11 @@ sim   matrix  point               status     classification  error
 | Command | Prints |
 |---|---|
 | `cfd-matrix status` | One line per sim with the count of its points in each status. `--points` gives one line per point. `--failed` keeps the sims with a failed point. `--status WORD` keeps the sims with a point in that status or verdict; `fail*` matches every word that starts with `fail`. |
-| `cfd-matrix show 1001/DP-M200AL+020` | The card of one point: status and verdict, solver and version, flight condition, iterations and coefficients once collected, folder, times and error if any. `show 1001` lists the points of the sim, one line each. `--verbose` prints the whole record: inputs, fingerprints, every field that has a value. |
-| `cfd-matrix history 1001` | The current and the earlier records of a sim or a point, with the archive folder of each earlier one. |
-| `cfd-matrix log` | What happened, in time order: the commands and, for each point, `registered`, `started` and `finished`. `--problems` keeps the failures, `--since 2h` the last two hours, `--open` the runs that started and have no end. |
-| `cfd-matrix diff RUN_A RUN_B` | Two records, field by field. The exit code is 1 when they differ. The fingerprints and output paths, which differ whenever two points do, are folded into one line; `--verbose` lists them. |
-| `cfd-matrix trace post/polar/campaign_sweep.csv` | The runs behind a collected file, with the number of input files each was made from; `--verbose` lists the fingerprints. |
+| `cfd-workspace show 1001/DP-M200AL+020` | The card of one point: status and verdict, solver and version, flight condition, iterations and coefficients once collected, folder, times and error if any. `show 1001` lists the points of the sim, one line each. `--verbose` prints the whole record: inputs, fingerprints, every field that has a value. |
+| `cfd-workspace history 1001` | The current and the earlier records of a sim or a point, with the archive folder of each earlier one. |
+| `cfd-workspace log` | What happened, in time order: the commands and, for each point, `registered`, `started` and `finished`. `--problems` keeps the failures, `--since 2h` the last two hours, `--open` the runs that started and have no end. |
+| `cfd-workspace diff RUN_A RUN_B` | Two records, field by field. The exit code is 1 when they differ. The fingerprints and output paths, which differ whenever two points do, are folded into one line; `--verbose` lists them. |
+| `cfd-workspace trace post/polar/polars/P1001-TOTAL-ACOEF.csv` | The runs behind a collected file, with the number of input files each was made from; `--verbose` lists the fingerprints. |
 
 An empty answer says why: `no recorded sim yet: run a matrix first`, `no
 failed point`, or `no recorded point matches the selection`. The times are
@@ -135,7 +191,7 @@ An earlier record is named by its point and its archive stamp, as `history`
 prints it:
 
 ```console
-cfd-matrix history 1001/DP-M200AL+020
+cfd-workspace history 1001/DP-M200AL+020
 ```
 
 ```text
@@ -151,7 +207,7 @@ at a point and judge it differently, record your verdict. Both commands show
 what they would do and change nothing until you add `--apply`.
 
 ```console
-cfd-matrix mark-failed --sims 1001 --points DP-M200AL+040 --reason "residual stalled"
+cfd-workspace mark-failed --sims 1001 --points DP-M200AL+040 --reason "residual stalled"
 ```
 
 ```text
@@ -160,7 +216,7 @@ preview only; add --apply to change the records
 ```
 
 ```console
-cfd-matrix mark-failed --sims 1001 --points DP-M200AL+040 --reason "residual stalled" --apply
+cfd-workspace mark-failed --sims 1001 --points DP-M200AL+040 --reason "residual stalled" --apply
 ```
 
 ```text
@@ -174,7 +230,7 @@ the mark. After a mark, `status` and the `error` of the point in the collected
 summary read `FAILED_MARKED: <your reason>`; `collect` keeps the reason and
 the result keeps the class the solver's own evidence gives.
 
-`cfd-matrix mark-converged --sims POL --reason TEXT` records that completed
+`cfd-workspace mark-converged --sims POL --reason TEXT` records that completed
 points converged, for example a point that reached its iteration limit with
 steady forces. It needs a reason. `collect` then reads the point as before: its
 row carries your verdict in `classification`, and the result keeps the class the
@@ -192,7 +248,7 @@ Your verdicts are kept in `marks.json` with their reason and their time, and
 ## Bringing a file back
 
 ```console
-cfd-matrix restore runs
+cfd-workspace restore runs
 ```
 
 ```text
@@ -212,7 +268,7 @@ it, or from the one you name with `--stamp`:
 
 ## Records for folders that have none
 
-`cfd-matrix rebuild --matrix NAME` writes records for sim folders that are on
+`cfd-workspace rebuild --matrix NAME` writes records for sim folders that are on
 disk and have no record. It reads the plan of the matrix to know which points to
 expect. It previews unless `--apply` is given.
 

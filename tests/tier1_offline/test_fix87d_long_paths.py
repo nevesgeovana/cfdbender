@@ -6,10 +6,10 @@ import os
 import sys
 
 import pytest
+from cli_route import main
 from test_cli_verbs import ran
 
 from cfdbender.core import longpath
-from cfdbender.matrix.cli import main
 
 windows_only = pytest.mark.skipif(sys.platform != "win32", reason="the limit is a Windows one")
 

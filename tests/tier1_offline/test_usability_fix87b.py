@@ -5,9 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from cli_route import main as matrix_main
 from test_matrix_columns_all_solvers import build
-
-from cfdbender.matrix.cli import main as matrix_main
 
 NL = chr(10)
 

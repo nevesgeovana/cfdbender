@@ -6,6 +6,8 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+#: The runtime dependencies of the geometry and mesh layers, gmsh and VTK included.
+BASE_DEPENDENCIES = ("gmsh", "matplotlib", "numpy", "pydantic", "rtree", "scipy", "trimesh", "vtk")
 
 
 def test_p0000_item4_release_coordinates():
@@ -22,7 +24,10 @@ def test_p0000_item4_release_coordinates():
     )
     assert citation is not None
     assert project["version"] == version == citation[1]
-    assert project["dependencies"] == [], "the wheel must install without runtime dependencies"
+    names = sorted(
+        re.split(r"[<>=!~ ;\[]", item, maxsplit=1)[0] for item in project["dependencies"]
+    )
+    assert names == sorted(BASE_DEPENDENCIES), "the base dependencies are the declared numeric set"
 
 
 def test_p0000_item4_release_notes_and_status():
@@ -44,9 +49,9 @@ def test_readme_does_not_describe_su2_as_absent():
     assert "These integrations are planned and are not present" not in readme
 
 
-def test_p0200_item5_release_target():
+def test_p0600_release_target():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert project["version"] == "0.5.2"
+    assert project["version"] == "0.6.0"
 
 
 def test_guide_version_matches_the_package_version():

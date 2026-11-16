@@ -1,10 +1,10 @@
 """Management changes must respect the run writer for the whole operation."""
 
 import pytest
+from cli_route import main
 from test_p0000_item3c_adapter import workspace
 
 from cfdbender.core.registry import RegistryError, RunRegistry
-from cfdbender.matrix.cli import main
 
 
 @pytest.mark.parametrize("command", ["free-space", "sync"])

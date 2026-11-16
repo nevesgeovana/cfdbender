@@ -1,0 +1,37 @@
+[configurations]
+demo = ["FUS", "WING"]
+
+[components.FUS]
+type = "body"
+length_mm = 8000.0
+parts = [0.0, 0.15, 0.35, 0.75, 1.0]
+tail = {kind = "pole"}
+
+[[components.FUS.sections]]
+at = "middle"
+shape = "circle"
+radius_mm = 400.0
+
+[components.WING]
+type = "lifting_surface"
+attach = { parent = "FUS", station = 0.4 }
+
+[components.WING.planform]
+sref_m2 = 4.0
+aspect_ratio = 9.0
+taper = 0.5
+le_sweep_deg = 4.0
+incidence = 2.0
+
+[[components.WING.stations]]
+eta = 0.0
+section = {kind = "naca", code = "0012"}
+
+[[components.WING.stations]]
+eta = 1.0
+section = {kind = "naca", code = "2412"}
+
+[components.WING.cap]
+type = "rounded"
+length = 1.2
+exponent = 0.9

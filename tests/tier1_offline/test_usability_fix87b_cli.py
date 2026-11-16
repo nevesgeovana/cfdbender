@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import pytest
+from cli_route import main as matrix_main
 from test_matrix_columns_all_solvers import build
 from test_usability_fix87b import edit, run
 
-from cfdbender.matrix.cli import main as matrix_main
 from cfdbender.workspace.cli import main as workspace_main
 
 
@@ -48,14 +48,15 @@ def test_u27_the_matrix_help_has_a_description_and_the_first_campaign(capsys):
         matrix_main(["--help"])
     out = capsys.readouterr().out
     assert "first campaign" in out and "cfd-matrix plan <matrix>" in out
-    assert "Verbs by stage" in out
+    assert "cfd-matrix acts on a matrix" in out and "cfd-workspace acts on" in out
 
 
 def test_u27_shared_options_read_the_same_everywhere(capsys):
     texts = {}
     for verb in ("plan", "run", "collect", "post", "status", "log", "show"):
+        main = workspace_main if verb in ("log", "show") else matrix_main
         with pytest.raises(SystemExit):
-            matrix_main([verb, "--help"])
+            main([verb, "--help"])
         texts[verb] = " ".join(capsys.readouterr().out.split())
     for verb, text in texts.items():
         assert "campaign workspace (default: the current directory)" in text, verb

@@ -5,6 +5,333 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-16
+
+### Added
+
+- A dependency licence page lists every base dependency, including gmsh's GPL
+  and upstream linking exception, beside the installation instructions.
+- Select an HPC profile per matrix row with `hpc: <name>` in `VAR_NAMES_VALUES`.
+- Select a cluster per matrix row with `cluster: <name>` in `VAR_NAMES_VALUES`.
+
+- `cfdbender.mesh`: read a surface mesh, read one group of an OBJ in its file's face order,
+  weld coincident vertices and cut a surface mesh by a plane into ordered pieces.
+- `cfdbender.geometry`: parametric components described by a few parameters and rebuilt as
+  B-spline patches with no geometry kernel: lifting surfaces with sections, distributions and
+  caps, bodies, fairings, fillets, blisters, control surfaces and a Fowler flap, with the
+  component record (`ComponentRecord`), its JSON Schema shipped as package data, and the TOML
+  input boundary (`load_config`, `resolve_config`).
+- numpy, scipy, trimesh, pydantic and matplotlib are now base dependencies.
+- `cfdbender.geometry.run_geometry`: run the geometry pipeline for a configuration, with one JSON record per stage, a readable
+  run log and a report that names the first failed stage and check. The default run reaches S13 using the geometry kernel.
+  `describe_config`, `list_configurations` and the stage table `STAGE_ROWS` come with it.
+- `cfdbender.geometry.Propeller`: build a propeller blade from a classical definition (radius,
+  stations of chord, pitch, thickness, skew and rake, airfoils by NACA code, CST or file), with
+  its measured checks (solidity, activity factor, pitch at 0.7 R, loft, closure).
+- `cfdbender.geometry.blade_sections`: radial sections of a blade surface mesh (radius, chord,
+  pitch angle and unit-chord shape) cut by the propeller slicer on planes that follow the
+  blade's skew, or on unrolled cylinders; it keeps the setup keys of the slicer it replaces.
+- Reverse identification math (`cfdbender.geometry.stages`): classify clean section cuts of an
+  original skin, measure chord, incidence and thickness, rebuild the reference planform and fit
+  a CST section to a cut; the cutting of an IGES skin comes with the geometry kernel.
+
+- The geometry kernel: gmsh and its OpenCASCADE kernel are reached through one module,
+  `cfdbender.mesh._gmsh`, which reads and writes IGES files with the names of their surfaces,
+  projects points onto faces and runs a kernel operation in a worker process, so a fault of the
+  kernel ends the worker and leaves no partial output. gmsh and VTK are now base dependencies;
+  the gmsh licence (GPL-2.0-or-later with a linking exception) is stated on the Install page.
+- `cfd-geom`, the parametric geometry program: `validate`, `schema`, `stages`,
+  `configurations`, `run`, `doe`, `identify`, `check` and `iges-convert`. `run` writes into
+  `inputs/geometry/<name>/` of the workspace with the sidecar `geometry.json`; `doe` writes one
+  geometry per parameter set, its folder named by the set's `name` (the matrix row it feeds).
+- The geometry stages that need the kernel now run: the S10 assembly sub-steps, S11 (the
+  exposed skin as one named IGES, with its registry, profile, read-back and sew checks and the
+  propeller checks), S12 (the export read back by this package's convert and grid) and S13 (the
+  round trip). The control-surface sub-steps S10.F0 to S10.F7 and S10.FW1 to S10.FW4 are recorded
+  as not built.
+- `cfd-mesh`, the surface mesh program, with `mesh` (a configuration meshed from its mesh
+  controls, strategy 1 or 2) and `mesh-generated` (an all-quad OBJ of a configuration). A mesh
+  named without a folder is written into `inputs/mesh/` with `<file name>.provenance.json`,
+  which records the command, the sources with their SHA-256 and the options; a sidecar is never
+  offered as a mesh.
+- cfd-mesh `refine` refines or coarsens a panel mesh (a factor below 1 coarsens), with
+  `prepare-to-refine`, `audit` and `inventory`; `merge` joins two trimmed OBJ along their open
+  boundaries; `degenerate` derives a thin blade.
+- `cfd-mesh sector-remesh` remeshes an OBJ sector with the generic surface remesher,
+  including structured families at factor 1. It uses the refinement controls and writes
+  a level under `inputs/mesh/` with boundary files, an audit and provenance. Boundaries
+  can be resampled; check periodic seams before building a wheel.
+- cfd-mesh `trailing-edge`, `identify-te` and `convert2midnodes` write trailing-edge points
+  files (`convert2midnodes` reads a node-set list in any order); `collapse-te` collapses a blunt
+  trailing edge of named blades.
+- cfd-mesh `scale`, `morph`, `repitch`, `hub-rings` and `sector-to-wheel`: rotor meshes are
+  scaled, morphed, repitched, rebuilt around their hubs and copied from an OBJ sector into a
+  full wheel. `iges-grid` grids named IGES components into one OBJ; `visual-inspect` draws a
+  mesh in four views into a PDF; `prop-slice` cuts a propeller OBJ into blade sections and a
+  propeller definition.
+- An OBJ mesh's `<file name>.boundaries.toml` sidecar (its surface inventory, trailing edges
+  and base regions) is read and written by these verbs.
+- Docs: the page "Geometry and mesh commands" (`docs/cli-geometry-mesh.md`), generated from
+  the two parsers by `tools/build_geom_mesh_cli_page.py`, is linked from the site navigation.
+
+- `cfd-mesh airfoil-2d` meshes a 2D airfoil section, from a NACA 4 or 5 digit designation or a
+  coordinates file in Selig order, as a structured C-mesh of quadrilaterals: four gmsh blocks
+  sharing the wake cut, a far field 500 chords away by default, and the cell counts of the NASA
+  TMR NACA 0012 grids (`--level coarse`, the default, `medium` or `fine`). The first cell is
+  sized for a target y+ (default 1) at the Reynolds number given with `--reynolds`, through the
+  Schlichting flat-plate skin friction. The trailing edge is collapsed to sharp by default or
+  kept blunt with a base of its own (`--trailing-edge blunt`). It writes
+  `inputs/mesh/<name>.su2` (markers `airfoil`, `farfield`) and `inputs/mesh/<name>.msh` (gmsh
+  2.2, one cell thick, patches `airfoil`, `farfield`, `front`, `back`, volume `fluid`), which the
+  SU2 and OpenFOAM workspaces read as they are. A blunt edge also has the `airfoil_base`
+  marker or patch. Each file has a provenance sidecar recording every option, the measured
+  quality and the file hashes, through the shared mesh command helpers.
+
+- An interrupted local point can restart from its saved solution after you confirm
+  its process has stopped. Its earlier evidence is archived first.
+
+- SU2 and OpenFOAM accept `[groups]` tables and expose one force set per group
+  plus `TOTAL` in neutral results and campaign summary records. Unknown markers
+  are refused with the mesh marker inventory. No group CSV files are written.
+
+- Matrix `RESTART` entries copy a recorded point's solution. `run --restart`
+  continues each selected point from its own last solution. SU2, OpenFOAM and
+  PyFR support both forms and record the source and solution input digests.
+
+- Cluster profiles accept `job_end_files`. Collect requires every recorded end
+  marker before reading a submitted point.
+
+- `[defaults]` in init.toml supplies setup keys for every row. Setup keys override
+  defaults and row variables override the setup.
+
+- `cfdbender.core.convergence`: the per-point convergence rule of a polar. A point is
+  converged when its residual reaches the target (R: SU2 `rms[Rho]` at -12, OpenFOAM every
+  field's initial residual at 1e-6) or when CL and CD pass a Cauchy test (mean relative
+  change below 1e-6 over 250 iterations) on a row whose residual lies at least 3 orders below
+  its first value (C). It is applied beside the adapter's classification, never instead of it.
+- SU2 and OpenFOAM family and group tables carry the rule's
+  verdict per point in `rule_verdict` (R, C or none), `rule_iteration` and `rule_drop_orders`,
+  after `solver_version`.
+- `collect` and `post` write `post/<matrix>/polars/P<POL>.txt` for a matrix row that sweeps
+  ALPHA on a 2D SU2 or OpenFOAM case: a polar in the XFOIL file layout with the seven
+  columns alpha, CL, CD, CDp, CM, Top_Xtr and Bot_Xtr (transition 0.0000, fully turbulent;
+  CDp 0.00000, stated as not measured in the header), one row per point converged by the
+  rule, in ascending alpha. cfdbender's XFOIL reader and the QPROP section reader read it
+  unchanged. A point not converged by the rule is left out with one warning naming it (a
+  refusal under `--warning-refusals`) and keeps its CSV row. `products.json` lists the file
+  with kind `polar`.
+- Docs: the page "2D polars", with the recommended sweep (-8 to 16 degrees, step 1), the
+  SU2 polar setup with the JST deck stated in full, the OpenFOAM setup and the rule.
+
+### Changed
+
+- Trailing-edge extraction and mesh operations share a point-file writer without geometry
+  importing mesh operation modules. The existing mesh writer import remains available.
+- Geometry documentation states assembly limits directly and uses generic component names
+  in override examples.
+- The four guides describe geometry and mesh generation, 2D section polars,
+  current result products, saved-solution restart, boundary forces and per-row
+  submission settings. A ninth cheatsheet page lists geometry and mesh controls.
+- QPROP: a blade OBJ is sliced through `cfdbender.geometry.blade_sections`. The default stays
+  `cut = "cylinder"`, the unrolled cylinder r = const, as before; `cut = "plane"` now uses
+  the propeller slicer on planes that follow the blade's skew, and writes a sharp trailing
+  edge to the section airfoil file with a half gap of 1e-5 chord.
+- Mesh paths: a folder `inputs/geometry/<name>/` holding a `geometry.json` sidecar is
+  generated geometry; a path inside it is used as named, with no legacy-folder warning and never
+  replaced by a same-named file of `inputs/mesh/`.
+- The offline kit carries the wheels of every runtime dependency for Windows and Linux
+  (CPython 3.12) in `wheels/` and installs with `pip install --no-index --find-links wheels`;
+  `tools/build_kit.py --wheels CACHE` takes them from a local folder instead of the index.
+
+- `cfd-mesh prepare-to-refine` and `degenerate` write generated OBJ files under the
+  workspace's `inputs/mesh/`; `--out DIR` chooses another folder. Their Python APIs
+  accept `out_dir` and retain their default of writing beside the source.
+- The runtime dependencies include rtree, the spatial index used by trimesh to project
+  remeshed nodes onto their source surface.
+- `cfd-mesh refine` writes its level folder under the workspace's `inputs/mesh/` by
+  default, including when its source OBJ lives outside the workspace.
+- `cfdbender.geometry.run_geometry` runs to `S13` by default (it stopped at `S10`, the last
+  stage with no kernel); `until="S10"` keeps the earlier behaviour.
+
+- The command reference and cheatsheet source list the restart option.
+
+- The solver setup pages document groups within their existing page template.
+
+- Explicit row conditions and geometry replace fallback setup defaults. Explicit
+  setup values keep their normal agreement checks with the row.
+
+- SU2 selects the binary or ASCII reader to match its saved restart output.
+
+- A PyFR restart copies the paired native mesh and does not reimport it.
+
+- Product skips use the shared warning-refusal policy and name the point and reason.
+
+- A file replaced during the collect settle interval remains outstanding.
+
+- A departed runs.json writer's lock is taken over with a warning. Every registry
+  transaction now records its writer process.
+
+- A skipped cluster request prints the complete local command with your arguments.
+- A plan that falls back to local work checks the build and executable.
+
+- Planning and execution read the same composed setup.
+
+- `cfd-matrix` acts on a matrix (`plan`, `run`, `status`, `collect`, `post`); `cfd-workspace`
+  acts on what the workspace holds. Thirteen verbs moved to `cfd-workspace` as flat verbs with
+  the same names and options: `space-in-use`, `free-space`, `delete-sims`, `sync`, `restore`,
+  `rebuild`, `mark-failed`, `mark-converged`, `show`, `log`, `trace`, `history` and `diff`.
+- `--warning-refusals`, written before the command name of `cfd-matrix` or `cfd-workspace`, or
+  `warning_refusals = true` in `init.toml`, turns every skip that only warns into a refusal
+  with exit code 2: a row entry or a solver key that is not read, an input ignored or dropped,
+  a log line that cannot be read, a default used for a missing flight condition or Reynolds
+  number, a cluster staging that is skipped. Without it a skip warns and exits 0 as before.
+- `docs/cli.md`, the cheatsheet and the guides show the verbs under `cfd-workspace`.
+
+- Legacy mesh-folder warnings and automatic SU2 executable fallback now follow
+  `--warning-refusals` and the matching workspace option.
+
+- A rotor point without a valid diameter keeps its row and measured loads; the run block
+  and rotor ratios that need that size are NA. A rotor at rest states zero shaft power
+  even when the torque was not measured.
+
+- The polar frames W (wind), S (stability), B (body) and R<id> (one per rotor) are stated in
+  `cfdbender.core.axes`: in every frame CD is positive aft, CL positive up and CY positive
+  right, moments right-hand about the frame's forward, right and down axes. A rotor frame's x
+  runs along the shaft turned so that thrust is positive forward.
+- The neutral CL and CD are the wind-frame CLW and CDW. At zero sideslip nothing changes; at a
+  nonzero BETA a FlightStream point's CD now counts a side force to the right against the
+  drag, as frame W does.
+- Every mesh is expected in x aft, y right, z up. `cfdbender.core.mesh_frame` reads a
+  declaration of another axis-aligned frame (what the mesh's +x, +y and +z point to), refuses
+  a left-handed one by name, converts an OBJ mesh with its face order and groups kept, and
+  states the conversion for the run record.
+  QPROP reads `mesh_frame` from the setup and converts the OBJ in memory before planning
+  and slicing. `sections.json` keeps its declaration, matrix and both byte digests;
+  `products.json` states these per point under `frames.mesh.points`.
+- The rotor coefficients of a rotor family or group are stated in
+  `cfdbender.core.rotor_coefficients`: T, Q, P (kW), CT, CQ, CP, CFZ, CFY, CMZ, CMY and ETA in
+  the rotor frame, TC to MCA over the disc and the airframe loading, and CT, CQ, ETA per
+  frame. Thrust is positive forward, so a rotor declared aft counts thrust, torque and
+  efficiency against its declared axis. A static point states no efficiency and no loading;
+  a rotor at rest or of unknown speed states no coefficient over n squared.
+- QPROP's printed thrust and torque are the R0 loads of a rotor whose shaft points forward;
+  its in-plane coefficients are NA, because QPROP prints no in-plane load.
+- Every polar, group and sections table opens with the canonical run block: POL, POINT_ID,
+  POINT, the row's other condition keys, RUN_TYPE, the flight condition, the per-rotor
+  columns RPM<id>, J<id>, MTIP<id>, MHEL<id>, the requested J and the clock, ALT to MU, the
+  references SREF, CREF, BREF and the moment point, D<id>, ADISC<id>, PITCH<id>, TOE<id>, and
+  the averaging window (NA on a steady row). A column that does not apply is NA, never absent.
+- Families and groups: a solver's integrated result is one family per point (`BODY` for an
+  airframe solver, `BLADES` inside rotor 0 for QPROP). The groups TOTAL (GROUP_ID 0), AIRFRAME
+  (1) and one per rotor named by its alias (10 + id, `PROPELLER` for QPROP) are written for
+  every polar; a group with no member is a named skip, so a solver without rotors writes no
+  rotor group and QPROP writes no AIRFRAME group. TOTAL, AIRFRAME, FAM and GRP are reserved.
+- `collect` and `post` write one file set per polar under `post/<matrix>/polars/`:
+  `FAM-DIM-P<POL>.csv` (force and moment in newtons, geometry frame), `FAM-ACOEF-P<POL>.csv`
+  (CD, CY, CL, Cl, Cm, Cn in W, S, B and R<id>, then the solver's own coefficients) and, for
+  QPROP, `FAM-RCOEF-P<POL>.csv`, one row per point and family; and `P<POL>-<GROUP>-<KIND>.csv`
+  for the groups TOTAL, AIRFRAME and each rotor, one row per point. A group's values come from
+  its members' summed loads. The run block's ALT is in feet, as the matrix states it.
+- A matrix key `V` (QPROP's free-stream speed) fills the VINF column.
+- `products.json` is schema version 2: each product names its kind (and its polar and group),
+  and the document states `tree`, `kinds` (every column's unit, frame, quantity and sign),
+  `run_block`, `frames` (with each rotor frame's pitch, toe and sense), `families`, `groups`,
+  `polars` and `migrated`. A group with no member is listed under `skipped` and leaves
+  `complete` true; a point without a result still makes it false.
+- `sections/P<POL>/<point>_sections.csv` holds a point's sectional distribution: the run block, then
+  FAMILY, FAMILY_ID, STEP, PLANE, ROTOR_ID, AZIMUTH and the solver's own columns. QPROP writes
+  its radial table there; a point whose output holds none is a named skip. No solver of this
+  release writes a Cp file.
+  The polar folder prevents points with equal names in different polars from replacing
+  each other's distribution.
+
+### Fixed
+
+- The guides describe current family and group result files instead of retired tables,
+  and state that the host guard is opt-in.
+
+### Removed
+
+- `cfdbender.geometry.blade_slicing`, the plain-Python blade slicer: `cfdbender.geometry.blade_sections`
+  takes its place with the same names (`slice_blade`, `radial_extent`, `station_radii`,
+  `parse_obj`, `BladeSection`, `BladeSliceError`). `radial_extent` takes a `cut` keyword, `"cylinder"` by
+  default: on a `"plane"` cut coincident vertices are merged before the largest component is
+  taken, so the extent is that of the blade the plane cut sees.
+
+- `campaign_sweep.csv` is retired and no longer written: each polar's TOTAL group file
+  `polars/P<POL>-TOTAL-ACOEF.csv` holds every point of the polar, and several polars join by
+  concatenating those files. `cfd-workspace trace` refuses the retired name.
+
+### Migration
+
+- Older HPC plan receipts lack the selected profile or its digest and are refused. Run
+  `cfd-matrix plan <matrix>` to plan again before submitting.
+
+- Post metadata now records content digests and refuses replacement of unrecorded or
+  edited `campaign_summary.json`, `products.json` and `post.log`. For an older post
+  tree without these digests, choose an unused backup folder and preserve the whole
+  tree before recollecting. In PowerShell, type
+  `Move-Item -LiteralPath post/study -Destination post/study.pre060`; in a POSIX shell,
+  type `mv -n post/study post/study.pre060`. Then type `cfd-matrix collect study`.
+- Generated table entries in `products.json` now record `sha256`. Collection refuses
+  to replace a changed table or a file without a matching product digest. Move that
+  file to a separate folder, then run `cfd-matrix collect <matrix>` again. An existing
+  table whose bytes already match the regenerated result is retained without a write.
+- To keep prepared meshes and thin blades beside a source, pass its folder with `--out`.
+- To keep refinement levels in another folder, pass `cfd-mesh refine --out DIR`.
+- A script that called `run_geometry(config, out=...)` without `until` and expected the run
+  to stop before the kernel passes `until="S10"`.
+
+- Existing results keep their fields. Grouped results add `force_groups` with
+  the same axes, coefficient kinds and references as the complete force set.
+
+- Restarting requires retained solution files. Unsupported adapters warn and
+  skip the request, or refuse it under warning_refusals.
+
+- The first read of a valid 0.5.x runs.json archives its original bytes before
+  upgrading to schema version 2. It requires write access to the workspace.
+
+- Existing workspaces need no change. Plan again after adding or editing defaults.
+
+- The old `cfd-matrix` form of each moved verb is refused with exit code 2 and a message that
+  names the command to type. Replace `cfd-matrix show 1001` with `cfd-workspace show 1001`, and
+  likewise for every verb listed above; the options are unchanged.
+- Scripts that call `cfd-matrix log`, `cfd-matrix mark-failed`, `cfd-matrix sync` or any other
+  moved verb need the new program name; `plan`, `run`, `collect`, `post` and `status` stay.
+
+- `polars/P<POL>.csv` is no longer written; read `polars/FAM-ACOEF-P<POL>.csv` (or the TOTAL
+  group file `P<POL>-TOTAL-ACOEF.csv`). The neutral CL, CD and CM are its CLW, CDW and CmW;
+  the record columns (status, verdict, iterations, residual, wall time, solver version) are in
+  `campaign_summary.json`.
+- An earlier-layout `polars/P<POL>.csv` under `post/<matrix>/` is left untouched, named once
+  in one warning (a refusal under `--warning-refusals`) and listed under `migrated` in
+  `products.json` with the file that replaces it; delete it when nothing reads it.
+- A `campaign_sweep.csv` left by an earlier collect stays in place, is named once in one
+  warning and is listed under `migrated`; read the TOTAL group files instead and delete it.
+
+- OpenFOAM points with a missing solved-field residual no longer pass the polar rule on that iteration.
+- Cauchy windows can recover after an undefined relative change leaves the window.
+
+- SU2 and OpenFOAM family and group tables gain `solver_version` and three rule columns
+  after their load columns; readers should take columns by name. The retired
+  `campaign_sweep.csv` and `polars/P<POL>.csv` are not recreated.
+
+- Replace `from cfdbender.geometry.blade_slicing import slice_blade` with
+  `from cfdbender.geometry.blade_sections import slice_blade`; the other exported names
+  listed under Removed move to the same module.
+- Install the new runtime dependencies with `python -m pip install --upgrade cfdbender`.
+  An offline installation uses `python -m pip install --no-index --find-links wheels cfdbender`.
+  The kit dependency wheels target CPython 3.12 on Windows and Linux.
+- Replace `cfd-matrix sync SOURCE` with `cfd-workspace sync SOURCE` and
+  `cfd-matrix log` with `cfd-workspace log`. For space-in-use, free-space, delete-sims,
+  restore, rebuild, mark-failed, mark-converged, trace, history and diff, make the same
+  program-name substitution and keep the existing arguments.
+- Readers of `products.json` must accept schema version 2 and select entries by `kind`;
+  replace reads of `campaign_sweep.csv` with `polars/P<POL>-TOTAL-ACOEF.csv` per polar.
+- To migrate `runs.json`, run `cfd-matrix status` in a writable workspace. The first read
+  archives the original manifest before writing schema version 2; retain that archive
+  if an older installation must read the original records.
+
 ## [0.5.2] - 2026-11-15
 
 ### Changed

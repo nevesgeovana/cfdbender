@@ -49,18 +49,30 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from cfdbender.core.adapter import AdapterPoint
+from cfdbender.core.flight import STATE_KEYS
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate
 from cfdbender.solvers._host._config import steady_only
-from cfdbender.solvers.su2._config import config, mesh_name, options, reads_key, render, staged_mesh
+from cfdbender.solvers._host._groups import groups, point_markers, validate_groups
+from cfdbender.solvers.su2._config import (
+    NEUTRAL_KEYS,
+    config,
+    mesh_name,
+    options,
+    reads_key,
+    render,
+    staged_mesh,
+)
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
-from cfdbender.solvers.su2._history import dimensions, read, residual_field
+from cfdbender.solvers.su2._history import dimensions, force_groups, read, residual_field
+from cfdbender.solvers.su2._restart import restart_files as restart_files
+from cfdbender.solvers.su2._restart import restart_values
 
 SOLVER_NAME = "su2"
-CAPABILITIES = frozenset({"cluster_staging"})
+CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups"})
 SOLVER_TYPE = "SU2"
 STAGED_CONFIG = "su2.cfg"
 #: The namespace of the s file that SU2 forwards unread (contract C-09): its own option names.
@@ -125,7 +137,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             condition,
             geometry=workspace.geometry,
         )
-        workspace.read_bytes(mesh_name(values))
+        validate_groups(workspace.setup, workspace.read_bytes(mesh_name(values)), mesh_name(values))
     return RowRequirements(
         ("write SU2 cfg", "stage mesh", "run SU2", "read SU2 history"),
         tuple(
@@ -142,6 +154,30 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     )
 
 
+_FLOW_SETUP_KEYS = {
+    "MACH_NUMBER",
+    "FREESTREAM_TEMPERATURE",
+    "FREESTREAM_PRESSURE",
+    "FREESTREAM_DENSITY",
+    "REYNOLDS_NUMBER",
+    "REYNOLDS_LENGTH",
+}
+validate_row.default_setup_overrides = {  # type: ignore[attr-defined]
+    **{
+        key: tuple(
+            _FLOW_SETUP_KEYS
+            | {name for name, native in NEUTRAL_KEYS.items() if native in _FLOW_SETUP_KEYS}
+        )
+        for key in STATE_KEYS
+        if key != "MACH"
+    },
+    "MACH": ("mach", "MACH_NUMBER"),
+    "ALPHA": ("alpha", "angle_of_attack", "AOA"),
+    "BETA": ("beta", "sideslip", "SIDESLIP_ANGLE"),
+    "GEOMETRY": ("mesh", "MESH_FILENAME"),
+}
+
+
 def translate(point: AdapterPoint) -> str:
     """Return deterministic ASCII after verifying every planned input digest.
 
@@ -151,13 +187,21 @@ def translate(point: AdapterPoint) -> str:
         Prepared and digest-checked inputs.
     """
     point.verify()
+    if groups(point.setup):
+        values = config(
+            point.setup, point.reference, point.post, point.point.condition, geometry=point.geometry
+        )
+        point_markers(point, mesh_name(values))
     return render(
-        config(
-            point.setup,
-            point.reference,
-            point.post,
-            point.point.condition,
-            geometry=point.geometry,
+        restart_values(
+            point,
+            config(
+                point.setup,
+                point.reference,
+                point.post,
+                point.point.condition,
+                geometry=point.geometry,
+            ),
         )
     )
 
@@ -245,4 +289,5 @@ def collect(point: AdapterPoint) -> NeutralResult:
         route,
         dimensions(folder),
         residual_field(folder),
+        force_groups=force_groups(folder, groups(point.setup), coefficients),
     )

@@ -21,4 +21,4 @@ def test_collect_exits_1_and_post_exits_0_when_a_point_failed(tmp_path, capsys):
     capsys.readouterr()
     assert main(["post", "study", "--workspace", ws]) == 0
     assert "failed 2" in capsys.readouterr().out
-    assert (tmp_path / "post/study/campaign_sweep.csv").is_file()
+    assert (tmp_path / "post/study/polars/P1001-TOTAL-ACOEF.csv").is_file()

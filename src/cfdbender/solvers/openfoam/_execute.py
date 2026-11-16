@@ -4,22 +4,22 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
-import threading
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
+from cfdbender.core.restart import copy_solution
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers.openfoam._config import config, options, staged_mesh
-
-_RUNNING = threading.Lock()
+from cfdbender.solvers.openfoam._restart import restart_files
 
 
 def argv(opts: Mapping[str, object], root: Path) -> list[str]:
@@ -62,8 +62,10 @@ def stage_case(point: AdapterPoint, text: str, folder: Path) -> None:
         point.point.condition,
         geometry=point.geometry,
     )
+    solution = restart_files(point) if point.point.restart_from is not None else {}
     folder.mkdir(parents=True, exist_ok=False)
     stage(folder, text)
+    copy_solution(folder, solution)
     link_mesh(
         workspace_path(point.root, case.mesh),
         folder / staged_mesh(case),
@@ -86,6 +88,12 @@ def run(point: AdapterPoint, text: str, check_ram: Callable[[], None]) -> None:
         raise ValueError("existing OpenFOAM point directory; refusing overwrite")
     stage_case(point, text, folder)
     _launch(command, folder, opts, timeout, check_ram)
+    if point.point.restart_from is not None:
+        for source in folder.glob("postProcessing/forceCoeffs*/*/coefficient.dat"):
+            target = source.parent.parent / "0/coefficient.dat"
+            if source != target and not target.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, target)
 
 
 def _launch(

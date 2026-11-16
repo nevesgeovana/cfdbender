@@ -18,19 +18,33 @@ su2). No scheduler command or resource value is guessed here.
 from __future__ import annotations
 
 import hashlib
+import string
 from dataclasses import replace
 from pathlib import Path
 
 from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.matrix import MatrixError, parse_matrix
 from cfdbender.core.plan import InputFiles, Point, RunPlan, workspace_path
+from cfdbender.core.refusals import warn_unused_cluster
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
+from cfdbender.core.restart import check_restart
 from cfdbender.core.run import check_available_ram
 from cfdbender.hpc import HpcProfile, SubmissionPlan, plan_submission, resolve_hpc_profile
 from cfdbender.hpc._submit import submit
 from cfdbender.solvers import load_solver
 
 _FALLBACK_CONFIG = "solver.in"
+
+
+def _uses_cluster(profile: HpcProfile) -> bool:
+    pending = [str(part) for part in (*profile.fields.values(), *profile.submit)]
+    while pending:
+        for _, name, spec, _ in string.Formatter().parse(pending.pop()):
+            if name == "cluster":
+                return True
+            if spec:
+                pending.append(spec)
+    return False
 
 
 def staged_config(adapter: object) -> str:
@@ -101,13 +115,34 @@ def job_outputs(adapter: object, point: Point) -> tuple[str, ...]:
         Workspace-relative outputs collect waits for before reading the point.
     """
     names = getattr(adapter, "JOB_OUTPUTS", None)
+    selector = getattr(adapter, "job_output_files", None)
+    if selector is not None:
+        names = selector(point)
     if names is None:
         return point.outputs
     prefix = point.directory.rstrip("/") + "/"
     return tuple(name for name in point.outputs if name.removeprefix(prefix) in tuple(names))
 
 
-def submission_plans(plan: RunPlan, profile: HpcProfile) -> tuple[SubmissionPlan, ...]:
+def point_profiles(plan: RunPlan, name: str | None) -> tuple[HpcProfile | None, ...]:
+    """Resolve each point's row selector before the invocation's default."""
+    cache: dict[str | None, HpcProfile | None] = {}
+    for point in plan.points:
+        selector = point.variables.get("hpc", name)
+        if selector is not None and not isinstance(selector, str):
+            raise ValueError(f"row {point.pol}: hpc must name a profile")
+        if selector not in cache:
+            cache[selector] = select_profile(plan.root, selector)
+    return tuple(
+        cache[str(value) if value is not None else None]
+        for point in plan.points
+        for value in (point.variables.get("hpc", name),)
+    )
+
+
+def submission_plans(
+    plan: RunPlan, profile: HpcProfile | tuple[HpcProfile, ...]
+) -> tuple[SubmissionPlan, ...]:
     """Preflight all descriptor substitutions without writing any job files.
 
     Parameters
@@ -126,7 +161,14 @@ def submission_plans(plan: RunPlan, profile: HpcProfile) -> tuple[SubmissionPlan
     adapter = load_solver(plan.solver)
     solver_type = str(getattr(adapter, "SOLVER_TYPE", plan.solver))
     name = staged_config(adapter)
-    for point in plan.points:
+    profiles = (profile,) * len(plan.points) if isinstance(profile, HpcProfile) else profile
+    for point, profile in zip(plan.points, profiles, strict=True):
+        uses_cluster = _uses_cluster(profile)
+        cluster = point.variables.get("cluster")
+        if uses_cluster and cluster is None:
+            raise ValueError(f"row {point.pol}: state cluster: <name> in VAR_NAMES_VALUES")
+        if cluster is not None and not uses_cluster:
+            warn_unused_cluster(point.pol)
         context = load_point(plan.root, point, solver=plan.solver)
         folder = workspace_path(plan.root, point.directory)
         config = (folder / name).as_posix()
@@ -140,6 +182,8 @@ def submission_plans(plan: RunPlan, profile: HpcProfile) -> tuple[SubmissionPlan
             "stderr_log": (folder / "stderr.log").as_posix(),
             "walltime": point.walltime,
         }
+        if cluster is not None and uses_cluster:
+            values["cluster"] = cluster
         for key in ("solver_version", "ncpus", "solver_type"):
             value = context.setup.get(key)
             if value is not None and value != "":
@@ -155,7 +199,10 @@ def submission_plans(plan: RunPlan, profile: HpcProfile) -> tuple[SubmissionPlan
 
 
 def submit_plan(
-    plan: RunPlan, jobs: tuple[SubmissionPlan, ...], profile: HpcProfile, adapter: SolverAdapter
+    plan: RunPlan,
+    jobs: tuple[SubmissionPlan, ...],
+    profile: HpcProfile | tuple[HpcProfile, ...],
+    adapter: SolverAdapter,
 ) -> tuple[RunRecord, ...]:
     """Preflight every point, stage its inputs, then submit it through its profile.
 
@@ -209,12 +256,16 @@ def submit_plan(
         if outputs & {"submit.stdout.txt", "submit.stderr.txt"}:
             raise RegistryError("submit capture files collide with declared outputs")
         context = load_point(plan.root, point, solver=plan.solver)
+        check_restart(context, adapter)
         translated.append(adapter.translate(context).encode("ascii"))
     missing = tuple(point for point in plan.points if point.point_id not in previous)
     if missing:
         registry.record(replace(plan, points=missing))
     records = []
-    for point, job, ascii_input in zip(plan.points, jobs, translated, strict=True):
+    profiles = (profile,) * len(plan.points) if isinstance(profile, HpcProfile) else profile
+    for point, job, ascii_input, profile in zip(
+        plan.points, jobs, translated, profiles, strict=True
+    ):
         check_available_ram()
         registry.transition(point.point_id, "RUNNING")
         folder = workspace_path(plan.root, point.directory)
@@ -255,8 +306,14 @@ def submit_plan(
             "timeout_s": result.timeout_s,
             "timed_out": result.timed_out,
         }
+        if "cluster" in point.variables and _uses_cluster(profile):
+            submission["cluster"] = point.variables["cluster"]
         if (names := job_outputs(adapter, point)) != point.outputs:
             submission["job_outputs"] = list(names)
+        if profile.job_end_files:
+            submission["job_end_files"] = [
+                f"{point.directory}/{name}" for name in profile.job_end_files
+            ]
         failed = result.return_code != 0 and not result.timed_out
         records.append(
             registry.transition(

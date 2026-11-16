@@ -11,6 +11,7 @@ from typing import cast
 
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
+from cfdbender.core.restart import copy_solution
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._exe import resolve_executable
@@ -18,6 +19,7 @@ from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._version import UNKNOWN, probe_version
 from cfdbender.solvers.pyfr._config import config, options
+from cfdbender.solvers.pyfr._restart import restart_files
 
 
 def launch_prefix(opts: Mapping[str, object], root: Path) -> list[str]:
@@ -32,11 +34,15 @@ def launch_prefix(opts: Mapping[str, object], root: Path) -> list[str]:
     return [str(resolved)]
 
 
-def commands(opts: Mapping[str, object], root: Path, backend: str) -> list[list[str]]:
+def commands(
+    opts: Mapping[str, object], root: Path, backend: str, *, restart: bool = False
+) -> list[list[str]]:
     prefix = launch_prefix(opts, root)
-    return [
-        prefix + ["import", "mesh.msh", "mesh.pyfrm"],
-        prefix + ["-p", "run", "-b", backend, "mesh.pyfrm", "case.ini"],
+    return ([prefix + ["import", "mesh.msh", "mesh.pyfrm"]] if not restart else []) + [
+        prefix
+        + ["-p", "restart" if restart else "run", "-b", backend, "mesh.pyfrm"]
+        + (["restart.pyfrs"] if restart else [])
+        + ["case.ini"],
     ]
 
 
@@ -46,7 +52,9 @@ def stage_case(point: AdapterPoint, text: str, folder: Path) -> None:
     A local run and a cluster submission stage the same files.
     """
     case = config(point.setup, point.point.condition, point.reference, point.geometry)
+    solution = restart_files(point) if point.point.restart_from is not None else {}
     folder.mkdir(parents=True, exist_ok=False)
+    copy_solution(folder, solution)
     link_mesh(
         workspace_path(point.root, case.mesh),
         folder / "mesh.msh",
@@ -59,7 +67,7 @@ def run(point: AdapterPoint, text: str, check_ram: Callable[[], None]) -> None:
     point.verify()
     opts = options(point.setup, read_init(point.root, available_solvers=("pyfr",)).solver_options)
     case = config(point.setup, point.point.condition, point.reference, point.geometry)
-    argv = commands(opts, point.root, case.backend)
+    argv = commands(opts, point.root, case.backend, restart=point.point.restart_from is not None)
     timeout = _timeout(point, opts)
     folder = workspace_path(point.root, point.point.directory)
     check_ram()

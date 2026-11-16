@@ -1,0 +1,108 @@
+% Geometry and mesh commands, and the current result and execution choices.
+\clearpage
+\begin{tcolorbox}[colback=acc!8,colframe=acc,boxrule=0.4pt]
+{\Large\bfseries\color{acc} Geometry, mesh and results}
+\hfill \pkgname{} \textbf{\pkgversion} \quad page 9
+\end{tcolorbox}
+\fontsize{8}{10}\selectfont\raggedright
+\begin{multicols}{3}
+\hd{cfd-geom: parametric geometry}
+\texttt{cfd-geom validate model.toml} checks a configuration.\par
+\texttt{cfd-geom run model.toml} builds it, to S13 by default;
+\fl{--until S10} stops before kernel stages.\par
+\texttt{schema}, \texttt{stages}, \texttt{configurations} describe inputs and
+stages. \texttt{doe} builds parameter sets; \texttt{identify}, \texttt{check}
+and \texttt{iges-convert} inspect and convert geometry.\par
+\file{inputs/geometry/<name>/geometry.json} identifies generated geometry;
+stage records, the run log and report stay beside it.
+
+\hd{cfd-mesh: generate and refine}
+\texttt{cfd-mesh mesh model.toml} meshes a configuration;
+\texttt{mesh.strategy = 1} or \texttt{2} in the controls selects the method;
+\fl{--controls TOML} names the controls, \fl{--dry-run} prints the plan.
+\texttt{mesh-generated} builds an all-quad OBJ.\par
+\texttt{cfd-mesh refine surface.obj} refines a surface;
+the positional \texttt{FACTOR} below 1 coarsens, above 1 refines;
+\fl{--out DIR} selects the output folder.\par
+\texttt{prepare-to-refine}, \texttt{audit}, \texttt{inventory} prepare and
+inspect surfaces. \texttt{merge} joins trimmed meshes;
+\texttt{degenerate} makes a thin blade; \texttt{sector-remesh} remeshes a sector.
+
+\hd{cfd-mesh: rotor and boundary tools}
+\texttt{trailing-edge}, \texttt{identify-te}, \texttt{convert2midnodes},
+\texttt{collapse-te}; \texttt{scale}, \texttt{morph}, \texttt{repitch},
+\texttt{hub-rings}, \texttt{sector-to-wheel}; \texttt{iges-grid},
+\texttt{visual-inspect}, \texttt{prop-slice}.\par
+Output meshes normally go under \file{inputs/mesh/}. Provenance records source
+hashes and options; \file{<file>.boundaries.toml} names surface groups,
+trailing edges and base regions.
+
+\columnbreak
+\hd{cfd-mesh airfoil-2d}
+Build a structured quadrilateral C-mesh for SU2 or OpenFOAM.\par
+\texttt{cfd-mesh airfoil-2d --naca 0012}\\
+\texttt{\ \ --reynolds 6000000 --level coarse}\par
+\fl{--naca CODE} accepts a 4 or 5 digit designation;
+\fl{--coordinates FILE} instead reads Selig coordinates.\par
+\fl{--reynolds RE} sizes the first cell; \fl{--yplus 1} is the default target.
+\fl{--level coarse}, \texttt{medium}, \texttt{fine} choose cell counts.\par
+\fl{--farfield 500} places the far field in chord lengths.
+\fl{--trailing-edge sharp} is the default; \texttt{blunt} retains the base.
+\fl{--out NAME} chooses the mesh stem; include a folder to write there.\par
+The two files are \file{<name>.su2} and \file{<name>.msh}, each with provenance.
+Markers: \texttt{airfoil}, \texttt{farfield}, optionally \texttt{airfoil\_base};
+the extruded gmsh mesh also has \texttt{front}, \texttt{back}, \texttt{fluid}.
+
+\hd{2D section polars}
+Sweep \texttt{ALPHA} in a 2D SU2 or OpenFOAM row. List angles explicitly:
+-8 to 16, step 1, is a typical sweep.
+\file{polars/P<POL>.txt} uses XFOIL's seven columns and can feed QPROP.
+Only points passing the residual or Cauchy polar rule enter it. CDp is
+unmeasured (0.00000); transition is fully turbulent (0.0000).
+Excluded points keep their CSV rows and warn; \fl{--warning-refusals} refuses.
+
+\hd{Boundary force groups}
+In a SU2 or OpenFOAM setup:\par
+\texttt{[groups]}\par
+\texttt{main = ["wing"]}\par
+\texttt{combined = ["wing", "tail"]}\par
+Markers must exist; overlapping groups are allowed. The summary stores
+\texttt{force\_groups}, including the complete monitored \texttt{TOTAL}.
+These sets add no CSV files; family-based group tables remain separate.
+
+\columnbreak
+\hd{Result products under post/<matrix>/}
+\file{polars/FAM-DIM-P<POL>.csv}: family loads.\par
+\file{polars/FAM-ACOEF-P<POL>.csv}: family coefficients in W, S, B and rotor
+frames; \file{FAM-RCOEF-P<POL>.csv} for rotor solvers.\par
+\file{polars/P<POL>-<GROUP>-<KIND>.csv}: TOTAL, AIRFRAME and rotor groups with
+members. \file{sections/P<POL>/<point>_sections.csv}: sectional distributions.\par
+\file{campaign_summary.json}: records, verdicts, histories, boundary forces.\par
+\file{products.json}: kinds, units, frames, families, groups, skips and SHA-256
+digests, schema version 2. Edited products are protected from replacement.
+
+\hd{RESTART and resume}
+\texttt{RESTART} in a row names a recorded source solution.
+\texttt{cfd-matrix run polar --restart} uses each selected point's own last
+solution, preserving earlier evidence in the archive. SU2, OpenFOAM and PyFR
+support both forms. Retain solution files; confirm an interrupted process has
+stopped first. Do not combine restart with \fl{--resume} or force-rerun options.
+\fl{--resume} selects points; it does not request solution state.
+
+\hd{Local host and per-row submission}
+The host guard is off by default. \fl{--one-run-at-a-time}, or
+\texttt{one\_run\_at\_a\_time = true} under \texttt{[solver]} in \file{init.toml}, reserves the host
+against other guarded local runs.\par
+In \texttt{VAR\_NAMES\_VALUES}:\par
+\texttt{hpc: alpha / cluster: west}\par
+\texttt{hpc:} selects \file{inputs/hpc/alpha.toml} before the \fl{--hpc} default.
+\texttt{cluster:} supplies \texttt{\{cluster\}}; both keys are case-insensitive,
+never solver setup keys. \fl{--local} ignores both. Plan again after profile
+changes; receipts retain the profile and digest per point.
+
+\hd{Full command reference}
+\texttt{cfd-geom <command> --help} and \texttt{cfd-mesh <command> --help} list
+every option. See the documentation pages Geometry and mesh commands, Results
+and tables, 2D polars, and Run again, resume, records.
+\end{multicols}
+\foot

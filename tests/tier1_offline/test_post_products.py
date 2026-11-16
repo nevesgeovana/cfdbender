@@ -24,18 +24,31 @@ def test_a_complete_collect_lists_every_product_and_skips_none(tmp_path):
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
     data = products(tmp_path)
     assert data["matrix"] == "inputs/matrices/study.fs" and data["solver"] == "mock"
-    assert data["complete"] is True and data["skipped"] == []
-    paths = sorted(p["path"] for p in data["products"])
-    assert paths == [
-        "post/study/campaign_summary.json",
-        "post/study/campaign_sweep.csv",
-        "post/study/polars/P1001.csv",
-        "post/study/polars/P1002.csv",
-        "post/study/polars/P1003.csv",
+    assert data["complete"] is True
+    assert [s["product"] for s in data["skipped"]] == [
+        f"polars/P{p}-ROTOR" for p in ("1001", "1002", "1003")
     ]
+    paths = sorted(p["path"] for p in data["products"])
+    assert paths == sorted(
+        [
+            "post/study/campaign_summary.json",
+            *(
+                f"post/study/polars/{name}"
+                for pol in ("1001", "1002", "1003")
+                for name in sorted(
+                    [f"FAM-{k}-P{pol}.csv" for k in ("DIM", "ACOEF")]
+                    + [
+                        f"P{pol}-{g}-{k}.csv"
+                        for g in ("TOTAL", "AIRFRAME")
+                        for k in ("DIM", "ACOEF")
+                    ]
+                )
+            ),
+        ]
+    )
     assert all((tmp_path / p["path"]).is_file() for p in data["products"])
     log = (tmp_path / "post/study/post.log").read_text(encoding="utf-8")
-    assert "5 product(s) written, 0 skipped" in log
+    assert "19 product(s) written, 3 skipped" in log
 
 
 def test_a_point_never_run_is_a_named_skip_with_its_reason(tmp_path):
@@ -46,8 +59,9 @@ def test_a_point_never_run_is_a_named_skip_with_its_reason(tmp_path):
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 3
     data = products(tmp_path)
     assert data["complete"] is False
-    assert [s["point"] for s in data["skipped"]] == ["1002/DP-AL+000"]
-    assert data["skipped"][0]["product"] == "result"
+    points = [s for s in data["skipped"] if s["product"] == "result"]
+    assert [s["point"] for s in points] == ["1002/DP-AL+000"]
+    data["skipped"] = points
     assert "PLANNED" in data["skipped"][0]["reason"]
     log = (tmp_path / "post/study/post.log").read_text(encoding="utf-8")
     assert "skipped 1002/DP-AL+000: " in log and "PLANNED" in log

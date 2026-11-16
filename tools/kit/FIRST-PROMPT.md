@@ -4,7 +4,7 @@ Paste everything between the lines into your own assistant opened in this folder
 
 ---
 
-Set up and run this cfdbender 0.5.2 kit. Read README-FIRST.md and SMOKE-CASE.md.
+Set up and run this cfdbender 0.6.0 kit. Read README-FIRST.md and SMOKE-CASE.md.
 Treat this unzipped folder as KIT. Do these steps in order. Stop on ANY failure,
 print `STOP: step <number>: <cause and next action>`, and do not continue dependent
 steps. Ask me only for a missing executable path. Do not scan my other folders.
@@ -14,17 +14,19 @@ PIP_NO_CACHE_DIR=1. Remove PYTHONPATH and PYTHONHOME from child process
 environments so another Python installation cannot override this kit. Do not change PATH, create aliases or add launchers.
 
 1. Find a Python interpreter with `py -3` or `python` on Windows, or `python3`
-   on Linux. Run it to check `sys.version_info >= (3, 12)`. If none qualifies,
-   stop and say Python 3.12 or newer is required. Check before creating the venv.
+   on Linux (or `py -3.12`, `python3.12`). Run it to check `sys.version_info[:2] == (3, 12)`:
+   the wheels in KIT/wheels are built for CPython 3.12 only. If none qualifies, stop
+   and say Python 3.12 is required. Check before creating the venv.
 2. Create KIT/.tmp and KIT/.venv with that Python's `-m venv .venv`. Invoke the
    venv's Python and CLI by their direct paths; activation is unnecessary.
    Windows uses `.venv/Scripts/python.exe` and `.venv/Scripts/cfd-matrix.exe`;
    Linux uses `.venv/bin/python` and `.venv/bin/cfd-matrix`.
-   Run venv Python `-I -m pip install --no-index ./cfdbender-0.5.2-py3-none-any.whl`
-   from KIT. This installation puts the Python package in KIT/.venv. Verify
-   installed version 0.5.2 and that its import comes from KIT/.venv. Verify wheel
-   METADATA has no unconditional Requires-Dist entries: cfdbender has no runtime
-   dependencies; its test/dev/docs extras are not needed. Stop on a failed pip
+   Run venv Python `-I -m pip install --no-index --find-links wheels
+   ./cfdbender-0.6.0-py3-none-any.whl` from KIT. KIT/wheels holds the wheels of every
+   runtime dependency (numpy, scipy, trimesh, pydantic, matplotlib and theirs) for
+   Windows and Linux; pip picks the ones for this computer. This installation puts the
+   Python packages in KIT/.venv. Verify installed version 0.6.0 and that its import
+   comes from KIT/.venv. Its test/dev/docs extras are not needed. Stop on a failed pip
    command; do not download anything. Run both installed CLIs with `--help`.
 3. Find the site's prebuilt SU2_CFD with `where.exe SU2_CFD` on Windows or
    `which SU2_CFD` on Linux. An existing CFDBENDER_SU2_EXE may supply the path

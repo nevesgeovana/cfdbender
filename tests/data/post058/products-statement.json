@@ -1,0 +1,1049 @@
+{
+ "frames": {
+  "B": {
+   "dcm": "C2(pi)",
+   "from": "E"
+  },
+  "E": {
+   "axes": "x aft, y right, z up",
+   "name": "MRP"
+  },
+  "S": {
+   "dcm": "C2(-alpha_s)",
+   "from": "B"
+  },
+  "W": {
+   "dcm": "C3(beta_w) C2(-alpha_s)",
+   "from": "B"
+  }
+ },
+ "kinds": {
+  "ACOEF": [
+   {
+    "frame": null,
+    "name": "GROUP",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "GROUP_ID",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CDW",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CYW",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CLW",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "ClW",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CmW",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CnW",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CDS",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CYS",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CLS",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "ClS",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CmS",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CnS",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CDB",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CYB",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CLB",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "ClB",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CmB",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CnB",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CDR0",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CYR0",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CLR0",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "ClR0",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CmR0",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CnR0",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CD0",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CDI",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "MESH_FACES",
+    "unit": "-"
+   }
+  ],
+  "DIM": [
+   {
+    "frame": null,
+    "name": "GROUP",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "GROUP_ID",
+    "unit": "-"
+   },
+   {
+    "frame": "MRP",
+    "name": "FX_MRP",
+    "unit": "N"
+   },
+   {
+    "frame": "MRP",
+    "name": "FY_MRP",
+    "unit": "N"
+   },
+   {
+    "frame": "MRP",
+    "name": "FZ_MRP",
+    "unit": "N"
+   },
+   {
+    "frame": "MRP",
+    "name": "MX_MRP",
+    "unit": "N m"
+   },
+   {
+    "frame": "MRP",
+    "name": "MY_MRP",
+    "unit": "N m"
+   },
+   {
+    "frame": "MRP",
+    "name": "MZ_MRP",
+    "unit": "N m"
+   },
+   {
+    "frame": null,
+    "name": "MESH_FACES",
+    "unit": "-"
+   }
+  ],
+  "FAM-ACOEF": [
+   {
+    "frame": null,
+    "name": "FAMILY",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "FAMILY_ID",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CDW",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CYW",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CLW",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "ClW",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CmW",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CnW",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CDS",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CYS",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CLS",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "ClS",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CmS",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CnS",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CDB",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CYB",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CLB",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "ClB",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CmB",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CnB",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CDR0",
+    "sign": "positive aft",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CYR0",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CLR0",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "ClR0",
+    "sign": "right-hand about x",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CmR0",
+    "sign": "right-hand about y",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CnR0",
+    "sign": "right-hand about z",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CD0",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CDI",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "MESH_FACES",
+    "unit": "-"
+   }
+  ],
+  "FAM-DIM": [
+   {
+    "frame": null,
+    "name": "FAMILY",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "FAMILY_ID",
+    "unit": "-"
+   },
+   {
+    "frame": "MRP",
+    "name": "FX_MRP",
+    "unit": "N"
+   },
+   {
+    "frame": "MRP",
+    "name": "FY_MRP",
+    "unit": "N"
+   },
+   {
+    "frame": "MRP",
+    "name": "FZ_MRP",
+    "unit": "N"
+   },
+   {
+    "frame": "MRP",
+    "name": "MX_MRP",
+    "unit": "N m"
+   },
+   {
+    "frame": "MRP",
+    "name": "MY_MRP",
+    "unit": "N m"
+   },
+   {
+    "frame": "MRP",
+    "name": "MZ_MRP",
+    "unit": "N m"
+   },
+   {
+    "frame": null,
+    "name": "MESH_FACES",
+    "unit": "-"
+   }
+  ],
+  "FAM-RCOEF": [
+   {
+    "frame": null,
+    "name": "FAMILY",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "FAMILY_ID",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "ROTOR_ID",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "T",
+    "sign": "positive forward",
+    "unit": "N"
+   },
+   {
+    "frame": "R<id>",
+    "name": "Q",
+    "sign": "right-hand about x_R",
+    "unit": "N m"
+   },
+   {
+    "frame": null,
+    "name": "P",
+    "unit": "kW"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CT",
+    "sign": "positive forward",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CQ",
+    "sign": "right-hand about x_R",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CP",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CFZ",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CFY",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CMZ",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CMY",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "ETA",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "TC",
+    "sign": "positive forward",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "YC",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "ZC",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "QC",
+    "sign": "right-hand about x_R",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "NC",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "MC",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "TCA",
+    "sign": "positive forward",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "YCA",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "ZCA",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "QCA",
+    "sign": "right-hand about x_R",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "NCA",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "MCA",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CTW",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CQW",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "ETAW",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CTS",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CQS",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "ETAS",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CTB",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CQB",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "ETAB",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CTR0",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CQR0",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "ETAR0",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "MESH_FACES",
+    "unit": "-"
+   }
+  ],
+  "RCOEF": [
+   {
+    "frame": null,
+    "name": "GROUP",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "GROUP_ID",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "ROTOR_ID",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "T",
+    "sign": "positive forward",
+    "unit": "N"
+   },
+   {
+    "frame": "R<id>",
+    "name": "Q",
+    "sign": "right-hand about x_R",
+    "unit": "N m"
+   },
+   {
+    "frame": null,
+    "name": "P",
+    "unit": "kW"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CT",
+    "sign": "positive forward",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CQ",
+    "sign": "right-hand about x_R",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CP",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CFZ",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CFY",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CMZ",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "CMY",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "ETA",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "TC",
+    "sign": "positive forward",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "YC",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "ZC",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "QC",
+    "sign": "right-hand about x_R",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "NC",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "MC",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "TCA",
+    "sign": "positive forward",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "YCA",
+    "sign": "positive right",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "ZCA",
+    "sign": "positive up",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "QCA",
+    "sign": "right-hand about x_R",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "NCA",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "R<id>",
+    "name": "MCA",
+    "sign": "right-hand",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CTW",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "CQW",
+    "unit": "-"
+   },
+   {
+    "frame": "W",
+    "name": "ETAW",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CTS",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "CQS",
+    "unit": "-"
+   },
+   {
+    "frame": "S",
+    "name": "ETAS",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CTB",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "CQB",
+    "unit": "-"
+   },
+   {
+    "frame": "B",
+    "name": "ETAB",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CTR0",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "CQR0",
+    "unit": "-"
+   },
+   {
+    "frame": "R0",
+    "name": "ETAR0",
+    "unit": "-"
+   },
+   {
+    "frame": null,
+    "name": "MESH_FACES",
+    "unit": "-"
+   }
+  ]
+ },
+ "run_block": [
+  {
+   "name": "POL",
+   "unit": "-"
+  },
+  {
+   "name": "POINT_ID",
+   "unit": "-"
+  },
+  {
+   "name": "POINT",
+   "unit": "-"
+  },
+  {
+   "name": "RUN_TYPE",
+   "unit": "-"
+  },
+  {
+   "name": "ALPHA",
+   "unit": "deg"
+  },
+  {
+   "name": "BETA",
+   "unit": "deg"
+  },
+  {
+   "name": "MACH",
+   "unit": "-"
+  },
+  {
+   "name": "RE",
+   "unit": "-"
+  },
+  {
+   "name": "VINF",
+   "unit": "m/s"
+  },
+  {
+   "name": "VREF",
+   "unit": "m/s"
+  },
+  {
+   "name": "RPM0",
+   "unit": "rev/min"
+  },
+  {
+   "name": "J0",
+   "unit": "-"
+  },
+  {
+   "name": "MTIP0",
+   "unit": "-"
+  },
+  {
+   "name": "MHEL0",
+   "unit": "-"
+  },
+  {
+   "name": "J",
+   "unit": "-"
+  },
+  {
+   "name": "J_CLOCK",
+   "unit": "-"
+  },
+  {
+   "name": "RPM_CLOCK",
+   "unit": "rev/min"
+  },
+  {
+   "name": "THRUST",
+   "unit": "N"
+  },
+  {
+   "name": "ALT",
+   "unit": "m"
+  },
+  {
+   "name": "RHO",
+   "unit": "kg/m^3"
+  },
+  {
+   "name": "TEMP",
+   "unit": "K"
+  },
+  {
+   "name": "MU",
+   "unit": "Pa s"
+  },
+  {
+   "name": "SREF",
+   "unit": "m^2"
+  },
+  {
+   "name": "CREF",
+   "unit": "m"
+  },
+  {
+   "name": "BREF",
+   "unit": "m"
+  },
+  {
+   "name": "XMOM",
+   "unit": "m"
+  },
+  {
+   "name": "YMOM",
+   "unit": "m"
+  },
+  {
+   "name": "ZMOM",
+   "unit": "m"
+  },
+  {
+   "name": "D0",
+   "unit": "m"
+  },
+  {
+   "name": "ADISC0",
+   "unit": "m^2"
+  },
+  {
+   "name": "PITCH0",
+   "unit": "deg"
+  },
+  {
+   "name": "TOE0",
+   "unit": "deg"
+  },
+  {
+   "name": "FIRST_STEP",
+   "unit": "-"
+  },
+  {
+   "name": "LAST_STEP",
+   "unit": "-"
+  },
+  {
+   "name": "STEPS",
+   "unit": "-"
+  },
+  {
+   "name": "WINDOW_REVS",
+   "unit": "-"
+  },
+  {
+   "name": "WINDOW_PASSAGES",
+   "unit": "-"
+  }
+ ],
+ "schema_version": 2,
+ "source_sha256": {
+  "FAM-ACOEF-P6001.csv": "42ad5e00e24ad55b4f6f880299fd9ce39f96257e7eb0f697e318e481fbee0165",
+  "FAM-DIM-P6001.csv": "98cfe2c702a41b916404c832bea0454bc4927a08f9a94a435037d79594beb42f",
+  "P6001-TOTAL-ACOEF.csv": "a4c831d64e14741b11e2704148dd5622b6579fb3a44d1e4d9c8973861184f62f",
+  "P6001-TOTAL-DIM.csv": "acaea82fa7dc5f779b61ff4b58ab74ee07ec54ac84aba1d32621c9a7bde3db93"
+ }
+}

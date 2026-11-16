@@ -8,6 +8,7 @@ Install the optional engine with ``pip install cfdbender[flightstream]``.
 from __future__ import annotations
 
 import sys
+from collections.abc import Collection
 from pathlib import Path
 
 from cfdbender import _pyfs
@@ -81,7 +82,7 @@ def _root(argv: list[str], workspace: bool) -> Path:
     return Path.cwd()
 
 
-def dispatch(argv: list[str], *, workspace: bool) -> int | None:
+def dispatch(argv: list[str], *, workspace: bool, matrix_verbs: Collection[str] = ()) -> int | None:
     """Forward before local parsing when the selected root declares FlightStream.
 
     Parameters
@@ -90,6 +91,9 @@ def dispatch(argv: list[str], *, workspace: bool) -> int | None:
         Original command arguments, forwarded unchanged.
     workspace : bool
         Select pyfs-workspace rather than pyfs-matrix.
+    matrix_verbs : Collection[str], optional
+        Verbs cfdbender answers under cfd-workspace that pyflightstream owns under
+        pyfs-matrix; with ``workspace`` they are forwarded to pyfs-matrix.
 
     Returns
     -------
@@ -110,7 +114,10 @@ def dispatch(argv: list[str], *, workspace: bool) -> int | None:
         config = read_init(root, available_solvers=available_solvers())
         if config.solver != SOLVER_NAME:
             return None
-        return _pyfs.workspace_main(argv) if workspace else _pyfs.matrix_main(argv)
+        verb = next((word for word in argv if not word.startswith("-")), None)
+        if workspace and verb not in matrix_verbs:
+            return _pyfs.workspace_main(argv)
+        return _pyfs.matrix_main(argv)
     except WorkspaceError as error:
         print(str(error), file=sys.stderr)
         return 2

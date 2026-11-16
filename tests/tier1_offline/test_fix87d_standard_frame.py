@@ -84,7 +84,9 @@ def test_flightstream_sideslip_moves_side_force_into_the_drag():
     body = {"CDB": 0.1, "CYB": 0.2, "CLB": 1.0, "CMB25": 0.0}
     out = neutral_values("flightstream", body, condition={"ALPHA": 0.0, "BETA": 5.0})
     b = math.radians(5.0)
-    assert out["CD"] == pytest.approx(0.1 * math.cos(b) + 0.2 * math.sin(b))
+    # The air moves toward -y at positive sideslip (frame W): a side force to the right
+    # opposes the drag.
+    assert out["CD"] == pytest.approx(0.1 * math.cos(b) - 0.2 * math.sin(b))
     assert out["CL"] == pytest.approx(1.0)
 
 

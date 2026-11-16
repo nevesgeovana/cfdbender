@@ -13,7 +13,7 @@
 {\large\bfseries\color{acc} cfd-matrix and cfd-workspace cheatsheet} \hfill {\small \pkgname{} \textbf{\pkgversion} \quad every command and option, by stage \quad \texttt{cfd-matrix <cmd> -h} gives the full text}\\[1pt]
 \textbf{Typical flow:} \cmd{cfd-workspace init} $\rightarrow$ write the inputs $\rightarrow$ \cmd{plan} (launches nothing) $\rightarrow$ \cmd{run} (\fl{--resume} to add points) $\rightarrow$ \cmd{status} $\rightarrow$ \cmd{collect} $\rightarrow$ \cmd{post} \quad\textbar\quad
 \textbf{Safe by default:} mark-failed, mark-converged, restore, rebuild, free-space, delete-sims and sync only PREVIEW until \fl{--apply}.\\[1pt]
-\textbf{Everywhere:} \fl{--warning-off}, written before the command name of either program, hides console warnings and keeps them in \texttt{logs/warnings.log}. A matrix name is a file of \texttt{inputs/matrices/}; \texttt{.fs} is optional. The solvers \texttt{su2}, \texttt{openfoam}, \texttt{pyfr}, \texttt{xfoil}, \texttt{qprop} and \texttt{mock} take every line of this page.\\[1pt]
+\textbf{Everywhere:} \fl{--warning-off}, written before the command name of either program, hides console warnings and keeps them in \texttt{logs/warnings.log}; \fl{--warning-refusals}, written there too (or \texttt{warning\_refusals = true} in \texttt{init.toml}), turns every skip that only warns into a refusal, exit 2. \cmd{cfd-matrix} acts on a matrix (plan, run, status, collect, post); \cmd{cfd-workspace} on what the workspace holds (records, storage, logs); the old \cmd{cfd-matrix} form of a moved verb is refused with the command to type. A matrix name is a file of \texttt{inputs/matrices/}; \texttt{.fs} is optional. The solvers \texttt{su2}, \texttt{openfoam}, \texttt{pyfr}, \texttt{xfoil}, \texttt{qprop} and \texttt{mock} take every line of this page.\\[1pt]
 \textbf{FlightStream:} in a \texttt{flightstream} workspace both programs hand over to pyflightstream, and the commands and options are those of the pyflightstream cheatsheet (\url{\pyfssite}).
 \end{minipage}\hfill
 \begin{minipage}[c]{0.04\linewidth}\includegraphics[width=\linewidth]{owl.png}\end{minipage}
@@ -36,19 +36,20 @@
 \item \fl{--sims POL [POL ...]} only these simulations, by POL, space or comma separated; an id the matrix lacks is refused
 \item \fl{--points NAME [NAME ...]} only these points, named \texttt{DP-name} or \texttt{POL/DP-name}, within \fl{--sims} when given
 \item \fl{--hpc NAME} the profile \texttt{inputs/hpc/<NAME>.toml}, when the workspace holds several
-\item \fl{--local} plan for THIS machine, not for a submission
+\item \fl{--local} plan for THIS machine, not for a submission; \fl{--warning-refusals} refuse unused cluster values
 \item \fl{--workspace DIR} campaign root (default: the current folder)
 \item \fl{--verbose}, \fl{--log-level LEVEL} console quiet, normal or verbose
 \end{flags}
 
 \stage{3. RUN}
-\sub{run <matrix>}{run every active point of the planned matrix, here or as cluster jobs when an HPC profile exists; a point already recorded refuses the run unless one of the first three options is given}
+\sub{run <matrix>}{run every active point of the planned matrix, here or as cluster jobs when an HPC profile exists; use resume, force-rerun or restart to run with existing records}
 \begin{flags}
 \item \fl{--resume} skip the points recorded COMPLETED, SUBMITTED or RUNNING and run the rest; a skipped failed point names the \fl{--force-rerun} that redoes it
 \item \fl{--force-rerun POINT} archive this recorded point, then run it again; repeat for several
 \item \fl{--force-rerun-all} archive and redo every recorded point of the matrix; a submitted job is not cancelled
+\item \fl{--restart} continue each selected point from its last solution, archiving the previous run first; SU2, OpenFOAM and PyFR support it
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
-\item \fl{--hpc NAME} the HPC profile to use, as in \cmd{plan}
+\item \fl{--hpc NAME} the HPC profile to use, as in \cmd{plan}; \fl{--warning-refusals} refuse unused cluster values
 \item \fl{--one-run-at-a-time} refuse a local run while another guarded run holds the machine
 \item \fl{--local} keep the work on THIS machine; \fl{--no-local} submit when a profile exists (the default)
 \item \fl{--workspace DIR} campaign root (default: the current folder)
@@ -66,16 +67,16 @@
 \item \fl{--workspace DIR}, \fl{--runs NAME} campaign root; another run manifest than \texttt{runs.json}
 \item \fl{--verbose}, \fl{--log-level LEVEL} console quiet, normal or verbose
 \end{flags}
-\sub{show <target>}{the card of a point (\texttt{POL/DP-name}): status, verdict, iterations, coefficients, folder; a simulation (POL) lists its points; \fl{--verbose} prints the whole record}
+\wsub{show <target>}{the card of a point (\texttt{POL/DP-name}): status, verdict, iterations, coefficients, folder; a simulation (POL) lists its points; \fl{--verbose} prints the whole record}
 \begin{flags}
 \item \fl{--point NAME} only the run of this point within the target
 \item \fl{--json}, \fl{--csv}, \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{history <target>}{the history of a simulation or point: reruns, archives and deletions}
+\wsub{history <target>}{the history of a simulation or point: reruns, archives and deletions}
 \begin{flags}
 \item \fl{--json}, \fl{--csv}, \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{log}{list the recorded events of runs, of storage commands or of a post log}
+\wsub{log}{list the recorded events of runs, of storage commands or of a post log}
 \begin{flags}
 \item \fl{--problems} only problems and failed outcomes
 \item \fl{--since TIME} events since an ISO time or a duration such as \texttt{2h} or \texttt{7d}
@@ -85,18 +86,18 @@
 \item \fl{--post MATRIX} the saved post log of a matrix; \fl{--storage} the recorded storage commands
 \item \fl{--json}, \fl{--csv}, \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{trace <product>}{follow a product file, such as one under \texttt{post/<matrix>/}, to the run, inputs and hashes that made it}
+\wsub{trace <product>}{follow a product file, such as one under \texttt{post/<matrix>/}, to the run, inputs and hashes that made it}
 \begin{flags}
 \item \fl{--run ID} trace this run instead of looking the product up
 \item \fl{--json}, \fl{--csv}, \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{diff <run\_a> <run\_b>}{compare two run records field by field (run ids: see \cmd{history}); exit 1 when they differ}
+\wsub{diff <run\_a> <run\_b>}{compare two run records field by field (run ids: see \cmd{history}); exit 1 when they differ}
 \begin{flags}
 \item \fl{--json}, \fl{--csv}, \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
 
 \stage{5. COLLECT AND POST}
-\sub{collect [matrix]}{read the saved results, pick up finished cluster jobs, rebuild \texttt{campaign\_summary.json}, \texttt{campaign\_sweep.csv} and \texttt{polars/P<POL>.csv} under \texttt{post/<matrix>/}; without a name, every recorded matrix}
+\sub{collect [matrix]}{read saved results, pick up finished cluster jobs, rebuild \texttt{campaign\_summary.json}, family and group tables under \texttt{post/<matrix>/polars/}; without a name, every recorded matrix}
 \begin{flags}
 \item \fl{--watch} keep sweeping until no submitted point is outstanding
 \item \fl{--watch-interval S} seconds between sweeps (default 60); \fl{--rounds N} stop the watch after N sweeps
@@ -114,28 +115,28 @@
 \end{flags}
 
 \stage{6. CORRECT THE RECORDS}
-\sub{mark-failed}{record your verdict that points failed, whatever they ended in}
+\wsub{mark-failed}{record your verdict that points failed, whatever they ended in}
 \begin{flags}
 \item \fl{--sims POL [POL ...]} required: the simulations to mark; \fl{--points NAME [NAME ...]} only these points of them
 \item \fl{--reason TEXT} why, recorded as given
 \item \fl{--apply} change the records; without it, a preview
 \item \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{mark-converged}{record your verdict that completed points converged}
+\wsub{mark-converged}{record your verdict that completed points converged}
 \begin{flags}
 \item \fl{--sims POL [POL ...]} required; \fl{--points NAME [NAME ...]} only these points
 \item \fl{--reason TEXT} required: why, recorded as given
 \item \fl{--apply} change the records; without it, a preview
 \item \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{restore <kind>}{bring a file back from \texttt{archive/<stamp>/}; kind is \texttt{runs}, \texttt{storage}, \texttt{products} or \texttt{plan}}
+\wsub{restore <kind>}{bring a file back from \texttt{archive/<stamp>/}; kind is \texttt{runs}, \texttt{storage}, \texttt{products} or \texttt{plan}}
 \begin{flags}
 \item \fl{--stamp STAMP} the archive to restore from (default: the latest)
 \item \fl{--matrix NAME} for \texttt{products} and \texttt{plan}: the matrix whose file to restore
 \item \fl{--apply} change files; without it, a preview
 \item \fl{--workspace DIR}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{rebuild}{rebuild run records from the simulation folders on disk}
+\wsub{rebuild}{rebuild run records from the simulation folders on disk}
 \begin{flags}
 \item \fl{--all-sims} every simulation folder on disk, recorded or not; \fl{--sims POL [POL ...]} these simulations
 \item \fl{--matrix NAME} the matrix the simulations ran from
@@ -150,18 +151,18 @@
 \end{flags}
 
 \stage{7. MANAGE STORAGE}
-\sub{space-in-use}{report disk space by folder, by simulation and by file extension}
+\wsub{space-in-use}{report disk space by folder, by simulation and by file extension}
 \begin{flags}
 \item \fl{--top N} rows shown per grouping (default 15)
 \item \fl{--workspace DIR}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{free-space <recipe>}{run the storage recipe \texttt{inputs/management/<recipe>.toml}}
+\wsub{free-space <recipe>}{run the storage recipe \texttt{inputs/management/<recipe>.toml}}
 \begin{flags}
 \item \fl{--list} print every path a step touches, with its size and what happens to it
 \item \fl{--apply} delete; without it, a preview
 \item \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{delete-sims}{delete simulations, their folders and their records}
+\wsub{delete-sims}{delete simulations, their folders and their records}
 \begin{flags}
 \item \fl{--sims POL [POL ...]} required: the simulations to delete
 \item \fl{--matrix-products MODE} what happens to a matrix product that also holds the deleted points: \texttt{points-only} or \texttt{regenerate}; \fl{--archive} keep the replaced products when regenerating
@@ -169,7 +170,7 @@
 \item \fl{--apply} delete; without it, a preview
 \item \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
-\sub{sync <level>}{bring records and results from the workspaces of \texttt{inputs/sync-workspaces.toml}; level is \texttt{runs}, \texttt{post} or \texttt{all}, each adding to the one before}
+\wsub{sync <level>}{bring records and results from the workspaces of \texttt{inputs/sync-workspaces.toml}; level is \texttt{runs}, \texttt{post} or \texttt{all}, each adding to the one before}
 \begin{flags}
 \item \fl{--from NAME} one workspace of that file (default: every one)
 \item \fl{--prefer-other} on a record conflict, take the other workspace's record

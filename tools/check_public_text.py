@@ -59,6 +59,8 @@ def patterns() -> list[re.Pattern[str]]:
     words += [s.strip() for s in os.environ.get("CFDB_PRIVATE_TERMS", "").split(",") if s.strip()]
     result = [re.compile(r"(?<!\w)" + re.escape(word) + r"(?!\w)", re.I) for word in words]
     for expression in [
+        r"\bCFB-" + r"PLN-[A-Za-z0-9_.-]+",
+        "[" + chr(0x2013) + chr(0x2014) + "]",
         r"\bGP" + r"T-",
         r"\bGO" + r"AL-\d+\b",
         r"\bPF" + r"S-\d+(?:\.\d+)?",

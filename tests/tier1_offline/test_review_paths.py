@@ -1,8 +1,10 @@
 """Regression probes for management path containment."""
 
 import os
+import shutil
 import subprocess
 from argparse import Namespace
+from pathlib import Path
 
 import pytest
 from test_p0000_item3c_adapter import workspace
@@ -18,9 +20,15 @@ def link_folder(link, target):
     except OSError:
         if os.name != "nt":
             pytest.skip("directory symlinks unavailable")
+        shell = shutil.which("powershell") or shutil.which("pwsh")
+        if shell is None:
+            shell = str(
+                Path(os.environ.get("SystemRoot", "C:/Windows"))
+                / "System32/WindowsPowerShell/v1.0/powershell.exe"
+            )
         subprocess.run(
             [
-                "powershell",
+                shell,
                 "-NoProfile",
                 "-Command",
                 "New-Item -ItemType Junction -Path $env:REVIEW_LINK -Target $env:REVIEW_TARGET",
@@ -28,6 +36,7 @@ def link_folder(link, target):
             env={**os.environ, "REVIEW_LINK": str(link), "REVIEW_TARGET": str(target)},
             check=True,
             capture_output=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
 
 

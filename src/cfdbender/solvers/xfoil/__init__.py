@@ -42,6 +42,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from cfdbender.core.adapter import AdapterPoint
+from cfdbender.core.flight import STATE_KEYS
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
@@ -102,6 +103,13 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         ("write XFOIL keystrokes", "run XFOIL", "read XFOIL polar"),
         tuple(f"sims/sim_{{pol}}/datapoints/{{point}}/{name}" for name in names),
     )
+
+
+validate_row.default_setup_overrides = {  # type: ignore[attr-defined]
+    **{key: ("mach", "reynolds") for key in STATE_KEYS if key != "MACH"},
+    "MACH": ("mach",),
+    "GEOMETRY": ("airfoil", "airfoil_file"),
+}
 
 
 def translate(point: AdapterPoint) -> str:

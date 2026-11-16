@@ -18,8 +18,10 @@ import json
 import math
 import os
 import re
+import sys
 import tempfile
 import threading
+import warnings
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
@@ -41,9 +43,54 @@ from cfdbender.core.plan import (
 from cfdbender.core.results import Classification
 from cfdbender.core.settings import WorkspaceError
 
+REGISTRY_SCHEMA = 2
+
 
 class RegistryError(WorkspaceError):
     """A registry read or write would lose or misidentify point evidence."""
+
+
+def _writer_alive(pid: int) -> bool:
+    """Conservatively check a writer without sending a signal on Windows."""
+    if pid <= 0:
+        return True
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return ctypes.get_last_error() != 87  # invalid parameter means no such process
+        try:
+            code = wintypes.DWORD()
+            return not kernel.GetExitCodeProcess(handle, ctypes.byref(code)) or code.value == 259
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _claim_file(stream: Any) -> None:
+    """Claim a nonblocking OS lease as well as the exclusive path name."""
+    stream.seek(0)
+    if sys.platform == "win32":
+        import msvcrt
+
+        msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 
 @dataclass(frozen=True)
@@ -106,12 +153,15 @@ def _strings(values: dict[str, object], key: str) -> tuple[str, ...]:
 def _submission(raw: object, root: Path, directory: str, started: str) -> Mapping[str, object]:
     values = _object(raw)
     job_outputs = values.pop("job_outputs", None)
+    job_end_files = values.pop("job_end_files", None)
+    cluster = values.pop("cluster", None)
+    has_profile = "profile" in values
+    profile = values.pop("profile", None)
     if set(values) != {
         "descriptor",
         "descriptor_sha256",
         "config_path",
         "config_sha256",
-        "profile",
         "command",
         "stdout_path",
         "stderr_path",
@@ -124,6 +174,10 @@ def _submission(raw: object, root: Path, directory: str, started: str) -> Mappin
         "timed_out",
     }:
         raise RegistryError("submission has missing or unknown fields")
+    if cluster is not None:
+        if not isinstance(cluster, str) or not cluster:
+            raise RegistryError("submission cluster must be non-empty text")
+        values["cluster"] = cluster
     for key in ("descriptor", "config_path", "stdout_path", "stderr_path"):
         name = _text(values, key)
         path = workspace_path(root, name)
@@ -132,13 +186,15 @@ def _submission(raw: object, root: Path, directory: str, started: str) -> Mappin
     for key in ("descriptor_sha256", "config_sha256"):
         if re.fullmatch("[0-9a-f]{64}", _text(values, key)) is None:
             raise RegistryError(f"submission {key} must be a SHA-256 hex digest")
-    profile = _text(values, "profile")
-    if (
-        workspace_path(root, profile).relative_to(root).as_posix() != profile
-        or not profile.startswith("inputs/hpc/")
-        or not profile.endswith(".toml")
-    ):
-        raise RegistryError("submission profile must name inputs/hpc/<NAME>.toml")
+    if has_profile:
+        if (
+            not isinstance(profile, str)
+            or workspace_path(root, profile).relative_to(root).as_posix() != profile
+            or not profile.startswith("inputs/hpc/")
+            or not profile.endswith(".toml")
+        ):
+            raise RegistryError("submission profile must name inputs/hpc/<NAME>.toml")
+        values["profile"] = profile
     command = values["command"]
     if (
         not isinstance(command, (list, tuple))
@@ -166,6 +222,18 @@ def _submission(raw: object, root: Path, directory: str, started: str) -> Mappin
         ):
             raise RegistryError("submission job_outputs must be a non-empty list of paths")
         values["job_outputs"] = tuple(job_outputs)
+    if job_end_files is not None:
+        if (
+            not isinstance(job_end_files, (list, tuple))
+            or not job_end_files
+            or any(not isinstance(name, str) or not name for name in job_end_files)
+        ):
+            raise RegistryError("submission job_end_files must be a non-empty list of paths")
+        for name in job_end_files:
+            path = workspace_path(root, name)
+            if path.relative_to(root).as_posix() != name or not name.startswith(directory + "/"):
+                raise RegistryError("submission job_end_files must be inside the point directory")
+        values["job_end_files"] = tuple(job_end_files)
     begin = _timestamp(_text(values, "started_at"))
     finish = _timestamp(_text(values, "finished_at"))
     if (
@@ -186,10 +254,15 @@ def _extras(row: Mapping[str, object]) -> dict[str, Any]:
         if key not in row:
             continue
         value = row[key]
-        if key == "variables":
+        if key == "defaults_omitted":
+            if not isinstance(value, (list, tuple)) or any(not isinstance(k, str) for k in value):
+                raise RegistryError("defaults_omitted must be a list of setup key names")
+            found[key] = tuple(value)
+            continue
+        if key in {"variables", "restart_sha256"}:
             found[key] = MappingProxyType(dict(_object(value)))
             continue
-        if key in {"geometry", "solver_build"}:
+        if key in {"geometry", "solver_build", "restart_from", "restart_directory"}:
             valid = value is None or (isinstance(value, str) and bool(value))
         elif key == "ncpus":
             valid = value is None or (type(value) is int and value > 0)
@@ -295,6 +368,24 @@ def _decode(raw: object, root: Path) -> RunRecord:
         inputs_sha256=MappingProxyType(digests),
         **_extras(row),
     )
+    if point.restart_directory is not None:
+        source = workspace_path(root, point.restart_directory)
+        if not point.restart_directory.startswith(("sims/", "archive/")) or source == root:
+            raise RegistryError("restart_directory must name a saved point folder")
+        if point.restart_from is None:
+            raise RegistryError("restart_directory requires restart_from")
+    if (
+        point.restart_from is not None
+        and re.fullmatch(r"[A-Za-z0-9_-]+/DP-[A-Za-z0-9_+.-]+", point.restart_from) is None
+    ):
+        raise RegistryError("restart_from must name POL/DP-name")
+    for name, restart_digest in point.restart_sha256.items():
+        workspace_path(root / directory, name)
+        if (
+            not isinstance(restart_digest, str)
+            or re.fullmatch("[0-9a-f]{64}", restart_digest) is None
+        ):
+            raise RegistryError("restart_sha256 must hold SHA-256 digests of solution inputs")
     record = RunRecord(
         point,
         matrix,
@@ -394,7 +485,7 @@ def _encode(record: RunRecord) -> dict[str, object]:
     # a matrix without them keeps its earlier bytes.
     for key, default in POINT_EXTRAS.items():
         value = getattr(point, key)
-        if key == "variables":
+        if key in {"variables", "restart_sha256"}:
             value = dict(value)
         if value != default:
             row[key] = value
@@ -435,9 +526,8 @@ def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
 class RunRegistry:
     """Read proposals and seal executed points, refusing drift and overlapping claims.
 
-    No solver is loaded. Writers fail immediately if runs.json.lock exists;
-    they never steal or recover a lock. An interrupted writer's lock requires
-    the operator to establish that writer has stopped before removing it.
+    No solver is loaded. Live or unidentified writers refuse immediately.
+    A lock naming a departed process is reclaimed under an OS lease with a warning.
     """
 
     def __init__(self, root: str | Path, runs: str = "runs.json") -> None:
@@ -468,7 +558,7 @@ class RunRegistry:
         try:
             kept = self._history() if history is None else history
             document: dict[str, object] = {
-                "schema_version": 1,
+                "schema_version": REGISTRY_SCHEMA,
                 "records": [_encode(r) for r in records],
             }
             if kept:
@@ -703,17 +793,24 @@ class RunRegistry:
                 raise RegistryError("registry must not be a symlink")
             if not self.path.exists():
                 return ()
-            document = _object(json.loads(self.path.read_bytes(), object_pairs_hook=_unique_pairs))
+            original = self.path.read_bytes()
+            document = _object(json.loads(original, object_pairs_hook=_unique_pairs))
             if (
                 set(document) - {"history"} != {"schema_version", "records"}
                 or not isinstance(document.get("history", []), list)
                 or type(document["schema_version"]) is not int
-                or document["schema_version"] != 1
+                or document["schema_version"] not in (1, REGISTRY_SCHEMA)
                 or not isinstance(document["records"], list)
             ):
-                raise RegistryError("expected schema_version = 1 and records list")
+                raise RegistryError("expected schema_version = 1 or 2 and records list")
             records = tuple(_decode(raw, self.root) for raw in document["records"])
             check_claims(tuple(r.point for r in records))
+            if document["schema_version"] == 1:
+                with self.transaction():
+                    if self.path.read_bytes() != original:
+                        return self.read()
+                    self.archive_manifest()
+                    self._replace(records, cast(list[object], document.get("history", [])))
             return records
         except (OSError, ValueError, TypeError, OverflowError) as error:
             raise RegistryError(f"{self.path}: cannot read run registry: {error}") from error
@@ -744,9 +841,7 @@ class RunRegistry:
         stamp = _timestamp(created_at if created_at is not None else datetime.now(UTC).isoformat())
         lease = self._locked()
         try:
-            with lease as stream:
-                stream.write(str(os.getpid()))
-                stream.flush()
+            with lease:
                 previous = self.read()
                 check_claims(tuple(r.point for r in previous) + plan.points)
                 records = tuple(
@@ -780,11 +875,38 @@ class RunRegistry:
             yield held
             return
         try:
-            lease = self.lock_path.open("x", encoding="utf-8")
-        except FileExistsError as error:
-            raise RegistryError(
-                f"{self.lock_path}: registry is locked by another writer"
-            ) from error
+            lease = self.lock_path.open("x+", encoding="utf-8", newline="\n")
+        except FileExistsError:
+            lease = self.lock_path.open("r+", encoding="utf-8", newline="\n")
+            try:
+                _claim_file(lease)
+                opened = os.fstat(lease.fileno())
+                named = self.lock_path.lstat()
+                if (
+                    self.lock_path.is_symlink()
+                    or opened.st_nlink != 1
+                    or (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino)
+                ):
+                    raise RegistryError(f"{self.lock_path}: linked or replaced lock refused")
+                text = lease.read().strip()
+                if not text.isdecimal() or _writer_alive(int(text)):
+                    raise RegistryError(f"{self.lock_path}: registry is locked by another writer")
+                warnings.warn(
+                    f"{self.lock_path}: writer {text} is gone; taking over dead writer lock",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            except (OSError, ValueError):
+                lease.close()
+                raise RegistryError(
+                    f"{self.lock_path}: registry is locked by another writer"
+                ) from None
+        else:
+            _claim_file(lease)
+        lease.seek(0)
+        lease.truncate()
+        lease.write(str(os.getpid()))
+        lease.flush()
         self._transaction.lease = lease
         try:
             with lease:
@@ -891,10 +1013,10 @@ class RunRegistry:
         try:
             with lease:
                 document = _object(json.loads(source.read_bytes(), object_pairs_hook=_unique_pairs))
-                if document.get("schema_version") != 1 or not isinstance(
+                if document.get("schema_version") not in (1, REGISTRY_SCHEMA) or not isinstance(
                     document.get("records"), list
                 ):
-                    raise RegistryError("expected schema_version = 1 and records list")
+                    raise RegistryError("expected schema_version = 1 or 2 and records list")
                 records = tuple(
                     _decode(raw, self.root) for raw in cast(list[object], document["records"])
                 )

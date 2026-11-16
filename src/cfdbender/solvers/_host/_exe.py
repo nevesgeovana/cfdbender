@@ -67,8 +67,8 @@ def resolve_executable(value: str, root: Path, solver: str, key: str = "executab
 def check_host_free(solver: str, estimate_gib: float = 0.0) -> None:
     """Refuse up front when this machine cannot start a solver run now.
 
-    The same two guards every launch applies, asked before any point starts: the
-    machine-wide process slot must be free and the free RAM must stay above the floor.
+    Free RAM minus the solver's estimate must stay above the floor. The optional
+    machine-wide process lease is acquired by the local run command.
 
     Parameters
     ----------

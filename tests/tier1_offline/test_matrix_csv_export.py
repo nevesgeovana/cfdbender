@@ -1,4 +1,4 @@
-"""collect writes campaign_sweep.csv and polars/P<POL>.csv, one row per point."""
+"""collect writes the family polar files, one row per point, and no campaign sweep."""
 
 from __future__ import annotations
 
@@ -20,41 +20,30 @@ def test_collect_writes_one_row_per_point_with_every_coefficient(tmp_path, capsy
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
     post = tmp_path / "post/study"
-    assert "wrote post/study/campaign_sweep.csv" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "wrote post/study/polars/FAM-ACOEF-P1001.csv" in out and "campaign_sweep" not in out
+    assert not (post / "campaign_sweep.csv").exists()
     summary = json.loads((post / "campaign_summary.json").read_bytes())["points"]
-    rows = read(post / "campaign_sweep.csv")
+    rows = [
+        row
+        for pol in ("1001", "1002", "1003")
+        for row in read(post / f"polars/FAM-ACOEF-P{pol}.csv")
+    ]
     assert len(rows) == len(summary) == 4
     header = list(rows[0])
-    assert header[:2] == ["POL", "point"] and header[2] == "ALPHA"
-    assert header[18:24] == [
-        "status",
-        "classification",
-        "iterations",
-        "residual",
-        "wall_time_s",
-        "solver_version",
-    ]
-    assert header[24:] == ["CL", "CD", "CM", "CX", "CY", "CZ", "Cl", "Cm", "Cn"]
+    assert header[:4] == ["POL", "POINT_ID", "POINT", "RUN_TYPE"] and header[4] == "ALPHA"
+    assert header[-7:] == ["CX", "CY", "CZ", "Cl", "Cm", "Cn", "MESH_FACES"]
     for row, point in zip(rows, summary, strict=True):
         result = point["result"]
         assert row["POL"] == point["pol"]
-        assert row["point"] == point["point_id"].split("/", 1)[1]
+        assert row["POINT"] == point["point_id"].split("/", 1)[1]
         assert float(row["ALPHA"]) == point["condition"]["ALPHA"]
-        assert row["status"] == "COMPLETED" and row["classification"] == "converged"
-        assert int(row["iterations"]) == result["history"][-1]["iteration"]
-        assert float(row["residual"]) == result["history"][-1]["residual"]
-        assert float(row["wall_time_s"]) >= 0
-        assert row["solver_version"] == "mock-1"
         for name, value in result["coefficients"].items():
             assert float(row[name]) == value["value"]
-    polar = read(post / "polars/P1001.csv")
-    assert [r["point"] for r in polar] == ["DP-AL+000", "DP-AL+020"]
+    polar = read(post / "polars/FAM-ACOEF-P1001.csv")
+    assert [r["POINT"] for r in polar] == ["DP-AL+000", "DP-AL+020"]
     assert polar == rows[:2]
-    assert sorted(p.name for p in (post / "polars").iterdir()) == [
-        "P1001.csv",
-        "P1002.csv",
-        "P1003.csv",
-    ]
+    assert not any(p.name.startswith("P1001.") for p in (post / "polars").iterdir())
 
 
 def test_an_unread_point_leaves_empty_cells(tmp_path):
@@ -68,6 +57,5 @@ def test_an_unread_point_leaves_empty_cells(tmp_path):
     plan = plan_workspace(tmp_path, "study")
     RunRegistry(tmp_path).record(replace(plan, points=plan.points[2:3]))
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 3
-    rows = read(tmp_path / "post/study/polars/P1002.csv")
-    assert rows[0]["status"] == "PLANNED"
-    assert rows[0]["classification"] == rows[0]["iterations"] == rows[0]["CX"] == "NA"
+    rows = read(tmp_path / "post/study/polars/FAM-ACOEF-P1002.csv")
+    assert rows[0]["CX"] == rows[0]["CDW"] == "NA"

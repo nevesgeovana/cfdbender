@@ -4,39 +4,50 @@ from __future__ import annotations
 
 import argparse
 import shlex
+import subprocess
 import sys
 import time
-import warnings
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
 from cfdbender.core.progress import sink as progress_sink
+from cfdbender.core.refusals import warn_or_refuse, warning_refusals
 from cfdbender.core.registry import RunRecord
 from cfdbender.core.run import execute_plan, judge_environment
 from cfdbender.core.settings import WorkspaceError, read_init, require_workspace
-from cfdbender.matrix import queries, records, storage
+from cfdbender.hpc import HpcProfile
+from cfdbender.matrix import queries
 from cfdbender.matrix._console import (
     SIMS_HELP,
     WORKSPACE_HELP,
     Console,
     add_console_options,
+    add_refusal_option,
     add_runs_option,
     add_warning_option,
     held_warnings,
     level_of,
     open_live_log,
     record_activity,
+    refusals_wanted,
     status_word,
 )
 from cfdbender.matrix.collection import collect_workspace
 from cfdbender.matrix.post import post_workspace
 from cfdbender.matrix.receipt import require_receipt, write_receipt
 from cfdbender.matrix.rerun import decide
+from cfdbender.matrix.restart import prepare as prepare_restart
 from cfdbender.matrix.selection import select_plan, split_ids
-from cfdbender.matrix.submission import select_profile, submission_plans, submit_plan
+from cfdbender.matrix.submission import (
+    point_profiles,
+    select_profile,
+    submission_plans,
+    submit_plan,
+)
 from cfdbender.solvers import available_solvers, load_solver
 from cfdbender.solvers._host import _exe
 from cfdbender.solvers.flightstream import dispatch
@@ -45,25 +56,57 @@ from cfdbender.workspace.planning import plan_workspace
 #: The commands that leave a live log and activity events in logs/; plan only previews.
 LOGGED = frozenset({"run", "collect", "post"})
 
+#: The verbs that act on what the workspace holds, which cfd-workspace answers.
+MOVED = (
+    "space-in-use",
+    "free-space",
+    "delete-sims",
+    "sync",
+    "restore",
+    "rebuild",
+    "mark-failed",
+    "mark-converged",
+    "show",
+    "log",
+    "trace",
+    "history",
+    "diff",
+)
+
 
 _EPILOG = """\
 first campaign (the folder is a workspace made by cfd-workspace init):
   cfd-matrix plan <matrix>            preview the work and write the plan receipt
   cfd-matrix run <matrix> --local     run every active point on this machine
   cfd-matrix status                   see how each simulation ended (--points: each point)
-  cfd-matrix show <POL>               the card of a simulation or of one point
   cfd-matrix collect <matrix>         read the results into the tables of post/<matrix>/
   cfd-matrix post <matrix>            rebuild those tables again, with no solver and no pickup
 
-Verbs by stage:
-  plan and run:       plan, run
-  follow:             status, show, history, log, trace, diff
-  collect and post:   collect, post
-  correct records:    mark-failed, mark-converged, restore, rebuild
-  manage storage:     space-in-use, free-space, delete-sims, sync
+cfd-matrix acts on a matrix: plan, run, status, collect, post.
+cfd-workspace acts on what the workspace holds: show, history, log, trace, diff, mark-failed,
+mark-converged, restore, rebuild, space-in-use, free-space, delete-sims, sync, archive.
 Every verb takes --workspace, --verbose and --log-level; the verbs that change files preview
 until --apply. `cfd-matrix <verb> --help` says the rest.
 """
+
+
+def _typed(argv: list[str]) -> str:
+    """Quote the arguments as the user's shell reads them: double quotes on Windows."""
+    return subprocess.list2cmdline(argv) if sys.platform == "win32" else shlex.join(argv)
+
+
+def moved_refusal(argv: list[str]) -> str | None:
+    """Return the refusal for a verb that moved to cfd-workspace, or None for any other command."""
+    for word in argv:
+        if word.startswith("-"):
+            continue
+        if word not in MOVED:
+            return None
+        return (
+            f"cfd-matrix {word} moved: it acts on what the workspace holds, not on a matrix. "
+            f"Type: cfd-workspace {_typed(argv)}"
+        )
+    return None
 
 
 def _seconds(text: str) -> float:
@@ -98,6 +141,7 @@ def build_parser() -> tuple[
         allow_abbrev=False,
     )
     add_warning_option(parser)
+    add_refusal_option(parser)
     commands = parser.add_subparsers(dest="command", required=True)
     plan_parser = commands.add_parser(
         "plan",
@@ -114,6 +158,12 @@ def build_parser() -> tuple[
     )
     run_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
     run_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
+    run_parser.add_argument(
+        "--restart",
+        action="store_true",
+        help="continue every selected point from its own last solution, "
+        "archiving its previous run first",
+    )
     run_parser.add_argument(
         "--one-run-at-a-time",
         action="store_true",
@@ -147,7 +197,7 @@ def build_parser() -> tuple[
     collect_parser = commands.add_parser(
         "collect",
         help="read saved results and rebuild post/<matrix>/campaign_summary.json, "
-        "campaign_sweep.csv and polars/P<POL>.csv",
+        "the polar files polars/FAM-<KIND>-P<POL>.csv and P<POL>-<GROUP>-<KIND>.csv",
         allow_abbrev=False,
     )
     collect_parser.add_argument("matrix", nargs="?", help="recorded matrix name (default: all)")
@@ -170,6 +220,13 @@ def build_parser() -> tuple[
     )
     add_console_options(post_parser)
     for command_parser in (plan_parser, run_parser, collect_parser):
+        if command_parser is not collect_parser:
+            command_parser.add_argument(
+                "--warning-refusals",
+                action="store_true",
+                default=argparse.SUPPRESS,
+                help="refuse warnings, including unused cluster values",
+            )
         command_parser.add_argument(
             "--sims",
             nargs="+",
@@ -237,8 +294,7 @@ def build_parser() -> tuple[
         help="stop a watch after this many sweeps, whatever is still outstanding",
     )
     verbs: dict[str, Callable[[argparse.Namespace], int]] = {}
-    for module in (queries, records, storage):
-        verbs.update(module.register(commands))
+    verbs.update(queries.register(commands))
     for name in verbs:
         add_console_options(commands.choices[name])
     return parser, verbs
@@ -262,14 +318,19 @@ def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if (forwarded := dispatch(argv, workspace=False)) is not None:
         return forwarded
+    if (moved := moved_refusal(argv)) is not None:
+        print(moved, file=sys.stderr)
+        return 2
     parser, verbs = build_parser()
     args = parser.parse_args(argv)
+    args.typed_argv = list(argv)
     try:
         level = level_of(args)
+        root = Path(args.workspace).resolve()
+        refuse = refusals_wanted(args, root)
     except WorkspaceError as error:
         print(str(error), file=sys.stderr)
         return 2
-    root = Path(args.workspace).resolve()
     # The commands that do work leave a live log and activity events; the read-only
     # verbs leave nothing behind.
     live = open_live_log(root, args.command) if args.command in LOGGED else None
@@ -278,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in LOGGED:
         record_activity(root, args.command, "started", argv=list(argv))
     try:
-        with held_warnings(root, show=args.console_warnings, log=live):
+        with held_warnings(root, show=args.console_warnings, log=live), warning_refusals(refuse):
             code = _execute(args, verbs, console)
         return code
     finally:
@@ -310,7 +371,7 @@ def _strays_line(strays: Mapping[str, tuple[str, ...]]) -> str:
         shown = ", ".join(points[:3]) + (", ..." if len(points) > 3 else "")
         parts.append(
             f"{len(points)} recorded points are not in {matrix}.fs any more ({shown}); "
-            "retire them with cfd-matrix delete-sims or cfd-workspace archive"
+            "retire them with cfd-workspace delete-sims or cfd-workspace archive"
         )
     return "; ".join(parts)
 
@@ -373,8 +434,13 @@ def _execute(
     try:
         if args.command == "run":
             config = read_init(args.workspace, available_solvers=available_solvers())
-            profile = select_profile(Path(args.workspace).resolve(), args.hpc)
-            args.guard_active = (profile is None or args.local) and (
+            selected = select_plan(
+                plan_workspace(args.workspace, args.matrix),
+                split_ids(args.sims),
+                split_ids(args.points),
+            )
+            profiles = () if args.local else point_profiles(selected, args.hpc)
+            args.guard_active = (args.local or not any(profiles)) and (
                 args.one_run_at_a_time or config.one_run_at_a_time
             )
             if args.guard_active:
@@ -409,8 +475,9 @@ def _execute_inner(
             return verbs[args.command](args)
         if args.command == "post":
             return _post(args, console)
-        profile = select_profile(Path(args.workspace).resolve(), args.hpc)
         if args.command == "collect":
+            if not (Path(args.workspace) / "runs.json").is_file():
+                select_profile(Path(args.workspace).resolve(), args.hpc)
             return _collect(args, console)
         plan = select_plan(
             plan_workspace(args.workspace, args.matrix),
@@ -420,43 +487,66 @@ def _execute_inner(
         if not plan.points:
             console.final(f"no active row: every row of {Path(plan.matrix).name} has RUN = 0")
             return 0
-        cluster = profile is not None and not args.local
+        selected_profiles = () if args.local else point_profiles(plan, args.hpc)
+        cluster = bool(selected_profiles) and all(p is not None for p in selected_profiles)
+        profiles = cast(tuple[HpcProfile, ...], selected_profiles)
+        downgraded = False
         if cluster and "cluster_staging" not in capabilities(load_solver(plan.solver)):
-            warnings.warn(
+            local_argv = [word for word in args.typed_argv if word != "--no-local"] + ["--local"]
+            warn_or_refuse(
                 f"solver {plan.solver!r} does not support cluster_staging; "
-                "cluster staging and submission skipped; use --local to run locally",
+                "cluster staging and submission skipped. "
+                f"Type: cfd-matrix {_typed(local_argv)}",
                 UserWarning,
                 stacklevel=2,
             )
             cluster = False
+            downgraded = True
             if args.command == "run":
                 return 0
         if args.command == "plan":
-            receipt = write_receipt(plan)
-            console.detail(f"plan receipt: {receipt}")
-            receipt_rel = _shown(args.workspace, receipt)
-            if profile is None or args.local:
+            if not cluster:
                 check_builds(
                     plan.root,
                     plan.solver,
                     load_solver(plan.solver),
                     (point.solver_build for point in plan.points),
                 )
-            if args.local:
+            if args.local or downgraded:
                 # A local plan looks for the executable as a run does; a cluster plan does not.
                 check_local_executables(
                     plan.root, plan.solver, load_solver(plan.solver), plan.points
                 )
-        jobs = submission_plans(plan, profile) if cluster and profile is not None else ()
+        jobs = submission_plans(plan, profiles) if cluster else ()
+        if args.command == "plan":
+            profile_paths = (
+                tuple(p.path.relative_to(plan.root).as_posix() for p in profiles) if cluster else ()
+            )
+            receipt = write_receipt(plan, profile_paths)
+            console.detail(f"plan receipt: {receipt}")
+            receipt_rel = _shown(args.workspace, receipt)
         if args.command == "run":
-            require_receipt(plan)
-            submitting = profile is not None and not args.local
+            profile_paths = (
+                tuple(p.path.relative_to(plan.root).as_posix() for p in profiles) if cluster else ()
+            )
+            require_receipt(plan, profile_paths)
+            submitting = cluster
             adapter = cast(SolverAdapter, load_solver(plan.solver))
+            if args.restart and "restart" not in capabilities(adapter):
+                warn_or_refuse(
+                    f"solver {plan.solver!r} does not support restart; --restart skipped"
+                )
+                args.restart = False
+            if args.restart and (args.resume or args.force_rerun or args.force_rerun_all):
+                raise WorkspaceError(
+                    "--restart cannot be combined with --resume or --force-rerun options"
+                )
+            plan = prepare_restart(plan, adapter, own=args.restart, local=not submitting)
             decision = decide(
                 plan,
                 resume=args.resume,
                 force=args.force_rerun,
-                force_all=args.force_rerun_all,
+                force_all=args.force_rerun_all or args.restart,
                 submitting=submitting,
                 # A local run this machine would refuse must refuse before a point is
                 # archived, not after: the refusal leaves the records as they were.
@@ -469,8 +559,26 @@ def _execute_inner(
             for point_id, reason in decision.skipped:
                 console.say(f"  {point_id}  skipped: {reason}")
             plan = decision.plan
-            jobs = submission_plans(plan, profile) if submitting and profile is not None else ()
-            live = profile is None or args.local
+            if decision.archive is not None:
+                plan = replace(
+                    plan,
+                    points=tuple(
+                        replace(
+                            p,
+                            restart_directory=(decision.archive / p.restart_directory)
+                            .relative_to(plan.root)
+                            .as_posix(),
+                        )
+                        if p.restart_directory and (decision.archive / p.restart_directory).is_dir()
+                        else p
+                        for p in plan.points
+                    ),
+                )
+            profiles = (
+                cast(tuple[HpcProfile, ...], point_profiles(plan, args.hpc)) if submitting else ()
+            )
+            jobs = submission_plans(plan, profiles) if submitting else ()
+            live = not submitting
             started: dict[str, float] = {}
 
             def progress(
@@ -492,8 +600,8 @@ def _execute_inner(
                     records = execute_plan(
                         plan, adapter, on_event=progress, one_run_at_a_time=args.guard_active
                     )
-            elif profile is not None:
-                records = submit_plan(plan, jobs, profile, adapter)
+            elif submitting:
+                records = submit_plan(plan, jobs, profiles, adapter)
             else:
                 raise WorkspaceError("no HPC profile selected")
             for record in records:
@@ -555,7 +663,8 @@ def _execute_inner(
         console.detail(f"    would: {'; '.join(point.actions)}")
         for output in point.outputs:
             console.detail(f"    output: {output}")
-    for job in jobs:
+    for job, profile in zip(jobs, profiles if jobs else (), strict=True):
+        console.say(f"profile: {profile.path.relative_to(plan.root).as_posix()}")
         for warning in job.warnings:
             console.error(f"warning: {warning}")
         console.say(f"descriptor: {job.descriptor_path.as_posix()}")

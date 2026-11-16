@@ -23,7 +23,7 @@ matrix -> plan -> run or submit -> collect -> tables
 | plan | `cfd-matrix plan <matrix>` | `init.toml`, the matrix, the setup, reference and post files of each row, the mesh or geometry | the plan receipt `post/<matrix>/plan.json`; no solver file |
 | run | `cfd-matrix run <matrix>` | the plan, `runs.json` | one folder per point under `sims/`, one record per point in `runs.json` |
 | submit | `cfd-matrix run <matrix> --hpc <profile>` | the plan, the profile in `inputs/hpc/` | the staged point folder, the job descriptor, the record as `SUBMITTED` |
-| collect | `cfd-matrix collect [<matrix>]` | `runs.json`, the saved solver outputs | `post/<matrix>/campaign_summary.json`, `campaign_sweep.csv`, `polars/P<POL>.csv`, `products.json`, `post.log` |
+| collect | `cfd-matrix collect [<matrix>]` | `runs.json`, the saved solver outputs | `post/<matrix>/campaign_summary.json`, `polars/FAM-<KIND>-P<POL>.csv` and `polars/P<POL>-<GROUP>-<KIND>.csv`, `products.json`, `post.log` |
 | post | `cfd-matrix post [<matrix>]` | `runs.json`, the saved solver outputs; no pickup of submitted jobs | the same products as collect; no record changes |
 
 Planning launches no solver. A run executes every selected point, records a
@@ -51,7 +51,8 @@ beside the core  cfdbender.hpc   cfdbender.testing   cfdbender.geometry
 | Job planner | `cfdbender.hpc` | Renders a job descriptor and a submit command from a profile, and computes walltime. It knows no solver. |
 | Applications | `cfdbender.matrix`, `cfdbender.workspace` | The `cfd-matrix` and `cfd-workspace` commands. They read `init.toml`, load the one declared adapter by name and pass it to the core. The two depend on each other in one direction each: `cfdbender.workspace` imports the console and record helpers of `cfdbender.matrix`, and `cfdbender.matrix` imports the planning of `cfdbender.workspace`; neither is imported by the core, the adapters or the job planner. |
 | Conformance kit | `cfdbender.testing` | Assertions an adapter's tests call to prove the contract. |
-| Geometry | `cfdbender.geometry` | Blade slicing on the standard library alone. |
+| Geometry | `cfdbender.geometry` | Parametric geometry, blade sections and the geometry pipeline; its numerical layer uses numpy, scipy and pydantic. |
+| Mesh | `cfdbender.mesh` | Surface and airfoil meshes; kernel operations reach gmsh only through `cfdbender.mesh._gmsh`. |
 | Facade | `cfdbender._pyfs` | The only module that imports pyflightstream. |
 
 ### The import rule
@@ -127,7 +128,8 @@ the guarantees listed below the table.
   (`mark-failed`, `mark-converged`, `restore`, `rebuild`, `sync` and `delete-sims`),
   applied with `--apply`, are the exception: each archives the manifest first, and
   `mark-failed` refuses a `RUNNING` point. One writer at a time holds
-  `runs.json.lock`.
+  `runs.json.lock`. A lock whose named process is gone is reclaimed with a warning;
+  a live or unidentified writer remains protected.
 - **Process success is not convergence.** A point is `converged`,
   `iteration_limit` or `failed` from numerical evidence. Exit code zero alone
   is `failed`.

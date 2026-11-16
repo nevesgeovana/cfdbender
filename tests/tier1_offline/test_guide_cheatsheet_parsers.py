@@ -218,9 +218,11 @@ def test_every_command_line_in_a_listing_of_the_decks_parses():
 
 def test_the_sheet_covers_both_tools_and_every_command():
     commands = {tool: _surface(parser)[1] for tool, parser in _parsers().items()}
-    assert len(commands["cfd-matrix"]) >= 18
+    assert {"plan", "run", "collect", "post", "status"} <= set(commands["cfd-matrix"])
+    assert len(commands["cfd-workspace"]) >= 15
     assert {"init", "archive"} <= set(commands["cfd-workspace"])
-    assert sum(len(options) for options, _ in commands["cfd-matrix"].values()) > 100
+    both = (*commands["cfd-matrix"].values(), *commands["cfd-workspace"].values())
+    assert sum(len(options) for options, _ in both) > 100
 
 
 @pytest.mark.parametrize(
@@ -234,15 +236,19 @@ def test_the_sheet_covers_both_tools_and_every_command():
         (
             "\\item \\fl{--top N}",
             "\\item \\fl{--top N}, \\fl{--bogus}",
-            "cfd-matrix space-in-use: its entry names --bogus, which it does not take",
+            "cfd-workspace space-in-use: its entry names --bogus, which it does not take",
         ),
         (
             "\\item \\fl{--top N}",
             "\\item \\fl{--top N}, \\fl{--apply}",
-            "cfd-matrix space-in-use: its entry names --apply, which it does not take",
+            "cfd-workspace space-in-use: its entry names --apply, which it does not take",
         ),
-        ("\\sub{trace <product>}", "\\sub{track <product>}", "cfd-matrix trace: 0 entries"),
-        ("\\sub{trace <product>}", "\\sub{track <product>}", "cfd-matrix track: the sheet names"),
+        ("\\wsub{trace <product>}", "\\wsub{track <product>}", "cfd-workspace trace: 0 entries"),
+        (
+            "\\wsub{trace <product>}",
+            "\\wsub{track <product>}",
+            "cfd-workspace track: the sheet names",
+        ),
         ("\\sub{plan <matrix>}", "\\wsub{plan <matrix>}", "cfd-workspace plan: the sheet names"),
         ("\\sub{plan <matrix>}", "\\sub{plan}", "cfd-matrix plan: positional matrix is missing"),
         ("\\fl{--warning-off}", "the warning switch", "--warning-off is missing from the header"),
@@ -276,9 +282,9 @@ def test_an_option_added_to_a_parser_is_named_until_the_sheet_carries_it():
             "cfd-matrix plan: a stage page names --apply",
         ),
         (
-            "\\begin{cmdblock}{cfd-matrix history}",
-            "\\begin{cmdblock}{cfd-matrix past}",
-            "cfd-matrix history: no stage page carries it",
+            "\\begin{cmdblock}{cfd-workspace history}",
+            "\\begin{cmdblock}{cfd-workspace past}",
+            "cfd-workspace history: no stage page carries it",
         ),
         (
             "\\ex{cfd-matrix plan polar --local --verbose}",
@@ -314,11 +320,11 @@ def test_no_guide_source_holds_an_em_or_en_dash():
         assert chr(0x2014) not in text and chr(0x2013) not in text, path.name
 
 
-def test_the_four_guides_are_built_and_the_cheatsheet_has_eight_pages():
+def test_the_four_guides_are_built_and_the_cheatsheet_has_nine_pages():
     for name in GUIDES:
         assert (PDFS / f"{name}.pdf").stat().st_size > 20_000, name
     data = (PDFS / "cfdb-guide-04-cheatsheet.pdf").read_bytes()
-    assert len(re.findall(rb"/Type\s*/Page(?![s\w])", data)) == 8
+    assert len(re.findall(rb"/Type\s*/Page(?![s\w])", data)) == 9
     info = (SOURCES / "shared" / "info.tex").read_text(encoding="utf-8")
     version = re.search(r"\\newcommand\{\\pkgversion\}\{([^}]+)\}", info)
     assert version is not None

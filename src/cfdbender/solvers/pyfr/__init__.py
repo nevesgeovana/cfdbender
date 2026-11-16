@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from cfdbender.core.adapter import AdapterPoint
+from cfdbender.core.flight import STATE_KEYS
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
@@ -12,9 +13,12 @@ from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers.pyfr._config import config, options, render
 from cfdbender.solvers.pyfr._execute import run, stage_case
 from cfdbender.solvers.pyfr._history import Evidence, read
+from cfdbender.solvers.pyfr._restart import restart_files as restart_files
+from cfdbender.solvers.pyfr._restart import source_time
 
 SOLVER_NAME = "pyfr"
-CAPABILITIES = frozenset({"unsteady", "cluster_staging"})
+validate_restart = source_time
+CAPABILITIES = frozenset({"unsteady", "cluster_staging", "restart"})
 STAGED_CONFIG = "case.ini"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "launcher"}
 JOB_OUTPUTS = ("forces.csv",)
@@ -72,11 +76,28 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     )
 
 
+validate_row.default_setup_overrides = {  # type: ignore[attr-defined]
+    **{key: ("mach", "reynolds") for key in STATE_KEYS if key != "MACH"},
+    **{
+        key.upper(): (key,)
+        for key in ("mach", "alpha", "order", "tend", "window_start", "tolerance")
+    },
+    "GEOMETRY": ("mesh",),
+}
+
+
 def translate(point: AdapterPoint) -> str:
     """Return the deterministic case.ini text for one point."""
     point.verify()
     options(point.setup, read_init(point.root, available_solvers=("pyfr",)).solver_options)
-    return render(config(point.setup, point.point.condition, point.reference, point.geometry))
+    case = config(point.setup, point.point.condition, point.reference, point.geometry)
+    text = render(case)
+    if point.point.restart_from is not None:
+        start = source_time(point)
+        text = text.replace("tstart = 0.0", f"tstart = {start:.15g}").replace(
+            f"tend = {case.tend:.15g}", f"tend = {start + case.tend:.15g}"
+        )
+    return text
 
 
 def stage(point: AdapterPoint) -> None:

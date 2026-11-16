@@ -5,9 +5,8 @@ from __future__ import annotations
 import csv
 import json
 
+from cli_route import main
 from test_cli_verbs import FIRST, ran
-
-from cfdbender.matrix.cli import main
 
 
 def test_a_point_marked_converged_is_collected_with_its_result(tmp_path, capsys):
@@ -20,9 +19,9 @@ def test_a_point_marked_converged_is_collected_with_its_result(tmp_path, capsys)
     row = next(r for r in rows if r["point_id"] == FIRST)
     assert row["classification"] == "converged" and row["error"] is None
     assert row["result"]["classification"] == "iteration_limit", "the numerical class is kept"
-    with (tmp_path / "post/study/campaign_sweep.csv").open(newline="") as stream:
-        cells = next(r for r in csv.DictReader(stream) if r["POL"] == "1001")
-    assert cells["classification"] == "converged" and cells["CL"] != "NA"
+    with (tmp_path / "post/study/polars/FAM-ACOEF-P1001.csv").open(newline="") as stream:
+        cells = next(csv.DictReader(stream))
+    assert cells["CLW"] != "NA"
 
 
 def test_a_record_that_differs_from_its_evidence_without_a_mark_is_still_refused(tmp_path):

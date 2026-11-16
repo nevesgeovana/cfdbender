@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import shutil
 
+from cli_route import main
 from test_cli_verbs import FIRST, grown, out, ran
 
 from cfdbender.core.registry import RunRegistry
-from cfdbender.matrix.cli import main
 from cfdbender.workspace.planning import plan_workspace
 
 

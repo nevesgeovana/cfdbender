@@ -4,6 +4,10 @@
   "option": "--warning-off"
  },
  {
+  "command": "cfd-matrix",
+  "option": "--warning-refusals"
+ },
+ {
   "command": "cfd-matrix collect",
   "option": ""
  },
@@ -52,214 +56,6 @@
   "option": "--workspace"
  },
  {
-  "command": "cfd-matrix delete-sims",
-  "option": ""
- },
- {
-  "command": "cfd-matrix delete-sims",
-  "option": "--apply"
- },
- {
-  "command": "cfd-matrix delete-sims",
-  "option": "--archive"
- },
- {
-  "command": "cfd-matrix delete-sims",
-  "option": "--force"
- },
- {
-  "command": "cfd-matrix delete-sims",
-  "option": "--matrix-products"
- },
- {
-  "command": "cfd-matrix delete-sims",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix delete-sims",
-  "option": "--sims"
- },
- {
-  "command": "cfd-matrix delete-sims",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix diff",
-  "option": ""
- },
- {
-  "command": "cfd-matrix diff",
-  "option": "--csv"
- },
- {
-  "command": "cfd-matrix diff",
-  "option": "--json"
- },
- {
-  "command": "cfd-matrix diff",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix diff",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix diff",
-  "option": "<run_a>"
- },
- {
-  "command": "cfd-matrix diff",
-  "option": "<run_b>"
- },
- {
-  "command": "cfd-matrix free-space",
-  "option": ""
- },
- {
-  "command": "cfd-matrix free-space",
-  "option": "--apply"
- },
- {
-  "command": "cfd-matrix free-space",
-  "option": "--list"
- },
- {
-  "command": "cfd-matrix free-space",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix free-space",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix free-space",
-  "option": "<recipe>"
- },
- {
-  "command": "cfd-matrix history",
-  "option": ""
- },
- {
-  "command": "cfd-matrix history",
-  "option": "--csv"
- },
- {
-  "command": "cfd-matrix history",
-  "option": "--json"
- },
- {
-  "command": "cfd-matrix history",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix history",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix history",
-  "option": "<target>"
- },
- {
-  "command": "cfd-matrix log",
-  "option": ""
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--csv"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--json"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--open"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--post"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--problems"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--run"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--sims"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--since"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--stage"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--storage"
- },
- {
-  "command": "cfd-matrix log",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix mark-converged",
-  "option": ""
- },
- {
-  "command": "cfd-matrix mark-converged",
-  "option": "--apply"
- },
- {
-  "command": "cfd-matrix mark-converged",
-  "option": "--points"
- },
- {
-  "command": "cfd-matrix mark-converged",
-  "option": "--reason"
- },
- {
-  "command": "cfd-matrix mark-converged",
-  "option": "--sims"
- },
- {
-  "command": "cfd-matrix mark-converged",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix mark-failed",
-  "option": ""
- },
- {
-  "command": "cfd-matrix mark-failed",
-  "option": "--apply"
- },
- {
-  "command": "cfd-matrix mark-failed",
-  "option": "--points"
- },
- {
-  "command": "cfd-matrix mark-failed",
-  "option": "--reason"
- },
- {
-  "command": "cfd-matrix mark-failed",
-  "option": "--sims"
- },
- {
-  "command": "cfd-matrix mark-failed",
-  "option": "--workspace"
- },
- {
   "command": "cfd-matrix plan",
   "option": ""
  },
@@ -290,58 +86,6 @@
  {
   "command": "cfd-matrix plan",
   "option": "matrix"
- },
- {
-  "command": "cfd-matrix rebuild",
-  "option": ""
- },
- {
-  "command": "cfd-matrix rebuild",
-  "option": "--all-sims"
- },
- {
-  "command": "cfd-matrix rebuild",
-  "option": "--apply"
- },
- {
-  "command": "cfd-matrix rebuild",
-  "option": "--matrix"
- },
- {
-  "command": "cfd-matrix rebuild",
-  "option": "--out"
- },
- {
-  "command": "cfd-matrix rebuild",
-  "option": "--sims"
- },
- {
-  "command": "cfd-matrix rebuild",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix restore",
-  "option": ""
- },
- {
-  "command": "cfd-matrix restore",
-  "option": "--apply"
- },
- {
-  "command": "cfd-matrix restore",
-  "option": "--matrix"
- },
- {
-  "command": "cfd-matrix restore",
-  "option": "--stamp"
- },
- {
-  "command": "cfd-matrix restore",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix restore",
-  "option": "<kind>"
  },
  {
   "command": "cfd-matrix run",
@@ -396,46 +140,6 @@
   "option": "matrix"
  },
  {
-  "command": "cfd-matrix show",
-  "option": ""
- },
- {
-  "command": "cfd-matrix show",
-  "option": "--csv"
- },
- {
-  "command": "cfd-matrix show",
-  "option": "--json"
- },
- {
-  "command": "cfd-matrix show",
-  "option": "--point"
- },
- {
-  "command": "cfd-matrix show",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix show",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix show",
-  "option": "<target>"
- },
- {
-  "command": "cfd-matrix space-in-use",
-  "option": ""
- },
- {
-  "command": "cfd-matrix space-in-use",
-  "option": "--top"
- },
- {
-  "command": "cfd-matrix space-in-use",
-  "option": "--workspace"
- },
- {
   "command": "cfd-matrix status",
   "option": ""
  },
@@ -476,76 +180,12 @@
   "option": "--workspace"
  },
  {
-  "command": "cfd-matrix sync",
-  "option": ""
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--apply"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--from"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--include-archives"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--overwrite"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--prefer-other"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--restore"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix sync",
-  "option": "<level>"
- },
- {
-  "command": "cfd-matrix trace",
-  "option": ""
- },
- {
-  "command": "cfd-matrix trace",
-  "option": "--csv"
- },
- {
-  "command": "cfd-matrix trace",
-  "option": "--json"
- },
- {
-  "command": "cfd-matrix trace",
-  "option": "--run"
- },
- {
-  "command": "cfd-matrix trace",
-  "option": "--runs"
- },
- {
-  "command": "cfd-matrix trace",
-  "option": "--workspace"
- },
- {
-  "command": "cfd-matrix trace",
-  "option": "<product>"
+  "command": "cfd-workspace",
+  "option": "--warning-off"
  },
  {
   "command": "cfd-workspace",
-  "option": "--warning-off"
+  "option": "--warning-refusals"
  },
  {
   "command": "cfd-workspace archive",
@@ -572,6 +212,114 @@
   "option": "<sim_id>"
  },
  {
+  "command": "cfd-workspace delete-sims",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace delete-sims",
+  "option": "--apply"
+ },
+ {
+  "command": "cfd-workspace delete-sims",
+  "option": "--archive"
+ },
+ {
+  "command": "cfd-workspace delete-sims",
+  "option": "--force"
+ },
+ {
+  "command": "cfd-workspace delete-sims",
+  "option": "--matrix-products"
+ },
+ {
+  "command": "cfd-workspace delete-sims",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace delete-sims",
+  "option": "--sims"
+ },
+ {
+  "command": "cfd-workspace delete-sims",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace diff",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace diff",
+  "option": "--csv"
+ },
+ {
+  "command": "cfd-workspace diff",
+  "option": "--json"
+ },
+ {
+  "command": "cfd-workspace diff",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace diff",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace diff",
+  "option": "<run_a>"
+ },
+ {
+  "command": "cfd-workspace diff",
+  "option": "<run_b>"
+ },
+ {
+  "command": "cfd-workspace free-space",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace free-space",
+  "option": "--apply"
+ },
+ {
+  "command": "cfd-workspace free-space",
+  "option": "--list"
+ },
+ {
+  "command": "cfd-workspace free-space",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace free-space",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace free-space",
+  "option": "<recipe>"
+ },
+ {
+  "command": "cfd-workspace history",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace history",
+  "option": "--csv"
+ },
+ {
+  "command": "cfd-workspace history",
+  "option": "--json"
+ },
+ {
+  "command": "cfd-workspace history",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace history",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace history",
+  "option": "<target>"
+ },
+ {
   "command": "cfd-workspace init",
   "option": ""
  },
@@ -590,5 +338,265 @@
  {
   "command": "cfd-workspace init",
   "option": "root"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--csv"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--json"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--open"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--post"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--problems"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--run"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--sims"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--since"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--stage"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--storage"
+ },
+ {
+  "command": "cfd-workspace log",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace mark-converged",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace mark-converged",
+  "option": "--apply"
+ },
+ {
+  "command": "cfd-workspace mark-converged",
+  "option": "--points"
+ },
+ {
+  "command": "cfd-workspace mark-converged",
+  "option": "--reason"
+ },
+ {
+  "command": "cfd-workspace mark-converged",
+  "option": "--sims"
+ },
+ {
+  "command": "cfd-workspace mark-converged",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace mark-failed",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace mark-failed",
+  "option": "--apply"
+ },
+ {
+  "command": "cfd-workspace mark-failed",
+  "option": "--points"
+ },
+ {
+  "command": "cfd-workspace mark-failed",
+  "option": "--reason"
+ },
+ {
+  "command": "cfd-workspace mark-failed",
+  "option": "--sims"
+ },
+ {
+  "command": "cfd-workspace mark-failed",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace rebuild",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace rebuild",
+  "option": "--all-sims"
+ },
+ {
+  "command": "cfd-workspace rebuild",
+  "option": "--apply"
+ },
+ {
+  "command": "cfd-workspace rebuild",
+  "option": "--matrix"
+ },
+ {
+  "command": "cfd-workspace rebuild",
+  "option": "--out"
+ },
+ {
+  "command": "cfd-workspace rebuild",
+  "option": "--sims"
+ },
+ {
+  "command": "cfd-workspace rebuild",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace restore",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace restore",
+  "option": "--apply"
+ },
+ {
+  "command": "cfd-workspace restore",
+  "option": "--matrix"
+ },
+ {
+  "command": "cfd-workspace restore",
+  "option": "--stamp"
+ },
+ {
+  "command": "cfd-workspace restore",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace restore",
+  "option": "<kind>"
+ },
+ {
+  "command": "cfd-workspace show",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace show",
+  "option": "--csv"
+ },
+ {
+  "command": "cfd-workspace show",
+  "option": "--json"
+ },
+ {
+  "command": "cfd-workspace show",
+  "option": "--point"
+ },
+ {
+  "command": "cfd-workspace show",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace show",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace show",
+  "option": "<target>"
+ },
+ {
+  "command": "cfd-workspace space-in-use",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace space-in-use",
+  "option": "--top"
+ },
+ {
+  "command": "cfd-workspace space-in-use",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--apply"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--from"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--include-archives"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--overwrite"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--prefer-other"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--restore"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace sync",
+  "option": "<level>"
+ },
+ {
+  "command": "cfd-workspace trace",
+  "option": ""
+ },
+ {
+  "command": "cfd-workspace trace",
+  "option": "--csv"
+ },
+ {
+  "command": "cfd-workspace trace",
+  "option": "--json"
+ },
+ {
+  "command": "cfd-workspace trace",
+  "option": "--run"
+ },
+ {
+  "command": "cfd-workspace trace",
+  "option": "--runs"
+ },
+ {
+  "command": "cfd-workspace trace",
+  "option": "--workspace"
+ },
+ {
+  "command": "cfd-workspace trace",
+  "option": "<product>"
  }
 ]

@@ -1,9 +1,11 @@
 # Commands
 
-This page lists every command and option of the two programs. `cfd-workspace`
-creates a workspace and `cfd-matrix` does everything else: it plans a matrix,
-runs it, follows it and collects its results. Both work the same way for every
-solver, because they read the workspace and its records, never the solver.
+This page lists every command and option of the two programs. `cfd-matrix`
+acts on a matrix: it plans it, runs it, follows how each simulation ended
+(`status`) and collects its results (`collect`, `post`). `cfd-workspace` acts on
+what the workspace holds: it creates the workspace and reads, corrects and
+manages its records, storage and logs. Both work the same way for every solver,
+because they read the workspace and its records, never the solver.
 
 ```console
 cfd-workspace init campaign --solver NAME
@@ -19,7 +21,7 @@ the matrix `inputs/matrices/polar.fs`. Every command works on the current
 folder; `--workspace PATH` names another one. [The workflow](workflow.md)
 explains what each stage reads and writes.
 
-## Three rules that hold for every command
+## Rules that hold for every command
 
 1. **The commands that correct records or manage storage preview first.** Each
    prints what it would do and changes nothing until you repeat it with
@@ -30,6 +32,14 @@ explains what each stage reads and writes.
    is at fault and writes nothing. `collect` and `post` also return 1 when a
    point failed and 3 when submitted work is still outstanding, and `diff`
    returns 1 when the two runs differ.
+
+4. **A skipped entry warns and exits 0, unless you ask for a refusal.** An entry
+   that does not apply to a row, a key a solver does not read or a log line that
+   cannot be read is skipped with a warning. `--warning-refusals`, placed before
+   the command name, or `warning_refusals = true` in `init.toml`, makes the first
+   such skip a refusal with exit code 2.
+5. **A verb typed on the wrong program is refused by name.** `cfd-matrix show 1001`
+   exits 2 and prints the command to type: `cfd-workspace show 1001`.
 
 ## Choosing part of a matrix
 
@@ -58,12 +68,14 @@ exactly the arguments and options that `--help` prints.
 ## Options before the command name
 
 These go between the program name and the command, for example
-`cfd-matrix --warning-off run polar`.
+`cfd-matrix --warning-off run polar`; `--warning-refusals` works the same way.
 
 | Option | Meaning |
 |---|---|
 | `cfd-workspace --warning-off` | Hide console warnings; they are kept in logs/warnings.log |
+| `cfd-workspace --warning-refusals` | Refuse every entry that is otherwise skipped with a warning, exit 2 (init.toml: warning_refusals = true) |
 | `cfd-matrix --warning-off` | Hide console warnings; they are kept in logs/warnings.log |
+| `cfd-matrix --warning-refusals` | Refuse every entry that is otherwise skipped with a warning, exit 2 (init.toml: warning_refusals = true) |
 
 ## Create
 
@@ -97,6 +109,7 @@ cfd-matrix plan MATRIX [options]
 |---|---|
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
+| `--warning-refusals` | Refuse warnings, including unused cluster values |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
@@ -118,10 +131,12 @@ cfd-matrix run MATRIX [options]
 |---|---|
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
+| `--restart` | Continue every selected point from its own last solution, archiving its previous run first |
 | `--one-run-at-a-time` | Reserve this machine for one guarded local run at a time |
 | `--resume` | Skip points already recorded COMPLETED or SUBMITTED and run the rest, so a grown matrix runs only its new points; a RUNNING point is skipped because its process may still be alive. Without it a recorded point refuses the run |
 | `--force-rerun POINT` | Redo this recorded point, named POL/DP-name or DP-name; repeat for several. runs.json is copied to archive/&lt;stamp&gt;/runs.json, the point folder moves to archive/&lt;stamp&gt;/ and its record joins the runs.json history; nothing is deleted |
 | `--force-rerun-all` | Redo every recorded point of the matrix, archived as --force-rerun archives; a SUBMITTED job is not cancelled, cancel it in the scheduler first |
+| `--warning-refusals` | Refuse warnings, including unused cluster values |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
@@ -154,12 +169,12 @@ cfd-matrix status [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix show`
+### `cfd-workspace show`
 
 Print one sim, point or run record in full.
 
 ```text
-cfd-matrix show TARGET [options]
+cfd-workspace show TARGET [options]
 ```
 
 | Argument or option | Meaning |
@@ -173,12 +188,12 @@ cfd-matrix show TARGET [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix history`
+### `cfd-workspace history`
 
 Print the history of a sim or point: reruns, archives and deletions.
 
 ```text
-cfd-matrix history TARGET [options]
+cfd-workspace history TARGET [options]
 ```
 
 | Argument or option | Meaning |
@@ -191,12 +206,12 @@ cfd-matrix history TARGET [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix log`
+### `cfd-workspace log`
 
 List the recorded events of runs, storage calls or a post log.
 
 ```text
-cfd-matrix log [options]
+cfd-workspace log [options]
 ```
 
 | Argument or option | Meaning |
@@ -216,12 +231,12 @@ cfd-matrix log [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix trace`
+### `cfd-workspace trace`
 
 Follow a product file to the run, inputs and hashes that made it.
 
 ```text
-cfd-matrix trace PRODUCT [options]
+cfd-workspace trace PRODUCT [options]
 ```
 
 | Argument or option | Meaning |
@@ -235,12 +250,12 @@ cfd-matrix trace PRODUCT [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix diff`
+### `cfd-workspace diff`
 
 Compare two runs field by field; exit 1 when they differ.
 
 ```text
-cfd-matrix diff RUN_A RUN_B [options]
+cfd-workspace diff RUN_A RUN_B [options]
 ```
 
 | Argument or option | Meaning |
@@ -258,7 +273,7 @@ cfd-matrix diff RUN_A RUN_B [options]
 
 ### `cfd-matrix collect`
 
-Read saved results and rebuild post/&lt;matrix&gt;/campaign_summary.json, campaign_sweep.csv and polars/P&lt;POL&gt;.csv.
+Read saved results and rebuild post/&lt;matrix&gt;/campaign_summary.json, the polar files polars/FAM-&lt;KIND&gt;-P&lt;POL&gt;.csv and P&lt;POL&gt;-&lt;GROUP&gt;-&lt;KIND&gt;.csv.
 
 ```text
 cfd-matrix collect [MATRIX] [options]
@@ -302,12 +317,12 @@ cfd-matrix post [MATRIX] [options]
 
 ## Correct the records
 
-### `cfd-matrix mark-failed`
+### `cfd-workspace mark-failed`
 
 Mark points FAILED with a reason, whatever they ended in (preview unless --apply).
 
 ```text
-cfd-matrix mark-failed [options]
+cfd-workspace mark-failed [options]
 ```
 
 | Argument or option | Meaning |
@@ -321,12 +336,12 @@ cfd-matrix mark-failed [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix mark-converged`
+### `cfd-workspace mark-converged`
 
 Record the verdict that completed points converged (preview unless --apply).
 
 ```text
-cfd-matrix mark-converged [options]
+cfd-workspace mark-converged [options]
 ```
 
 | Argument or option | Meaning |
@@ -340,12 +355,12 @@ cfd-matrix mark-converged [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix restore`
+### `cfd-workspace restore`
 
 Restore archived inputs or results from archive/&lt;stamp&gt; (preview unless --apply).
 
 ```text
-cfd-matrix restore {runs,storage,products,plan} [options]
+cfd-workspace restore {runs,storage,products,plan} [options]
 ```
 
 | Argument or option | Meaning |
@@ -358,12 +373,12 @@ cfd-matrix restore {runs,storage,products,plan} [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix rebuild`
+### `cfd-workspace rebuild`
 
 Rebuild run records from the sim folders on disk (preview unless --apply).
 
 ```text
-cfd-matrix rebuild [options]
+cfd-workspace rebuild [options]
 ```
 
 | Argument or option | Meaning |
@@ -396,12 +411,12 @@ cfd-workspace archive [ROOT] SIM_ID [options]
 
 ## Manage storage
 
-### `cfd-matrix space-in-use`
+### `cfd-workspace space-in-use`
 
 Report disk space by folder, by sim and by extension.
 
 ```text
-cfd-matrix space-in-use [options]
+cfd-workspace space-in-use [options]
 ```
 
 | Argument or option | Meaning |
@@ -411,12 +426,12 @@ cfd-matrix space-in-use [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix free-space`
+### `cfd-workspace free-space`
 
 Run a storage recipe inputs/management/&lt;recipe&gt;.toml (preview unless --apply).
 
 ```text
-cfd-matrix free-space [RECIPE] [options]
+cfd-workspace free-space [RECIPE] [options]
 ```
 
 | Argument or option | Meaning |
@@ -429,12 +444,12 @@ cfd-matrix free-space [RECIPE] [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix delete-sims`
+### `cfd-workspace delete-sims`
 
 Delete simulations, their folders and their records (preview unless --apply).
 
 ```text
-cfd-matrix delete-sims [options]
+cfd-workspace delete-sims [options]
 ```
 
 | Argument or option | Meaning |
@@ -449,12 +464,12 @@ cfd-matrix delete-sims [options]
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
-### `cfd-matrix sync`
+### `cfd-workspace sync`
 
 Bring records and results from the workspaces of inputs/sync-workspaces.toml.
 
 ```text
-cfd-matrix sync {runs,post,all} [options]
+cfd-workspace sync {runs,post,all} [options]
 ```
 
 | Argument or option | Meaning |

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import re
 import shlex
 from pathlib import Path
@@ -17,13 +18,16 @@ PAGE = ROOT / "docs" / "getting-started.md"
 NAV_PAGES = (
     "index.md",
     "install.md",
+    "dependency-licences.md",
     "getting-started.md",
     "workflow.md",
     "workspace-layout.md",
+    "airfoil-2d-mesh.md",
     "matrix-columns.md",
     "executables.md",
     "records.md",
     "results.md",
+    "polars-2d.md",
     "cluster-jobs.md",
     "storage.md",
     "troubleshooting.md",
@@ -35,6 +39,7 @@ NAV_PAGES = (
     "qprop-workspaces.md",
     "flightstream-workspaces.md",
     "cli.md",
+    "cli-geometry-mesh.md",
     "architecture.md",
     "adapter-contract.md",
 )
@@ -78,12 +83,14 @@ def test_first_campaign_page_runs_as_written(tmp_path, monkeypatch):
         assert main(words[1:]) == 0, line
         ran.append(words[1])
     assert ran == ["init", "plan", "run", "status", "status", "collect"]
-    table = tmp_path / "campaign" / "post" / "polar" / "campaign_sweep.csv"
+    table = tmp_path / "campaign" / "post" / "polar" / "polars" / "FAM-ACOEF-P1001.csv"
     with table.open(encoding="utf-8", newline="") as stream:
         rows = list(csv.DictReader(stream))
-    assert [row["point"] for row in rows] == ["DP-M200AL+000", "DP-M200AL+020", "DP-M200AL+040"]
-    assert {row["classification"] for row in rows} == {"converged"}
-    shown = re.search(r"^POL,point,ALPHA,BETA,MACH,\.\.\.,(.*)$", page, flags=re.M)
+    assert [row["POINT"] for row in rows] == ["DP-M200AL+000", "DP-M200AL+020", "DP-M200AL+040"]
+    summary = tmp_path / "campaign" / "post" / "polar" / "campaign_summary.json"
+    points = json.loads(summary.read_bytes())["points"]
+    assert {point["classification"] for point in points} == {"converged"}
+    shown = re.search(r"^POL,POINT_ID,POINT,RUN_TYPE,ALPHA,\.\.\.,(.*)$", page, flags=re.M)
     assert shown is not None
     assert ",".join(rows[0]).endswith(shown.group(1))
 

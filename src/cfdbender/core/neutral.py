@@ -11,12 +11,12 @@ The standard frame
 The geometry frame is x aft (downstream), y to the right, z up, as pyflightstream's
 loads export states it. A two-dimensional case lies in the x-y plane with y up.
 
-* The freestream direction is ``V = (cos a cos b, sin b, sin a cos b)`` for the row's
-  ALPHA ``a`` and BETA ``b``. In two dimensions ``V = (cos a, sin a)`` (BETA is zero).
-* ``CD`` is the force along ``V``; ``CL`` is the force along the lift direction
-  ``(-sin a, 0, cos a)``, normal to ``V`` and in the plane of symmetry (in two dimensions
-  ``(-sin a, cos a)``). Both are nondimensionalised by the dynamic pressure and the
-  row's reference area.
+* ``CD`` and ``CL`` are the drag and lift of the wind frame W of
+  :mod:`cfdbender.core.axes`: ``CD`` is the force along ``-x_W`` and ``CL`` along
+  ``-z_W``, so they equal the ``CDW`` and ``CLW`` columns of the polar files. At zero
+  sideslip the drag direction is ``(cos a, 0, sin a)`` and the lift direction
+  ``(-sin a, 0, cos a)`` (in two dimensions ``(cos a, sin a)`` and ``(-sin a, cos a)``).
+  Both are nondimensionalised by the dynamic pressure and the row's reference area.
 * ``CM`` is the pitching moment about the axis through the row's moment reference point
   perpendicular to the plane of symmetry (the y axis; in two dimensions the axis normal to
   the plane, z), positive nose-up, nondimensionalised by the dynamic pressure, the row's
@@ -28,8 +28,9 @@ only place that transforms a native axis into the standard one.
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
+
+from cfdbender.core.axes import frame_rotations
 
 NEUTRAL = ("CL", "CD", "CM")
 
@@ -61,7 +62,7 @@ PLANAR_SIGNS: Mapping[str, Mapping[str, float]] = {
 def wind_directions(
     alpha_deg: float, beta_deg: float = 0.0
 ) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
-    """Return the freestream and lift directions of the standard frame.
+    """Return the drag and lift directions of the wind frame W.
 
     Parameters
     ----------
@@ -72,11 +73,12 @@ def wind_directions(
     -------
     tuple
         ``(drag direction, lift direction)`` as unit vectors in the geometry frame
-        (x aft, y right, z up).
+        (x aft, y right, z up): ``-x_W`` and ``-z_W`` of
+        :func:`cfdbender.core.axes.frame_rotations`.
     """
-    a, b = math.radians(alpha_deg), math.radians(beta_deg)
-    drag = (math.cos(a) * math.cos(b), math.sin(b), math.sin(a) * math.cos(b))
-    lift = (-math.sin(a), 0.0, math.cos(a))
+    wind = frame_rotations(alpha_deg, beta_deg)["W"]
+    drag = (-wind[0][0] + 0.0, -wind[0][1] + 0.0, -wind[0][2] + 0.0)
+    lift = (-wind[2][0] + 0.0, -wind[2][1] + 0.0, -wind[2][2] + 0.0)
     return drag, lift
 
 
@@ -168,3 +170,63 @@ def rotor_values(solver: str | None, native: Mapping[str, float]) -> dict[str, f
     """Return the neutral rotor coefficients a rotor-capable solver's own values state."""
     names = ROTOR_NAMES.get(solver or "", {})
     return {key: native[own] for key, own in names.items() if own in native}
+
+
+#: The shaft of a rotor-capable solver's isolated rotor, in the geometry frame (x aft, y
+#: right, z up). QPROP's isolated propeller flies along its shaft: the shaft points forward,
+#: so its frame R0 is the body frame and its printed thrust is the R0 thrust.
+ROTOR_SHAFTS: Mapping[str, tuple[float, float, float]] = {"qprop": (-1.0, 0.0, 0.0)}
+
+
+def rotor_loads(
+    solver: str | None, native: Mapping[str, float]
+) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
+    """Return the force (N) and hub moment (N m) of a rotor solver's rotor, geometry frame.
+
+    QPROP prints the thrust T along the shaft and the shaft torque Q about it; the in-plane
+    components are not printed and are NaN. A solver with no rotor, or a point whose thrust
+    and torque are not stated, returns None.
+    """
+    shaft = ROTOR_SHAFTS.get(solver or "")
+    if shaft is None or "T" not in native or "Q" not in native:
+        return None
+    nan = float("nan")
+    thrust, torque = float(native["T"]), float(native["Q"])
+
+    def along(value: float) -> tuple[float, float, float]:
+        return tuple(value * c + 0.0 if c else nan for c in shaft)  # type: ignore[return-value]
+
+    return along(thrust), along(torque)
+
+
+def airframe_load_coefficients(
+    solver: str | None,
+    native: Mapping[str, float],
+    *,
+    dimensions: object = None,
+    condition: Mapping[str, object] | None = None,
+) -> tuple[tuple[float, float, float], tuple[float, float, float]] | None:
+    """Return the force and moment coefficient vectors of a point in the geometry frame.
+
+    The force vector is over ``q SREF`` and the moment vector over ``q SREF CREF``, about the
+    moment reference point, in the geometry frame (x aft, y right, z up). FlightStream states
+    its body-axis force directly (CDB, CYB, CLB along aft, right and up). Every other airframe
+    solver states CD and CL in the wind frame W (:func:`neutral_values`): the force is
+    ``-CD x_W - CL z_W`` carried back to the geometry frame, its side component unknown. The
+    pitching moment CM is about +y (nose up); the rolling and yawing moments are unknown. An
+    unknown component is NaN. A two-dimensional case is stated in the x-z plane. A solver
+    that states no CD and CL returns None.
+    """
+    nan = float("nan")
+    values = neutral_values(solver, native, dimensions=dimensions, condition=condition)
+    moment = (nan, values.get("CM", nan), nan)
+    if solver == "flightstream" and all(k in native for k in ("CDB", "CYB", "CLB")):
+        return (float(native["CDB"]), float(native["CYB"]), float(native["CLB"])), moment
+    if "CD" not in values or "CL" not in values:
+        return None
+    wind = frame_rotations(_angle(condition, "ALPHA"), _angle(condition, "BETA"))["W"]
+    in_wind = (-values["CD"], nan, -values["CL"])
+    force = tuple(
+        sum(wind[i][j] * in_wind[i] for i in range(3) if wind[i][j] != 0.0) + 0.0 for j in range(3)
+    )
+    return (force[0], force[1], force[2]), moment

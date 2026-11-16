@@ -366,8 +366,25 @@ When a cluster profile is selected, `plan` and `run --no-local` consult
 `cluster_staging`. If absent, one warning names the solver, the capability and
 the skipped staging and submission. The command continues successfully without
 submitting or falling back to a local solver run. Existing input validation
-still applies. No capability request key or CLI option is added: unsupported
-WORKFLOW values and unknown setup keys retain the refusals in C-16 and C-09.
+still applies. A downgraded plan checks local builds and executables, and a
+skipped run prints the complete local command to type.
+
+**C-58.** Adapters declaring `restart` expose `restart_files(point)`, which
+returns point-local destination names mapped to recorded solution paths. They
+refuse a missing solution with its source point named and copy those bytes
+during the same staging routine used locally and on a cluster. The core checks
+the source before recording or archiving and stores `restart_from`,
+`restart_directory` and `restart_sha256` with the point proposal. A `RESTART`
+entry or `run --restart` for another adapter warns and skips through the core
+refusal helper. The restart tests cover both forms for every supporting adapter.
+
+**C-59.** Adapters declaring `boundary_groups` validate the setup `[groups]`
+table against the mesh's named markers and return `NeutralResult.force_groups`.
+Each named group and `TOTAL` holds a coefficient mapping with the result's
+reference values. Collect serializes it into the campaign summary. Native files
+needed to read each force set are declared outputs and, for cluster jobs, job
+outputs. Group CSV products are not part of the adapter contract. The group
+tests cover both supporting adapters and unknown-marker diagnostics.
 
 ## Proving an adapter
 

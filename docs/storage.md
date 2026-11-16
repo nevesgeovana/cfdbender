@@ -5,7 +5,7 @@ to delete a sim, and how to bring results from another copy of the workspace.
 
 The three commands that delete or copy show what they would do and change
 nothing until you add `--apply`. Every call is recorded in
-`storage_management.json`, and `cfd-matrix log --storage` lists the calls.
+`storage_management.json`, and `cfd-workspace log --storage` lists the calls.
 
 On Windows a deep solver tree, such as an OpenFOAM case with processor and time
 folders, can pass the 260-character path limit. The space, delete-sims, sync,
@@ -17,7 +17,7 @@ fails, so keep the workspace path short.
 ## See the space in use
 
 ```console
-cfd-matrix space-in-use
+cfd-workspace space-in-use
 ```
 
 ```text
@@ -55,7 +55,7 @@ extensions = [".csv", ".tmp"]
 ```
 
 ```console
-cfd-matrix free-space clean --list
+cfd-workspace free-space clean --list
 ```
 
 ```text
@@ -72,13 +72,13 @@ such an output, so nothing would be freed. `--list` prints each file with what
 happens to it; without it only the total is printed.
 
 ```console
-cfd-matrix free-space clean --apply
+cfd-workspace free-space clean --apply
 ```
 
 ## Delete a sim
 
 ```console
-cfd-matrix delete-sims --sims 1001 --matrix-products regenerate
+cfd-workspace delete-sims --sims 1001 --matrix-products regenerate
 ```
 
 ```text
@@ -91,7 +91,7 @@ preview only; add --apply to delete
 
 `delete-sims` deletes the folder of each named sim and takes its records out
 of `runs.json`. A note of each deleted record stays in the history, so
-`cfd-matrix history 1001` still shows that the sim existed.
+`cfd-workspace history 1001` still shows that the sim existed.
 
 When the collected tables of a matrix hold the points to delete, the command
 asks what to do with them:
@@ -125,8 +125,8 @@ cluster = "/mnt/cluster/campaign"
 ```
 
 ```console
-cfd-matrix sync runs
-cfd-matrix sync runs --apply
+cfd-workspace sync runs
+cfd-workspace sync runs --apply
 ```
 
 The word after `sync` says how much to bring. Each level adds to the one

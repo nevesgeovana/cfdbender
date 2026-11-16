@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 
 import pytest
+from cli_route import main
 from test_cli_verbs import grown, out, snapshot
 from test_p0000_item3c_adapter import workspace
 
 from cfdbender.core import mesh
-from cfdbender.matrix.cli import main
 
 
 def activity(root):

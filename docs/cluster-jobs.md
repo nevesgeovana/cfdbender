@@ -4,6 +4,24 @@ This page shows how to send the points of a matrix to a cluster as jobs and
 how to pick their results up. You describe the scheduler of your cluster once,
 in a profile; the matrix and the commands stay the same.
 
+## Choosing a profile per row
+
+Put profiles such as `alpha.toml` and `beta.toml` in `inputs/hpc/` and select
+them in the last column:
+
+```text
+POL | RUN | SET | REF | PPROC | VAR_NAMES_VALUES
+----|-----|-----|-----|-------|-----------------
+1001 | 1 | 001 | 001 | 001 | hpc: alpha / cluster: one
+1002 | 1 | 001 | 001 | 001 | hpc: beta / cluster: two
+```
+
+`cfd-matrix plan study` previews both jobs and `cfd-matrix run study` submits
+each with its profile. The row selector wins over `--hpc NAME`; a row without
+one uses `--hpc`, or the only profile when there is one. With several profiles,
+a row without either selector is refused. `--local` ignores the row selector.
+The `cluster` value fills `{cluster}` in the selected profile, if it uses it.
+
 ## The profile
 
 A profile is a file `inputs/hpc/<name>.toml`. It says what the job description
@@ -15,6 +33,7 @@ knows no scheduler: every field name and the submit command are yours.
 ```toml
 application_id = "CFD"
 max_walltime = "96:00:00"
+job_end_files = ["job.done"]
 
 [descriptor]
 format = "yaml"
@@ -40,6 +59,7 @@ command = ["submit-tool", "{descriptor_path}"]
 |---|---|
 | `application_id` | The name your scheduler gives the application. Required. |
 | `max_walltime` | The longest wall clock the cluster grants a job, written `HH:MM:SS`. Optional. |
+| `job_end_files` | Optional list of marker paths relative to each point folder. Collect waits for every marker as well as the solver outputs. |
 | `walltime_arithmetic` | `wall` writes the `WALLTIME` cell as the row states it (`4h`); `seconds` writes whole seconds. Optional; `wall` when absent. |
 | `[descriptor]` `format` | The format of the job description file: `yaml`, `json`, `toml` or `text`. |
 | `[descriptor]` `name` | The name of that file. It is written in the folder of each point. |
@@ -57,11 +77,33 @@ A value in braces is filled for each point:
 |---|---|
 | `{job_name}` | The `POL` and the point name, for example `1001_DP-M200AL+000`. |
 | `{ncpus}`, `{walltime}` | The `NCPUS` and `WALLTIME` cells of the row. |
+| `{cluster}` | The row's `cluster` entry in `VAR_NAMES_VALUES`. |
 | `{solver_version_alias}` | The `[builds]` entry of the row's `SOLVER_BUILD`. |
 | `{workdir}` | The folder of the point. |
 | `{config_path}`, `{script_path}` | The file the solver reads, in the folder of the point. |
 | `{stdout_log}`, `{stderr_log}` | `stdout.log` and `stderr.log` in the folder of the point. |
 | `{descriptor_path}` | The job description file, for the submit command. |
+
+## Choosing the cluster per row
+
+Put a placeholder in the profile's descriptor fields:
+
+```toml
+[descriptor.fields]
+cluster = "{cluster}"
+```
+
+Then choose a value in each row using the same profile:
+
+```text
+POL | RUN | SET | REF | PPROC | VAR_NAMES_VALUES
+----|-----|-----|-----|-------|-----------------
+1001 | 1 | 001 | 001 | 001 | cluster: alpha
+```
+
+The placeholder also works in the submit command. A row without a value is
+refused when the profile uses it. An unused row value produces a warning;
+`--warning-refusals` makes that warning a refusal. Local runs ignore it.
 
 ## See what would be submitted
 
@@ -119,11 +161,17 @@ cluster. A point whose files cannot be prepared is recorded as failed with
 
 ## Choose where a matrix runs
 
+If an adapter cannot stage a cluster job, the request is skipped with a warning.
+The warning prints the complete command to type to run locally, preserving your
+matrix, workspace and selection arguments and adding `--local`.
+When `plan` falls back to a local preview, it checks the local build and
+executable before reporting success.
+
 | Situation | What `run` does |
 |---|---|
 | No file in `inputs/hpc/` | Runs on this machine. |
 | One profile | Submits with it. `--local` runs on this machine instead. |
-| Several profiles | Refuses until you name one with `--hpc NAME`, or choose `--local`. |
+| Several profiles | Select each row with `hpc: NAME`, use `--hpc NAME` as a default, or choose `--local`. |
 
 ## Pick the results up
 
@@ -145,6 +193,16 @@ sets the seconds between two rounds (60 when absent) and `--rounds` stops after
 a number of rounds. Under `--watch` a file counts as finished when its size
 and its time of change are the same on two looks 2 s apart; `--interval` sets
 that time.
+An output replaced or removed between observations remains outstanding and is
+checked again on the next collect.
+
+For a reliable end signal, set `job_end_files = ["job.done"]` above the first
+table of the profile. Arrange for the cluster job to write `job.done` in the
+point folder only after the solver has closed its outputs, for example with
+`touch job.done` as the job script's last command. Marker paths are saved in
+`submission.job_end_files` in runs.json. Changing the profile later does not
+change what an already submitted job must write. `--interval` checks that the
+markers and numerical output files have unchanged sizes and modification times.
 
 A cluster job leaves no record of how its process ended, so the verdict of a
 submitted point rests on the numbers in its output alone.
@@ -157,6 +215,14 @@ description carries the result. [Executables](executables.md) covers runs on
 your machine.
 
 ## Redoing a submitted point
+
+A `RESTART` row or `run --restart` stages copied solution inputs in the job
+folder too. SU2's cfg and OpenFOAM's Allrun select the saved state. For PyFR,
+when `restart.pyfrs` is present the job must run `pyfr restart -b <backend>
+mesh.pyfrm restart.pyfrs case.ini` with the saved native mesh, instead of importing
+the mesh again and running `pyfr run`.
+Only completed source points can be restarted. A submitted point must be
+collected before it can supply a restart solution.
 
 `cfd-matrix run polar --force-rerun POINT` archives the point and submits it
 again. It does not cancel the earlier job: cancel it in your scheduler first.

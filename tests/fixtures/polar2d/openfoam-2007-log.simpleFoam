@@ -1,0 +1,126 @@
+Time = 1
+smoothSolver:  Solving for Ux, Initial residual = 0.999999839116, Final residual = 0.0219614266324, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 1, Final residual = 0.0987909822194, No Iterations 1
+GAMG:  Solving for p, Initial residual = 1, Final residual = 0.049715516897, No Iterations 119
+GAMG:  Solving for p, Initial residual = 4.61151665982e-05, Final residual = 2.27200602404e-06, No Iterations 39
+smoothSolver:  Solving for nuTilda, Initial residual = 0.999999996864, Final residual = 0.0100013486398, No Iterations 1
+Time = 19981
+smoothSolver:  Solving for Ux, Initial residual = 2.31003645226e-07, Final residual = 2.30330812601e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.80340295321e-06, Final residual = 3.12249392398e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 6.10644777196e-06, Final residual = 2.24954235952e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.35908213799e-07, Final residual = 1.14266526281e-08, No Iterations 10
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44730674267e-05, Final residual = 4.86148797315e-07, No Iterations 3
+Time = 19982
+smoothSolver:  Solving for Ux, Initial residual = 2.31016793559e-07, Final residual = 2.30330652412e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.73495254526e-06, Final residual = 3.08961552344e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.56518698961e-06, Final residual = 2.22481718687e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.32800745347e-07, Final residual = 1.11669236687e-08, No Iterations 8
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44728877895e-05, Final residual = 4.86136013053e-07, No Iterations 3
+Time = 19983
+smoothSolver:  Solving for Ux, Initial residual = 2.31009525437e-07, Final residual = 2.30322139892e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.67228773515e-06, Final residual = 3.06901493347e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.14240630281e-06, Final residual = 2.15740454854e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.26592108838e-07, Final residual = 1.04639803131e-08, No Iterations 10
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44724230125e-05, Final residual = 4.86127179628e-07, No Iterations 3
+Time = 19984
+smoothSolver:  Solving for Ux, Initial residual = 2.31091275984e-07, Final residual = 2.30321800933e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.65620567493e-06, Final residual = 3.0522277283e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.06653637679e-06, Final residual = 2.15103437896e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.26589244939e-07, Final residual = 1.12883632818e-08, No Iterations 10
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44722454432e-05, Final residual = 4.86114417704e-07, No Iterations 3
+Time = 19985
+smoothSolver:  Solving for Ux, Initial residual = 2.31123762877e-07, Final residual = 2.30313752452e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.63348537146e-06, Final residual = 3.02805378558e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.05831807304e-06, Final residual = 2.13599679159e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.25547018957e-07, Final residual = 1.02406339796e-08, No Iterations 11
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44717825702e-05, Final residual = 4.86105608099e-07, No Iterations 3
+Time = 19986
+smoothSolver:  Solving for Ux, Initial residual = 2.31176492877e-07, Final residual = 2.30313607805e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.63587311634e-06, Final residual = 3.01052960365e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 4.79024355555e-06, Final residual = 2.10468596627e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.22667423594e-07, Final residual = 1.0860806442e-08, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.4471606785e-05, Final residual = 4.86092874534e-07, No Iterations 3
+Time = 19987
+smoothSolver:  Solving for Ux, Initial residual = 2.31119190597e-07, Final residual = 2.3030475348e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.59911316554e-06, Final residual = 3.00316598312e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 4.52079801484e-06, Final residual = 2.01208307614e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.13546755676e-07, Final residual = 8.02737241333e-09, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44711457087e-05, Final residual = 4.86084090967e-07, No Iterations 3
+Time = 19988
+smoothSolver:  Solving for Ux, Initial residual = 2.31096878385e-07, Final residual = 2.3030323194e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.60903901474e-06, Final residual = 3.01595783467e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 4.39155806842e-06, Final residual = 1.87875842867e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 2.00027391223e-07, Final residual = 7.42526881367e-09, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44709712487e-05, Final residual = 4.86071382057e-07, No Iterations 3
+Time = 19989
+smoothSolver:  Solving for Ux, Initial residual = 2.31019491507e-07, Final residual = 2.3029320945e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.6204342956e-06, Final residual = 3.02650079038e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 4.56007628376e-06, Final residual = 1.72783089606e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.84342307378e-07, Final residual = 7.05271910726e-09, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44705117369e-05, Final residual = 4.86062622194e-07, No Iterations 3
+Time = 19990
+smoothSolver:  Solving for Ux, Initial residual = 2.31009042312e-07, Final residual = 2.30291759251e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.60543248921e-06, Final residual = 3.02970309485e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.07225461205e-06, Final residual = 1.60139467936e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.70990146469e-07, Final residual = 6.88360316604e-09, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44703383362e-05, Final residual = 4.86049930943e-07, No Iterations 3
+Time = 19991
+smoothSolver:  Solving for Ux, Initial residual = 2.30969315898e-07, Final residual = 2.30282417248e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.55598145628e-06, Final residual = 3.01621366251e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.34793392126e-06, Final residual = 2.62486128742e-07, No Iterations 3
+GAMG:  Solving for p, Initial residual = 2.72726648771e-07, Final residual = 1.09224522456e-08, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44698788195e-05, Final residual = 4.86041177679e-07, No Iterations 3
+Time = 19992
+smoothSolver:  Solving for Ux, Initial residual = 2.30996206102e-07, Final residual = 2.30281296334e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.50092709182e-06, Final residual = 3.02151446542e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.49337740211e-06, Final residual = 2.52399730995e-07, No Iterations 3
+GAMG:  Solving for p, Initial residual = 2.63068816081e-07, Final residual = 1.19373190411e-08, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.4469704912e-05, Final residual = 4.8602848254e-07, No Iterations 3
+Time = 19993
+smoothSolver:  Solving for Ux, Initial residual = 2.30992607556e-07, Final residual = 2.30272436458e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.48208722816e-06, Final residual = 3.02307307963e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.34048795582e-06, Final residual = 2.55889331621e-07, No Iterations 3
+GAMG:  Solving for p, Initial residual = 2.66973136267e-07, Final residual = 1.32388913252e-08, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44692450924e-05, Final residual = 4.86019724945e-07, No Iterations 3
+Time = 19994
+smoothSolver:  Solving for Ux, Initial residual = 2.31062134699e-07, Final residual = 2.30272551513e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.50100679928e-06, Final residual = 3.01805634831e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.26062656367e-06, Final residual = 2.58334757798e-07, No Iterations 3
+GAMG:  Solving for p, Initial residual = 2.69628871036e-07, Final residual = 1.18314934953e-08, No Iterations 10
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44690712749e-05, Final residual = 4.86007033095e-07, No Iterations 3
+Time = 19995
+smoothSolver:  Solving for Ux, Initial residual = 2.31058144762e-07, Final residual = 2.30264559848e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.53804310769e-06, Final residual = 3.00445714707e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.03987150938e-06, Final residual = 1.59269928274e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.71374656036e-07, Final residual = 9.95661742462e-09, No Iterations 9
+smoothSolver:  Solving for nuTilda, Initial residual = 1.4468611855e-05, Final residual = 4.85998278216e-07, No Iterations 3
+Time = 19996
+smoothSolver:  Solving for Ux, Initial residual = 2.31064555867e-07, Final residual = 2.30264437558e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.56289258078e-06, Final residual = 2.99276769496e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 4.91362954996e-06, Final residual = 1.55436461353e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.67418873158e-07, Final residual = 9.73943181932e-09, No Iterations 10
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44684381542e-05, Final residual = 4.85985586826e-07, No Iterations 3
+Time = 19997
+smoothSolver:  Solving for Ux, Initial residual = 2.31003352431e-07, Final residual = 2.30256421233e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.60611697443e-06, Final residual = 3.01545422219e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 4.89532120154e-06, Final residual = 1.59949780828e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.71454876966e-07, Final residual = 9.65407754084e-09, No Iterations 11
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44679781582e-05, Final residual = 4.85976825453e-07, No Iterations 3
+Time = 19998
+smoothSolver:  Solving for Ux, Initial residual = 2.3098799458e-07, Final residual = 2.30255588935e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.59906376549e-06, Final residual = 3.03998350202e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.15204709292e-06, Final residual = 1.66355399338e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.7719868607e-07, Final residual = 9.92295451834e-09, No Iterations 11
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44678037719e-05, Final residual = 4.8596412256e-07, No Iterations 3
+Time = 19999
+smoothSolver:  Solving for Ux, Initial residual = 2.30929976494e-07, Final residual = 2.3024652191e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.59191592635e-06, Final residual = 3.05767191877e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.23861113792e-06, Final residual = 1.70264314792e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.80863813275e-07, Final residual = 9.89513951706e-09, No Iterations 11
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44673431269e-05, Final residual = 4.85955347191e-07, No Iterations 3
+Time = 20000
+smoothSolver:  Solving for Ux, Initial residual = 2.3096707233e-07, Final residual = 2.30245611297e-08, No Iterations 2
+smoothSolver:  Solving for Uy, Initial residual = 6.61174681985e-06, Final residual = 3.07583338071e-07, No Iterations 2
+GAMG:  Solving for p, Initial residual = 5.49032638612e-06, Final residual = 1.7231793293e-07, No Iterations 4
+GAMG:  Solving for p, Initial residual = 1.83585609768e-07, Final residual = 9.7617324307e-09, No Iterations 11
+smoothSolver:  Solving for nuTilda, Initial residual = 1.44671666241e-05, Final residual = 4.8594261909e-07, No Iterations 3

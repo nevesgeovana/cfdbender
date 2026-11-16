@@ -1,11 +1,15 @@
 """P0000 item 4: build, unzip and use the delivered wheel without network.
 
-Usage: python tools/build_kit.py --out OUTPUT; unzip, then paste FIRST-PROMPT.md.
-The fake SU2 is numerical test evidence only. The opt-in case uses the installed wheel.
+Usage: python tools/build_kit.py --out OUTPUT [--wheels CACHE]; unzip, then paste
+FIRST-PROMPT.md. The kit carries the wheels of every runtime dependency for Windows and
+Linux. These tests build it from a local cache of stand-in dependency wheels, so they need
+no network; CFDBENDER_KIT_NETWORK=1 opts in to one build that downloads the real wheels. The
+fake SU2 is numerical test evidence only. The opt-in case uses the installed wheel.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import importlib.util
 import json
@@ -38,6 +42,47 @@ FILES = {
     "smoke/inputs/mesh/tiny.su2",
     "smoke/inputs/hpc/h001.toml",
 }
+DEPENDENCIES = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+    "dependencies"
+]
+
+
+def _name(requirement):
+    return re.split(r"[<>=!~ ;\[]", requirement, maxsplit=1)[0]
+
+
+def _stub_wheel(folder, requirement):
+    """Write a deterministic stand-in wheel that satisfies ``requirement``."""
+    name = _name(requirement)
+    floor = re.search(r">=\s*([0-9][0-9.]*)", requirement)
+    version = floor[1] if floor else "1.0"
+    module = name.replace("-", "_")
+    info = f"{module}-{version}.dist-info"
+    files = {
+        f"{module}_kit_stub/__init__.py": b"",
+        f"{info}/METADATA": f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n".encode(),
+        f"{info}/WHEEL": b"Wheel-Version: 1.0\nGenerator: kit-test\nRoot-Is-Purelib: true\n"
+        b"Tag: py3-none-any\n",
+    }
+    record = []
+    for member, data in files.items():
+        digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+        record.append(f"{member},sha256={digest},{len(data)}")
+    record.append(f"{info}/RECORD,,")
+    files[f"{info}/RECORD"] = ("\n".join(record) + "\n").encode()
+    target = folder / f"{module}-{version}-py3-none-any.whl"
+    with zipfile.ZipFile(target, "w") as archive:
+        for member, data in files.items():
+            archive.writestr(zipfile.ZipInfo(member, (2026, 1, 1, 0, 0, 0)), data)
+    return target.name
+
+
+@pytest.fixture(scope="module")
+def wheel_cache(tmp_path_factory):
+    """A local cache with one stand-in wheel per runtime dependency (no network)."""
+    folder = tmp_path_factory.mktemp("item4-wheels")
+    names = sorted(_stub_wheel(folder, requirement) for requirement in DEPENDENCIES)
+    return folder, names
 
 
 def run(argv, *, cwd, env=None):
@@ -49,11 +94,11 @@ def run(argv, *, cwd, env=None):
 
 
 @pytest.fixture(scope="module")
-def kit(tmp_path_factory):
+def kit(tmp_path_factory, wheel_cache):
     folder = tmp_path_factory.mktemp("item4-kit")
     builder = ROOT / "tools/build_kit.py"
     if builder.exists():
-        run([sys.executable, builder, "--out", folder], cwd=ROOT)
+        run([sys.executable, builder, "--out", folder, "--wheels", wheel_cache[0]], cwd=ROOT)
     return folder / ZIP
 
 
@@ -71,22 +116,27 @@ def installed(kit, tmp_path_factory):
     run([sys.executable, "-m", "venv", folder / ".venv"], cwd=folder, env=env)
     scripts = folder / ".venv" / ("Scripts" if os.name == "nt" else "bin")
     python = scripts / ("python.exe" if os.name == "nt" else "python")
-    run([python, "-I", "-m", "pip", "install", "--no-index", folder / WHEEL], cwd=folder, env=env)
+    install = [python, "-I", "-m", "pip", "install", "--no-index", "--find-links", "wheels"]
+    run([*install, folder / WHEEL], cwd=folder, env=env)
     return folder, scripts, python, env
 
 
-def test_p0000_item4_deterministic(kit, tmp_path):
+def test_p0000_item4_deterministic(kit, tmp_path, wheel_cache):
     assert kit.is_file(), "the builder must produce the repeatable offline ZIP"
-    run([sys.executable, ROOT / "tools/build_kit.py", "--out", tmp_path], cwd=ROOT)
+    builder = ROOT / "tools/build_kit.py"
+    run([sys.executable, builder, "--out", tmp_path, "--wheels", wheel_cache[0]], cwd=ROOT)
     assert (tmp_path / ZIP).read_bytes() == kit.read_bytes()
 
 
-def test_p0000_item4_exact_members_and_privacy(kit):
+def test_p0000_item4_exact_members_and_privacy(kit, wheel_cache):
     assert kit.is_file(), "the kit must carry only the intended portable payloads"
+    bundled = {f"wheels/{name}" for name in wheel_cache[1]}
     with zipfile.ZipFile(kit) as archive:
         assert archive.testzip() is None
-        assert archive.namelist() == sorted(FILES)
+        assert archive.namelist() == sorted(FILES | bundled)
         for name in archive.namelist():
+            if name in bundled:
+                continue  # upstream dependency wheels, copied as published
             assert ".git" not in Path(name).parts
             data = archive.read(name)
             if name.endswith(".whl"):
@@ -115,7 +165,8 @@ def test_p0000_item4_wheel_metadata_and_offline_commands(installed):
     with zipfile.ZipFile(folder / WHEEL) as archive:
         metadata = BytesParser().parsebytes(archive.read(f"cfdbender-{VERSION}.dist-info/METADATA"))
     assert metadata["Version"] == project["version"] == VERSION
-    assert not [r for r in metadata.get_all("Requires-Dist", []) if "extra ==" not in r]
+    runtime = [r for r in metadata.get_all("Requires-Dist", []) if "extra ==" not in r]
+    assert sorted(map(_name, runtime)) == sorted(map(_name, DEPENDENCIES))
     probe = run(
         [python, "-I", "-c", "import cfdbender; print(cfdbender.__version__, cfdbender.__file__)"],
         cwd=folder,
@@ -219,7 +270,17 @@ def test_p0000_item4_real_installed_wheel(kit, tmp_path):
     python = scripts / ("python.exe" if os.name == "nt" else "python")
     print(
         run(
-            [python, "-I", "-m", "pip", "install", "--no-index", tmp_path / WHEEL],
+            [
+                python,
+                "-I",
+                "-m",
+                "pip",
+                "install",
+                "--no-index",
+                "--find-links",
+                "wheels",
+                tmp_path / WHEEL,
+            ],
             cwd=tmp_path,
             env=env,
         )
@@ -238,8 +299,8 @@ def test_p0000_item4_real_installed_wheel(kit, tmp_path):
     )
     with zipfile.ZipFile(tmp_path / WHEEL) as wheel:
         metadata = BytesParser().parsebytes(wheel.read(f"cfdbender-{VERSION}.dist-info/METADATA"))
-    assert not [r for r in metadata.get_all("Requires-Dist", []) if "extra ==" not in r]
-    print("runtime dependencies: none")
+    runtime = [r for r in metadata.get_all("Requires-Dist", []) if "extra ==" not in r]
+    print("runtime dependencies:", ", ".join(runtime))
     matrix = scripts / ("cfd-matrix.exe" if os.name == "nt" else "cfd-matrix")
     workspace = scripts / ("cfd-workspace.exe" if os.name == "nt" else "cfd-workspace")
     for cli in (workspace, matrix):
@@ -281,7 +342,22 @@ def test_kit_name_is_a_single_builder_constant():
 def test_first_prompt_isolates_python_from_inherited_paths():
     prompt = (ROOT / "tools/kit/FIRST-PROMPT.md").read_text(encoding="utf-8")
     assert "PYTHONPATH" in prompt and "PYTHONHOME" in prompt
-    assert "-I -m pip install --no-index" in prompt
+    assert "-I -m pip install --no-index --find-links wheels" in prompt
+
+
+def test_kit_texts_ask_for_the_python_the_wheels_are_built_for():
+    """RG-2: the bundled wheels are CPython 3.12 only; the kit texts must not accept newer."""
+    spec = importlib.util.spec_from_file_location("kit_builder_py", ROOT / "tools/build_kit.py")
+    assert spec is not None and spec.loader is not None
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    major, minor = builder.PYTHON_VERSION.split(".")
+    readme = (ROOT / "tools/kit/README-FIRST.md").read_text(encoding="utf-8")
+    prompt = (ROOT / "tools/kit/FIRST-PROMPT.md").read_text(encoding="utf-8")
+    for text in (readme, prompt):
+        assert f"Python {builder.PYTHON_VERSION}" in text
+        assert "or newer" not in text
+    assert f"sys.version_info[:2] == ({major}, {minor})" in prompt
 
 
 def test_p0200_item5_kit_texts_match_current_release():
@@ -291,3 +367,36 @@ def test_p0200_item5_kit_texts_match_current_release():
     assert f"cfdbender {VERSION} kit" in prompt
     assert f"installed version {VERSION}" in prompt
     assert WHEEL in prompt
+
+
+def test_p0000_item4_a_cache_missing_a_dependency_refuses(tmp_path, wheel_cache):
+    """A dependency wheel the cache lacks stops the build before any kit is written."""
+    partial = tmp_path / "partial"
+    partial.mkdir()
+    for name in wheel_cache[1][1:]:
+        (partial / name).write_bytes((wheel_cache[0] / name).read_bytes())
+    out = tmp_path / "out"
+    out.mkdir()
+    builder = ROOT / "tools/build_kit.py"
+    result = subprocess.run(
+        [sys.executable, builder, "--out", out, "--wheels", partial],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2 and "dependency wheels" in result.stderr
+    assert not list(out.iterdir())
+
+
+@pytest.mark.skipif(
+    os.environ.get("CFDBENDER_KIT_NETWORK") != "1", reason="set CFDBENDER_KIT_NETWORK=1"
+)
+def test_p0000_item4_network_build_bundles_windows_and_linux_wheels(tmp_path):
+    """Opt-in: the default build downloads every dependency wheel for both kit targets."""
+    run([sys.executable, ROOT / "tools/build_kit.py", "--out", tmp_path], cwd=ROOT)
+    with zipfile.ZipFile(tmp_path / ZIP) as archive:
+        wheels = [n for n in archive.namelist() if n.startswith("wheels/")]
+    for name in map(_name, DEPENDENCIES):
+        found = [w for w in wheels if w.split("/")[1].lower().startswith(name.lower() + "-")]
+        assert found, name
+    numpy = [w for w in wheels if w.startswith("wheels/numpy-")]
+    assert any("win_amd64" in w for w in numpy) and any("manylinux" in w for w in numpy)

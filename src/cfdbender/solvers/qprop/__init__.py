@@ -2,7 +2,7 @@
 
 Initialize with ``cfd-workspace init --solver qprop``. The s file names the blade:
 ``blade = "inputs/geometry/<name>.obj"`` (sliced at ``n_sections`` radial stations,
-``spacing`` cosine or uniform, ``cut`` cylinder or plane) or
+``spacing`` cosine or uniform, ``cut`` cylinder (default) or plane) or
 ``blade = "inputs/polars-2D/<set>"`` (a ``blade.csv`` with columns r, chord, beta and
 optional airfoil and polar file names inside the set). Also ``n_blades`` (required),
 ``radius`` (default: the blade tip), ``scale`` (model units to metres),
@@ -156,6 +156,10 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
 
 
 validate_row.native_condition_keys = CONDITIONS  # type: ignore[attr-defined]
+validate_row.default_setup_overrides = {  # type: ignore[attr-defined]
+    "N_SECTIONS": ("n_sections",),
+    "GEOMETRY": ("blade",),
+}
 
 
 def translate(point: AdapterPoint) -> str:

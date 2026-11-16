@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import re
-import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
 
 from cfdbender.core.flight import agree, mach_reynolds
+from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.solvers._host._config import number, unknown_keys
 
 _OPTIONS = {"executable", "launcher", "timeout_s", "ram_estimate_gib"}
@@ -116,7 +116,7 @@ def config(
     if set(normalized) != {"alpha"}:
         raise ValueError("XFOIL matrix conditions require only scalar alpha or an alpha sweep")
     if "reynolds" not in setup:
-        warnings.warn(
+        warn_or_refuse(
             "neither REmi in the row nor reynolds in the setup file states a Reynolds number: "
             "XFOIL runs inviscid",
             UserWarning,

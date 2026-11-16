@@ -17,13 +17,13 @@ CONTEXT = [
     "RE",
     "VINF",
     "VREF",
+    "J",
+    "J_CLOCK",
+    "RPM_CLOCK",
     "ALT",
     "RHO",
     "TEMP",
     "MU",
-    "J",
-    "J_CLOCK",
-    "RPM_CLOCK",
     "SREF",
     "CREF",
     "BREF",
@@ -38,22 +38,19 @@ def test_every_table_states_the_fixed_context_after_pol_and_point(tmp_path):
     three(tmp_path)
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
-    for path in [
-        tmp_path / "post/study/campaign_sweep.csv",
-        *(tmp_path / "post/study/polars").iterdir(),
-    ]:
+    for path in (tmp_path / "post/study/polars").iterdir():
         header = header_of(path)
-        assert header[:2] == ["POL", "point"]
-        assert header[2:18] == CONTEXT
+        assert header[:3] == ["POL", "POINT_ID", "POINT"]
+        assert [name for name in header if name in CONTEXT] == CONTEXT
 
 
 def test_a_missing_value_is_na_and_never_empty_or_quoted(tmp_path):
     three(tmp_path)
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
-    text = (tmp_path / "post/study/campaign_sweep.csv").read_text(encoding="utf-8")
+    text = (tmp_path / "post/study/polars/FAM-ACOEF-P1001.csv").read_text(encoding="utf-8")
     assert '"' not in text and ",," not in text and not text.splitlines()[1].endswith(",")
-    names = header_of(tmp_path / "post/study/campaign_sweep.csv")
+    names = header_of(tmp_path / "post/study/polars/FAM-ACOEF-P1001.csv")
     first = dict(zip(names, text.splitlines()[1].split(","), strict=True))
     assert first["VREF"] == first["BREF"] == first["RPM_CLOCK"] == "NA"
     assert float(first["ALPHA"]) == 0.0
@@ -65,10 +62,10 @@ def test_numpy_reads_the_table_to_the_header_count(tmp_path):
     three(tmp_path)
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
-    path = tmp_path / "post/study/campaign_sweep.csv"
+    path = tmp_path / "post/study/polars/FAM-ACOEF-P1001.csv"
     table = np.genfromtxt(path, delimiter=",", names=True, dtype=None, encoding="utf-8")
-    assert len(table) == 4 and len(table.dtype.names) == len(header_of(path))
-    assert table["ALPHA"].tolist() == [0.0, 2.0, 0.0, 0.0]
+    assert len(table) == 2 and len(table.dtype.names) == len(header_of(path))
+    assert table["ALPHA"].tolist() == [0.0, 2.0]
 
 
 def test_a_stated_air_state_fills_velocity_density_and_reynolds(tmp_path):
@@ -80,7 +77,7 @@ def test_a_stated_air_state_fills_velocity_density_and_reynolds(tmp_path):
     )
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
-    path = tmp_path / "post/study/campaign_sweep.csv"
+    path = tmp_path / "post/study/polars/FAM-ACOEF-P1001.csv"
     row = dict(
         zip(
             header_of(path),
@@ -104,7 +101,7 @@ def test_a_condition_key_spelled_as_a_context_column_fills_it_once(tmp_path):
     )
     assert main(["run", "study", "--workspace", str(tmp_path)]) == 0
     assert main(["collect", "study", "--workspace", str(tmp_path)]) == 0
-    path = tmp_path / "post/study/campaign_sweep.csv"
+    path = tmp_path / "post/study/polars/FAM-ACOEF-P1001.csv"
     header = header_of(path)
     assert len(header) == len(set(header)), "a column is stated twice"
     first = path.read_text(encoding="utf-8").splitlines()[1].split(",")

@@ -1,0 +1,71 @@
+% Solver-specific use of generated inputs and neutral results.
+\section{Generated meshes, polars and boundary forces}
+
+\begin{frame}[fragile]{From an airfoil mesh to a 2D polar}
+\begin{lstlisting}
+cfd-mesh airfoil-2d --naca 0012 --reynolds 6000000
+\end{lstlisting}
+\begin{itemize}\small
+  \item For parametric 3D inputs, \code{cfd-geom run model.toml} builds the
+        geometry and \code{cfd-mesh mesh} builds its surface mesh.
+  \item The airfoil command builds a C-mesh: \code{.su2} for SU2, one-cell-thick
+        gmsh \code{.msh} for OpenFOAM. The default far field is 500 chords away.
+        \code{--level} chooses resolution; \code{--trailing-edge blunt}
+        adds \code{airfoil_base}. Check resolution and boundary conditions.
+  \item Sweep \code{ALPHA} on a 2D SU2 or OpenFOAM row. A typical sweep is
+        -8 to 16 degrees, step 1; list the 25 values explicitly in the matrix.
+  \item \code{collect} writes \code{polars/P<POL>.txt} in XFOIL layout.
+        QPROP can read it. Only points converged by the polar rule enter it.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{The polar rule and the result files}
+\begin{itemize}\small
+  \item R: SU2's \code{rms[Rho]} reaches -12, or every OpenFOAM solved field's
+        initial residual reaches $10^{-6}$.
+  \item C: CL and CD pass a Cauchy test, mean relative change below $10^{-6}$
+        over 250 iterations, with residuals at least three orders below the
+        first row. The rule is beside the adapter verdict, not a replacement.
+  \item The polar has alpha, CL, CD, CDp, CM, Top_Xtr, Bot_Xtr. CDp is
+        unmeasured (0.00000); transition is fully turbulent (0.0000).
+        Excluded points keep their CSV rows and emit a named warning.
+  \item \code{FAM-ACOEF-P<POL>.csv} has family coefficients in W, S, B and
+        rotor frames; \code{FAM-DIM} has loads. Family-based TOTAL, AIRFRAME
+        and rotor group files sum member loads. \code{products.json} states
+        units, frames and digests; \code{campaign_summary.json} keeps verdicts.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Separate boundary force sets}
+\begin{lstlisting}[style=cfdbtoml]
+[groups]
+main = ["wing"]
+combined = ["wing", "tail"]
+\end{lstlisting}
+\begin{itemize}\small
+  \item SU2 and OpenFOAM require named markers present in the mesh; an unknown
+        marker is refused with the mesh inventory. Groups may overlap.
+  \item SU2 reads per-marker history; OpenFOAM uses one native force object per
+        group. Both retain their complete monitored set as \code{TOTAL}.
+  \item These sets use the total's references, axes and coefficient kinds.
+        They live in \code{points[].result.force_groups} in the summary.
+        They do not add CSV files or replace the family-based group tables.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Restart and execution choices}
+\begin{itemize}\small
+  \item A row's \code{RESTART} uses a recorded source solution;
+        \code{run --restart} uses each selected point's own saved solution.
+        SU2, OpenFOAM and PyFR support both, preserving earlier evidence.
+  \item SU2 matches binary or ASCII restart state; OpenFOAM copies the latest
+        positive time fields; PyFR keeps the native mesh with its solution.
+        Missing state or an incompatible mesh is refused.
+  \item The host guard is off by default. \code{--one-run-at-a-time}, or
+        \code{one_run_at_a_time = true} under \code{[solver]} in \code{init.toml}, opts into a
+        reservation against other guarded local runs.
+  \item In \code{VAR_NAMES_VALUES}, \code{hpc: alpha / cluster: west}
+        selects per-row submission settings; \code{hpc:} overrides \code{--hpc}.
+        \code{--local} ignores these keys. Guide 2 describes the receipt.
+\end{itemize}
+\end{frame}

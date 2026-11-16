@@ -66,10 +66,9 @@ cfd-matrix run polar
   \item It records every point in \code{runs.json}: inputs and hashes,
         status, start and finish, verdict.
 \end{itemize}
-\begin{cfdblimit}[One solver process at a time]
-The library solvers run one point at a time. A run is refused, before it
-records anything, when the solver is missing, the machine is held or memory
-is short.
+\begin{cfdblimit}[The optional host guard]
+\small The host guard is off by default. Add \code{--one-run-at-a-time} to
+exclude other guarded local runs. Executable and memory checks always apply.
 \end{cfdblimit}
 \end{frame}
 
@@ -111,14 +110,14 @@ is short.
 \code{cfd-matrix status} & each simulation with the states of its points.
   \code{--points}: one row per point. \code{--failed}: only the simulations
   with a failed point \\
-\code{cfd-matrix show TARGET} & one simulation, point or run record in full \\
-\code{cfd-matrix history TARGET} & the current and the earlier records of a
+\code{cfd-workspace show TARGET} & one simulation, point or run record in full \\
+\code{cfd-workspace history TARGET} & the current and the earlier records of a
   simulation or point, with their archives \\
-\code{cfd-matrix log} & the recorded events in time order.
+\code{cfd-workspace log} & the recorded events in time order.
   \code{--problems}: the failures. \code{--since 2h}: the recent ones \\
-\code{cfd-matrix trace PRODUCT} & the runs, inputs and hashes behind a
+\code{cfd-workspace trace PRODUCT} & the runs, inputs and hashes behind a
   product file \\
-\code{cfd-matrix diff RUN_A RUN_B} & two run records, field by field \\
+\code{cfd-workspace diff RUN_A RUN_B} & two run records, field by field \\
 \bottomrule
 \end{tabularx}}
 \vspace{2mm}
@@ -172,9 +171,11 @@ cfd-matrix collect polar
 \textbf{File under} \code{post/polar/} & \textbf{Holds} \\
 \midrule
 \code{campaign_summary.json} & every recorded point with its result \\
-\code{campaign_sweep.csv} & one row per point: flight condition, air state,
-  references, status, verdict, coefficients \\
-\code{polars/P<POL>.csv} & the same columns, one file per simulation \\
+\code{polars/FAM-ACOEF-P<POL>.csv} & coefficients per point and family,
+  in wind, stability, body and rotor frames \\
+\code{polars/FAM-DIM-P<POL>.csv} & dimensional loads per point and family \\
+\code{polars/P<POL>-TOTAL-ACOEF.csv} & total coefficients per point \\
+\code{polars/P<POL>.txt} & a 2D SU2 or OpenFOAM ALPHA sweep, XFOIL layout \\
 \code{products.json}, \code{post.log} & every product written, and every one
   skipped with the reason \\
 \bottomrule
@@ -186,6 +187,25 @@ cfd-matrix collect polar
         matrix.
   \item \code{--archive} keeps a copy of each replaced file under
         \code{archive/<stamp>/}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Products and boundary force sets}
+\begin{itemize}\small
+  \item Every polar has family files and family-based group files for
+        \code{TOTAL}, \code{AIRFRAME} and each rotor that has members.
+        Rotor solvers also write \code{FAM-RCOEF}; sectional distributions
+        go under \code{sections/P<POL>/}.
+  \item Tables start with the canonical run block: conditions, air state,
+        references, rotor data and averaging window. A value that does not
+        apply is \code{NA}. Verdicts and histories live in the campaign summary.
+  \item A setup \code{[groups]} table selects SU2 or OpenFOAM boundary markers.
+        Its \code{force_groups}, including \code{TOTAL}, stay in the summary;
+        they do not add boundary-group CSV files. Groups may overlap.
+  \item \code{products.json}, schema version 2, states kinds, units, frames,
+        families, groups, skips and SHA-256 digests. Edited or unrecorded
+        products are protected against replacement. Preserve older products
+        in a separate folder before recollecting.
 \end{itemize}
 \end{frame}
 

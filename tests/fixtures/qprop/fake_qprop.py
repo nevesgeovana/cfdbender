@@ -50,6 +50,11 @@ def main():
     print("#  " + "   ".join(f"{v:.6g}" for v in values))
     print("#")
     print("#  radius   chord   beta")
+    if os.environ.get("CFDBENDER_QPROP_FAKE_RADIAL"):
+        # One row per station of the propeller file, as QPROP prints its radial table.
+        for station in stations:
+            r, chord, beta = station.split()[:3]
+            print(f"   {r}   {chord}   {beta}")
     return 0
 
 

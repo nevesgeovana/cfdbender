@@ -1,35 +1,37 @@
 """Write the CSV tables of a collected matrix beside its campaign summary.
 
-``post/<matrix>/campaign_sweep.csv`` holds one row per recorded point of the
-matrix and ``post/<matrix>/polars/P<POL>.csv`` one row per point of each
-simulation, in the pyflightstream spelling of a polar file's ``P<sim>`` stem
-(cfdbender has no boundary groups, so the stem carries no group suffix). The
-columns are POL, point, the fixed context block of pyflightstream (ALPHA, BETA,
-MACH, RE in millions, VINF, VREF, ALT, RHO, TEMP, MU, J, J_CLOCK, RPM_CLOCK, then
-SREF, CREF, BREF), any other FLIGHT_CONDITION key the matrix states, status,
-classification, iterations, residual, wall_time_s, solver_version, the neutral
-coefficients CL, CD and CM (NA where the solver reports none) and every coefficient
-the solver reported under its own name. A value a point does not have is the token NA;
-no cell holds a comma, a double quote or a line break and none is quoted, so
-numpy.genfromtxt reads every row to the header's count. Every table of a matrix
-has the same columns. The tables are derived and rebuilt by every collect.
+Every polar of the matrix gets its family and group files under ``post/<matrix>/polars/``
+(:mod:`cfdbender.matrix._family_polar`) and every point whose solver prints a sectional
+distribution its ``sections/P<POL>/<point>_sections.csv``
+(:mod:`cfdbender.matrix._section_tables`).
+This module turns a campaign summary row into the point those writers read: the flight
+condition resolved by the rules that prepare the solver input, the references, the
+solver's own coefficients and the loads in the geometry frame. A value a point does not
+have is the token NA; no cell holds a comma, a double quote or a line break and none is
+quoted, so numpy.genfromtxt reads every row to the header's count. The tables are derived
+and rebuilt by every collect. The campaign sweep table of 0.5 is retired (removed in 0.6.0).
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import os
 import tempfile
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
+from cfdbender.core.convergence import Verdict
 from cfdbender.core.flight import FlightConditionError, resolve_flow
-from cfdbender.core.neutral import NEUTRAL, ROTOR, ROTOR_NAMES, neutral_values, rotor_values
 from cfdbender.core.plan import workspace_path
+from cfdbender.matrix._family_columns import SOLVER_ROTORS
+from cfdbender.matrix._family_polar import Point, PolarFiles, point_loads, polar_files
+from cfdbender.matrix._section_tables import section_files
+from cfdbender.matrix.polar2d import verdict_cells
 
-FIXED = ("status", "classification", "iterations", "residual", "wall_time_s", "solver_version")
 NOT_APPLICABLE = "NA"
 #: The fixed context block of every table, as pyflightstream's CONTEXT_COLUMNS: the
 #: flight condition, then the reference lengths. A value the point lacks is NA.
@@ -58,6 +60,7 @@ _ALIASES = {
     "mach": "MACH",
     "remi": "RE",
     "tasmps": "VINF",
+    "v": "VINF",
     "altft": "ALT",
     "rhokgm3": "RHO",
     "tk": "TEMP",
@@ -92,13 +95,6 @@ def _cell(value: object) -> str:
         return repr(value) if math.isfinite(value) else NOT_APPLICABLE
     text = plain_cell(str(value))
     return text if text.strip() else NOT_APPLICABLE
-
-
-def _wall(row: Mapping[str, object]) -> float | None:
-    start, end = row.get("started_at"), row.get("completed_at")
-    if not isinstance(start, str) or not isinstance(end, str):
-        return None
-    return (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds()
 
 
 def _context(
@@ -143,75 +139,44 @@ def _context(
     return cells, extra
 
 
-def _cells(row: Mapping[str, object], solver: str | None = None) -> dict[str, object]:
-    result = cast(Mapping[str, object] | None, row.get("result")) or {}
-    history = cast(Sequence[Mapping[str, object]], result.get("history") or ())
-    last = history[-1] if history else {}
-    context, extra = _context(
-        cast(Mapping[str, object], row["condition"]),
-        cast(Mapping[str, object] | None, result.get("references")),
+def _replaceable(target: Path, data: bytes) -> bool:
+    """Require a matching recorded digest before replacing a derived table."""
+    if target.is_symlink():
+        raise ValueError(f"{target}: linked output; refusing overwrite")
+    if not target.exists():
+        return False
+    original = target.read_bytes()
+    if original == data:
+        return True
+    for folder in target.parents:
+        if folder.parent.name != "post":
+            continue
+        manifest = folder / "products.json"
+        relative = target.relative_to(folder.parent.parent).as_posix()
+        try:
+            document = json.loads(manifest.read_bytes())
+            entries = document.get("products", [])
+            if isinstance(entries, list) and any(
+                isinstance(entry, dict)
+                and entry.get("path") == relative
+                and entry.get("sha256") == hashlib.sha256(original).hexdigest()
+                for entry in entries
+            ):
+                return True
+        except (OSError, ValueError, AttributeError):
+            pass
+        break
+    raise ValueError(
+        f"{target}: unrecorded or edited output; refusing overwrite; "
+        "move it aside and collect again"
     )
-    cells: dict[str, object] = {
-        "POL": row["pol"],
-        "point": str(row["point_id"]).split("/", 1)[1],
-        **context,
-        **extra,
-        "status": row["status"],
-        "classification": row.get("classification"),
-        "iterations": last.get("iteration"),
-        "residual": last.get("residual"),
-        "wall_time_s": _wall(row),
-        "solver_version": result.get("solver_version"),
-    }
-    coefficients = cast(Mapping[str, Mapping[str, object]], result.get("coefficients") or {})
-    for name, value in coefficients.items():
-        cells[name] = value["value"]
-    own = {name: cast(float, value["value"]) for name, value in coefficients.items()}
-    cells.update(
-        neutral_values(
-            solver,
-            own,
-            dimensions=result.get("dimensions"),
-            condition=cast(Mapping[str, object], row["condition"]),
-        )
-    )
-    cells.update(rotor_values(solver, own))
-    return cells
-
-
-def _header(rows: Sequence[Mapping[str, object]], solver: str | None = None) -> list[str]:
-    extras: dict[str, None] = {}
-    coefficients: dict[str, None] = {}
-    for row in rows:
-        condition = cast(Mapping[str, object], row["condition"])
-        extras.update(dict.fromkeys(_context(condition, None)[1]))
-        result = cast(Mapping[str, object] | None, row.get("result")) or {}
-        names = cast(Mapping[str, object], result.get("coefficients") or {})
-        coefficients.update(dict.fromkeys(names))
-    rotor = tuple(c for c in ROTOR if c not in CONTEXT) if solver in ROTOR_NAMES else ()
-    taken = {"POL", "point", *CONTEXT, *extras, *FIXED, *NEUTRAL, *rotor}
-    return [
-        "POL",
-        "point",
-        *CONTEXT,
-        *extras,
-        *FIXED,
-        *NEUTRAL,
-        *rotor,
-        *(c for c in coefficients if c not in taken),
-    ]
-
-
-def _text(
-    header: Sequence[str], rows: Sequence[Mapping[str, object]], solver: str | None = None
-) -> str:
-    lines = [",".join(header)]
-    for cell in (_cells(row, solver) for row in rows):
-        lines.append(",".join(_cell(cell.get(name)) for name in header))
-    return chr(10).join(lines) + chr(10)
 
 
 def _write(target: Path, text: str) -> Path:
+    data = text.encode("utf-8")
+    replacing = _replaceable(target, data)
+    if replacing and target.read_bytes() == data:
+        return target
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
     try:
@@ -219,10 +184,14 @@ def _write(target: Path, text: str) -> Path:
             dir=target.parent, prefix=".collect-", delete=False
         ) as stream:
             temporary = Path(stream.name)
-            stream.write(text.encode("utf-8"))
+            stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, target)
+        if replacing:
+            os.replace(temporary, target)
+        else:
+            os.link(temporary, target)
+            temporary.unlink()
         temporary = None
     finally:
         if temporary is not None:
@@ -230,13 +199,127 @@ def _write(target: Path, text: str) -> Path:
     return target
 
 
+def summary_point(row: Mapping[str, object], solver: str | None = None) -> Point:
+    """Return what one campaign summary row contributes to the polar files.
+
+    The run block takes the resolved flight condition, VREF = VINF, the references (SREF,
+    CREF, the moment point; BREF is NA, no solver states a span) and every other condition
+    key as an identifier. A rotor's diameter is the reference length; its speed is the
+    row's RPM, else ``60 VINF / (J D)`` from the J the solver reports.
+    """
+    result = cast(Mapping[str, object] | None, row.get("result")) or {}
+    references = cast(Mapping[str, object], result.get("references") or {})
+    context, extra = _context(cast(Mapping[str, object], row["condition"]), references)
+    origin = cast(Sequence[object], references.get("moment_origin") or (None, None, None))
+    condition = {
+        **context,
+        "VREF": context.get("VINF"),
+        "XMOM": origin[0],
+        "YMOM": origin[1],
+        "ZMOM": origin[2],
+    }
+    coefficients = cast(Mapping[str, Mapping[str, object]], result.get("coefficients") or {})
+    native = {name: cast(float, value["value"]) for name, value in coefficients.items()}
+    rpm: dict[int, float | None] = {}
+    diameter: dict[int, float] = {}
+    for rotor in SOLVER_ROTORS.get(solver or "", ()):
+        length = references.get("length")
+        size = float(length) if isinstance(length, int | float) else math.nan
+        diameter[rotor.rotor_id] = size
+        stated = context.get("RPM_CLOCK")
+        speed = float(stated) if isinstance(stated, int | float) else None
+        vinf, advance = context.get("VINF"), native.get("J")
+        if speed is None and isinstance(vinf, int | float) and advance and size > 0.0:
+            speed = 60.0 * float(vinf) / (float(advance) * size)
+        rpm[rotor.rotor_id] = speed
+    loads, in_units = point_loads(solver, native, condition, dimensions=result.get("dimensions"))
+    return Point(
+        pol=str(row["pol"]),
+        name=str(row["point_id"]).split("/", 1)[1],
+        condition=condition,
+        identifiers=extra,
+        native=native,
+        loads=loads,
+        rpm=rpm,
+        diameter=diameter,
+        in_units=in_units,
+    )
+
+
+def write_polar_files(
+    root: Path,
+    matrix: str,
+    rows: Sequence[Mapping[str, object]],
+    solver: str | None = None,
+    verdicts: Mapping[str, Verdict | str] | None = None,
+) -> PolarFiles:
+    """Rebuild the polar files and the sections tables of one matrix.
+
+    See :mod:`cfdbender.matrix._family_polar` and :mod:`cfdbender.matrix._section_tables`;
+    the returned paths are the polar files, then the sections tables.
+    """
+    folder = workspace_path(root, f"post/{Path(matrix).stem}")
+    points = [summary_point(row, solver) for row in rows]
+    if verdicts is not None:
+        points = [
+            replace(
+                point,
+                convergence={
+                    "solver_version": (cast(Mapping[str, object], row.get("result") or {})).get(
+                        "solver_version"
+                    ),
+                    **verdict_cells(verdicts.get(str(row["point_id"]))),
+                },
+            )
+            for row, point in zip(rows, points, strict=True)
+        ]
+    polar = polar_files(
+        folder, points, solver, write=_write, cell=_cell, judged=verdicts is not None
+    )
+    sections, columns, skipped = section_files(
+        root, folder, rows, points, polar, solver, write=_write, cell=_cell
+    )
+    return replace(
+        polar,
+        paths=(*polar.paths, *sections),
+        sections=sections,
+        sections_columns=columns,
+        sections_skipped=skipped,
+        mesh_frames=_mesh_frames(root, rows),
+    )
+
+
+def _mesh_frames(
+    root: Path, rows: Sequence[Mapping[str, object]]
+) -> dict[str, Mapping[str, object]]:
+    """Read mesh conversion records from the verified section evidence of each point."""
+    frames: dict[str, Mapping[str, object]] = {}
+    for row in rows:
+        if row.get("result") is None:
+            continue
+        outputs = cast(Mapping[str, object], row.get("outputs_sha256") or {})
+        for name in outputs:
+            if not name.endswith("/sections.json"):
+                continue
+            path = workspace_path(root, name)
+            if path.is_file():
+                data = json.loads(path.read_bytes())
+                if isinstance(data.get("mesh_frame"), dict):
+                    frames[str(row["point_id"])] = data["mesh_frame"]
+    return frames
+
+
 def write_tables(
     root: Path,
     matrix: str,
     rows: Sequence[Mapping[str, object]],
     solver: str | None = None,
+    verdicts: Mapping[str, Verdict | str] | None = None,
 ) -> tuple[Path, ...]:
-    """Rebuild campaign_sweep.csv and polars/P<POL>.csv for one matrix.
+    """Rebuild the polar files and the sections tables of one matrix.
+
+    campaign_sweep.csv is retired (removed in 0.6.0): each polar's TOTAL group file holds
+    every point of the polar, and joining several polars is a concatenation of those files.
 
     Parameters
     ----------
@@ -247,19 +330,14 @@ def write_tables(
     rows : sequence of mapping
         The campaign summary's point rows, in record order.
     solver : str, optional
-        Registered solver name; it selects the neutral CL, CD and CM columns.
+        Registered solver name; it selects the loads, the families and the rotors.
+    verdicts : mapping, optional
+        Per-point SU2 or OpenFOAM convergence rule verdicts. Tables carry solver_version
+        followed by rule_verdict, rule_iteration and rule_drop_orders.
 
     Returns
     -------
     tuple of Path
-        The written tables, campaign_sweep.csv first.
+        The written tables.
     """
-    folder = workspace_path(root, f"post/{Path(matrix).stem}")
-    header = _header(rows, solver)
-    written = [_write(folder / "campaign_sweep.csv", _text(header, rows, solver))]
-    by_pol: dict[str, list[Mapping[str, object]]] = {}
-    for row in rows:
-        by_pol.setdefault(str(row["pol"]), []).append(row)
-    for pol, members in by_pol.items():
-        written.append(_write(folder / "polars" / f"P{pol}.csv", _text(header, members, solver)))
-    return tuple(written)
+    return write_polar_files(root, matrix, rows, solver, verdicts).paths

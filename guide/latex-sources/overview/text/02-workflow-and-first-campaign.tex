@@ -28,7 +28,8 @@
 \begin{itemize}\small
   \item Stages 1 to 5 are every campaign. Stages 6 and 7 are for the day a
         record is wrong or the disk is full.
-  \item \code{cfd-workspace} does stage 1. \code{cfd-matrix} does the rest.
+  \item \code{cfd-matrix} plans, runs, follows and collects matrices.
+        \code{cfd-workspace} creates the tree and manages records and storage.
   \item The cheatsheet, guide 4, has one page per stage.
 \end{itemize}
 \end{frame}
@@ -76,8 +77,8 @@ POL  | RUN | FLIGHT_CONDITION                  | SWEEP_VALUES | GEOMETRY | REF |
   \item Many rows may share one file. A value the row and a file both state
         must agree.
 \end{itemize}
-\begin{takeaway}You write only under \code{inputs/}. Nothing a command writes
-goes there.\end{takeaway}
+\begin{takeaway}Inputs live under \code{inputs/}, including generated geometry
+and meshes.\end{takeaway}
 \end{frame}
 
 \begin{frame}{Plan first, then run}
@@ -140,7 +141,7 @@ and not by a job that waited in a queue.\end{takeaway}
 \begin{itemize}\small
   \item The verdict is beside every row of the collected table.
   \item You may overrule it, with a reason on record:
-        \code{cfd-matrix mark-failed} and \code{cfd-matrix mark-converged}.
+        \code{cfd-workspace mark-failed} and \code{cfd-workspace mark-converged}.
 \end{itemize}
 \end{frame}
 
@@ -194,9 +195,9 @@ cfd-matrix collect first
 \begin{itemize}\small
   \item \code{plan} lists three points. \code{run} runs them on this machine.
   \item \code{status --points} shows each point with its status and verdict.
-  \item \code{collect} writes \code{post/first/campaign_sweep.csv}: one row
-        per point, with the flight condition, the air state, the verdict and
-        the coefficients.
+  \item \code{collect} writes the summary and the family and group tables in
+        \code{post/first/polars/}. The summary keeps each point's verdict;
+        \code{P1001-TOTAL-ACOEF.csv} keeps its total coefficients.
 \end{itemize}
 \begin{takeaway}Change \code{outcome} to \code{"failed"} in a second setup
 file and run a second row: you have seen a failure before it matters.\end{takeaway}

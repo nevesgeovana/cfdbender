@@ -4,18 +4,32 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cfdbender"
-version = "0.5.2"
+version = "0.6.0"
 description = "Solver-agnostic Python workspace for CFD studies (SU2 first)"
 readme = "README.md"
 authors = [{name = "Geovana Neves"}]
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
-dependencies = []
+dependencies = [
+    # gmsh is GPL-2.0-or-later with a linking exception: installed from its own
+    # distribution and imported only by cfdbender/mesh/_gmsh.py (docs/install.md).
+    # Measured on 4.15.2.
+    "gmsh>=4.15.1,<5",
+    "matplotlib>=3.10,<4",
+    "numpy>=2.0,<3",
+    "pydantic>=2.10.4,<3",
+    "rtree>=1.3,<2",
+    "scipy>=1.15,<2",
+    "trimesh>=4.12,<6",
+    "vtk>=9.3,<10",
+]
 
 [project.scripts]
 cfd-workspace = "cfdbender.workspace.cli:main"
 cfd-matrix = "cfdbender.matrix.cli:main"
+cfd-mesh = "cfdbender.mesh.cli:main"
+cfd-geom = "cfdbender.geometry.cli:main"
 
 [project.optional-dependencies]
 flightstream = ["pyflightstream>=0.56,<1"]
@@ -25,6 +39,9 @@ docs = ["properdocs>=1.6,<2", "mkdocs-material>=9,<10", "mkdocs-gen-files>=0.5,<
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"cfdbender.geometry" = ["schemas/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -39,6 +56,176 @@ strict = true
 # is absent from environments without the extra (hosted CI), so its imports in
 # cfdbender._pyfs are untyped either way.
 module = ["pyflightstream", "pyflightstream.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The parametric geometry modules were ported with partial annotations; they are
+# checked at the default level (annotated functions only) until each is annotated.
+module = [
+    "cfdbender.geometry._airfoils",
+    "cfdbender.geometry._blister",
+    "cfdbender.geometry._bodies",
+    "cfdbender.geometry._boundary",
+    "cfdbender.geometry._bspline",
+    "cfdbender.geometry._caps",
+    "cfdbender.geometry._component_keys",
+    "cfdbender.geometry._continuity",
+    "cfdbender.geometry._control_curves",
+    "cfdbender.geometry._control_span",
+    "cfdbender.geometry._control_surfaces",
+    "cfdbender.geometry._distributions",
+    "cfdbender.geometry._fairings",
+    "cfdbender.geometry._fillet",
+    "cfdbender.geometry._fowler",
+    "cfdbender.geometry._fowler_motion",
+    "cfdbender.geometry._fowler_section",
+    "cfdbender.geometry._generation",
+    "cfdbender.geometry._identity",
+    "cfdbender.geometry._junctions",
+    "cfdbender.geometry._lifting",
+    "cfdbender.geometry._mesh_blocks",
+    "cfdbender.geometry._mesh_rules",
+    "cfdbender.geometry._mesh_schema",
+    "cfdbender.geometry._mesh_topology",
+    "cfdbender.geometry._patch",
+    "cfdbender.geometry._placement",
+    "cfdbender.geometry._propeller",
+    "cfdbender.geometry._propeller_build",
+    "cfdbender.geometry._propeller_checks",
+    "cfdbender.geometry._propeller_input",
+    "cfdbender.geometry._propeller_sections",
+    "cfdbender.geometry._propeller_slice",
+    "cfdbender.geometry._records",
+    "cfdbender.geometry._regions",
+    "cfdbender.geometry._registry",
+    "cfdbender.geometry._reverse",
+    "cfdbender.geometry._schema",
+    "cfdbender.geometry._sections",
+    "cfdbender.geometry._skin",
+    "cfdbender.geometry._toml_body_keys",
+    "cfdbender.geometry._toml_keys",
+    "cfdbender.geometry._trims",
+    "cfdbender.geometry.component",
+    "cfdbender.geometry.config",
+    "cfdbender.geometry.stage_table",
+    "cfdbender.geometry.stages",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# The geometry kernel and mesh modules, ported with partial annotations like the parametric
+# geometry above; checked at the default level until each is annotated.
+module = [
+    "cfdbender.geometry._cli_verbs",
+    "cfdbender.geometry._geom_assembly",
+    "cfdbender.geometry._geom_export",
+    "cfdbender.geometry._geom_gate",
+    "cfdbender.geometry._geom_parts",
+    "cfdbender.geometry._geom_propeller",
+    "cfdbender.geometry._geom_reader",
+    "cfdbender.geometry._geom_removal",
+    "cfdbender.geometry._geom_roundtrip",
+    "cfdbender.geometry._geom_variant",
+    "cfdbender.geometry._geometry_check",
+    "cfdbender.geometry._geometry_generate",
+    "cfdbender.geometry._geometry_mesh",
+    "cfdbender.geometry._geometry_mesh_body",
+    "cfdbender.geometry._geometry_mesh_junction",
+    "cfdbender.geometry._geometry_mesh_occ",
+    "cfdbender.geometry._geometry_mesh_s1",
+    "cfdbender.geometry._geometry_mesh_s2",
+    "cfdbender.geometry._geometry_reverse",
+    "cfdbender.geometry._identify",
+    "cfdbender.geometry._iges_names",
+    "cfdbender.geometry._iges_skin",
+    "cfdbender.geometry._iges_write",
+    "cfdbender.geometry.cli",
+    "cfdbender.geometry.iges_convert",
+    "cfdbender.geometry.iges_profile",
+    "cfdbender.mesh._gmsh",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# gmsh ships no type information.
+module = ["gmsh", "gmsh.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# The generic mesh modules (refine, audit, degenerate, merge, trailing edges, collapse),
+# ported with partial annotations like the geometry kernel above.
+module = [
+    "cfdbender.mesh._sidecars",
+    "cfdbender.mesh._sidecar_models",
+    "cfdbender.mesh._refine",
+    "cfdbender.mesh._refine.*",
+    "cfdbender.mesh._degenerate",
+    "cfdbender.mesh._merge",
+    "cfdbender.mesh.collapse_te",
+    "cfdbender._decimal",
+    "cfdbender.geometry.trailing_edges",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# Annotated modules that call helpers of the ported modules, not yet annotated.
+module = [
+    "cfdbender.geometry.blade_sections",
+    "cfdbender.geometry.doe",
+    "cfdbender.geometry.pipeline",
+    "cfdbender.mesh._cli_surface",
+]
+disallow_untyped_calls = false
+
+[[tool.mypy.overrides]]
+# The rotor, wheel and viewer mesh modules, ported with partial annotations; checked at the
+# default level until each is annotated.
+module = [
+    "cfdbender.mesh.prop_slice",
+    "cfdbender.mesh._geometry_vtk",
+    "cfdbender.mesh._hub_remesh",
+    "cfdbender.mesh._hub_rings_grid",
+    "cfdbender.mesh._pitch_axis",
+    "cfdbender.mesh._repitch",
+    "cfdbender.mesh._repitch_grid",
+    "cfdbender.mesh._repitch_io",
+    "cfdbender.mesh._sector_winslow",
+    "cfdbender.mesh._visual_inspect",
+    "cfdbender.mesh._iges_grid_config",
+    "cfdbender.mesh._iges_mesh",
+    "cfdbender.mesh._inspect_pages",
+    "cfdbender.mesh._wheel",
+    "cfdbender.mesh.iges_grid",
+    "cfdbender.mesh.morph",
+    "cfdbender.mesh.hub_rings",
+    "cfdbender.mesh.repitch",
+    "cfdbender.mesh.scale",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# scipy ships no type information.
+module = ["scipy", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.ruff]

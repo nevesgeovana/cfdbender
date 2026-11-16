@@ -50,21 +50,24 @@ def _run(root, line, cmy, cmz):
     assert main(["plan", "study", "--workspace", str(root)]) == 0
     assert main(["run", "study", "--local", "--workspace", str(root)]) == 0
     assert main(["collect", "study", "--workspace", str(root)]) == 0
-    with (root / "post/study/campaign_sweep.csv").open(newline="") as stream:
+    folder = root / "post/study/polars"
+    with next(folder.glob("FAM-ACOEF-P*.csv")).open(newline="") as stream:
         return next(csv.DictReader(stream))
 
 
 def test_a_two_dimensional_case_reports_cmz_as_the_neutral_cm(tmp_path):
     row = _run(tmp_path, "Two dimensional problem.", 0.0, -0.0258)
     assert float(row["CMy"]) == 0.0 and float(row["CMz"]) == -0.0258
-    assert float(row["CM"]) == 0.0258, "CM is the nose-up pitching moment: minus CMz in 2D"
+    assert float(row["CmW"]) == pytest.approx(0.0258), (
+        "Cm is the nose-up pitching moment: minus CMz in 2D"
+    )
     summary = json.loads((tmp_path / "post/study/campaign_summary.json").read_bytes())
     assert summary["points"][0]["result"]["dimensions"] == 2
 
 
 def test_a_three_dimensional_case_keeps_cmy(tmp_path):
     row = _run(tmp_path, "Three dimensional problem.", -0.05, 0.001)
-    assert float(row["CM"]) == -0.05
+    assert float(row["CmW"]) == pytest.approx(-0.05)
 
 
 def test_the_dimension_falls_back_to_the_native_mesh_and_may_be_unstated(tmp_path):

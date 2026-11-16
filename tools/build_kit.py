@@ -1,8 +1,13 @@
 """Build the deterministic offline cfdbender offline kit from this checkout.
 
-Run ``python tools/build_kit.py --out OUTPUT`` with build, setuptools>=77 and
-gmsh available in the build interpreter. No network is used: the wheel is built
-with ``python -m build --wheel --no-isolation``. gmsh is a build dependency only.
+Run ``python tools/build_kit.py --out OUTPUT [--wheels CACHE]`` with build,
+setuptools>=77, pip and gmsh available in the build interpreter. The cfdbender wheel is
+built with ``python -m build --wheel --no-isolation``; gmsh is a build dependency only.
+The wheel of every runtime dependency, for each kit target (Windows and Linux, x86-64,
+CPython 3.12), is fetched with ``pip download`` into the build folder and packed under
+``wheels/``, so the kit installs with ``pip install --no-index --find-links wheels``.
+Without ``--wheels`` the wheels are downloaded from the package index; with it they are
+taken from that local folder only, and no network is used.
 The output directory must exist; an existing deliverable is never overwritten.
 
 Adapted from pyflightstream build_kit_0540.py: explicit members, fresh staging,
@@ -33,6 +38,12 @@ VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["
 NAME = f"cfdbender-kit-{VERSION}.zip"
 WHEEL = f"cfdbender-{VERSION}-py3-none-any.whl"
 STAMP = (2026, 11, 10, 0, 0, 0)
+#: The kit targets: (name, pip download platform tags). The Python is CPython 3.12.
+TARGETS = (
+    ("windows", ("win_amd64",)),
+    ("linux", ("manylinux_2_28_x86_64", "manylinux_2_17_x86_64", "manylinux2014_x86_64")),
+)
+PYTHON_VERSION = "3.12"
 EPOCH = "1794268800"
 TEMPLATE_FILES = (
     "README-FIRST.md",
@@ -44,6 +55,11 @@ TEMPLATE_FILES = (
     "smoke/inputs/pproc/p001.toml",
     "smoke/inputs/hpc/h001.toml",
 )
+
+
+def _name(requirement: str) -> str:
+    """Return the distribution name of a requirement string."""
+    return re.split(r"[<>=!~ ;\[]", requirement, maxsplit=1)[0].strip().lower()
 
 
 def run(argv: list[str], *, cwd: Path, env: dict[str, str]) -> str:
@@ -102,13 +118,55 @@ def check_public(name: str, data: bytes) -> None:
         raise ValueError(f"private path refused in {name}")
 
 
-def build(out: Path) -> Path:
+def dependency_wheels(
+    requirements: list[str], stage: Path, env: dict[str, str], cache: Path | None
+) -> dict[str, bytes]:
+    """Return ``wheels/<file>`` members for every runtime dependency of every kit target.
+
+    Parameters
+    ----------
+    requirements : list of str
+        The project's runtime dependencies.
+    stage : Path
+        Private build directory; the wheels are downloaded below it.
+    env : dict of str to str
+        Build-local environment.
+    cache : Path or None
+        A local folder of wheels to take them from with no network, or None for the index.
+    """
+    members: dict[str, bytes] = {}
+    for target, platforms in TARGETS:
+        folder = stage / "dependencies" / target
+        folder.mkdir(parents=True)
+        argv = [sys.executable, "-m", "pip", "download", "--dest", str(folder)]
+        argv += ["--only-binary=:all:", "--python-version", PYTHON_VERSION]
+        argv += ["--implementation", "cp", "--disable-pip-version-check"]
+        for platform in platforms:
+            argv += ["--platform", platform]
+        if cache is not None:
+            argv += ["--no-index", "--find-links", str(cache)]
+        try:
+            run([*argv, *requirements], cwd=stage, env=env)
+        except ValueError as error:
+            raise ValueError(f"dependency wheels for {target} not fetched: {error}") from error
+        for wheel in sorted(folder.glob("*.whl")):
+            name = f"wheels/{wheel.name}"
+            data = wheel.read_bytes()
+            if members.get(name, data) != data:
+                raise ValueError(f"two different files named {wheel.name}")
+            members[name] = data
+    return members
+
+
+def build(out: Path, cache: Path | None = None) -> Path:
     """Build and verify the one deliverable, publishing only after all checks.
 
     Parameters
     ----------
     out : Path
         Existing output directory, optionally a deliberately supplied junction.
+    cache : Path, optional
+        Local folder of dependency wheels; the package index is used when omitted.
 
     Returns
     -------
@@ -138,17 +196,17 @@ def build(out: Path) -> Path:
                     raise ValueError(f"linked source input refused: {path}")
             dirs[:] = sorted(name for name in dirs if name != "__pycache__")
             for name in sorted(files):
-                if not name.endswith(".py"):
-                    continue
                 path = Path(directory) / name
+                schema = path.parent == source_root / "cfdbender/geometry/schemas"
+                if not name.endswith(".py") and not (schema and name.endswith(".json")):
+                    continue
                 destination = source / path.relative_to(ROOT)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 destination.write_bytes(regular(path))
         project = tomllib.loads((source / "pyproject.toml").read_text())["project"]
-        if project["version"] != VERSION or project["dependencies"]:
-            raise ValueError(
-                "kit requires the current cfdbender version with no runtime dependencies"
-            )
+        if project["version"] != VERSION:
+            raise ValueError("kit requires the current cfdbender version")
+        requirements = list(project["dependencies"])
         env = dict(os.environ, SOURCE_DATE_EPOCH=EPOCH, PYTHONDONTWRITEBYTECODE="1")
         run(
             [
@@ -170,8 +228,9 @@ def build(out: Path) -> Path:
             metadata = BytesParser().parsebytes(
                 wheel.read(f"cfdbender-{VERSION}.dist-info/METADATA")
             )
-        if metadata["Version"] != VERSION or any(
-            "extra ==" not in req for req in metadata.get_all("Requires-Dist", [])
+        runtime = [r for r in metadata.get_all("Requires-Dist", []) if "extra ==" not in r]
+        if metadata["Version"] != VERSION or sorted(map(_name, runtime)) != sorted(
+            map(_name, requirements)
         ):
             raise ValueError("wheel version or runtime dependencies differ from the release")
         workspace = stage / "smoke"
@@ -214,6 +273,10 @@ def build(out: Path) -> Path:
         )
         for name, data in members.items():
             check_public(name, data)
+        # Upstream dependency wheels are packed as published; only this project's files are
+        # checked for private paths.
+        bundled = dependency_wheels(requirements, stage, env, cache)
+        members.update(bundled)
         candidate = stage / NAME
         with zipfile.ZipFile(candidate, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for name, data in sorted(members.items()):
@@ -231,7 +294,7 @@ def build(out: Path) -> Path:
         print(f"kit: {target}")
         print(f"zip sha256: {hashlib.sha256(candidate.read_bytes()).hexdigest()}")
         print(f"wheel sha256: {hashlib.sha256(wheel_data).hexdigest()}")
-        print(f"members: {len(members)}; mesh cells: {cells}; runtime dependencies: none")
+        print(f"members: {len(members)}; mesh cells: {cells}; dependency wheels: {len(bundled)}")
     return target
 
 
@@ -239,9 +302,12 @@ def main() -> int:
     """Build the kit in a named output directory, with a clear failure message."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, required=True, help="existing output directory")
+    parser.add_argument(
+        "--wheels", type=Path, help="local folder of dependency wheels (no network)"
+    )
     args = parser.parse_args()
     try:
-        build(args.out.resolve())
+        build(args.out.resolve(), args.wheels.resolve() if args.wheels else None)
     except (OSError, ValueError, ImportError, subprocess.TimeoutExpired) as error:
         print(f"kit not built: {error}", file=sys.stderr)
         return 2

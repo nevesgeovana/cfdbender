@@ -34,13 +34,16 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 
 from cfdbender.core.adapter import AdapterPoint
+from cfdbender.core.flight import STATE_KEYS
 from cfdbender.core.matrix import MatrixRow
-from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
+from cfdbender.core.plan import Point, RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate, read_init
 from cfdbender.solvers._host._config import steady_only
+from cfdbender.solvers._host._groups import point_markers, validate_groups
 from cfdbender.solvers.openfoam._config import (
     POST_KEYS,
     REFERENCE_KEYS,
@@ -51,10 +54,11 @@ from cfdbender.solvers.openfoam._config import (
     staged_mesh,
 )
 from cfdbender.solvers.openfoam._execute import run, stage_case
-from cfdbender.solvers.openfoam._history import Evidence, read
+from cfdbender.solvers.openfoam._history import Evidence, force_groups, read
+from cfdbender.solvers.openfoam._restart import restart_files as restart_files
 
 SOLVER_NAME = "openfoam"
-CAPABILITIES = frozenset({"cluster_staging"})
+CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups"})
 STAGED_CONFIG = "Allrun"
 EXECUTABLE_KEYS = {"path": "foam_bashrc", "launcher": "launcher"}
 #: The outputs a cluster job writes; only the solver log the point declares is awaited.
@@ -95,6 +99,11 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             geometry=workspace.geometry,
         )
         mesh = workspace.read_bytes(case.mesh)
+        if case.groups:
+            known = validate_groups(workspace.setup, mesh, case.mesh)
+            case = replace(
+                case, wall_markers=tuple(m for m in known if m not in {"farfield", "front", "back"})
+            )
         if (
             case.mesh_converter is None
             and not mesh.startswith(b"$MeshFormat\n2.2 0 8\n")
@@ -123,9 +132,16 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
                 solver_log(case),
                 *(("log.decomposePar", "log.reconstructPar") if opts["processes"] != 1 else ()),
                 "postProcessing/forceCoeffs/0/coefficient.dat",
+                *(f"postProcessing/forceCoeffs_{name}/0/coefficient.dat" for name in case.groups),
             )
         ),
     )
+
+
+validate_row.default_setup_overrides = {  # type: ignore[attr-defined]
+    **{key: ("speed", "nu") for key in STATE_KEYS},
+    "GEOMETRY": ("mesh",),
+}
 
 
 def translate(point: AdapterPoint) -> str:
@@ -147,7 +163,40 @@ def translate(point: AdapterPoint) -> str:
         point.point.condition,
         geometry=point.geometry,
     )
-    return "".join(f"// FILE: {name}\n{body}" for name, body in files(case, opts).items())
+    if case.groups:
+        known = point_markers(point, case.mesh)
+        case = replace(
+            case, wall_markers=tuple(m for m in known if m not in {"farfield", "front", "back"})
+        )
+    translated = files(case, opts)
+    if point.point.restart_from is not None:
+        solution = restart_files(point)
+        latest = float(next(iter(solution)).split("/")[0])
+        translated["system/controlDict"] = (
+            translated["system/controlDict"]
+            .replace("startFrom startTime;", "startFrom latestTime;")
+            .replace(f"endTime {case.iterations};", f"endTime {latest + case.iterations:g};")
+        )
+        # Function objects name their time directory from the restarted start time.
+        # Preserve the adapter's declared, stable history path as a byte copy.
+        for name in ("forceCoeffs", *(f"forceCoeffs_{name}" for name in case.groups)):
+            translated["Allrun"] += (
+                f"mkdir -p postProcessing/{name}/0\n"
+                f"if [ -f postProcessing/{name}/{latest:g}/coefficient.dat ]; then\n"
+                f"  cp postProcessing/{name}/{latest:g}/coefficient.dat "
+                f"postProcessing/{name}/0/coefficient.dat\nfi\n"
+            )
+    return "".join(f"// FILE: {name}\n{body}" for name, body in translated.items())
+
+
+def job_output_files(point: Point) -> tuple[str, ...]:
+    """Name the numerical job outputs, including every requested boundary group."""
+    prefix = point.directory + "/"
+    return tuple(
+        name.removeprefix(prefix)
+        for name in point.outputs
+        if name.removeprefix(prefix) in JOB_OUTPUTS or name.endswith("/coefficient.dat")
+    )
 
 
 def stage(point: AdapterPoint) -> None:
@@ -237,5 +286,12 @@ def collect(point: AdapterPoint) -> NeutralResult:
     point.verify()
     result, coefficients, refs = read(workspace_path(point.root, point.point.directory), point)
     return NeutralResult(
-        coefficients, refs, result.history, classify(result), result.solver_version
+        coefficients,
+        refs,
+        result.history,
+        classify(result),
+        result.solver_version,
+        force_groups=force_groups(
+            workspace_path(point.root, point.point.directory), point, coefficients
+        ),
     )

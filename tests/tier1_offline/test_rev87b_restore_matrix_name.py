@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
+from cli_route import main
 from test_cli_verbs import ran, snapshot
-
-from cfdbender.matrix.cli import main
 
 
 @pytest.mark.parametrize("kind", ["products", "plan"])

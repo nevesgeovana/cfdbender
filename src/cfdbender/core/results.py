@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Literal
 
 Classification = Literal["converged", "iteration_limit", "failed"]
@@ -92,6 +92,9 @@ class NeutralResult:
     history: tuple[Iteration, ...]
     classification: Classification
     solver_version: str
+    force_groups: Mapping[str, Mapping[str, Coefficient]] = field(
+        default_factory=dict, kw_only=True
+    )
 
     def __post_init__(self) -> None:
         """Refuse undocumented successful results."""
@@ -108,10 +111,16 @@ class NeutralResult:
 
     def to_dict(self) -> dict[str, object]:
         """Return JSON-ready neutral data, retaining coefficient axes and references."""
-        return {
+        data: dict[str, object] = {
             "coefficients": {key: asdict(value) for key, value in self.coefficients.items()},
             "references": asdict(self.references),
             "history": [asdict(value) for value in self.history],
             "classification": self.classification,
             "solver_version": self.solver_version,
         }
+        if self.force_groups:
+            data["force_groups"] = {
+                name: {key: asdict(value) for key, value in coefficients.items()}
+                for name, coefficients in self.force_groups.items()
+            }
+        return data

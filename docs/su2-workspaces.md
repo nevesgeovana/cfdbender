@@ -1,5 +1,6 @@
 # SU2
 
+
 You run steady SU2 cases through cfdbender: it writes `su2.cfg`, links your mesh, runs SU2 and reads the residual history and the force and moment coefficients. This page lists only what is specific to SU2.
 
 ## Install
@@ -35,6 +36,28 @@ Any other suffix is refused: `mesh must name a workspace-relative .su2 or .cgns 
 Marker names come from the setup file, never from the mesh. Match the names and the boundary conditions to your grid.
 
 ## Setup file
+
+### Boundary force groups
+
+Use a setup `[groups]` table to keep forces for parts of a model separately:
+
+```toml
+[groups]
+main = ["wing"]
+combined = ["wing", "tail"]
+```
+
+The markers must exist in the mesh. An unknown marker is refused with the
+mesh's marker names. SU2 monitors the requested markers in addition to the
+markers already monitored, and writes `AERO_COEFF_SURF` into its existing
+history. Collect sums each group's native coefficients about the same origin
+and axes and retains SU2's total as `TOTAL`. Groups may overlap. A group name
+cannot be `TOTAL`, and a marker cannot be repeated within one group.
+
+The result is in `NeutralResult.force_groups` and in
+`points[].result.force_groups` of `post/<matrix>/campaign_summary.json`.
+No group CSV is written. See [results](results.md#boundary-force-sets).
+
 
 `inputs/setups/s001.toml` holds numerics, markers and the free stream. cfdbender writes every key into `su2.cfg` as `KEY= value`. Neutral names below map to SU2 keys. Any key written in capitals, such as `SOLVER` or `MARKER_FAR`, passes through unchanged, and a list is written as `( a, b )`. Any other setup key is refused as `<file>: unknown key '<key>' (closest known key: <neutral name>); known keys: ...`, naming the setup file it was written in. Unread reference and pproc keys are warned about and skipped. A key given twice, in any of the setup, reference and pproc files or the row, is refused as `conflict: <key> is supplied more than once`.
 

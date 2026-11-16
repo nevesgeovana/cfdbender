@@ -52,14 +52,17 @@ nav:
   - Home: index.md
   - Start here:
       - Install: install.md
+      - Dependency licences: dependency-licences.md
       - First campaign: getting-started.md
   - Workflow:
       - The workflow: workflow.md
       - Workspace layout: workspace-layout.md
+      - 2D airfoil mesh: airfoil-2d-mesh.md
       - Matrix columns: matrix-columns.md
       - Executables: executables.md
       - Run again, resume, records: records.md
       - Results and tables: results.md
+      - 2D polars: polars-2d.md
       - Cluster jobs: cluster-jobs.md
       - Storage and sync: storage.md
       - Troubleshooting: troubleshooting.md
@@ -72,6 +75,7 @@ nav:
       - QPROP: qprop-workspaces.md
       - FlightStream: flightstream-workspaces.md
   - Commands: cli.md
+  - Geometry and mesh commands: cli-geometry-mesh.md
   - Reference:
       - Architecture: architecture.md
       - Adapter contract: adapter-contract.md

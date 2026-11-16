@@ -1,0 +1,642 @@
+{
+  "$defs": {
+    "AzimuthSector": {
+      "additionalProperties": false,
+      "description": "Start azimuth (degrees about +x, zero at +y toward +z) and curve parameter of a sector.",
+      "properties": {
+        "azimuth_deg": {
+          "maximum": 450.0,
+          "minimum": 0.0,
+          "title": "Azimuth Deg",
+          "type": "number"
+        },
+        "t": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "T",
+          "type": "number"
+        }
+      },
+      "required": [
+        "azimuth_deg",
+        "t"
+      ],
+      "title": "AzimuthSector",
+      "type": "object"
+    },
+    "BodySplits": {
+      "additionalProperties": false,
+      "description": "Azimuth sector starts of a body section curve.",
+      "properties": {
+        "azimuth_sectors": {
+          "items": {
+            "$ref": "#/$defs/AzimuthSector"
+          },
+          "minItems": 2,
+          "title": "Azimuth Sectors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "azimuth_sectors"
+      ],
+      "title": "BodySplits",
+      "type": "object"
+    },
+    "Construction": {
+      "additionalProperties": false,
+      "description": "How the surface is generated from the stations.",
+      "properties": {
+        "across_station_interpolation": {
+          "enum": [
+            "pchip",
+            "cubic",
+            "linear"
+          ],
+          "title": "Across Station Interpolation",
+          "type": "string"
+        },
+        "method": {
+          "enum": [
+            "tensor_loft",
+            "revolution",
+            "hybrid"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "regions": {
+          "items": {
+            "$ref": "#/$defs/Region"
+          },
+          "title": "Regions",
+          "type": "array"
+        },
+        "surface_degree": {
+          "$ref": "#/$defs/SurfaceDegree"
+        }
+      },
+      "required": [
+        "method",
+        "across_station_interpolation",
+        "surface_degree"
+      ],
+      "title": "Construction",
+      "type": "object"
+    },
+    "CurveRef": {
+      "additionalProperties": false,
+      "description": "An IGES type 126 B-spline curve: file pin plus directory-entry sequence number.",
+      "properties": {
+        "de_sequence": {
+          "minimum": 1,
+          "title": "De Sequence",
+          "type": "integer"
+        },
+        "file": {
+          "$ref": "#/$defs/FileRef"
+        },
+        "format": {
+          "const": "iges_type_126",
+          "title": "Format",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "file",
+        "de_sequence"
+      ],
+      "title": "CurveRef",
+      "type": "object"
+    },
+    "Deviation": {
+      "additionalProperties": false,
+      "description": "The measured deviation of the reconstruction from the source geometry.",
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/FileRef"
+        },
+        "forward": {
+          "$ref": "#/$defs/DirectionResult"
+        },
+        "forward_scope": {
+          "const": "reconstruction_to_original_everywhere",
+          "title": "Forward Scope",
+          "type": "string"
+        },
+        "limit": {
+          "$ref": "#/$defs/DeviationLimit"
+        },
+        "local_size": {
+          "enum": [
+            "chord",
+            "diameter"
+          ],
+          "title": "Local Size",
+          "type": "string"
+        },
+        "reverse": {
+          "$ref": "#/$defs/DirectionResult"
+        },
+        "reverse_scope": {
+          "const": "original_to_reconstruction_inside_trimmed_boundary",
+          "title": "Reverse Scope",
+          "type": "string"
+        },
+        "stopping_rule": {
+          "$ref": "#/$defs/StoppingRule"
+        }
+      },
+      "required": [
+        "forward_scope",
+        "reverse_scope",
+        "local_size",
+        "limit",
+        "stopping_rule",
+        "forward",
+        "reverse",
+        "evidence"
+      ],
+      "title": "Deviation",
+      "type": "object"
+    },
+    "DeviationLimit": {
+      "additionalProperties": false,
+      "description": "The limit rule and the named profile whose constants it carries.",
+      "properties": {
+        "floor_mm": {
+          "title": "Floor Mm",
+          "type": "number"
+        },
+        "local_fraction": {
+          "title": "Local Fraction",
+          "type": "number"
+        },
+        "profile": {
+          "default": "study_default",
+          "title": "Profile",
+          "type": "string"
+        },
+        "rule": {
+          "const": "max(floor_mm, local_fraction * local_size_mm)",
+          "default": "max(floor_mm, local_fraction * local_size_mm)",
+          "title": "Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "floor_mm",
+        "local_fraction"
+      ],
+      "title": "DeviationLimit",
+      "type": "object"
+    },
+    "DirectionResult": {
+      "additionalProperties": false,
+      "description": "Maximum distance of one direction and its ratio to the local limit.",
+      "properties": {
+        "max_local_limit_ratio": {
+          "minimum": 0.0,
+          "title": "Max Local Limit Ratio",
+          "type": "number"
+        },
+        "max_mm": {
+          "minimum": 0.0,
+          "title": "Max Mm",
+          "type": "number"
+        }
+      },
+      "required": [
+        "max_mm",
+        "max_local_limit_ratio"
+      ],
+      "title": "DirectionResult",
+      "type": "object"
+    },
+    "FileRef": {
+      "additionalProperties": false,
+      "description": "A file named by path (resolved against the asset root) and exact-byte SHA-256.",
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "FileRef",
+      "type": "object"
+    },
+    "LiftingSplits": {
+      "additionalProperties": false,
+      "description": "Split parameters of a lifting section curve (traversal: TE upper, LE, TE lower).",
+      "properties": {
+        "LE": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Le",
+          "type": "number"
+        },
+        "TE": {
+          "$ref": "#/$defs/Sides"
+        },
+        "max_thickness": {
+          "$ref": "#/$defs/Sides"
+        }
+      },
+      "required": [
+        "LE",
+        "max_thickness",
+        "TE"
+      ],
+      "title": "LiftingSplits",
+      "type": "object"
+    },
+    "Region": {
+      "additionalProperties": false,
+      "description": "An ordered x range of a hybrid construction; later regions name their join curve.",
+      "properties": {
+        "join_section_curve": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/CurveRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Join Section Curve"
+        },
+        "x_range": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "X Range",
+          "type": "array"
+        }
+      },
+      "required": [
+        "x_range"
+      ],
+      "title": "Region",
+      "type": "object"
+    },
+    "Sides": {
+      "additionalProperties": false,
+      "description": "A curve parameter on each side of a lifting section.",
+      "properties": {
+        "lower": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Lower",
+          "type": "number"
+        },
+        "upper": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Upper",
+          "type": "number"
+        }
+      },
+      "required": [
+        "upper",
+        "lower"
+      ],
+      "title": "Sides",
+      "type": "object"
+    },
+    "Station": {
+      "additionalProperties": false,
+      "description": "One section curve of a component at a coordinate along its station axis.",
+      "properties": {
+        "axis": {
+          "enum": [
+            "x",
+            "span"
+          ],
+          "title": "Axis",
+          "type": "string"
+        },
+        "coordinate": {
+          "title": "Coordinate",
+          "type": "number"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "origin": {
+          "enum": [
+            "measured",
+            "inserted",
+            "break",
+            "junction"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "section_curve": {
+          "$ref": "#/$defs/CurveRef"
+        },
+        "split_points": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LiftingSplits"
+            },
+            {
+              "$ref": "#/$defs/BodySplits"
+            }
+          ],
+          "title": "Split Points"
+        }
+      },
+      "required": [
+        "id",
+        "origin",
+        "axis",
+        "coordinate",
+        "section_curve",
+        "split_points"
+      ],
+      "title": "Station",
+      "type": "object"
+    },
+    "StoppingRule": {
+      "additionalProperties": false,
+      "description": "The interval floor of the adaptive station insertion and what it left unresolved.",
+      "properties": {
+        "component_length_mm": {
+          "exclusiveMinimum": 0.0,
+          "title": "Component Length Mm",
+          "type": "number"
+        },
+        "interval_floor_fraction": {
+          "maximum": 0.01,
+          "minimum": 0.01,
+          "title": "Interval Floor Fraction",
+          "type": "number"
+        },
+        "unresolved_intervals": {
+          "items": {
+            "$ref": "#/$defs/UnresolvedInterval"
+          },
+          "title": "Unresolved Intervals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "interval_floor_fraction",
+        "component_length_mm",
+        "unresolved_intervals"
+      ],
+      "title": "StoppingRule",
+      "type": "object"
+    },
+    "SurfaceDegree": {
+      "additionalProperties": false,
+      "description": "Surface degree in the two parametric directions (``v`` is typically 3).",
+      "properties": {
+        "u": {
+          "minimum": 1,
+          "title": "U",
+          "type": "integer"
+        },
+        "v": {
+          "minimum": 1,
+          "title": "V",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "u",
+        "v"
+      ],
+      "title": "SurfaceDegree",
+      "type": "object"
+    },
+    "SurfaceRef": {
+      "additionalProperties": false,
+      "description": "An IGES type 128 B-spline surface: file pin plus directory-entry sequence number.",
+      "properties": {
+        "de_sequence": {
+          "minimum": 1,
+          "title": "De Sequence",
+          "type": "integer"
+        },
+        "file": {
+          "$ref": "#/$defs/FileRef"
+        },
+        "format": {
+          "const": "iges_type_128",
+          "title": "Format",
+          "type": "string"
+        }
+      },
+      "required": [
+        "format",
+        "file",
+        "de_sequence"
+      ],
+      "title": "SurfaceRef",
+      "type": "object"
+    },
+    "TeBaseFinite": {
+      "additionalProperties": false,
+      "description": "A finite trailing edge closed by a type 128 base surface.",
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/SurfaceRef"
+        },
+        "type": {
+          "const": "finite",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "surface"
+      ],
+      "title": "TeBaseFinite",
+      "type": "object"
+    },
+    "TeBaseSharp": {
+      "additionalProperties": false,
+      "description": "A sharp trailing edge: no base surface.",
+      "properties": {
+        "type": {
+          "const": "sharp",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TeBaseSharp",
+      "type": "object"
+    },
+    "UnresolvedInterval": {
+      "additionalProperties": false,
+      "description": "An adjacent-station interval whose forward ratio still exceeds one.",
+      "properties": {
+        "max_local_limit_ratio": {
+          "exclusiveMinimum": 1.0,
+          "title": "Max Local Limit Ratio",
+          "type": "number"
+        },
+        "station_ids": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+              "type": "string"
+            },
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+              "type": "string"
+            }
+          ],
+          "title": "Station Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "station_ids",
+        "max_local_limit_ratio"
+      ],
+      "title": "UnresolvedInterval",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The parameter record of one component (schema 0.2.0 of the contract).\n\n``symmetry`` is required for body and revolution components and absent for\nlifting components; ``te_base`` is explicit for lifting components and null\nfor the others. Structural rules are enforced on construction. Checks that\nneed the referenced files (that an entity exists, has the declared type and\nthat splits lie on their curves) are not made here: the pin check\ncovers the pins and the geometric checks belong to the check stage.",
+  "properties": {
+    "break_stations": {
+      "items": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Break Stations",
+      "type": "array"
+    },
+    "component_code": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+      "title": "Component Code",
+      "type": "string"
+    },
+    "construction": {
+      "$ref": "#/$defs/Construction"
+    },
+    "junction_stations": {
+      "items": {
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Junction Stations",
+      "type": "array"
+    },
+    "kind": {
+      "enum": [
+        "lifting",
+        "body",
+        "revolution"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "measured_deviation": {
+      "$ref": "#/$defs/Deviation"
+    },
+    "source_iges": {
+      "$ref": "#/$defs/FileRef"
+    },
+    "stations": {
+      "items": {
+        "$ref": "#/$defs/Station"
+      },
+      "minItems": 2,
+      "title": "Stations",
+      "type": "array"
+    },
+    "symmetry": {
+      "anyOf": [
+        {
+          "enum": [
+            "full",
+            "half_y0"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Symmetry"
+    },
+    "te_base": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TeBaseSharp"
+        },
+        {
+          "$ref": "#/$defs/TeBaseFinite"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Te Base"
+    },
+    "units": {
+      "const": "mm",
+      "title": "Units",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^[1-9][0-9]*\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "component_code",
+    "version",
+    "units",
+    "source_iges",
+    "kind",
+    "construction",
+    "stations",
+    "break_stations",
+    "junction_stations",
+    "te_base",
+    "measured_deviation"
+  ],
+  "title": "Shared geometry component",
+  "type": "object"
+}

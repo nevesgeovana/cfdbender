@@ -5,10 +5,11 @@ from __future__ import annotations
 import csv
 import io
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from cfdbender.geometry.blade_slicing import radial_extent, slice_blade
+from cfdbender.core.mesh_frame import convert_mesh_text, mesh_frame_record
+from cfdbender.geometry.blade_sections import radial_extent, slice_blade
 from cfdbender.solvers.qprop._config import Operating, Setup
 from cfdbender.solvers.qprop._polar import polar_script
 
@@ -30,6 +31,7 @@ class Blade:
 
     specs: tuple[Spec, ...]
     radius: float
+    mesh_frame: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -120,7 +122,8 @@ def resolve(setup: Setup, count: int | None, read: Callable[[str], bytes]) -> Bl
         return _table(setup, count, read)
     if count is None:
         raise ValueError("n_sections is required for a blade OBJ (setup or N_SECTIONS)")
-    text = read(setup.blade).decode("utf-8")
+    source = read(setup.blade)
+    text = convert_mesh_text(setup.blade, source.decode("utf-8"), setup.mesh_frame)
     sections = slice_blade(
         text,
         n_sections=count,
@@ -130,7 +133,7 @@ def resolve(setup: Setup, count: int | None, read: Callable[[str], bytes]) -> Bl
         hub_center=setup.hub_center,
         rotation=setup.rotation,
     )
-    tip = radial_extent(text, axis=setup.axis, hub_center=setup.hub_center)[1]
+    tip = radial_extent(text, axis=setup.axis, hub_center=setup.hub_center, cut=setup.cut)[1]
     specs = tuple(
         Spec(
             s.radius * setup.scale,
@@ -141,7 +144,11 @@ def resolve(setup: Setup, count: int | None, read: Callable[[str], bytes]) -> Bl
         )
         for i, s in enumerate(sections, 1)
     )
-    return Blade(specs, setup.radius or tip * setup.scale)
+    return Blade(
+        specs,
+        setup.radius or tip * setup.scale,
+        mesh_frame_record(setup.mesh_frame, source, text.encode("utf-8")),
+    )
 
 
 def rotation_rate(op: Operating, radius: float) -> float:

@@ -38,10 +38,10 @@ shows what each one prints.
 | Write the inputs | none: you write them | | the matrix, the setup, reference and pproc files, the mesh |
 | Plan | `cfd-matrix plan` | `init.toml`, the matrix and every file its rows name | the plan receipt `post/<matrix>/plan.json` |
 | Run | `cfd-matrix run` | the plan receipt, the inputs, `runs.json` | one folder per point under `sims/`, one record per point in `runs.json` |
-| Follow | `cfd-matrix status`, `show`, `history`, `log` | `runs.json` | nothing |
+| Follow | `cfd-matrix status`, `cfd-workspace show`, `history`, `log` | `runs.json` | nothing |
 | Collect | `cfd-matrix collect` | `runs.json`, the saved solver output of each point | the tables under `post/<matrix>/` |
 | Post | `cfd-matrix post` | the same | the same tables |
-| Keep or clean | `cfd-workspace archive`, `cfd-matrix free-space`, `delete-sims` | `runs.json`, the folders | `archive/<stamp>/`, `storage_management.json` |
+| Keep or clean | `cfd-workspace archive`, `cfd-workspace free-space`, `delete-sims` | `runs.json`, the folders | `archive/<stamp>/`, `storage_management.json` |
 
 ## Create
 
@@ -123,9 +123,9 @@ never replaced by accident. [Run again, resume, records](records.md) explains
 ```console
 cfd-matrix status
 cfd-matrix status --points
-cfd-matrix show 1001/DP-M200AL+020
-cfd-matrix history 1001
-cfd-matrix log
+cfd-workspace show 1001/DP-M200AL+020
+cfd-workspace history 1001
+cfd-workspace log
 ```
 
 These commands only read the records. `status` gives one line per sim, or one

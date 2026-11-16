@@ -352,8 +352,8 @@ def _sims_option(parser: argparse.ArgumentParser, *, required: bool, help_text: 
     parser.add_argument("--sims", nargs="+", required=required, metavar="POL", help=help_text)
 
 
-def register(commands: Any) -> dict[str, Any]:
-    """Add the record verbs to the cfd-matrix subparsers and return their handlers."""
+def register_workspace(commands: Any) -> dict[str, Any]:
+    """Add the record verbs to the cfd-workspace subparsers and return their handlers."""
     apply_help = "change files; without it the command previews and changes nothing"
     workspace_help = WORKSPACE_HELP
     for name, help_text, reason_required in (

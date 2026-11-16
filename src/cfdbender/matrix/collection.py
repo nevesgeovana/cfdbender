@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
+import stat
 import time
 import warnings
 from collections.abc import Mapping, Sequence
@@ -24,13 +23,17 @@ from pathlib import Path
 from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter, load_point
+from cfdbender.core.convergence import SOLVERS as JUDGED
 from cfdbender.core.executables import build_mismatch
 from cfdbender.core.plan import PlanError, matrix_homes, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
 from cfdbender.matrix._journal import verdicts
-from cfdbender.matrix.exports import write_tables
-from cfdbender.matrix.products import write_products
+from cfdbender.matrix._tree_migration import warn_retired
+from cfdbender.matrix.exports import _write as _write_product
+from cfdbender.matrix.exports import write_polar_files
+from cfdbender.matrix.polar2d import judge_rows, write_polars
+from cfdbender.matrix.products import _check_metadata, write_products
 from cfdbender.matrix.selection import chosen
 from cfdbender.solvers import available_solvers, load_solver
 from cfdbender.workspace.planning import plan_workspace
@@ -40,9 +43,10 @@ from cfdbender.workspace.planning import plan_workspace
 class CollectReport:
     """One sweep's counts and derived summary paths; failures take exit precedence.
 
-    ``tables`` are the CSV tables written beside each summary: campaign_sweep.csv
-    and polars/P<POL>.csv per matrix. ``products`` are the products.json and
-    post.log written beside each summary.
+    ``tables`` are the CSV tables written beside each summary: the polar files and the
+    sections tables of each matrix (the campaign sweep table is retired), plus the
+    XFOIL-format 2D polars of SU2 and OpenFOAM ALPHA sweeps. ``products`` are
+    the products.json and post.log written beside each summary.
     """
 
     collected: int
@@ -76,38 +80,25 @@ def _verify_submission(root: Path, record: RunRecord) -> None:
 
 
 def _job_outputs(record: RunRecord) -> tuple[str, ...]:
+    markers = (
+        cast(tuple[str, ...], record.submission.get("job_end_files", ()))
+        if record.submission is not None
+        else ()
+    )
     if record.submission is not None and "job_outputs" in record.submission:
-        return cast(tuple[str, ...], record.submission["job_outputs"])
-    return record.point.outputs
+        return (*cast(tuple[str, ...], record.submission["job_outputs"]), *markers)
+    return (*record.point.outputs, *markers)
 
 
 def _write_summary(root: Path, matrix: str, solver: str, rows: list[dict[str, object]]) -> Path:
     target = workspace_path(root, f"post/{Path(matrix).stem}/campaign_summary.json")
-    target.parent.mkdir(parents=True, exist_ok=True)
-    data = (
-        json.dumps(
-            {"schema_version": 1, "matrix": matrix, "solver": solver, "points": rows},
-            indent=2,
-            sort_keys=True,
-            allow_nan=False,
-        )
-        + chr(10)
-    ).encode()
-    temporary: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            dir=target.parent, prefix=".collect-", delete=False
-        ) as stream:
-            temporary = Path(stream.name)
-            stream.write(data)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, target)
-        temporary = None
-    finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
-    return target
+    data = json.dumps(
+        {"schema_version": 1, "matrix": matrix, "solver": solver, "points": rows},
+        indent=2,
+        sort_keys=True,
+        allow_nan=False,
+    ) + chr(10)
+    return _write_product(target, data)
 
 
 def _unsettled(root: Path, records: Sequence[RunRecord], settle: float) -> set[str]:
@@ -121,9 +112,16 @@ def _unsettled(root: Path, records: Sequence[RunRecord], settle: float) -> set[s
             states = []
             for name in _job_outputs(record):
                 path = workspace_path(root, name)
-                states.append(
-                    (path.stat().st_size, path.stat().st_mtime_ns) if path.is_file() else None
-                )
+                try:
+                    observed = path.stat()
+                    state = (
+                        (observed.st_size, observed.st_mtime_ns)
+                        if stat.S_ISREG(observed.st_mode)
+                        else None
+                    )
+                except OSError:
+                    state = None
+                states.append(state)
             seen[record.point_id] = None if None in states else tuple(states)
         return seen
 
@@ -371,11 +369,19 @@ def collect_workspace(
     tables: list[Path] = []
     products: list[Path] = []
     for name, rows in sorted(grouped.items()):
+        _check_metadata(workspace_path(target, f"post/{Path(name).stem}"), name, config.solver)
         summary = _write_summary(target, name, config.solver, rows)
-        written = write_tables(target, name, rows, config.solver)
+        migrated = warn_retired(workspace_path(target, f"post/{Path(name).stem}"))
+        by_rule = judge_rows(target, rows, config.solver) if config.solver in JUDGED else None
+        polar = write_polar_files(target, name, rows, config.solver, by_rule)
+        written = polar.paths
+        if by_rule is not None:
+            written += write_polars(target, name, rows, config.solver, by_rule)
         summaries.append(summary)
         tables.extend(written)
-        products.extend(write_products(target, name, config.solver, rows, summary, written))
+        products.extend(
+            write_products(target, name, config.solver, rows, summary, written, polar, migrated)
+        )
     if archive:
         _archive_replaced(target, before)
     strays = _strays(target, grouped)

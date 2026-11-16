@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import os
 
+from cli_route import main
 from test_cli_verbs import ran
-
-from cfdbender.matrix.cli import main
 
 
 def test_overwrite_replaces_a_hard_linked_file_and_leaves_its_source(tmp_path):

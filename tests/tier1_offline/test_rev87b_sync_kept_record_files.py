@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from cli_route import main
 from test_cli_verbs import FIRST, ran
 
 from cfdbender.core.registry import RunRegistry
-from cfdbender.matrix.cli import main
 
 
 def test_overwrite_leaves_the_files_of_a_kept_record(tmp_path, capsys):

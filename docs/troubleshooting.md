@@ -243,7 +243,7 @@ with exit code 1: one recorded point is failed. The tables are written and
 hold every point. This is the normal result of a campaign with a failed point.
 
 ```text
-2 recorded points are not in polar.fs any more (1001/DP-M200AL+000, ...); retire them with cfd-matrix delete-sims or cfd-workspace archive
+2 recorded points are not in polar.fs any more (1001/DP-M200AL+000, ...); retire them with cfd-workspace delete-sims or cfd-workspace archive
 ```
 
 The matrix was edited after a run so that points renamed or removed there still

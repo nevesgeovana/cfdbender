@@ -1,51 +1,25 @@
-"""Slice a three-dimensional rotor blade into radial sections.
+"""Blade sections cut on cylinders r = const, unrolled to (arc length, axial).
 
-Convention, each choice an argument with this default:
-
-- the rotation axis is ``x`` and thrust points along +x;
-- the hub centre is the origin;
-- the rotor turns counter-clockwise seen from +x looking aft (``ccw_from_front``);
-- the blade is the largest connected mesh component;
-- the radial direction runs from the axis to the blade centroid;
-- a station is cut on the cylinder r = const, unrolled to (arc length, axial),
-  or on the plane normal to the radial direction (``cut="plane"``);
-- the leading edge is the section point farthest ahead along the rotation
-  direction, the trailing edge is the section point farthest from it, and the
-  chord is that distance;
-- beta is the angle in degrees between the chord line and the rotation plane,
-  positive when the leading edge sits ahead along the thrust axis (nose up into
-  the oncoming relative flow);
-- the shape is expressed in unit-chord coordinates with x running from the
-  leading edge (0) to the trailing edge (1) and y positive on the thrust side,
-  ordered from the trailing edge over the upper side and back under the lower.
-
-Only the standard library is used.
+The cylinder cut of :func:`cfdbender.geometry.blade_sections.slice_blade`. The leading edge is
+the section point farthest ahead along the rotation direction, the trailing edge the point
+farthest from it, and the chord is that distance. Only the standard library is used.
 """
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 
-Vec = tuple[float, float, float]
-AXES: dict[str, Vec] = {"x": (1.0, 0.0, 0.0), "y": (0.0, 1.0, 0.0), "z": (0.0, 0.0, 1.0)}
-SPACINGS = ("cosine", "uniform")
-CUTS = ("cylinder", "plane")
-ROTATIONS = ("ccw_from_front", "cw_from_front")
-
-
-class BladeSliceError(ValueError):
-    """The blade cannot be sliced with the requested convention."""
-
-
-@dataclass(frozen=True)
-class BladeSection:
-    """One radial station: radius and chord in model units, beta in degrees."""
-
-    radius: float
-    chord: float
-    beta_deg: float
-    shape: tuple[tuple[float, float], ...]
+from cfdbender.geometry._blade_types import (
+    AXES,
+    CUTS,
+    ROTATIONS,
+    SPACINGS,
+    BladeSection,
+    BladeSliceError,
+    Vec,
+    parse_obj,
+    station_radii,
+)
 
 
 def _sub(a: Vec, b: Vec) -> Vec:
@@ -66,67 +40,6 @@ def _cross(a: Vec, b: Vec) -> Vec:
 
 def _scale(a: Vec, k: float) -> Vec:
     return (a[0] * k, a[1] * k, a[2] * k)
-
-
-def parse_obj(text: str) -> tuple[list[Vec], list[tuple[int, int, int]]]:
-    """Read vertices and triangulated faces from Wavefront OBJ text.
-
-    Parameters
-    ----------
-    text : str
-        OBJ content. Only ``v`` and ``f`` records are read; polygons are fanned
-        into triangles and negative indices count back from the last vertex.
-
-    Returns
-    -------
-    tuple
-        Vertex list and zero-based triangle index triples.
-    """
-    vertices: list[Vec] = []
-    faces: list[tuple[int, int, int]] = []
-    for number, line in enumerate(text.splitlines(), 1):
-        parts = line.split()
-        if not parts:
-            continue
-        try:
-            if parts[0] == "v":
-                vertices.append((float(parts[1]), float(parts[2]), float(parts[3])))
-            elif parts[0] == "f":
-                ids = []
-                for token in parts[1:]:
-                    index = int(token.split("/")[0])
-                    ids.append(index - 1 if index > 0 else len(vertices) + index)
-                if len(ids) < 3 or any(not 0 <= i < len(vertices) for i in ids):
-                    raise ValueError("face needs three valid vertex references")
-                faces.extend((ids[0], ids[k], ids[k + 1]) for k in range(1, len(ids) - 1))
-        except (ValueError, IndexError) as error:
-            raise BladeSliceError(f"OBJ line {number}: cannot read {line.strip()!r}") from error
-    return vertices, faces
-
-
-def station_radii(r_min: float, r_max: float, count: int, spacing: str) -> list[float]:
-    """Return ``count`` cell-centred radii between the extremes, never on the ends.
-
-    Parameters
-    ----------
-    r_min, r_max : float
-        Inner and outer radius of the blade.
-    count : int
-        Number of stations.
-    spacing : str
-        ``"uniform"`` or ``"cosine"`` (clustered toward both ends).
-    """
-    if spacing not in SPACINGS:
-        raise BladeSliceError(f"spacing must be one of: {', '.join(SPACINGS)}")
-    if count < 1:
-        raise BladeSliceError("n_sections must be a positive integer")
-    result = []
-    for i in range(count):
-        fraction = (i + 0.5) / count
-        if spacing == "cosine":
-            fraction = 0.5 * (1.0 - math.cos(math.pi * fraction))
-        result.append(r_min + (r_max - r_min) * fraction)
-    return result
 
 
 def _largest_component(faces: list[tuple[int, int, int]]) -> list[tuple[int, int, int]]:
@@ -208,34 +121,7 @@ def _section(points: list[tuple[float, float]], closed: bool, label: str) -> Bla
     return BladeSection(0.0, chord, beta, tuple(local[i] for i in walk))
 
 
-def radial_extent(
-    obj_text: str, *, axis: str = "x", hub_center: Vec = (0.0, 0.0, 0.0)
-) -> tuple[float, float]:
-    """Return the smallest and largest distance of the blade's vertices from the axis.
-
-    Parameters
-    ----------
-    obj_text : str
-        Wavefront OBJ text, as for :func:`slice_blade`.
-    axis : str
-        Rotation axis ``"x"``, ``"y"`` or ``"z"``.
-    hub_center : tuple of float
-        A point on the rotation axis.
-    """
-    if axis not in AXES:
-        raise BladeSliceError(f"axis must be one of: {', '.join(AXES)}")
-    vertices, faces = parse_obj(obj_text)
-    if not faces:
-        raise BladeSliceError("OBJ has no faces")
-    a = AXES[axis]
-    radii = []
-    for i in {i for face in _largest_component(faces) for i in face}:
-        q = _sub(vertices[i], hub_center)
-        radii.append(math.sqrt(max(_dot(q, q) - _dot(q, a) ** 2, 0.0)))
-    return min(radii), max(radii)
-
-
-def slice_blade(
+def cylinder_sections(
     obj_text: str,
     *,
     n_sections: int,

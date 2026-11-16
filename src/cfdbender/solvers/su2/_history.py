@@ -12,6 +12,7 @@ import csv
 import json
 import math
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
@@ -202,3 +203,32 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
     except (OSError, ValueError, StopIteration, OverflowError):
         return result, {}, refs
     return replace(result, history=tuple(history)), coefficients, refs
+
+
+def force_groups(
+    folder: Path, requested: Mapping[str, tuple[str, ...]], total: Mapping[str, Coefficient]
+) -> Mapping[str, Mapping[str, Coefficient]]:
+    """Sum native per-marker coefficients about the same axes and reference origin."""
+    if not requested:
+        return {}
+    with (folder / "history.csv").open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream, skipinitialspace=True)
+        rows = list(reader)
+    if not rows or not total:
+        raise ValueError("history.csv: missing boundary force results")
+    row = {key.strip(): value for key, value in rows[-1].items()}
+    result: dict[str, Mapping[str, Coefficient]] = {"TOTAL": dict(total)}
+    for name, markers in requested.items():
+        coefficients = {}
+        for key, coefficient in total.items():
+            columns = [f"{key}({marker})" for marker in markers]
+            if missing := [column for column in columns if column not in row]:
+                raise ValueError(
+                    f"history.csv: group {name} lacks {', '.join(missing)}; keep AERO_COEFF_SURF"
+                )
+            values = [float(row[column]) for column in columns]
+            if not all(math.isfinite(value) for value in values):
+                raise ValueError(f"history.csv: group {name} contains non-finite coefficients")
+            coefficients[key] = replace(coefficient, value=sum(values))
+        result[name] = coefficients
+    return result

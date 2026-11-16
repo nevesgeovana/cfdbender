@@ -28,7 +28,7 @@ from cfdbender.core.plan import (
     is_matrix_file,
 )
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
-from cfdbender.core.settings import read_init
+from cfdbender.core.settings import read_init, setup_defaults
 
 CAPABILITIES = frozenset({"restart", "unsteady", "boundary_groups", "cluster_staging"})
 
@@ -111,6 +111,7 @@ def load_point(root: str | Path, point: Point, *, solver: str) -> AdapterPoint:
     """
     target = Path(root).resolve()
     files = InputFiles(target)
+    config = read_init(target, available_solvers=(solver,))
     result = AdapterPoint(
         target,
         point,
@@ -118,7 +119,12 @@ def load_point(root: str | Path, point: Point, *, solver: str) -> AdapterPoint:
         resolve_setup_paths(
             target,
             apply_variables(
-                files.read_toml(f"inputs/setups/{point.setup_id}.toml"), point.variables
+                setup_defaults(
+                    config.defaults,
+                    files.read_toml(f"inputs/setups/{point.setup_id}.toml"),
+                    omitted=point.defaults_omitted,
+                ),
+                point.variables,
             ),
         ),
         files.read_toml(f"inputs/references/{point.reference_id}.toml"),

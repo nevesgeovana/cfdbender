@@ -7,10 +7,10 @@ import os
 from pathlib import Path
 
 import pytest
+from cli_route import main
 from test_p0000_item3c_adapter import workspace
 
 from cfdbender.core.registry import RunRegistry
-from cfdbender.matrix.cli import main
 from cfdbender.workspace.cli import main as workspace_main
 
 FIRST = "1001/DP-NOCOND"
@@ -420,7 +420,7 @@ def test_init_and_archive_take_the_console_options(tmp_path, capsys):
 
 def test_verbs_are_read_only_when_a_lock_is_held_elsewhere(tmp_path):
     ran(tmp_path)
-    (tmp_path / "runs.json.lock").write_text("1")
+    (tmp_path / "runs.json.lock").write_text(str(os.getpid()))
     assert main(["status", "--workspace", str(tmp_path)]) == 0
     assert main(["mark-failed", "--sims", "1001", "--apply", "--workspace", str(tmp_path)]) == 2
     assert os.path.exists(tmp_path / "runs.json.lock"), "a lock held elsewhere is never removed"

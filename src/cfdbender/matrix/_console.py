@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TextIO
 
-from cfdbender.core.settings import WorkspaceError
+from cfdbender.core.settings import WorkspaceError, read_warning_refusals
 
 LEVELS = ("quiet", "normal", "verbose")
 #: One text for the options every verb shares, so no two verbs word them differently.
@@ -46,6 +46,23 @@ def add_warning_option(parser: argparse.ArgumentParser) -> None:
         default=True,
         help="hide console warnings; they are kept in logs/warnings.log",
     )
+
+
+def add_refusal_option(parser: argparse.ArgumentParser) -> None:
+    """Add ``--warning-refusals`` to a program's root parser."""
+    parser.add_argument(
+        "--warning-refusals",
+        dest="warning_refusals",
+        action="store_true",
+        default=False,
+        help="refuse every entry that is otherwise skipped with a warning, exit 2 "
+        "(init.toml: warning_refusals = true)",
+    )
+
+
+def refusals_wanted(args: argparse.Namespace, root: Path) -> bool:
+    """Return True when the option or the workspace's init.toml asks for refusals."""
+    return bool(getattr(args, "warning_refusals", False)) or read_warning_refusals(root)
 
 
 def add_console_options(parser: argparse.ArgumentParser) -> None:

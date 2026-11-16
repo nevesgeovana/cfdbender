@@ -59,7 +59,8 @@ def test_u32_the_table_states_sea_level_where_it_was_assumed(tmp_path, capsys):
     assert run(capsys, "plan", "full", "--workspace", root)[0] == 0
     assert run(capsys, "run", "full", "--workspace", root, "--local")[0] == 0
     assert run(capsys, "collect", "full", "--workspace", root)[0] == 0
-    header, first = (root / "post/full/campaign_sweep.csv").read_text().splitlines()[:2]
+    table = next((root / "post/full/polars").glob("FAM-ACOEF-P*.csv"))
+    header, first = table.read_text().splitlines()[:2]
     cells = dict(zip(header.split(","), first.split(","), strict=True))
     assert cells["ALT"] == "0.0"
 

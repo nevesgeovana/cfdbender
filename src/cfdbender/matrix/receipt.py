@@ -73,7 +73,7 @@ def _valid_points(points: list[object]) -> bool:
     return True
 
 
-def write_receipt(plan: RunPlan) -> Path:
+def write_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> Path:
     """Write post/<matrix>/plan.json for the plan's points and return its path.
 
     Points of an earlier receipt that the plan does not name are kept while the
@@ -84,11 +84,16 @@ def write_receipt(plan: RunPlan) -> Path:
     kept: dict[str, dict[str, object]] = {}
     if previous is not None and previous.get("matrix_sha256") == digest:
         kept = {str(p["point_id"]): p for p in previous["points"] if isinstance(p, dict)}  # type: ignore[attr-defined]
-    for point in plan.points:
+    for index, point in enumerate(plan.points):
         kept[point.point_id] = {
             "point_id": point.point_id,
             "inputs_sha256": dict(sorted(point.inputs_sha256.items())),
         }
+        if profiles:
+            kept[point.point_id]["profile"] = profiles[index]
+            kept[point.point_id]["profile_sha256"] = hashlib.sha256(
+                workspace_path(plan.root, profiles[index]).read_bytes()
+            ).hexdigest()
     data = {
         "schema_version": 1,
         "matrix": plan.matrix,
@@ -115,7 +120,7 @@ def write_receipt(plan: RunPlan) -> Path:
     return target
 
 
-def receipt_error(plan: RunPlan) -> str | None:
+def receipt_error(plan: RunPlan, profiles: tuple[str, ...] = ()) -> str | None:
     """Return why a run of this plan may not proceed, or None when the receipt answers for it."""
     path, data, problem = _read(plan)
     if problem is not None or data is None:
@@ -129,12 +134,22 @@ def receipt_error(plan: RunPlan) -> str | None:
             "Plan it again; a plan that measured another study is not a plan for this one."
         )
     recorded = {str(p["point_id"]): p for p in data["points"] if isinstance(p, dict)}  # type: ignore[attr-defined]
-    for point in plan.points:
+    for index, point in enumerate(plan.points):
         entry = recorded.get(point.point_id)
         if entry is None:
             return (
                 f"point {point.point_id} was not planned: the plan at {path} does not "
                 "name it. Plan it again."
+            )
+        if profiles and entry.get("profile") != profiles[index]:
+            return f"profile changed since point {point.point_id} was planned. Plan it again."
+        if (
+            profiles
+            and entry.get("profile_sha256")
+            != hashlib.sha256(workspace_path(plan.root, profiles[index]).read_bytes()).hexdigest()
+        ):
+            return (
+                f"profile contents changed since point {point.point_id} was planned. Plan it again."
             )
         before = entry.get("inputs_sha256")
         before = before if isinstance(before, dict) else {}
@@ -147,7 +162,7 @@ def receipt_error(plan: RunPlan) -> str | None:
     return None
 
 
-def require_receipt(plan: RunPlan) -> None:
+def require_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> None:
     """Raise ValueError with the refusal text unless the plan has a fresh receipt."""
-    if (message := receipt_error(plan)) is not None:
+    if (message := receipt_error(plan, profiles)) is not None:
         raise ValueError(message)

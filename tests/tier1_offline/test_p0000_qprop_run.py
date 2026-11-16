@@ -25,7 +25,7 @@ from qprop_workspace import (
 )
 
 from cfdbender.core.registry import RunRegistry
-from cfdbender.geometry.blade_slicing import slice_blade
+from cfdbender.geometry.blade_sections import slice_blade
 from cfdbender.matrix.cli import main as matrix_cli
 from cfdbender.workspace.planning import plan_workspace
 

@@ -436,7 +436,9 @@ def _run_sync(args: argparse.Namespace, registry: RunRegistry) -> int:
             own = frozenset(r.point.directory for r in mine.values() if r.point_id not in changes)
             copied += _copy_files(root, other, "sims", args, saved, own)
         if args.restore and args.apply:
-            print("  --restore: run `cfd-matrix rebuild --apply` for sim folders no record carries")
+            print(
+                "  --restore: run `cfd-workspace rebuild --apply` for sim folders no record carries"
+            )
         if args.apply and changes:
             main.replace_records(changes)
             mine.update(changes)
@@ -457,8 +459,8 @@ def _run_sync(args: argparse.Namespace, registry: RunRegistry) -> int:
     return 0
 
 
-def register(commands: Any) -> dict[str, Any]:
-    """Add the storage verbs to the cfd-matrix subparsers and return their handlers."""
+def register_workspace(commands: Any) -> dict[str, Any]:
+    """Add the storage verbs to the cfd-workspace subparsers and return their handlers."""
     apply_help = "change files; without it the command previews and changes nothing"
     workspace_help = WORKSPACE_HELP
     space = commands.add_parser(

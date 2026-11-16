@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Callable
 from importlib import util
 from importlib.machinery import PathFinder
+
+from cfdbender.core.refusals import warn_or_refuse
 
 ROUTES = ("pysu2", "executable")
 
@@ -52,7 +53,7 @@ def select_route(
                 "or CFDBENDER_PYSU2_PATH to its install directory. "
                 "The executable route is available: choose solver.route='executable'."
             ) from error
-        warnings.warn(
+        warn_or_refuse(
             f"pysu2 is unavailable: {error}; falling back to the executable route",
             RuntimeWarning,
             stacklevel=2,

@@ -68,10 +68,31 @@ command = ["submit-tool", "{descriptor_path}"]
         site gives that version.
   \item \code{\{config_path\}} is the file the solver reads in the point
         folder.
-  \item With several profiles, \code{--hpc NAME} picks one.
+  \item \code{--hpc NAME} chooses the default; a row's \code{hpc: NAME}
+        in \code{VAR_NAMES_VALUES} overrides it.
 \end{itemize}
 \end{column}
 \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Select a profile and cluster per row}
+\begin{lstlisting}
+VAR_NAMES_VALUES
+hpc: alpha / cluster: west
+hpc: beta / cluster: east
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{hpc: alpha} selects \code{inputs/hpc/alpha.toml} before the
+        \code{--hpc} default. A profile and its digest are recorded per point.
+  \item \code{cluster: west} supplies the profile's \code{\{cluster\}}
+        placeholder; it falls back to \code{cluster} in \code{init.toml}.
+        Keys are case-insensitive and never passed to the solver setup.
+  \item \code{--local} ignores both. An unused cluster selection warns;
+        \code{--warning-refusals} makes that a refusal.
+  \item Plan again after changing a profile. Older HPC receipts without the
+        selected profile and digest are refused. Collect waits for all
+        configured \code{job_end_files} and settled outputs.
+\end{itemize}
 \end{frame}
 
 \begin{frame}{A cluster run, step by step}
@@ -96,9 +117,9 @@ collect reads them from the point folder.
 
 \begin{frame}[fragile]{Bringing results home: sync}
 \begin{lstlisting}
-cfd-matrix sync runs
-cfd-matrix sync post --apply
-cfd-matrix sync all --apply
+cfd-workspace sync runs
+cfd-workspace sync post --apply
+cfd-workspace sync all --apply
 \end{lstlisting}
 \begin{itemize}
   \item \code{inputs/sync-workspaces.toml} names the other workspaces;
@@ -122,13 +143,13 @@ the heavy files on the cluster until you need one.\end{takeaway}
 \toprule
 \textbf{Command} & \textbf{Does} \\
 \midrule
-\code{cfd-matrix mark-failed --sims POL} & records your verdict that points
+\code{cfd-workspace mark-failed --sims POL} & records your verdict that points
   failed, whatever the solver reported \\
-\code{cfd-matrix mark-converged --sims POL --reason TEXT} & records your
+\code{cfd-workspace mark-converged --sims POL --reason TEXT} & records your
   verdict that completed points converged; the reason is required \\
-\code{cfd-matrix restore KIND} & brings \code{runs}, \code{storage},
+\code{cfd-workspace restore KIND} & brings \code{runs}, \code{storage},
   \code{products} or \code{plan} back from \code{archive/<stamp>/} \\
-\code{cfd-matrix rebuild} & writes records for simulation folders that have
+\code{cfd-workspace rebuild} & writes records for simulation folders that have
   none \\
 \code{cfd-workspace archive SIM_ID} & moves one simulation's folder and
   records to \code{archive/<stamp>/} \\
@@ -136,7 +157,7 @@ the heavy files on the cluster until you need one.\end{takeaway}
 \end{tabularx}}
 \vspace{2mm}
 \begin{itemize}\small
-  \item The four \code{cfd-matrix} commands preview until \code{--apply}.
+  \item The correction commands preview until \code{--apply}.
   \item \code{cfd-workspace archive} acts at once, without a preview.
   \item Your verdicts are kept in \code{marks.json}, apart from what the
         solver reported.
@@ -149,11 +170,11 @@ the heavy files on the cluster until you need one.\end{takeaway}
 \toprule
 \textbf{Command} & \textbf{Does} \\
 \midrule
-\code{cfd-matrix space-in-use} & sizes by folder, by simulation and by file
+\code{cfd-workspace space-in-use} & sizes by folder, by simulation and by file
   extension \\
-\code{cfd-matrix free-space RECIPE} & deletes the files that
+\code{cfd-workspace free-space RECIPE} & deletes the files that
   \code{inputs/management/<RECIPE>.toml} names, except those a record needs \\
-\code{cfd-matrix delete-sims --sims POL} & deletes simulation folders and
+\code{cfd-workspace delete-sims --sims POL} & deletes simulation folders and
   retires their records \\
 \bottomrule
 \end{tabularx}}
@@ -163,7 +184,7 @@ the heavy files on the cluster until you need one.\end{takeaway}
         \code{--apply}. Read the preview: these are the only commands that
         delete.
   \item Every storage command is recorded in \code{storage_management.json};
-        \code{cfd-matrix log --storage} lists them.
+        \code{cfd-workspace log --storage} lists them.
 \end{itemize}
 \end{frame}
 

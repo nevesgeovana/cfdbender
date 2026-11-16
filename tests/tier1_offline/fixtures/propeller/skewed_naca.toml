@@ -1,0 +1,32 @@
+schema_version = 1
+
+[propeller]
+name = "SKEWED_NACA"
+units = "mm"
+radius = 500.0
+hub_radius = 100.0
+blades = 5
+rotation = "positive_x"
+pitch_setting = 30.0
+pitch_reference_r_R = 0.7
+
+[stations]
+units = {skew = "deg", rake = "x/R"}
+r_R = [0.20, 0.30, 0.45, 0.60, 0.75, 0.90, 1.00]
+c_R = [0.15, 0.18, 0.19, 0.18, 0.15, 0.11, 0.07]
+beta_deg = [48.0, 43.0, 37.0, 32.0, 28.0, 24.0, 21.0]
+t_c = [0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12]
+airfoil = ["naca", "naca", "naca", "naca", "naca", "naca", "naca"]
+
+[airfoils.naca]
+naca = "4412"
+
+[options]
+skew_tip_deg = 30.0
+skew_power = 2.0
+rake_tip_x_R = 0.05
+rake_power = 2.0
+
+[output]
+iges = "skewed_naca.igs"
+units = "mm"

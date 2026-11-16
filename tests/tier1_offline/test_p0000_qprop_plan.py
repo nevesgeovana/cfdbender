@@ -23,7 +23,7 @@ from qprop_workspace import (
 )
 
 from cfdbender.core.adapter import load_point
-from cfdbender.geometry.blade_slicing import slice_blade
+from cfdbender.geometry.blade_sections import slice_blade
 from cfdbender.matrix.cli import main as matrix_cli
 from cfdbender.workspace.planning import plan_workspace
 
@@ -76,7 +76,9 @@ def test_p0000_qprop_translate_lists_sections_command_and_xfoil_decks(tmp_path):
         assert "ASEQ -8 16 1" in deck
         airfoil = files[f"xfoil/sec_{index:02d}/airfoil.dat"].splitlines()
         assert airfoil[0].strip() and len(airfoil) > 20
-        assert airfoil[1].split() == ["1.000000", "0.000000"]
+        # a sharp trailing edge is written with a half gap of 1e-5 chord on each side
+        x, y = (float(value) for value in airfoil[1].split())
+        assert x == 1.0 and abs(y) <= 1e-5
 
 
 def test_p0000_qprop_matrix_j_sets_rpm_from_speed_and_diameter(tmp_path):

@@ -116,10 +116,12 @@ Anything missing, inconsistent or not a number is \code{failed}.
 \end{tabularx}}
 \vspace{2mm}
 \begin{cfdbpitfall}[Compare the neutral three]
-Every table carries \code{CL}, \code{CD} and \code{CM} first, filled from the
+The neutral result maps \code{CL}, \code{CD} and \code{CM} from the
 solver's own columns (\code{NA} where it has none, as QPROP and the moment of
 \code{pyfr}); the solver's own names follow. A pitching moment may differ in
-sign. Check this table before putting two solvers on one plot.
+sign. Collected family tables state frames explicitly: \code{CLW},
+\code{CDW}, \code{CmW} are wind-frame coefficients after the run block.
+Check references and frames before putting two solvers on one plot.
 \end{cfdbpitfall}
 \end{frame}
 
