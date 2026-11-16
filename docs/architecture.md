@@ -143,10 +143,12 @@ submits it. The submit command's return code says only whether the scheduler
 accepted the job. The point stays `SUBMITTED` until `cfd-matrix collect` finds
 the files the job writes and classifies it from them.
 
-On this machine every adapter launches its solver under the same guards: at
-least 0.5 GiB of free memory before and during the run, one solver process per
-host, a time limit bounded by the row's `WALLTIME`, and the whole child process
-tree stopped on a timeout.
+On this machine every adapter requires at least 0.5 GiB of free memory before
+and during the run, applies a time limit bounded by the row's `WALLTIME`, and
+stops the whole child process tree on a timeout. The one-run-per-machine guard
+is off by default. Enable it with `--one-run-at-a-time` or set
+`one_run_at_a_time = true` under `[solver]` in `init.toml`; it excludes
+other guarded local runs.
 
 ## FlightStream workspaces
 

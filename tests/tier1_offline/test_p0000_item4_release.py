@@ -63,3 +63,11 @@ def test_citation_date_matches_current_release_notes():
     release = re.search(rf"(?m)^## \[{re.escape(version)}\] - (\d{{4}}-\d{{2}}-\d{{2}})$", notes)
     dated = re.search(r"(?m)^date-released: (\d{4}-\d{2}-\d{2})$", citation)
     assert release and dated and release[1] == dated[1]
+
+
+def test_architecture_describes_the_opt_in_host_guard():
+    architecture = (ROOT / "docs/architecture.md").read_text(encoding="utf-8")
+    local_runs = architecture.split("## Local runs and cluster jobs", 1)[1].split("## ", 1)[0]
+    assert "off by default" in local_runs
+    assert "--one-run-at-a-time" in local_runs
+    assert "one_run_at_a_time = true" in local_runs
