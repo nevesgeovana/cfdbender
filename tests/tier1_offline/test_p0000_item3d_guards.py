@@ -11,9 +11,13 @@ from test_p0000_item3d_config import prepared
 from test_p0000_item3d_execute import case, execution_api
 
 
-def test_p0000_item3d_process_lock_prevents_second_interpreter(tmp_path):
+def test_p0000_item3d_process_lock_prevents_second_interpreter(tmp_path, capsys):
     point = case(tmp_path)
-    import cfdbender.solvers.su2 as su2
+    from cfdbender.matrix.cli import main
+    from cfdbender.matrix.receipt import write_receipt
+    from cfdbender.workspace.planning import plan_workspace
+
+    write_receipt(plan_workspace(tmp_path, "study"))
 
     code = chr(10).join(
         [
@@ -37,9 +41,12 @@ def test_p0000_item3d_process_lock_prevents_second_interpreter(tmp_path):
     )
     try:
         assert child.stdout.readline().strip() == "owned"
-        with pytest.raises(ValueError, match="one process"):
-            su2.execute(point, check_ram=lambda: None)
+        args = ["run", "study", "--workspace", str(tmp_path), "--local"]
+        assert main([*args, "--one-run-at-a-time"]) == 2
+        assert "holds this machine (one run at a time)" in capsys.readouterr().err
         assert not (tmp_path / point.point.directory).exists()
+        assert main(args) == 0
+        assert (tmp_path / point.point.directory / "execution.json").is_file()
     finally:
         child.kill()
         child.wait(timeout=5)

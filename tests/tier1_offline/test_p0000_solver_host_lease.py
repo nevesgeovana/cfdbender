@@ -4,14 +4,16 @@ LEGACY is the frozen Python implementation of su2._single at base a7c8524.
 It is frozen here so a future lease identity change cannot alter both sides.
 """
 
-import importlib
 import os
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
-from test_p0000_solver_host_boundary import prepared
+from test_conformance_workspace import build, executables, local, state_no_build
+
+from cfdbender.matrix.receipt import write_receipt
+from cfdbender.workspace.planning import plan_workspace
 
 ROOT = Path(__file__).resolve().parents[2]
 LEGACY = r'''"""Coordinate one SU2 process across interpreters on the same host."""
@@ -77,11 +79,18 @@ def child_code(legacy, hold):
 
 
 @pytest.mark.parametrize("legacy_holder", [False, True])
-@pytest.mark.parametrize(
-    "solver,label", [("su2", "SU2"), ("xfoil", "XFOIL"), ("openfoam", "OpenFOAM"), ("pyfr", "PyFR")]
-)
-def test_p0000_solver_host_legacy_lease_excludes_adapter(tmp_path, solver, label, legacy_holder):
-    point = prepared(tmp_path, solver)
+@pytest.mark.parametrize("solver", ["su2", "xfoil", "openfoam", "pyfr"])
+def test_p0000_solver_host_legacy_lease_excludes_adapter(tmp_path, solver, legacy_holder, capsys):
+    root = build(tmp_path, solver)
+    setup = root / "inputs/setups/s001.toml"
+    setup.write_bytes(setup.read_bytes() + executables(root, solver).encode("ascii"))
+    if solver == "xfoil":
+        matrix = root / "inputs/matrices/full.fs"
+        matrix.write_text(matrix.read_text(encoding="ascii").replace("MACH:0.1", "MACH:0"))
+    state_no_build(root)
+    plan = plan_workspace(root, "full")
+    write_receipt(plan)
+    point = plan.points[0]
     child = subprocess.Popen(
         [sys.executable, "-c", child_code(legacy_holder, True)],
         stdin=subprocess.PIPE,
@@ -93,11 +102,11 @@ def test_p0000_solver_host_legacy_lease_excludes_adapter(tmp_path, solver, label
     )
     try:
         assert child.stdout.readline().strip() == "owned"
-        with pytest.raises(ValueError, match=f"{label} is already running"):
-            importlib.import_module(f"cfdbender.solvers.{solver}").execute(
-                point, check_ram=lambda: None
-            )
-        assert not (point.root / point.point.directory).exists()
+        assert local(root, "--one-run-at-a-time") == 2
+        assert "holds this machine (one run at a time)" in capsys.readouterr().err
+        assert not (root / point.directory).exists()
+        assert local(root) == 0
+        assert (root / point.directory).is_dir()
         # A second interpreter of the other generation must also be refused.
         refused = subprocess.run(
             [sys.executable, "-c", child_code(not legacy_holder, False)],
