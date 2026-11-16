@@ -44,7 +44,7 @@
 \stage{3. RUN}
 \sub{run <matrix>}{run every active point of the planned matrix, here or as cluster jobs when an HPC profile exists; a point already recorded refuses the run unless one of the first three options is given}
 \begin{flags}
-\item \fl{--resume} skip the points recorded COMPLETED or SUBMITTED and run the rest; a skipped failed point names the \fl{--force-rerun} that redoes it
+\item \fl{--resume} skip the points recorded COMPLETED, SUBMITTED or RUNNING and run the rest; a skipped failed point names the \fl{--force-rerun} that redoes it
 \item \fl{--force-rerun POINT} archive this recorded point, then run it again; repeat for several
 \item \fl{--force-rerun-all} archive and redo every recorded point of the matrix; a submitted job is not cancelled
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}

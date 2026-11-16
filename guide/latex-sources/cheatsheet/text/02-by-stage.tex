@@ -146,7 +146,7 @@ A value the row and a file both state must agree.
 \begin{multicols}{3}
 \hd{Command}
 \begin{cmdblock}{cfd-matrix run}{<matrix>}{Runs every active point of the planned matrix. A point already recorded refuses the run unless one of the first three options is given.}
-\opt{--resume}{skip the points recorded COMPLETED or SUBMITTED, run the rest; a failed one names its \texttt{--force-rerun}}
+\opt{--resume}{skip the points recorded COMPLETED, SUBMITTED or RUNNING, run the rest; a failed one names its \texttt{--force-rerun}}
 \opt{--force-rerun POINT}{archive that point, then run it again; repeatable}
 \opt{--force-rerun-all}{archive and redo every recorded point of the matrix}
 \opt{--sims POL [POL ...]}{only these simulations}

@@ -1,10 +1,9 @@
 """Decide which planned points a run executes again: resume, force-rerun, archive.
 
 Without options a recorded point refuses the run, as before. ``resume`` skips
-COMPLETED and SUBMITTED points and runs the rest. A point left RUNNING by a
-local run that crashed is run again only when no solver process holds this
-host's process slot; a RUNNING point of a cluster submission, whose job may
-exist, is run again only when named by ``force``. ``force`` names recorded
+COMPLETED and SUBMITTED points and runs the rest. A point left RUNNING is
+skipped because its process or cluster job may still exist. Name it by ``force``
+after confirming it has stopped. ``force`` names recorded
 points to redo, leaving the other recorded points untouched, and ``force_all``
 redoes every recorded point of the plan; each
 is archived first (see RunRegistry.archive) and registered again.
@@ -82,7 +81,7 @@ def decide(
     submitting : bool, optional
         True for a cluster submission: a RUNNING point is then never presumed gone.
     slot_free : callable, optional
-        Reports whether the host's solver process slot is free; host_slot_free by default.
+        Reports whether a RUNNING point can be redone; defaults to False.
     before_archive : callable, optional
         Called with the plan to execute just before any point is archived; a refusal it
         raises leaves every record and folder as it was.
@@ -100,7 +99,7 @@ def decide(
     if force_all and (force or resume):
         raise RegistryError("--force-rerun-all cannot be combined with --resume or --force-rerun")
     named = _named(plan, force)
-    slot_free = slot_free or host_slot_free
+    slot_free = slot_free or (lambda: False)
     registry = RunRegistry(plan.root)
     recorded: dict[str, RunRecord] = {r.point_id: r for r in registry.read()}
     if unrecorded := sorted(n for n in named if n not in recorded):

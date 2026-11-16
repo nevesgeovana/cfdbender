@@ -9,6 +9,7 @@ versions follow SemVer and are independent of solver versions.
 
 ### Changed
 
+- `--resume` skips RUNNING points; after confirming a process has stopped, use `--force-rerun` to redo one.
 - The one-run-at-a-time guard is off by default. A 0.5.1 user who relied on it can add `--one-run-at-a-time` or set `one_run_at_a_time = true` under `[solver]` in `init.toml`.
 
 ### Added

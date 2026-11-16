@@ -64,10 +64,8 @@ Fixing the cause of a failure and typing `--resume` therefore does not run the
 failed point; name it with `--force-rerun`, or every failed point with
 `--force-rerun-all`.
 
-A point left `RUNNING` by an interrupted run on this machine runs again, as
-long as no solver process is still going on the machine. A `RUNNING` point of a
-cluster submission is skipped, because its job may still exist; name it with
-`--force-rerun` to redo it.
+A `RUNNING` point is skipped because its local process or cluster job may still
+exist. After confirming it has stopped, name it with `--force-rerun` to redo it.
 
 ### Redo one point: `--force-rerun`
 

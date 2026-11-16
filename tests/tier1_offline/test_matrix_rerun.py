@@ -9,7 +9,6 @@ from test_p0000_item3c_adapter import workspace
 from test_p0000_item3f_plan import tree
 
 from cfdbender.core.registry import RunRegistry
-from cfdbender.matrix import rerun
 from cfdbender.matrix.cli import main
 from cfdbender.workspace.planning import plan_workspace
 
@@ -112,11 +111,12 @@ def crashed(root):
     (folder / "mock.in").write_text("partial", encoding="ascii")
 
 
-def test_resume_reruns_a_running_point_whose_process_is_gone(tmp_path, monkeypatch):
+def test_p0000_resume_preserves_a_running_point_until_forced(tmp_path):
     crashed(tmp_path)
-    monkeypatch.setattr(rerun, "host_slot_free", lambda: True)
     assert cli(tmp_path) == 2, "RUNNING still refuses without --resume"
     assert cli(tmp_path, "--resume") == 0
+    assert statuses(tmp_path) == {FIRST: "RUNNING"}
+    assert cli(tmp_path, "--force-rerun", FIRST) == 0
     assert statuses(tmp_path) == {FIRST: "COMPLETED"}
     (archive,) = (tmp_path / "archive").iterdir()
     staged = archive / "sims/sim_1001/datapoints/DP-NOCOND/mock.in"
@@ -124,9 +124,8 @@ def test_resume_reruns_a_running_point_whose_process_is_gone(tmp_path, monkeypat
     assert RunRegistry(tmp_path).history()[0]["record"]["status"] == "RUNNING"
 
 
-def test_resume_leaves_a_running_point_while_a_solver_holds_the_slot(tmp_path, monkeypatch, capsys):
+def test_resume_leaves_a_running_point_while_a_solver_holds_the_slot(tmp_path, capsys):
     crashed(tmp_path)
-    monkeypatch.setattr(rerun, "host_slot_free", lambda: False)
     before = tree(tmp_path)
     assert cli(tmp_path, "--resume") == 0
     assert "skipped: RUNNING and its process may be alive" in capsys.readouterr().out

@@ -123,8 +123,8 @@ def build_parser() -> tuple[
         "--resume",
         action="store_true",
         help="skip points already recorded COMPLETED or SUBMITTED and run the rest, so a "
-        "grown matrix runs only its new points; a point left RUNNING by a crashed local run "
-        "runs again when no solver process holds this host's slot. Without it a recorded "
+        "grown matrix runs only its new points; a RUNNING point is skipped because its process "
+        "may still be alive. Without it a recorded "
         "point refuses the run",
     )
     run_parser.add_argument(
@@ -458,7 +458,6 @@ def _execute_inner(
                 force=args.force_rerun,
                 force_all=args.force_rerun_all,
                 submitting=submitting,
-                slot_free=lambda: True,
                 # A local run this machine would refuse must refuse before a point is
                 # archived, not after: the refusal leaves the records as they were.
                 before_archive=None
