@@ -257,8 +257,8 @@ versions follow SemVer and are independent of solver versions.
   component and isolated face files, and compares each face with its own source face
   through a validated correspondence (recorded trim, position and name) instead of
   comparing sorted areas, so swapped, moved, renamed, missing or extra faces fail.
-- Export check failures explain the failing check, measured value, limit, component,
-  face and corrective action in the geometry run report, and grid refusals name the
+- Export check failures explain the failing check, measured value, limit, available location
+  and corrective action in the geometry run report, and grid refusals name the
   crossing components and faces and advise adding the intended trimming relationships.
 
 ### Removed
