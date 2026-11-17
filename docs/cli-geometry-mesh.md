@@ -37,8 +37,9 @@ Both programs work on the current folder; `--workspace PATH` names another one.
 earlier stage files there. `doe` can likewise leave records for its sets.
 `cfd-geom run` and `doe` also return 1 when a stage failed (the report names
 the stage and the check) and 3 when a check of the stage table was not
-measured; `doe` returns the worst code of its sets. `cfd-mesh mesh` returns 1
-when the mesh does not pass its acceptance table.
+measured; `doe` returns the worst code of its sets. `cfd-geom check` and `schema --validate`
+return 1 when the compared or validated record is not accepted, and `cfd-mesh mesh`, `audit` and
+`merge` return 1 when their result does not pass its acceptance table.
 
 An export check failure includes the check name, measured value, limit and
 location in the report's `message`, with a corrective action. For example,
@@ -198,7 +199,7 @@ cfd-geom identify IGES COMPONENT [options]
 | `--mirrored, --no-mirrored` | Whether the surface has a mirror image across its root, doubling span and area (default: yes for a plane root, no otherwise) |
 | `--cut {plain,bridge_te,mirror}` | Bridge_te closes an open blunt trailing-edge slit; mirror adds the reflection of a half-body original (default: plain) |
 | `--seed NACA` | The NACA designation the section fit starts from (default: NACA0012) |
-| `--span-axis X Y Z X Y Z X Y Z` | First estimate of the span axis (default: y or z, the larger extent) |
+| `--span-axis X Y Z` | First estimate of the span axis (default: y or z, the larger extent) |
 | `--stations N` | Stations of the fine pass (default: 161) |
 | `--grid N` | Cut-grid points per side of each face (default: 257) |
 | `--section-tolerance-mm MM` | Section residual tolerance in mm (default: 0.5 mm or 0.1 percent of the chord) |
@@ -362,7 +363,7 @@ cfd-mesh prepare-to-refine MESH [options]
 |---|---|
 | `MESH` | The source OBJ or NASTRAN export; it is not modified |
 | `--max-angle DEG` | The largest angle of a listed edge with the plane across --aft (default 45) |
-| `--aft X Y Z X Y Z X Y Z` | The aft direction (default +x) |
+| `--aft X Y Z` | The aft direction (default +x) |
 | `--overwrite` | Replace the prepared files |
 | `--out DIR` | Output folder (default: inputs/mesh/ of the workspace) |
 | `--unit UNIT` | A NASTRAN mesh's length unit (default MILLIMETER); an OBJ is written as read |
@@ -446,8 +447,8 @@ cfd-mesh trailing-edge [MESH] [OUTPUT] [options]
 | `[OUTPUT]` | The points file to write |
 | `--from-nodes FROM_NODES` | Ordered node-window export; no mesh needed |
 | `--out OUT` | Destination for --from-nodes; default: &lt;input stem&gt;.te.txt |
-| `--axis X Y Z X Y Z X Y Z` |  |
-| `--hub X Y Z X Y Z X Y Z` |  |
+| `--axis X Y Z` |  |
+| `--hub X Y Z` |  |
 | `--unit UNIT` | Coordinate unit; METER by default for --from-nodes |
 | `--sections SECTIONS` |  |
 | `--overwrite` |  |
@@ -484,7 +485,7 @@ cfd-mesh identify-te OBJ [NODES] [options]
 | `--families A,B` | The families, a points file each (default: every quad family, one file) |
 | `--all-families` | Without --families, map every family, not only the quad families |
 | `--max-angle DEG` | Without NODES, the largest angle of an edge with the plane across --aft (default 45) |
-| `--aft X Y Z X Y Z X Y Z` | The aft direction (default +x) |
+| `--aft X Y Z` | The aft direction (default +x) |
 | `--unit UNIT` | The coordinates' unit (default: the mesh's, else METER) |
 | `--overwrite` | Replace existing files |
 | `--accept-empty` | A NODES list with fewer than two nodes, or no trailing edge found, is warned and nothing is written, exit 0, in place of refusing it |
@@ -535,7 +536,7 @@ cfd-mesh sector-to-wheel SECTOR [options]
 | `--copies COPIES` | The number of copies, 2 or more |
 | `--blades FAMILY [FAMILY ...]` | The OBJ group(s) that are the blade |
 | `--axis AXIS` | X, y, z, a signed one of them written --axis=-x, or three comma-separated numbers (default x) |
-| `--center X Y Z X Y Z X Y Z` | A point of the axis, in the mesh's unit (default the origin) |
+| `--center X Y Z` | A point of the axis, in the mesh's unit (default the origin) |
 | `--tolerance METRES` | Nodes within this distance, in metres, are one node (default 1e-4) |
 | `--out PATH` | The wheel (default &lt;sector stem&gt;_wheel.obj) |
 | `--overwrite` | Replace an existing wheel |
@@ -613,11 +614,11 @@ cfd-mesh visual-inspect MESH [options]
 | `--te FILE [FILE ...]` | Trailing-edge points files (.te.txt, .nodes.te.txt), one color each; repeat the flag or put MESH first |
 | `--cmap CMAP` | The matplotlib colormap of the patches (default: matplotlib's default) |
 | `--families A,B` | Draw only these patches |
-| `--box XMIN XMAX YMIN YMAX ZMIN ZMAX XMIN XMAX YMIN YMAX ZMIN ZMAX XMIN XMAX YMIN YMAX ZMIN ZMAX XMIN XMAX YMIN YMAX ZMIN ZMAX XMIN XMAX YMIN YMAX ZMIN ZMAX XMIN XMAX YMIN YMAX ZMIN ZMAX` | Draw only the faces and points inside this box |
+| `--box XMIN XMAX YMIN YMAX ZMIN ZMAX` | Draw only the faces and points inside this box |
 | `--mesh-unit MESH_UNIT` | The drawing's length unit: an OBJ's own unit, or the unit a NASTRAN mesh is converted to (default METER); the scale bar names it |
 | `--points-unit POINTS_UNIT` | The unit of the node lists and points files that state none |
 | `--unit UNIT` | A NASTRAN mesh's length unit (default MILLIMETER); not read for an OBJ |
-| `--iso-from X Y Z X Y Z X Y Z` | The direction the isometric view is seen from (default 1 -1 1) |
+| `--iso-from X Y Z` | The direction the isometric view is seen from (default 1 -1 1) |
 | `--labels` | Write each patch's name on it |
 | `--no-edges` | Draw the faces without edges |
 | `--perimeter-width PT` | Width of the patch perimeters in points (default 0.9; 0 draws none) |
@@ -638,9 +639,9 @@ cfd-mesh prop-slice [options]
 |---|---|
 | `--geometry GEOMETRY` | The propeller, an .obj |
 | `--blades BLADES` | The number of blades |
-| `--axis DX DY DZ DX DY DZ DX DY DZ` | Thrust direction, the builder's frame.thrust_dir (default -1 0 0) |
-| `--origin X Y Z X Y Z X Y Z` | A point of the shaft in mm (default 0 0 0) |
-| `--blade-dir DX DY DZ DX DY DZ DX DY DZ` | Reference blade direction; blade 0 is the nearest (default 0 0 1) |
+| `--axis DX DY DZ` | Thrust direction, the builder's frame.thrust_dir (default -1 0 0) |
+| `--origin X Y Z` | A point of the shaft in mm (default 0 0 0) |
+| `--blade-dir DX DY DZ` | Reference blade direction; blade 0 is the nearest (default 0 0 1) |
 | `--stations R_R [R_R ...]` | R/R of the sections (default 21 steps from the root to the tip, and 0.7) |
 | `--unit UNIT` | OBJ length unit: mm (default), cm, m, in, or MILLIMETER, CENTIMETER, METER, INCH |
 | `--out OUT` | The folder to write |
@@ -666,5 +667,6 @@ cfd-mesh airfoil-2d [options]
 | `--farfield CHORDS` | The far-field distance in chords (default 500) |
 | `--trailing-edge {sharp,blunt}` | Collapse the trailing-edge gap or keep it as a base (default sharp) |
 | `--out NAME` | The mesh name without a suffix (default: naca&lt;digits&gt; or the file's stem); a name with a folder is written there |
+| `--overwrite` | Replace an existing mesh of the same name and its provenance sidecars |
 
 <!-- END GENERATED COMMAND REFERENCE -->

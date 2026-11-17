@@ -113,7 +113,7 @@ def invocation(action: argparse.Action) -> str:
     elif action.nargs == "*":
         value = f"[{name} ...]"
     else:
-        value = " ".join([name] * int(action.nargs))
+        value = name if isinstance(action.metavar, tuple) else " ".join([name] * int(action.nargs))
     if not action.option_strings:
         return value
     return ", ".join(action.option_strings) + (f" {value}" if value else "")

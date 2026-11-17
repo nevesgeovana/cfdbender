@@ -2,8 +2,9 @@
 
 Every verb reads its inputs, writes a new file (never the input) and prints its record as JSON.
 A mesh named without a folder lands in the workspace's ``inputs/mesh/`` with a
-``<file name>.provenance.json`` sidecar recording how it was made. Exit code 0 means done and
-2 means refused; a refusal names what is at fault and writes nothing.
+``<file name>.provenance.json`` sidecar recording how it was made. Exit code 0 means done, 1
+means a verb ran but its result failed its acceptance (``mesh``, ``audit``, ``merge``) and 2
+means refused; a refusal names what is at fault and writes nothing.
 
 The verbs are declared by group modules, each owning its parsers and handlers.
 """
@@ -64,7 +65,8 @@ def main(argv: list[str] | None = None) -> int:
     Returns
     -------
     int
-        0 when done, 2 when refused (the reason is printed to the error stream).
+        0 when done, 1 when a verb's result failed its acceptance, 2 when refused (the
+        reason is printed to the error stream).
     """
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
     code: int = args.handler(args)

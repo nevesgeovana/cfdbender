@@ -41,3 +41,9 @@ def test_docs_cli_geom_mesh_both_programs_are_installed_and_the_page_is_in_the_n
     assert scripts["cfd-geom"] == "cfdbender.geometry.cli:main"
     assert scripts["cfd-mesh"] == "cfdbender.mesh.cli:main"
     assert "cli-geometry-mesh.md" in (ROOT / "properdocs.yml").read_text(encoding="utf-8")
+
+
+def test_docs_cli_geom_mesh_a_tuple_metavar_is_written_once():
+    text = PAGE.read_text(encoding="utf-8")
+    assert "`--span-axis X Y Z`" in text
+    assert "X Y Z X Y Z" not in text
