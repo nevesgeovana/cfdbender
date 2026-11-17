@@ -259,7 +259,7 @@ versions follow SemVer and are independent of solver versions.
   comparing sorted areas, so swapped, moved, renamed, missing or extra faces fail.
 - Export check failures explain the failing check, measured value, limit, component,
   face and corrective action in the geometry run report, and grid refusals name the
-  crossing components and faces.
+  crossing components and faces and advise adding the intended trimming relationships.
 
 ### Removed
 

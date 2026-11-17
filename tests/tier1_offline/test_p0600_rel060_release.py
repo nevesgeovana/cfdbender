@@ -61,3 +61,9 @@ def test_p0600_all_guide_pdfs_state_the_release_version():
         )
         text = raw.decode("utf-16") if raw.startswith(b"\xfe\xff") else raw.decode("latin-1")
         assert text == "cfdbender 0.6.0", path.name
+
+
+def test_p0600_grid_crossing_advice_is_preserved():
+    notes = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    release = notes.split("## [0.6.0]", 1)[1].split("## [0.5.2]", 1)[0]
+    assert "trimming relationships" in release
