@@ -136,3 +136,20 @@ def test_p0600_one_section_input_is_required(tmp_path, capsys):
     with pytest.raises(SystemExit):
         argv = ["--workspace", str(tmp_path), "airfoil-2d", "--reynolds", "6e6"]
         _run([*argv, "--naca", "0012", "--coordinates", "a.dat"])
+
+
+def test_p0600_second_run_refuses_before_writing_and_overwrite_replaces(tmp_path, capsys):
+    kernel_or_skip()
+    argv = ["--workspace", str(tmp_path), "airfoil-2d", "--naca", "0012", "--reynolds", "6e6"]
+    assert _run(argv) == 0
+    mesh = tmp_path / "inputs/mesh/naca0012.su2"
+    before = mesh.read_bytes()
+    stamp = mesh.stat().st_mtime_ns
+    capsys.readouterr()
+    assert _run(argv) == 2
+    err = capsys.readouterr().err
+    assert "exists" in err and "--overwrite" in err and "Nothing was written" in err
+    assert mesh.read_bytes() == before and mesh.stat().st_mtime_ns == stamp
+    assert _run([*argv, "--overwrite"]) == 0
+    sidecar = json.loads((tmp_path / "inputs/mesh/naca0012.su2.provenance.json").read_text())
+    assert sidecar["outputs"]["sha256"]["su2"] == file_sha256(mesh)

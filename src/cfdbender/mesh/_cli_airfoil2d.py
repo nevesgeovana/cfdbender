@@ -16,7 +16,12 @@ from typing import Any
 from cfdbender._digest import file_sha256
 from cfdbender._errors import InputValueError
 from cfdbender.mesh import _airfoil2d as af
-from cfdbender.mesh._cli_support import mesh_target, print_checks, write_provenance
+from cfdbender.mesh._cli_support import (
+    mesh_target,
+    print_checks,
+    provenance_path,
+    write_provenance,
+)
 
 __all__ = ["add_parsers"]
 
@@ -93,6 +98,11 @@ def add_parsers(verbs: Any) -> None:
         help="the mesh name without a suffix (default: naca<digits> or the file's stem); a "
         "name with a folder is written there",
     )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing mesh of the same name and its provenance sidecars",
+    )
     parser.set_defaults(handler=_handle)
 
 
@@ -144,6 +154,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         reynolds=args.reynolds, yplus=args.yplus, level=args.level, farfield=args.farfield
     )
     target = mesh_target(workspace, stem)
+    clash = [
+        p
+        for suffix in (".su2", ".msh")
+        for p in (Path(f"{target}{suffix}"), provenance_path(Path(f"{target}{suffix}")))
+        if p.exists()
+    ]
+    if clash and not args.overwrite:
+        raise InputValueError(
+            f"{clash[0]}: exists; pass --overwrite to replace it or give another --out. "
+            "Nothing was written."
+        )
     record = af.build_mesh(
         target,
         section,
@@ -161,6 +182,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         **({"coordinates": _shown(sources[0], workspace)} if sources else {}),
         **parameters,
         "gmsh": record.pop("gmsh"),
+        **({"overwrite": True} if args.overwrite else {}),
     }
     outputs = {
         **record,

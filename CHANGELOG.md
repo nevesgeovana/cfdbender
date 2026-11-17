@@ -85,7 +85,8 @@ versions follow SemVer and are independent of solver versions.
   2.2, one cell thick, patches `airfoil`, `farfield`, `front`, `back`, volume `fluid`), which the
   SU2 and OpenFOAM workspaces read as they are. A blunt edge also has the `airfoil_base`
   marker or patch. Each file has a provenance sidecar recording every option, the measured
-  quality and the file hashes, through the shared mesh command helpers.
+  quality and the file hashes, through the shared mesh command helpers. A mesh of the same
+  name is refused before anything is written unless `--overwrite` is given.
 
 - An interrupted local point can restart from its saved solution after you confirm
   its process has stopped. Its earlier evidence is archived first.
