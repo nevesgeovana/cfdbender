@@ -255,8 +255,10 @@ versions follow SemVer and are independent of solver versions.
   warning or without a proof fails instead of passing. The relative area limit remains 0.001.
 - The area read-back measures every face of the combined IGES file as well as the
   component and isolated face files, and compares each face with its own source face
-  through a validated correspondence (recorded trim, position and name) instead of
-  comparing sorted areas, so swapped, moved, renamed, missing or extra faces fail.
+  through validated identities, position and names instead of comparing sorted areas.
+  The bounding-box fallback also checks recorded trim geometry. The checks detect
+  changed identities or names, missing or extra faces, and position changes beyond
+  the geometric tolerance.
 - Export check failures explain the failing check, measured value, limit, available location
   and corrective action in the geometry run report, and grid refusals name the
   crossing components and faces and advise adding the intended trimming relationships.

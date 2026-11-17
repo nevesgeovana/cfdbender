@@ -74,3 +74,9 @@ def test_p0600_export_diagnostics_do_not_promise_a_face_for_every_check():
     release = notes.split("## [0.6.0]", 1)[1].split("## [0.5.2]", 1)[0]
     assert "available location" in release
     assert "limit, component,\n  face and corrective action" not in release
+
+
+def test_p0600_correspondence_describes_the_trim_fallback():
+    notes = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    release = notes.split("## [0.6.0]", 1)[1].split("## [0.5.2]", 1)[0]
+    assert "bounding-box fallback" in release
