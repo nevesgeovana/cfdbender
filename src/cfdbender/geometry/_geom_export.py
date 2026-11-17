@@ -658,6 +658,12 @@ def read_back(folder: Path, manifest: dict, area_excess: float) -> dict[str, Any
             if worst <= 1.0:
                 worst, where = 1.0, location
             failure = _measured("area.read_back", 1.0, 1e-3, unit="relative", where=location)
+            failure["note"] = (
+                "area.read_back: not measured, the imported faces are not matched to the source "
+                f"({location['verification']}); component={component}, face={location['face']}, "
+                f"file={file}. Check the face identities and NAME properties, then rebuild and "
+                "export again."
+            )
             failures.append({"file": file, "error": failure["note"]})
             return
         for got, error, face in zip(record["areas"], record["area_errors"], paired, strict=True):
