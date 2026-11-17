@@ -249,6 +249,17 @@ versions follow SemVer and are independent of solver versions.
 
 - The guides describe current family and group result files instead of retired tables,
   and state that the host guard is opt-in.
+- The export area read-back (`S11.R`) no longer fails rounded caps by a surface
+  integration error: each face area is a proved interval from the native surface, a
+  trimmed face is measured on its proved trim domain, and a measurement with a numerical
+  warning or without a proof fails instead of passing. The relative area limit remains 0.001.
+- The area read-back measures every face of the combined IGES file as well as the
+  component and isolated face files, and compares each face with its own source face
+  through a validated correspondence (recorded trim, position and name) instead of
+  comparing sorted areas, so swapped, moved, renamed, missing or extra faces fail.
+- Export check failures explain the failing check, measured value, limit, component,
+  face and corrective action in the geometry run report, and grid refusals name the
+  crossing components and faces.
 
 ### Removed
 
@@ -266,6 +277,10 @@ versions follow SemVer and are independent of solver versions.
 
 - Older HPC plan receipts lack the selected profile or its digest and are refused. Run
   `cfd-matrix plan <matrix>` to plan again before submitting.
+- Face areas in export manifests and read-back records can change through the more
+  accurate measurement, and an export failure's message now carries a diagnostic
+  instead of an empty string; a `gate.grid` refusal includes its defect count, zero
+  limit and affected faces.
 
 - Post metadata now records content digests and refuses replacement of unrecorded or
   edited `campaign_summary.json`, `products.json` and `post.log`. For an older post
