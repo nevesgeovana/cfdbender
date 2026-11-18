@@ -11,7 +11,6 @@ requires numerical evidence; collect reads the outputs into NeutralResult.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -88,7 +87,8 @@ class AdapterPoint:
         for name, digest in self.point.inputs_sha256.items():
             if is_matrix_file(name):
                 continue  # records of earlier plans carry it; a grown matrix is not stale
-            if hashlib.sha256(files.read_bytes(name)).hexdigest() != digest:
+            files.track(name)
+            if files.digests()[name] != digest:
                 raise ValueError(f"input changed after planning: {name}; plan again")
 
 

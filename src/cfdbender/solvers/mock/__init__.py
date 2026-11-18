@@ -115,7 +115,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         raise steady_only("the mock solver")
     if workspace.geometry is not None:
         # The mock reads nothing from the geometry; tracking it records its digest.
-        workspace.read_bytes(workspace.geometry)
+        workspace.track(workspace.geometry)
     return RowRequirements(
         actions=("write mock ASCII input", "run mock", "read mock history"),
         outputs=tuple(

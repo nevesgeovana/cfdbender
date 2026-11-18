@@ -181,3 +181,21 @@ def test_p0000_bigmesh_a_mesh_changed_during_planning_is_refused(tmp_path, monke
         calls.clear()
         with pytest.raises(PlanError, match=re.escape(MESH) + ".*changed while planning"):
             plan_matrix(tmp_path, "study", validators={"su2": validate})
+
+
+def test_p0000_bigmesh_loading_a_point_streams_the_large_mesh_once(tmp_path, monkeypatch):
+    from cfdbender.core.adapter import load_point
+
+    mesh, data = padded(tmp_path, 16)
+    monkeypatch.setattr(plan_module, "LARGE_INPUT_BYTES", 1024 * 1024)
+    point = plan(tmp_path).points[0]
+    counting = _Counting(monkeypatch, mesh)
+    tracemalloc.start()
+    try:
+        load_point(tmp_path, point, solver="su2")
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    assert counting.opens == 1
+    assert counting.hashed_meshes(len(data)) == 1
+    assert peak < len(data) // 4
