@@ -208,6 +208,7 @@ class DigestCache:
 
     NAME = ".input-digests.cache"
     FORMAT = 1
+    MAX_BYTES = 8 << 20
 
     def __init__(self, root: Path) -> None:
         self.path = root / self.NAME
@@ -215,8 +216,12 @@ class DigestCache:
 
     def _read(self) -> dict[str, dict[str, object]]:
         try:
-            document = json.loads(self.path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+            with self.path.open("rb") as stream:
+                data = stream.read(self.MAX_BYTES + 1)
+            if len(data) > self.MAX_BYTES:
+                return {}
+            document = json.loads(data)
+        except (OSError, ValueError, RecursionError):
             return {}
         if not isinstance(document, dict) or document.get("format") != self.FORMAT:
             return {}
