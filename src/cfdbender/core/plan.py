@@ -601,7 +601,11 @@ class InputFiles:
         """
         key, source = self._locate(name)
         stat = path.stat()
-        if stat.st_size > LARGE_INPUT_BYTES and os.path.samefile(source, path):
+        try:
+            same = stat.st_size > LARGE_INPUT_BYTES and os.path.samefile(source, path)
+        except OSError:
+            same = False
+        if same:
             snapshot = self._snapshots.get(key)
             if (
                 snapshot is not None
