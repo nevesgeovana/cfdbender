@@ -126,6 +126,40 @@ def _open_input(path: Path) -> BinaryIO:
     return open(path, "rb")
 
 
+#: Blocks streamed between two requests to drop the bytes already read from the page cache.
+_DROP_EVERY = 16
+
+
+def _drop_cached(stream: BinaryIO, upto: int) -> None:
+    """Ask the kernel to drop the first ``upto`` bytes of a streamed file from its page cache.
+
+    A large input is read once, so keeping it cached only fills the memory of a shared host
+    (on Linux a cgroup counts page cache against the session). Where ``os.posix_fadvise`` is
+    missing (Windows) or the stream has no descriptor, nothing happens; nothing here fails.
+    """
+    advise = getattr(os, "posix_fadvise", None)
+    flag = getattr(os, "POSIX_FADV_DONTNEED", None)
+    if advise is None or flag is None or upto <= 0:
+        return
+    try:
+        advise(stream.fileno(), 0, upto, flag)
+    except (AttributeError, OSError, ValueError):
+        pass
+
+
+def _stream_blocks(stream: BinaryIO) -> Iterator[bytes]:
+    """Yield a large input block by block, dropping what was read from the page cache."""
+    done = 0
+    blocks = 0
+    while chunk := stream.read(_BLOCK):
+        done += len(chunk)
+        blocks += 1
+        yield chunk
+        if blocks % _DROP_EVERY == 0:
+            _drop_cached(stream, done)
+    _drop_cached(stream, done)
+
+
 def _hasher() -> hashlib._Hash:
     """Return a new SHA-256 state; every digest of a tracked input is fed through one."""
     return hashlib.sha256()
@@ -677,7 +711,7 @@ class InputFiles:
                     if scanner is not None:
                         scanner.feed(data)
                 else:
-                    while chunk := stream.read(_BLOCK):
+                    for chunk in _stream_blocks(stream):
                         count += len(chunk)
                         state.update(chunk)
                         if scanner is not None:
@@ -797,7 +831,7 @@ class InputFiles:
                     return self.digest(name)
         state = _hasher()
         with _open_input(path) as stream:
-            while chunk := stream.read(_BLOCK):
+            for chunk in _stream_blocks(stream):
                 state.update(chunk)
         return state.hexdigest()
 
@@ -835,7 +869,7 @@ class InputFiles:
             return identity_value(stat)
         state = _hasher()
         with _open_input(path) as stream:
-            while chunk := stream.read(_BLOCK):
+            for chunk in _stream_blocks(stream):
                 state.update(chunk)
         return state.hexdigest()
 
