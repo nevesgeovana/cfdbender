@@ -59,6 +59,8 @@ def stage_case(point: AdapterPoint, text: str, folder: Path) -> None:
         workspace_path(point.root, case.mesh),
         folder / "mesh.msh",
         point.point.inputs_sha256.get(case.mesh),
+        inputs=point.inputs(),
+        name=case.mesh,
     )
     (folder / "case.ini").write_bytes(text.encode("ascii"))
 

@@ -7,7 +7,6 @@ manifest copies it to archive/<stamp>/ first; nothing is deleted.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import os
 import shutil
 import sys
@@ -22,7 +21,7 @@ from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.executables import build_mismatch
 from cfdbender.core.longpath import copy2, copytree, iter_files, long_path, rmtree
 from cfdbender.core.longpath import replace as long_replace
-from cfdbender.core.plan import owned_path, workspace_path
+from cfdbender.core.plan import InputSession, owned_path, workspace_path
 from cfdbender.core.registry import (
     RegistryError,
     RunRecord,
@@ -38,12 +37,13 @@ from cfdbender.solvers import available_solvers, load_solver
 from cfdbender.workspace.planning import plan_workspace
 
 
-def _digests(root: Path, record: RunRecord) -> dict[str, str]:
+def _digests(root: Path, record: RunRecord, session: InputSession) -> dict[str, str]:
     found = {}
+    files = session.files()
     for name in record.point.outputs:
         path = workspace_path(root, name)
         if path.is_file():
-            found[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+            found[name] = files.digest_output(path, record.point.inputs_sha256)
     return found
 
 
@@ -74,7 +74,7 @@ def _mark_locked(args: argparse.Namespace, verdict: str, registry: RunRegistry) 
         if verdict == "converged" and marked.get(record.point_id) == "failed":
             refused.append(f"{record.point_id}: marked failed")
             continue
-        outputs = _digests(root, record)
+        outputs = _digests(root, record, InputSession(root))
         if verdict == "failed":
             reason = args.reason or "marked failed"
             updated = replace(
@@ -265,6 +265,7 @@ def _rebuild_locked(args: argparse.Namespace, registry: RunRegistry) -> int:
     if sims - on_disk:
         raise WorkspaceError(f"--sims {sorted(sims - on_disk)[0]}: no sims/sim_<id> folder on disk")
     changes: dict[str, RunRecord] = {}
+    session = InputSession(root)
     for point in plan.points:
         folder = root / point.directory
         selected = (
@@ -278,11 +279,13 @@ def _rebuild_locked(args: argparse.Namespace, registry: RunRegistry) -> int:
         first = datetime.fromtimestamp(min(times), UTC).isoformat()
         last = datetime.fromtimestamp(max(times), UTC).isoformat()
         base = RunRecord(point, plan.matrix, plan.solver, "COMPLETED", first)
-        found = _digests(root, base)
+        found = _digests(root, base, session)
         error: str | None = None
         version: str | None = None
         try:
-            collected = adapter.collect(load_point(root, point, solver=config.solver))
+            collected = adapter.collect(
+                load_point(root, point, solver=config.solver, session=session)
+            )
             classification, version = collected.classification, collected.solver_version
             if mismatch := build_mismatch(point.solver_build, version):
                 classification, error = "failed", f"FAILED_EXECUTION: {mismatch}"

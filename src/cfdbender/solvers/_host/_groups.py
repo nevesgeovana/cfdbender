@@ -241,7 +241,7 @@ def validate_tracked_groups(
 
 def point_markers(point: AdapterPoint, mesh: str) -> tuple[str, ...]:
     """Read an already planned mesh through the tracked reader to validate group names."""
-    files = InputFiles(point.root)
+    files = point.session.files() if point.session is not None else InputFiles(point.root)
     if mesh.endswith(".su2") and groups(point.setup):
         tracked_markers(files, mesh)  # one pass digests and scans the file
     else:

@@ -33,6 +33,7 @@ from typing import Any, cast
 from cfdbender.core.longpath import replace as long_replace
 from cfdbender.core.plan import (
     POINT_EXTRAS,
+    InputSession,
     PlanError,
     Point,
     RunPlan,
@@ -543,6 +544,7 @@ class RunRegistry:
         self.path = self.root / runs
         self.lock_path = self.root / f"{runs}.lock"
         self._transaction = threading.local()
+        self._inputs = InputSession(self.root)
 
     def _history(self) -> list[object]:
         if not self.path.exists():
@@ -653,10 +655,7 @@ class RunRegistry:
                     for name, digest in previous.point.inputs_sha256.items():
                         if name == previous.matrix:
                             continue
-                        if (
-                            hashlib.sha256(workspace_path(self.root, name).read_bytes()).hexdigest()
-                            != digest
-                        ):
+                        if self._inputs.files().digest(name) != digest:
                             raise RegistryError(f"input changed after planning: {name}; plan again")
                     for name in (previous.point.directory, *previous.point.outputs):
                         if workspace_path(self.root, name).exists():
@@ -676,7 +675,9 @@ class RunRegistry:
                     for name in previous.point.outputs:
                         path = workspace_path(self.root, name)
                         if path.is_file():
-                            digests[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+                            digests[name] = self._inputs.files().digest_output(
+                                path, previous.point.inputs_sha256
+                            )
                     updated = replace(
                         previous,
                         status=status,
@@ -853,9 +854,8 @@ class RunRegistry:
                     for name, expected in record.point.inputs_sha256.items():
                         if name == record.matrix:
                             continue
-                        path = workspace_path(self.root, name)
                         try:
-                            actual = hashlib.sha256(path.read_bytes()).hexdigest()
+                            actual = self._inputs.files().digest(name)
                         except OSError as error:
                             raise RegistryError(
                                 f"input changed or missing: {name}: {error}"

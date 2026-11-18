@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import replace
 
 from cfdbender.core.adapter import load_point
-from cfdbender.core.plan import RunPlan
+from cfdbender.core.plan import InputSession, RunPlan
 from cfdbender.core.registry import RegistryError, RunRegistry
 from cfdbender.core.restart import check_restart
 
@@ -13,6 +13,7 @@ def prepare(plan: RunPlan, adapter: object, *, own: bool, local: bool = True) ->
     """Resolve sources and prove their solutions exist before a destructive rerun step."""
     records = {r.point_id: r for r in RunRegistry(plan.root).read()}
     points = []
+    session = InputSession(plan.root)
     for point in plan.points:
         source = point.point_id if own else point.restart_from
         if source is None:
@@ -29,7 +30,7 @@ def prepare(plan: RunPlan, adapter: object, *, own: bool, local: bool = True) ->
         if record.status != "COMPLETED" and not interrupted_local:
             raise RegistryError(f"RESTART {source}: source is {record.status}; wait for completion")
         updated = replace(point, restart_from=source, restart_directory=record.point.directory)
-        context = load_point(plan.root, updated, solver=plan.solver)
+        context = load_point(plan.root, updated, solver=plan.solver, session=session)
         files = check_restart(context, adapter)
         updated = replace(
             updated,

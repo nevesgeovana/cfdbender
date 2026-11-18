@@ -17,7 +17,7 @@ from pathlib import Path
 
 from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.executables import bind_executable, build_mismatch
-from cfdbender.core.plan import RunPlan, workspace_path
+from cfdbender.core.plan import InputSession, RunPlan, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.restart import check_restart
 
@@ -106,9 +106,12 @@ def judge_environment(
     """
     (check_ram or check_available_ram)()
     preflight = getattr(adapter, "preflight", None)
+    session = InputSession(plan.root)
     for point in plan.points:
         try:
-            context = bind_executable(load_point(plan.root, point, solver=plan.solver), adapter)
+            context = bind_executable(
+                load_point(plan.root, point, solver=plan.solver, session=session), adapter
+            )
             check_restart(context, adapter)
             if preflight is not None:
                 preflight(context)
@@ -155,6 +158,7 @@ def execute_plan(
     registry = RunRegistry(plan.root)
     previous = {r.point_id: r for r in registry.read()}
     prepared = []
+    session = InputSession(plan.root)
     for point in plan.points:
         recorded = previous.get(point.point_id)
         if recorded is not None:
@@ -175,7 +179,9 @@ def execute_plan(
             if workspace_path(plan.root, name).exists():
                 raise RegistryError(f"{name}: existing output; refusing overwrite")
         # A row's SOLVER_BUILD selects its executable here, refusing an undeclared build.
-        context = bind_executable(load_point(plan.root, point, solver=plan.solver), adapter)
+        context = bind_executable(
+            load_point(plan.root, point, solver=plan.solver, session=session), adapter
+        )
         check_restart(context, adapter)
         prepared.append(context)
     # The environment is judged once, before any record: a missing executable, a busy host

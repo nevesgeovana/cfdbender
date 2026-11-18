@@ -25,7 +25,7 @@ from typing import cast
 from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.convergence import SOLVERS as JUDGED
 from cfdbender.core.executables import build_mismatch
-from cfdbender.core.plan import PlanError, matrix_homes, workspace_path
+from cfdbender.core.plan import InputSession, PlanError, matrix_homes, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
 from cfdbender.matrix._journal import verdicts
@@ -63,10 +63,11 @@ class CollectReport:
         return 1 if self.failed else 3 if self.outstanding else 0
 
 
-def _verify_outputs(root: Path, record: RunRecord) -> None:
+def _verify_outputs(root: Path, record: RunRecord, session: InputSession) -> None:
+    files = session.files()
     for name, expected in record.outputs_sha256.items():
         path = workspace_path(root, name)
-        if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+        if files.digest_output(path, record.point.inputs_sha256) != expected:
             raise RegistryError(f"{record.point_id}: output changed after execution: {name}")
 
 
@@ -269,6 +270,7 @@ def collect_workspace(
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
     failed_ids: set[str] = set()
+    session = InputSession(target)
     for record in records:
         row: dict[str, object] = {
             "point_id": record.point_id,
@@ -307,24 +309,26 @@ def collect_workspace(
             ):
                 outstanding += 1
                 continue
-            point = load_point(target, record.point, solver=config.solver)
+            point = load_point(target, record.point, solver=config.solver, session=session)
             _verify_submission(target, record)
             measured = record
             if record.status == "SUBMITTED":
                 measured = replace(
                     record,
                     outputs_sha256={
-                        name: hashlib.sha256(workspace_path(target, name).read_bytes()).hexdigest()
+                        name: session.files().digest_output(
+                            workspace_path(target, name), record.point.inputs_sha256
+                        )
                         for name in record.point.outputs
                         if workspace_path(target, name).is_file()
                     },
                 )
-            _verify_outputs(target, measured)
+            _verify_outputs(target, measured, session)
             result = adapter.collect(point)
             mismatch = build_mismatch(record.point.solver_build, result.solver_version)
             if mismatch:
                 result = replace(result, classification="failed")
-            _verify_outputs(target, measured)
+            _verify_outputs(target, measured, session)
             _verify_submission(target, record)
             if record.status == "SUBMITTED":
                 record = registry.transition(

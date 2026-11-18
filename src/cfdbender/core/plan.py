@@ -8,12 +8,17 @@ The hook validates and describes actions; it must not run a solver or write file
 
 from __future__ import annotations
 
+import contextvars
 import difflib
 import hashlib
+import json
 import os
 import re
+import tempfile
+import time
 import tomllib
-from collections.abc import Callable, Collection, Mapping
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
@@ -137,6 +142,169 @@ class ByteScanner(Protocol):
         ...
 
 
+#: A file whose newest timestamp is younger than this at the time it was hashed is not cached:
+#: coarse network-file-system clocks could hide a later rewrite behind the same timestamps.
+CACHE_SETTLE_NS = 2_000_000_000
+_REHASH: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "cfdbender_rehash_inputs", default=False
+)
+
+
+@contextmanager
+def rehash_inputs(enabled: bool = True) -> Iterator[None]:
+    """Ignore the persistent digest cache inside the block, reading every input again.
+
+    Parameters
+    ----------
+    enabled : bool, optional
+        False leaves the cache in use, so a caller can pass a command flag straight through.
+    """
+    token = _REHASH.set(enabled)
+    try:
+        yield
+    finally:
+        _REHASH.reset(token)
+
+
+def _clock_ns() -> int:
+    """Return the wall clock in nanoseconds; tests replace it to fake a recent write."""
+    return time.time_ns()
+
+
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _valid_entry(entry: object) -> bool:
+    """Return whether a cache entry has the documented shape."""
+    if not isinstance(entry, dict):
+        return False
+    digest = entry.get("sha256")
+    scans = entry.get("scans")
+    return (
+        all(_is_int(entry.get(key)) for key in ("size", "mtime_ns", "ctime_ns"))
+        and isinstance(digest, str)
+        and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
+        and isinstance(scans, dict)
+        and all(
+            isinstance(tag, str)
+            and isinstance(names, list)
+            and all(isinstance(name, str) for name in names)
+            for tag, names in scans.items()
+        )
+    )
+
+
+class DigestCache:
+    """Remember the digest of each large input between commands, keyed by its identity on disk.
+
+    The cache is one small JSON file in the workspace root, ``.input-digests.cache``, next to the
+    run records. It is never a planned input: it does not enter ``inputs_sha256`` or any record.
+    An entry holds a file's size, modification time and change time in nanoseconds, its SHA-256
+    and the results of scans of its bytes (for example the marker names of an SU2 mesh). An entry
+    is served only when the file's three identity values still match. A missing, unreadable,
+    corrupt or wrong-version file is an empty cache, and a failed write is ignored.
+    """
+
+    NAME = ".input-digests.cache"
+    FORMAT = 1
+
+    def __init__(self, root: Path) -> None:
+        self.path = root / self.NAME
+        self._entries: dict[str, dict[str, object]] | None = None
+
+    def _read(self) -> dict[str, dict[str, object]]:
+        try:
+            document = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        if not isinstance(document, dict) or document.get("format") != self.FORMAT:
+            return {}
+        entries = document.get("entries")
+        if not isinstance(entries, dict):
+            return {}
+        return {k: v for k, v in entries.items() if isinstance(k, str) and _valid_entry(v)}
+
+    def _all(self) -> dict[str, dict[str, object]]:
+        if self._entries is None:
+            self._entries = self._read()
+        return self._entries
+
+    def get(self, key: str, stat: os.stat_result) -> dict[str, object] | None:
+        """Return the entry for a file whose identity still matches, or None.
+
+        Parameters
+        ----------
+        key : str
+            Workspace-relative POSIX name.
+        stat : os.stat_result
+            Current ``stat`` of the file.
+        """
+        if _REHASH.get():
+            return None
+        entry = self._all().get(key)
+        if entry is not None and (entry["size"], entry["mtime_ns"], entry["ctime_ns"]) == (
+            stat.st_size,
+            stat.st_mtime_ns,
+            stat.st_ctime_ns,
+        ):
+            return entry
+        return None
+
+    def put(
+        self,
+        key: str,
+        stat: os.stat_result,
+        digest: str,
+        scans: Mapping[str, tuple[str, ...]],
+    ) -> None:
+        """Store an entry, unless the file is too recent to trust its timestamps.
+
+        Parameters
+        ----------
+        key : str
+            Workspace-relative POSIX name.
+        stat : os.stat_result
+            ``stat`` taken before the file was read.
+        digest : str
+            SHA-256 of the bytes read.
+        scans : Mapping
+            Tag to tuple of names produced by scans made in the same read.
+        """
+        entries = self._all()
+        newest = max(stat.st_mtime_ns, stat.st_ctime_ns)
+        if _clock_ns() - newest < CACHE_SETTLE_NS:
+            if entries.pop(key, None) is not None:
+                self._flush()
+            return
+        entries[key] = {
+            "size": stat.st_size,
+            "mtime_ns": stat.st_mtime_ns,
+            "ctime_ns": stat.st_ctime_ns,
+            "sha256": digest,
+            "scans": {tag: list(names) for tag, names in scans.items()},
+        }
+        self._flush()
+
+    def _flush(self) -> None:
+        """Replace the file atomically; a concurrent writer may win, a reader never sees half."""
+        text = json.dumps({"format": self.FORMAT, "entries": self._all()}, sort_keys=True)
+        temp = ""
+        try:
+            handle, temp = tempfile.mkstemp(
+                dir=self.path.parent, prefix=".input-digests-", suffix=".tmp"
+            )
+            with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+                stream.write(text)
+            os.replace(temp, self.path)
+        except OSError:
+            if temp:
+                try:
+                    os.unlink(temp)
+                except OSError:
+                    pass
+
+
 @dataclass
 class _Snapshot:
     """What one plan knows of one file: its identity on disk, digest, and cached derivations."""
@@ -147,6 +315,27 @@ class _Snapshot:
     digest: str
     data: bytes | None = None
     derived: dict[str, object] = field(default_factory=dict)
+    ctime_ns: int = 0
+    stat: os.stat_result | None = None
+
+
+class InputSession:
+    """The reads of one command, shared by every point it touches.
+
+    A command that loads many points builds one session and passes it to ``load_point``, so a
+    large input is read and hashed once for the command rather than once per point. A file
+    whose size or timestamps differ when it is touched again is read again, never trusted.
+    Small inputs are always read again, as they are without a session.
+    """
+
+    def __init__(self, root: str | Path) -> None:
+        self.root = Path(root).resolve()
+        self.snapshots: dict[str, _Snapshot] = {}
+        self.cache = DigestCache(self.root)
+
+    def files(self) -> InputFiles:
+        """Return a fresh tracking view over the shared reads."""
+        return InputFiles(self.root, self.snapshots, cache=self.cache, refresh=True)
 
 
 class InputFiles:
@@ -158,19 +347,36 @@ class InputFiles:
     (and through a scanner or ``derive`` callback when an adapter needs something from it) and is
     held only when an adapter asks for its bytes. A file that changes after it was snapshotted
     is refused rather than recorded with a digest that does not match what was parsed.
+
+    A larger file is also remembered between commands by the workspace's ``DigestCache`` when its
+    size, modification time and change time all match. With ``refresh`` (an ``InputSession``),
+    a changed file is read again instead of refused, so the caller compares the new digest.
     """
 
-    def __init__(self, root: Path, snapshots: dict[str, _Snapshot] | None = None) -> None:
+    def __init__(
+        self,
+        root: Path,
+        snapshots: dict[str, _Snapshot] | None = None,
+        *,
+        cache: DigestCache | None = None,
+        refresh: bool = False,
+    ) -> None:
         self.root = root
         self._snapshots: dict[str, _Snapshot] = {} if snapshots is None else snapshots
         self._tracked: set[str] = set()
+        self._cache = DigestCache(root) if cache is None else cache
+        self._refresh = refresh
 
     def _locate(self, name: str) -> tuple[str, Path]:
         path = workspace_path(self.root, name)
         return path.relative_to(self.root).as_posix(), path
 
     def _current(self, name: str, key: str, path: Path) -> _Snapshot | None:
-        """Return the cached snapshot after checking the file still is the one it describes."""
+        """Return the cached snapshot after checking the file still is the one it describes.
+
+        With ``refresh``, a small file is always read again and a changed large file is
+        dropped so it is read again; otherwise a changed file is refused.
+        """
         snapshot = self._snapshots.get(key)
         if snapshot is None:
             return None
@@ -178,9 +384,54 @@ class InputFiles:
             stat = path.stat()
         except OSError as error:
             raise PlanError(f"{name}: cannot read: {error}") from error
-        if (stat.st_size, stat.st_mtime_ns) != (snapshot.size, snapshot.mtime_ns):
+        if self._refresh and snapshot.size <= LARGE_INPUT_BYTES:
+            del self._snapshots[key]
+            return None
+        if (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns) != (
+            snapshot.size,
+            snapshot.mtime_ns,
+            snapshot.ctime_ns,
+        ):
+            if self._refresh:
+                del self._snapshots[key]
+                return None
             raise PlanError(f"{name}: input changed while planning; plan again")
         return snapshot
+
+    def _cached(self, key: str, path: Path) -> _Snapshot | None:
+        """Return a snapshot built from the persistent cache for a large file, or None."""
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        if stat.st_size <= LARGE_INPUT_BYTES:
+            return None
+        entry = self._cache.get(key, stat)
+        if entry is None:
+            return None
+        snapshot = _Snapshot(
+            path,
+            stat.st_size,
+            stat.st_mtime_ns,
+            str(entry["sha256"]),
+            ctime_ns=stat.st_ctime_ns,
+            stat=stat,
+        )
+        scans = cast(Mapping[str, list[str]], entry["scans"])
+        for tag, names in scans.items():
+            snapshot.derived[tag] = tuple(names)
+        return snapshot
+
+    def _remember(self, key: str, snapshot: _Snapshot) -> None:
+        """Store a large file's digest and its name-list scans in the persistent cache."""
+        if snapshot.stat is None or snapshot.size <= LARGE_INPUT_BYTES:
+            return
+        scans = {
+            tag: value
+            for tag, value in snapshot.derived.items()
+            if isinstance(value, tuple) and all(isinstance(name, str) for name in value)
+        }
+        self._cache.put(key, snapshot.stat, snapshot.digest, scans)
 
     def _load(
         self,
@@ -218,19 +469,113 @@ class InputFiles:
         unchanged = (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns)
         if not unchanged or count != before.st_size or (expect is not None and digest != expect):
             raise PlanError(f"{name}: input changed while planning; plan again")
-        return _Snapshot(path, before.st_size, before.st_mtime_ns, digest, data)
+        return _Snapshot(
+            path,
+            before.st_size,
+            before.st_mtime_ns,
+            digest,
+            data,
+            ctime_ns=before.st_ctime_ns,
+            stat=before,
+        )
 
     def _snapshot(self, name: str, *, hold: bool) -> tuple[str, _Snapshot]:
         key, path = self._locate(name)
         snapshot = self._current(name, key, path)
         if snapshot is None:
-            snapshot = self._load(name, key, path, hold=hold)
+            if not hold:
+                snapshot = self._cached(key, path)
+            if snapshot is None:
+                snapshot = self._load(name, key, path, hold=hold)
+                self._remember(key, snapshot)
             self._snapshots[key] = snapshot
         elif hold and snapshot.data is None:
             loaded = self._load(name, key, path, hold=True, expect=snapshot.digest)
             snapshot.data = loaded.data
         self._tracked.add(key)
         return key, snapshot
+
+    def digest_output(self, path: Path, candidates: Iterable[str]) -> str:
+        """Return the SHA-256 of a point output, streaming it and never holding it whole.
+
+        An output that is the very file of a planned input (the mesh link of a point folder,
+        a symbolic or hard link to it) is the same bytes, so it takes that input's digest from
+        this reader (the command's own read, or the cache) instead of reading the file again.
+
+        Parameters
+        ----------
+        path : Path
+            The output file.
+        candidates : iterable of str
+            Workspace-relative names of the inputs the output may be a link to.
+        """
+        if path.stat().st_size > LARGE_INPUT_BYTES:
+            for name in candidates:
+                if is_matrix_file(name):
+                    continue
+                try:
+                    same = os.path.samefile(path, workspace_path(self.root, name))
+                except OSError:
+                    continue
+                if same:
+                    return self.digest(name)
+        state = _hasher()
+        with _open_input(path) as stream:
+            while chunk := stream.read(_BLOCK):
+                state.update(chunk)
+        return state.hexdigest()
+
+    def digest_via(self, name: str, path: Path) -> str:
+        """Return the SHA-256 of the file at ``path``, a link to the workspace input ``name``.
+
+        A large file whose size and timestamps (followed through the link) match the command's
+        own read of ``name``, or the digest cache, is not read again; any other file is streamed.
+
+        Parameters
+        ----------
+        name : str
+            Workspace-relative input path the link points at.
+        path : Path
+            The link, for example in a point folder.
+        """
+        key, _ = self._locate(name)
+        stat = path.stat()
+        if stat.st_size > LARGE_INPUT_BYTES:
+            snapshot = self._snapshots.get(key)
+            if snapshot is not None and (
+                snapshot.size,
+                snapshot.mtime_ns,
+                snapshot.ctime_ns,
+            ) == (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns):
+                return snapshot.digest
+            entry = self._cache.get(key, stat)
+            if entry is not None:
+                return str(entry["sha256"])
+        state = _hasher()
+        with _open_input(path) as stream:
+            while chunk := stream.read(_BLOCK):
+                state.update(chunk)
+        return state.hexdigest()
+
+    def digest(self, name: str) -> str:
+        """Return the SHA-256 of an input, streaming a large file and trusting the cache.
+
+        Parameters
+        ----------
+        name : str
+            Workspace-relative input path.
+
+        Raises
+        ------
+        OSError
+            The file cannot be read (the original error, not a plan refusal).
+        """
+        try:
+            return self._snapshot(name, hold=False)[1].digest
+        except PlanError as error:
+            if isinstance(error.__cause__, OSError):
+                raise error.__cause__ from None
+            raise
 
     def read_bytes(self, name: str) -> bytes:
         """Read and memoize an input, refusing a path outside this workspace.
@@ -274,10 +619,15 @@ class InputFiles:
         key, path = self._locate(name)
         snapshot = self._current(name, key, path)
         if snapshot is None:
+            snapshot = self._cached(key, path)
+            if snapshot is not None:
+                self._snapshots[key] = snapshot
+        if snapshot is None:
             scanner = factory()
             snapshot = self._load(name, key, path, hold=False, scanner=scanner)
             snapshot.derived[tag] = scanner.result()
             self._snapshots[key] = snapshot
+            self._remember(key, snapshot)
         elif tag not in snapshot.derived:
             scanner = factory()
             if snapshot.data is not None:
@@ -285,6 +635,7 @@ class InputFiles:
             else:
                 self._load(name, key, path, hold=False, scanner=scanner, expect=snapshot.digest)
             snapshot.derived[tag] = scanner.result()
+            self._remember(key, snapshot)
         self._tracked.add(key)
         return snapshot.derived[tag]
 
@@ -298,6 +649,7 @@ class InputFiles:
         if tag not in snapshot.derived:
             snapshot.derived[tag] = compute(snapshot.path)
             self._current(name, key, snapshot.path)
+            self._remember(key, snapshot)
         return snapshot.derived[tag]
 
     def read_toml(self, name: str) -> Mapping[str, object]:
@@ -404,7 +756,7 @@ class RowInputs(InputFiles):
         common: InputFiles,
         default_overrides: Mapping[str, Collection[str]] | None = None,
     ) -> None:
-        super().__init__(root, common._snapshots)
+        super().__init__(root, common._snapshots, cache=common._cache)
         self._tracked.update(common._tracked)
         defaults = cast(Mapping[str, object], self.read_toml("init.toml").get("defaults", {}))
         overridden = {

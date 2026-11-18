@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from cfdbender.core.adapter import AdapterPoint, load_point
+from cfdbender.core.plan import InputSession
 from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.core.settings import WorkspaceError
 
@@ -162,8 +163,9 @@ def check_local_executables(
     check = getattr(adapter, "check_executable", None)
     if check is None:
         return
+    session = InputSession(root)
     for point in points:
-        check(bind_executable(load_point(root, point, solver=solver), adapter))
+        check(bind_executable(load_point(root, point, solver=solver, session=session), adapter))
 
 
 def has_registry(root: Path) -> bool:

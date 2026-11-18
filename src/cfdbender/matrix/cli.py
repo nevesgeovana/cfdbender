@@ -14,6 +14,7 @@ from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
+from cfdbender.core.plan import rehash_inputs
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.refusals import warn_or_refuse, warning_refusals
 from cfdbender.core.registry import RunRecord
@@ -150,6 +151,7 @@ def build_parser() -> tuple[
     )
     plan_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
     plan_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
+    plan_parser.add_argument("--rehash-inputs", action="store_true", help=REHASH_HELP)
     run_parser = commands.add_parser(
         "run",
         help="run every active point; on this machine a row's SOLVER_BUILD picks its "
@@ -158,6 +160,7 @@ def build_parser() -> tuple[
     )
     run_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
     run_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
+    run_parser.add_argument("--rehash-inputs", action="store_true", help=REHASH_HELP)
     run_parser.add_argument(
         "--restart",
         action="store_true",
@@ -202,6 +205,7 @@ def build_parser() -> tuple[
     )
     collect_parser.add_argument("matrix", nargs="?", help="recorded matrix name (default: all)")
     collect_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
+    collect_parser.add_argument("--rehash-inputs", action="store_true", help=REHASH_HELP)
     post_parser = commands.add_parser(
         "post",
         help="rebuild every product under post/<matrix>/ from runs.json and the saved "
@@ -300,6 +304,14 @@ def build_parser() -> tuple[
     return parser, verbs
 
 
+REHASH_HELP = (
+    "read every input again instead of trusting the digest cache of large files "
+    "(.input-digests.cache); without it a file is read again only when its size or "
+    "timestamps changed, so a file rewritten with the same size and timestamps goes "
+    "unnoticed"
+)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Plan, run or collect a matrix, printing refusals to stderr with exit code 2.
 
@@ -339,7 +351,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in LOGGED:
         record_activity(root, args.command, "started", argv=list(argv))
     try:
-        with held_warnings(root, show=args.console_warnings, log=live), warning_refusals(refuse):
+        with (
+            held_warnings(root, show=args.console_warnings, log=live),
+            warning_refusals(refuse),
+            rehash_inputs(getattr(args, "rehash_inputs", False)),
+        ):
             code = _execute(args, verbs, console)
         return code
     finally:

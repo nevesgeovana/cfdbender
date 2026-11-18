@@ -14,6 +14,8 @@ import hashlib
 import os
 from pathlib import Path
 
+from cfdbender.core.plan import InputFiles
+
 _REFUSAL = (
     "cannot link the mesh {source} into the point folder: {error}. Meshes are always "
     "linked, never copied: keep the workspace on one volume whose filesystem supports "
@@ -29,7 +31,14 @@ def _hardlink(target: Path, source: Path) -> None:
     target.hardlink_to(source)
 
 
-def link_mesh(source: Path, target: Path, digest: str | None) -> None:
+def link_mesh(
+    source: Path,
+    target: Path,
+    digest: str | None,
+    *,
+    inputs: InputFiles | None = None,
+    name: str | None = None,
+) -> None:
     """Link target to source (relative symbolic link, else hard link) and verify it.
 
     Parameters
@@ -40,6 +49,11 @@ def link_mesh(source: Path, target: Path, digest: str | None) -> None:
         Link to create in the point folder, which must already exist.
     digest : str or None
         Planned SHA-256 of the mesh; a mismatch removes the link and refuses.
+    inputs : InputFiles, optional
+        Reader of the command; with ``name``, a large mesh whose size and timestamps still
+        match the command's own read is not read again through the link.
+    name : str, optional
+        Workspace-relative name of the mesh.
 
     Raises
     ------
@@ -55,8 +69,11 @@ def link_mesh(source: Path, target: Path, digest: str | None) -> None:
         except (OSError, NotImplementedError) as error:
             raise ValueError(_REFUSAL.format(source=source.name, error=error)) from error
     # Read through the link without allocating a multi-gigabyte buffer.
-    with target.open("rb") as stream:
-        measured = hashlib.file_digest(stream, "sha256").hexdigest()
+    if inputs is not None and name is not None:
+        measured = inputs.digest_via(name, target)
+    else:
+        with target.open("rb") as stream:
+            measured = hashlib.file_digest(stream, "sha256").hexdigest()
     if measured != digest:
         target.unlink()
         raise ValueError("mesh changed after planning; plan again")

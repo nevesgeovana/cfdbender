@@ -51,6 +51,8 @@ def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path)
         workspace_path(point.root, mesh_name(values)),
         folder / staged_mesh(values),
         point.point.inputs_sha256.get(mesh_name(values)),
+        inputs=point.inputs(),
+        name=mesh_name(values),
     )
 
 

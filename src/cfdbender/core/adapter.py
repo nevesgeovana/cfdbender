@@ -12,7 +12,7 @@ requires numerical evidence; collect reads the outputs into NeutralResult.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, cast, runtime_checkable
 
@@ -20,6 +20,7 @@ from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.mesh import resolve_setup_paths
 from cfdbender.core.plan import (
     InputFiles,
+    InputSession,
     Point,
     RowInputs,
     RowRequirements,
@@ -72,18 +73,27 @@ class AdapterPoint:
     setup: Mapping[str, object]
     reference: Mapping[str, object]
     post: Mapping[str, object]
+    session: InputSession | None = field(default=None, compare=False, repr=False)
 
     @property
     def geometry(self) -> str | None:
         """The workspace-relative GEOMETRY file of the row, or None."""
         return self.point.geometry
 
+    def inputs(self) -> InputFiles:
+        """Return a tracking reader over this point's workspace, sharing its command's reads."""
+        return self.session.files() if self.session is not None else InputFiles(self.root)
+
     def verify(self) -> None:
-        """Re-read init.toml and every planned input, refusing changed bytes."""
+        """Re-read init.toml and every planned input, refusing changed bytes.
+
+        A point loaded with an ``InputSession`` checks a large input against the command's
+        shared read, which is read again when its size or timestamps changed.
+        """
         config = read_init(self.root, available_solvers=(self.solver,))
         if config.solver != self.solver:
             raise ValueError("init.toml solver differs from the planned solver")
-        files = InputFiles(self.root)
+        files = self.inputs()
         for name, digest in self.point.inputs_sha256.items():
             if is_matrix_file(name):
                 continue  # records of earlier plans carry it; a grown matrix is not stale
@@ -92,7 +102,13 @@ class AdapterPoint:
                 raise ValueError(f"input changed after planning: {name}; plan again")
 
 
-def load_point(root: str | Path, point: Point, *, solver: str) -> AdapterPoint:
+def load_point(
+    root: str | Path,
+    point: Point,
+    *,
+    solver: str,
+    session: InputSession | None = None,
+) -> AdapterPoint:
     """Read planned s/r/p snapshots, verifying all digests and the solver binding.
 
     Parameters
@@ -103,6 +119,10 @@ def load_point(root: str | Path, point: Point, *, solver: str) -> AdapterPoint:
         Point from the validated plan or registry.
     solver : str
         Expected init.toml solver, supplied by the composition layer.
+    session : InputSession, optional
+        The reads of one command. Passing the same session for every point makes the
+        command read and hash each large input once; every point is still checked against
+        its planned digests. Without it each call reads its inputs afresh.
 
     Returns
     -------
@@ -110,7 +130,8 @@ def load_point(root: str | Path, point: Point, *, solver: str) -> AdapterPoint:
         Prepared context. No solver is imported and no output is written.
     """
     target = Path(root).resolve()
-    files = InputFiles(target)
+    shared = session if session is not None and session.root == target else None
+    files = shared.files() if shared is not None else InputFiles(target)
     config = read_init(target, available_solvers=(solver,))
     result = AdapterPoint(
         target,
@@ -129,6 +150,7 @@ def load_point(root: str | Path, point: Point, *, solver: str) -> AdapterPoint:
         ),
         files.read_toml(f"inputs/references/{point.reference_id}.toml"),
         files.read_toml(f"inputs/pproc/{point.post_id}.toml"),
+        shared,
     )
     result.verify()
     for name, digest in files.digests().items():

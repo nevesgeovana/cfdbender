@@ -24,7 +24,7 @@ from pathlib import Path
 
 from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.matrix import MatrixError, parse_matrix
-from cfdbender.core.plan import InputFiles, Point, RunPlan, workspace_path
+from cfdbender.core.plan import InputFiles, InputSession, Point, RunPlan, workspace_path
 from cfdbender.core.refusals import warn_unused_cluster
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.restart import check_restart
@@ -158,6 +158,7 @@ def submission_plans(
         One descriptor and argv per point, in matrix order.
     """
     jobs = []
+    session = InputSession(plan.root)
     adapter = load_solver(plan.solver)
     solver_type = str(getattr(adapter, "SOLVER_TYPE", plan.solver))
     name = staged_config(adapter)
@@ -169,7 +170,7 @@ def submission_plans(
             raise ValueError(f"row {point.pol}: state cluster: <name> in VAR_NAMES_VALUES")
         if cluster is not None and not uses_cluster:
             warn_unused_cluster(point.pol)
-        context = load_point(plan.root, point, solver=plan.solver)
+        context = load_point(plan.root, point, solver=plan.solver, session=session)
         folder = workspace_path(plan.root, point.directory)
         config = (folder / name).as_posix()
         values: dict[str, object] = {
@@ -231,6 +232,7 @@ def submit_plan(
     config_name = staged_config(adapter)
     stage = getattr(adapter, "stage", None)
     translated = []
+    session = InputSession(plan.root)
     for point, job in zip(plan.points, jobs, strict=True):
         recorded = previous.get(point.point_id)
         if recorded is not None:
@@ -255,7 +257,7 @@ def submit_plan(
             raise RegistryError(f"{job.descriptor_path.name}: descriptor collides with a job file")
         if outputs & {"submit.stdout.txt", "submit.stderr.txt"}:
             raise RegistryError("submit capture files collide with declared outputs")
-        context = load_point(plan.root, point, solver=plan.solver)
+        context = load_point(plan.root, point, solver=plan.solver, session=session)
         check_restart(context, adapter)
         translated.append(adapter.translate(context).encode("ascii"))
     missing = tuple(point for point in plan.points if point.point_id not in previous)
@@ -276,7 +278,7 @@ def submit_plan(
                 stream.write(ascii_input)
         else:
             try:
-                stage(load_point(plan.root, point, solver=plan.solver))
+                stage(load_point(plan.root, point, solver=plan.solver, session=session))
                 ascii_input = config.read_bytes()
             except (OSError, ValueError) as failure:
                 records.append(
