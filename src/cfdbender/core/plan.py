@@ -321,7 +321,7 @@ def skipped_content(name: str, what: str) -> str:
     """Return the warning text of a content check skipped because a file was not read."""
     return (
         f"{name}: {what} not checked; the large-input check is off, so the file is not read "
-        '(set large_input_check = "digest" or drop --no-read-large-inputs to check it)'
+        "(use --rehash-inputs without --no-read-large-inputs to check it)"
     )
 
 
@@ -947,8 +947,8 @@ class InputFiles:
                 self.warn(
                     f"{key}|identity",
                     f"{name}: checked by size and modification time only; it was planned "
-                    "with the large-input check off, so no SHA-256 was taken (plan again to "
-                    "hash it)",
+                    "with the large-input check off, so no SHA-256 was taken (plan again "
+                    "with --rehash-inputs to hash it)",
                 )
             return True
         current = self.digest(name) if via is None else self.digest_via(name, via)
@@ -956,7 +956,8 @@ class InputFiles:
             self.warn(
                 f"{key}|unverified",
                 f"{name}: not verified against its planned SHA-256; the large-input check is "
-                "off, so the file is not read",
+                "off, so the file is not read (use --rehash-inputs without "
+                "--no-read-large-inputs to verify it)",
             )
             return True
         return current == planned
@@ -982,7 +983,8 @@ class InputFiles:
             self.warn(
                 f"{path}|unverified",
                 f"{path.name}: output not verified against its recorded SHA-256; the "
-                "large-input check is off, so the file is not read",
+                "large-input check is off, so the file is not read (use --rehash-inputs "
+                "without --no-read-large-inputs to verify it)",
             )
             return True
         return current == expected

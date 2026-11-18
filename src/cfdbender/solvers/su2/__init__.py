@@ -289,10 +289,20 @@ def collect(point: AdapterPoint) -> NeutralResult:
         # The large-input check is off: the mesh is not opened for its NDIME line.
         found = dimensions(folder, mesh=False)
         if found is None:
+            source = mesh_name(
+                config(
+                    point.setup,
+                    point.reference,
+                    point.post,
+                    point.point.condition,
+                    geometry=point.geometry,
+                )
+            )
             files.warn(
-                f"{staged}|dimensions",
-                f"{point.point.point_id}: problem dimension not read from mesh.su2; the "
-                "large-input check is off, so the mesh is not read",
+                f"{source}|dimensions",
+                f"{source}: problem dimension not read from mesh.su2; the "
+                "large-input check is off, so the mesh is not read (use --rehash-inputs "
+                "without --no-read-large-inputs to check it)",
             )
     else:
         found = dimensions(folder)
