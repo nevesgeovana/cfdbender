@@ -11,13 +11,13 @@ versions follow SemVer and are independent of solver versions.
 
 - Planning with large meshes is fast: `cfd-matrix plan` reads and hashes each input file once
   per plan instead of once per point, streams files above 8 MiB in blocks instead of holding
-  them in memory, and checks SU2 marker groups in the same pass. Results and the recorded input
-  digests are unchanged.
-- `run`, submission and `collect` no longer read a large input once per point. A large input is
+  them in memory, and checks SU2 marker groups in the same pass. The recorded input digests
+  keep their values, keys and order.
+- `run` and `collect` no longer read a large input once per point. A large input is
   read and hashed once, when it is first seen, and later commands reuse its digest while the
-  file's size, timestamps and inode are unchanged. Registry digests are streamed, so a large
-  mesh is no longer held in memory.
-- Known limit: OpenFOAM and PyFR planning still read their mesh whole.
+  file's size, timestamps and inode are unchanged. Scheduler submission goes through the same
+  reader. Registry digests are streamed, so a large mesh is no longer held in memory.
+- Known limit: OpenFOAM and PyFR still read their planned mesh whole on every command.
 
 ### Added
 

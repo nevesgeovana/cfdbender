@@ -105,7 +105,7 @@ def test_p0000_bigmesh_provenance_keys_and_values_are_unchanged(tmp_path, monkey
     monkeypatch.setattr(plan_module, "LARGE_INPUT_BYTES", 64 * 1024)
     result = plan(tmp_path)
     for point in result.points:
-        assert sorted(point.inputs_sha256) == sorted(
+        assert list(point.inputs_sha256) == sorted(
             [
                 "init.toml",
                 "inputs/matrices/study.fs",
