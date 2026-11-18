@@ -141,6 +141,18 @@ TIME_ACCURATE_EXTRA = (
 )
 
 
+def test_the_explicit_clock_and_the_iteration_window_are_warned_once_and_never_forwarded(tmp_path):
+    periodic(tmp_path, extra="LAST_ITERS_AVG: 100 / DELTA_TIME: 0.01 / TIME_ITERATIONS: 50")
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("default")
+        deck = columns.deck(tmp_path)
+    for key in ("LAST_ITERS_AVG", "DELTA_TIME", "TIME_ITERATIONS"):
+        assert key not in deck
+        hits = [str(w.message) for w in caught if f"{key} is skipped" in str(w.message)]
+        assert len(hits) == 1
+        assert "time-accurate run type" in hits[0]
+
+
 def test_time_accurate_controls_are_warned_once_and_never_forwarded(tmp_path):
     periodic(tmp_path, extra=TIME_ACCURATE_EXTRA)
     with warnings.catch_warnings(record=True) as caught:

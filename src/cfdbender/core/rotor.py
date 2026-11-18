@@ -421,13 +421,6 @@ def rotor_quantities(
         efficiency=None if isinstance(efficiency, str) else efficiency,
     )
     return out
-    d = block.diameter_m
-    ct = thrust / (density * n * n * d**4)
-    cq = torque / (density * n * n * d**5)
-    cp = 2.0 * math.pi * cq
-    advance = velocity / (n * d)
-    out.update(ct=ct, cq=cq, cp=cp, efficiency=advance * ct / cp if cp != 0.0 else None)
-    return out
 
 
 #: The row controls of the symmetry and the time-accurate run types: never solver keys.
@@ -439,10 +432,22 @@ ROW_CONTROLS = (
     "DELTA_THETA",
     "REVOLUTIONS",
     "LAST_REVS_AVG",
+    "LAST_ITERS_AVG",
+    "DELTA_TIME",
+    "TIME_ITERATIONS",
     "CLOCK_MOTION",
     "MOTIONS",
 )
-TIME_ACCURATE = ("DELTA_THETA", "REVOLUTIONS", "LAST_REVS_AVG", "CLOCK_MOTION", "MOTIONS")
+TIME_ACCURATE = (
+    "DELTA_THETA",
+    "REVOLUTIONS",
+    "LAST_REVS_AVG",
+    "LAST_ITERS_AVG",
+    "DELTA_TIME",
+    "TIME_ITERATIONS",
+    "CLOCK_MOTION",
+    "MOTIONS",
+)
 TIME_ACCURATE_PREFIX = "EXPORT_"
 
 
@@ -482,7 +487,8 @@ def periodic_state(setup: Mapping[str, object]) -> PeriodicState:
     ``PERIODIC_COPIES`` is required with ``PERIODIC`` and refused otherwise;
     ``SYMMETRY_LOADS`` (the row's, else the setup's ``symmetry_loads``, else true) says whether
     the loads are the whole rotor's or the sector's. Warns and skips ``DELTA_THETA``,
-    ``REVOLUTIONS``, ``LAST_REVS_AVG``, ``CLOCK_MOTION``, ``MOTIONS`` and every ``EXPORT_*``
+    ``REVOLUTIONS``, ``LAST_REVS_AVG``, ``LAST_ITERS_AVG``, ``DELTA_TIME``,
+    ``TIME_ITERATIONS``, ``CLOCK_MOTION``, ``MOTIONS`` and every ``EXPORT_*``
     variable, which belong to the time-accurate run types.
 
     Raises
