@@ -1,6 +1,6 @@
-# Run-fast lane: a large mesh is read once, not once per command and point
+# Run-fast: a large mesh is read once, not once per command and point
 
-Branch `lane/run-big-mesh`, cut from `69e5db0`. Commits: `b1a9788` (cache, session, streamed
+Measured change from `69e5db0`. Commits: `b1a9788` (cache, session, streamed
 output digests, flag, tests), `88ec5a6` (docs), and the commit that adds this report and
 `tools/measure_run_big_mesh.py`.
 
@@ -25,7 +25,7 @@ whole several times, two of them into memory:
 
 Whole-file reads of large inputs on the paths asked about, and what remains:
 
-| Site | Large file? | After this lane |
+| Site | Large file? | After this change |
 |---|---|---|
 | `registry.record`, `transition` RUNNING and COMPLETED | mesh, mesh link | streamed, once per input per registry, served by cache |
 | `matrix/collection._verify_outputs`, SUBMITTED recount, `matrix/records._digests` | mesh link | streamed or served as above |
@@ -80,7 +80,7 @@ plan,plan,run,collect` (base: `PYTHONPATH` at an extract of `69e5db0`), 3 rows x
 points, local fake SU2 stand-in, mesh in `C:/t`, `tracemalloc` peak, mesh opens counted by an audit
 hook for the mesh and its point-folder link. The mesh is settled (2.5 s) before the first step. The
 fake solver start is about 0.25 s per point and is part of every run time. Wall times are from the
-final run of the script; the first runs of the lane differed by about 20 percent.
+final run of the script; the first runs of the measurement differed by about 20 percent.
 
 | | 128 MiB plan | plan again | run | collect | 512 MiB plan | plan again | run | collect |
 |---|---|---|---|---|---|---|---|---|
