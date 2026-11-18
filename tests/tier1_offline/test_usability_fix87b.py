@@ -42,7 +42,7 @@ def test_u12_a_missing_setup_names_the_file_the_row_asks_for(mock, capsys):
     (mock / "inputs/setups/s001.toml").unlink()
     code, _, err = run(capsys, "plan", "full", "--workspace", mock)
     assert code == 2
-    assert "SET s001 names inputs/setups/s001.toml, which does not exist" in err
+    assert "SETUP s001 names inputs/setups/s001.toml, which does not exist" in err
     assert "Errno" not in err
 
 

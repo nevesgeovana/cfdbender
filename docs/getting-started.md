@@ -56,8 +56,8 @@ A campaign is described by a matrix and the three files each of its rows names.
 
 ```text
 POL  | RUN | DESCRIPTION | FLIGHT_CONDITION      | SWEEP_VALUES | REF | SETUP | PPROC
------|-----|-------------|-----------------------|--------------|-----|-----|------
-1001 | 1   | First polar | MACH:0.2, ALPHA:sweep | 0,2,4        | 001 | 001 | 001
+-----|-----|-------------|-----------------------|--------------|-----|-------|------
+1001 | 1   | First polar | MACH:0.2, ALPHA:sweep | 0,2,4        | 001 | 001   | 001
 ```
 
 The matrix is a table with `|` between its columns. Each row is one simulation,

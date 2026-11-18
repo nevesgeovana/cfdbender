@@ -29,7 +29,7 @@ def test_a_geometry_cell_for_a_solver_that_does_not_read_it_is_warned_and_skippe
         "inputs/references/r001.toml": "",
         "inputs/pproc/p001.toml": "",
         "inputs/geometries/wing.dat": "mesh",
-        "inputs/matrices/study.fs": "POL|RUN|GEOMETRY|SET|REF|PPROC\n7|1|wing.dat|001|001|001\n",
+        "inputs/matrices/study.fs": "POL|RUN|GEOMETRY|SETUP|REF|PPROC\n7|1|wing.dat|001|001|001\n",
     }
     for name, text in files.items():
         (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)

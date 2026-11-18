@@ -53,7 +53,7 @@ def workspace(root, *, setup=None, condition=CONDITION, sweep="", options="", xf
         "inputs/references/r001.toml": "",
         "inputs/pproc/p001.toml": "",
         "inputs/matrices/study.fs": (
-            "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+            "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
             f"1001|1|001|001|001|{condition}|{sweep}\n"
         ),
     }

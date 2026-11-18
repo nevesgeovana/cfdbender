@@ -14,7 +14,7 @@ from cfdbender.solvers._host._groups import _Su2Markers, marker_names
 
 MESH = "inputs/meshes/tiny.su2"
 MATRIX = (
-    "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+    "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
     "1001|1|001|001|001|MACH:0.3,ALPHA:sweep|0,1,2\n"
     "1002|1|001|001|001|MACH:0.3,ALPHA:sweep|0,1,2\n"
     "1003|1|001|001|001|MACH:0.3,ALPHA:sweep|0,1,2\n"

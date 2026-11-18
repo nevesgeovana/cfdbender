@@ -10,7 +10,7 @@ import pytest
 from cfdbender.core.matrix import MatrixError, parse_matrix, read_matrix
 
 ROOT = Path(__file__).resolve().parents[2]
-HEADER = "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION"
+HEADER = "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION"
 ROW_A = "1001|1|001|001|001|MACH:0.3,ALPHA:2.0"
 ROW_B = "1002|1|001|001|001|MACH:0.4,ALPHA:2.0"
 

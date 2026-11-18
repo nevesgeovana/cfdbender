@@ -47,8 +47,8 @@ a build that `executables.toml` does not declare. `cfd-workspace init` writes
 
 ```text
 POL  | RUN | FLIGHT_CONDITION      | SWEEP_VALUES | REF | SETUP | PPROC | SOLVER_BUILD
------|-----|-----------------------|--------------|-----|-----|-------|-------------
-1001 | 1   | MACH:0.5, ALPHA:sweep | 0,2          | 001 | 001 | 001   | 8.3.0
+-----|-----|-----------------------|--------------|-----|-------|-------|-------------
+1001 | 1   | MACH:0.5, ALPHA:sweep | 0,2          | 001 | 001   | 001   | 8.3.0
 ```
 
 On a run on your machine, a row that names a build takes that build's path and

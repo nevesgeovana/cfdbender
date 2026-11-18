@@ -257,8 +257,8 @@ history = true
 
 ```text
 POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY
----|---|---|---|-----|----------------|------------|--------
-1001|1|001|001|001|MACH:0.3, ALTFT:0, ALPHA:sweep|0,2|airfoil.su2
+---|---|-----|---|-----|----------------|------------|--------
+1001|1|001  |001|001|MACH:0.3, ALTFT:0, ALPHA:sweep|0,2|airfoil.su2
 ```
 
 ```console

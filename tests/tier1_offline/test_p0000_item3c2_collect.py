@@ -105,7 +105,7 @@ def test_p0000_item3c2_collect_rebuilds_without_reexecution(tmp_path, monkeypatc
 def test_p0000_item3c2_collect_filters_by_recorded_matrix(tmp_path):
     executed(tmp_path)
     matrix = tmp_path / "inputs/matrices/other.fs"
-    matrix.write_text("POL|RUN|SET|REF|PPROC" + chr(10) + "1002|1|001|001|001")
+    matrix.write_text("POL|RUN|SETUP|REF|PPROC" + chr(10) + "1002|1|001|001|001")
     run_api(plan_workspace(tmp_path, "other"), check_ram=lambda: None)
     assert cli(["collect", "study", "--workspace", str(tmp_path)]) == 0
     assert not (tmp_path / "post/other/campaign_summary.json").exists()

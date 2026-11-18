@@ -131,8 +131,8 @@ executable = "/home/your-user/bin/xfoil"
 
 ```text
 POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES
----|---|---|---|-----|----------------|------------
-1001|1|001|001|001|ALPHA:sweep|0,2,4
+---|---|-----|---|-----|----------------|------------
+1001|1|001  |001|001|ALPHA:sweep|0,2,4
 ```
 
 ```console

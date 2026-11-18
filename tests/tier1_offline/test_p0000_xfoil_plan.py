@@ -2,7 +2,7 @@
 
 Usage: cfd-workspace init --solver xfoil; cfd-matrix plan study --local.
 Setup: airfoil="NACA 0012", reynolds=1000000. Reference and post may be empty.
-Matrix: POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES followed by
+Matrix: POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES followed by
 1001|1|001|001|001|alpha:sweep|0,2,4. Planning itself remains read-only.
 """
 
@@ -41,7 +41,7 @@ def workspace(root, *, setup=None, condition="alpha:sweep", sweep="0,2,4", optio
         "inputs/references/r001.toml": "",
         "inputs/pproc/p001.toml": "",
         "inputs/matrices/study.fs": (
-            "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+            "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
             f"1001|1|001|001|001|{condition}|{sweep}\n"
         ),
     }

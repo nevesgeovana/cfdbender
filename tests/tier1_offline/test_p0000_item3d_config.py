@@ -45,7 +45,7 @@ def workspace(root: Path, *, extra="", condition="MACH:0.3,ALPHA:2.0"):
             ["area = 2.0", "length = 3.0", "moment_origin = [1.0, 2.0, 3.0]"]
         ),
         "inputs/pproc/p001.toml": "history = true" + chr(10) + "output_frequency = 5",
-        "inputs/matrices/study.fs": "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION"
+        "inputs/matrices/study.fs": "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION"
         + chr(10)
         + "1001|1|001|001|001|"
         + condition,

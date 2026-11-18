@@ -14,7 +14,7 @@ def workspace(root, defaults):
     (root / "inputs/references/r001.toml").write_text("area = 1\n")
     (root / "inputs/pproc/p001.toml").write_text("history = true\n")
     (root / "inputs/matrices/study.fs").write_text(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|VAR_NAMES_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|VAR_NAMES_VALUES\n"
         "1|1|001|001|001|ALPHA:0|mock.iterations:6\n"
     )
 

@@ -71,7 +71,7 @@ def test_numpy_reads_the_table_to_the_header_count(tmp_path):
 def test_a_stated_air_state_fills_velocity_density_and_reynolds(tmp_path):
     workspace(tmp_path)
     (tmp_path / "inputs/matrices/study.fs").write_text(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         "1001|1|001|001|001|MACH:0.2, ALTFT:0, ALPHA:sweep|0\n",
         encoding="ascii",
     )
@@ -95,7 +95,7 @@ def test_a_stated_air_state_fills_velocity_density_and_reynolds(tmp_path):
 def test_a_condition_key_spelled_as_a_context_column_fills_it_once(tmp_path):
     workspace(tmp_path)
     (tmp_path / "inputs/matrices/study.fs").write_text(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         "1001|1|001|001|001|mach:0.2, alpha:sweep|2\n",
         encoding="ascii",
     )

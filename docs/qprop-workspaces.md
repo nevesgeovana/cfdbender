@@ -175,8 +175,8 @@ xfoil_executable = "/home/your-user/src/Xfoil/bin/xfoil"
 
 ```text
 POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES
----|---|---|---|-----|----------------|------------
-1001|1|001|001|001|V:20, J:sweep, BETA07:30, RHO:1.2, MU:1.8e-5, A:340|0.6,0.8,1.0
+---|---|-----|---|-----|----------------|------------
+1001|1|001  |001|001|V:20, J:sweep, BETA07:30, RHO:1.2, MU:1.8e-5, A:340|0.6,0.8,1.0
 ```
 
 ```console

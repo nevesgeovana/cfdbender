@@ -37,7 +37,7 @@ def case(root):
         "inputs/references/r001.toml": "",
         "inputs/pproc/p001.toml": "history = true\n",
         "inputs/matrices/study.fs": (
-            "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION\n1001|1|001|001|001|ALPHA:4\n"
+            "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION\n1001|1|001|001|001|ALPHA:4\n"
         ),
         "inputs/meshes/tiny.msh": "$MeshFormat\n4.1 0 8\n$EndMeshFormat\n",
     }

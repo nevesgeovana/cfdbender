@@ -10,7 +10,7 @@ from cfdbender.hpc import plan_submission, resolve_hpc_profile
 def matrix(root, values):
     path = root / "inputs/matrices/study.fs"
     path.write_text(
-        "POL|RUN|SET|REF|PPROC|VAR_NAMES_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|VAR_NAMES_VALUES\n"
         + "\n".join(f"{1001 + i}|1|001|001|001|{value}" for i, value in enumerate(values))
         + "\n"
     )

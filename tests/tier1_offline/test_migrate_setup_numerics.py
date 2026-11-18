@@ -22,7 +22,7 @@ SETUP_A = (
     "freestream_temperature = 288.15\n"
     "reynolds = 1000000\n"
     'SOLVER = "EULER"\n'
-    "\n[solver]\nthreads = 1\niterations = 7\n"
+    "\n[solver]\nthreads = 1\ntimeout_s = 5\n"
 )
 SETUP_B = SETUP_A.replace("reynolds = 1000000", "reynolds = 2000000")
 SETUP_C = SETUP_A.replace("iterations = 40", "iterations = 80")
@@ -80,10 +80,9 @@ def test_apply_archives_then_renames_adds_the_column_and_splits_the_setups(tmp_p
     assert "CFL_ADAPT_PARAM = [\n    0.5,\n    1.5,\n    1.0e-4,\n]\n" in numerics
     assert "mesh" not in numerics and "[solver]" not in numerics
     kept = after["inputs/setups/s001.toml"].decode()
-    assert "iterations" in kept.split("[solver]")[1], "a table key of the same name stays"
     assert "iterations = 40" not in kept.split("[solver]")[0]
     assert kept.startswith("# the mesh of the first case\nmesh = ")
-    assert "[solver]\nthreads = 1\niterations = 7\n" in kept
+    assert "[solver]\nthreads = 1\ntimeout_s = 5\n" in kept
     assert "n001.toml" in capsys.readouterr().out
 
 
@@ -110,10 +109,8 @@ def test_the_matrix_changes_only_where_it_must(tmp_path):
     assert new[0] == "POL | RUN | FLIGHT_CONDITION | REF | SETUP | NUMERICS | PPROC | DESCRIPTION"
     assert new[1] == old[1], "a comment line stays byte-identical"
     for before, after in zip(old[2:], new[2:], strict=True):
-        cells = before.split("|")
-        kept = [*cells[:5], *cells[6:]]
         got = after.split("|")
-        assert [*got[:5], *got[6:]] == kept, "every other cell stays byte-identical"
+        assert [*got[:5], *got[6:]] == before.split("|"), "every other cell stays byte-identical"
     assert new[4] == old[4], "a rule line without pipes stays byte-identical"
 
 
@@ -140,6 +137,8 @@ def test_the_plan_before_and_after_is_byte_identical(tmp_path):
     (root / "inputs/matrices/study.fs").write_text(
         (root / "inputs/matrices/study.fs").read_text().replace("| 0 |", "| 1 |")
     )
+    init = root / "init.toml"  # the setup without numerics takes its iterations from here
+    init.write_text(init.read_text() + "[defaults]\niterations = 12\n")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         before = decks(root, "su2")

@@ -14,7 +14,7 @@ def test_cluster_collection_records_solver_version(tmp_path, build):
     profile = prepared(tmp_path)
     if build:
         matrix = tmp_path / "inputs/matrices/study.fs"
-        matrix.write_text("POL|RUN|SET|REF|PPROC|SOLVER_BUILD\n1001|1|001|001|001|mock-2\n")
+        matrix.write_text("POL|RUN|SETUP|REF|PPROC|SOLVER_BUILD\n1001|1|001|001|001|mock-2\n")
         profile.write_text(profile.read_text() + '\n"mock-2" = "offline-build-2"\n')
     assert cli(tmp_path, "run") == 0
     outputs(tmp_path, RunRegistry(tmp_path).read()[0].point)

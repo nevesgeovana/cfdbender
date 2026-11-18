@@ -11,9 +11,9 @@ them in the last column:
 
 ```text
 POL | RUN | SETUP | REF | PPROC | VAR_NAMES_VALUES
-----|-----|-----|-----|-------|-----------------
-1001 | 1 | 001 | 001 | 001 | hpc: alpha / cluster: one
-1002 | 1 | 001 | 001 | 001 | hpc: beta / cluster: two
+----|-----|-------|-----|-------|-----------------
+1001 | 1 | 001   | 001 | 001 | hpc: alpha / cluster: one
+1002 | 1 | 001   | 001 | 001 | hpc: beta / cluster: two
 ```
 
 `cfd-matrix plan study` previews both jobs and `cfd-matrix run study` submits
@@ -97,8 +97,8 @@ Then choose a value in each row using the same profile:
 
 ```text
 POL | RUN | SETUP | REF | PPROC | VAR_NAMES_VALUES
-----|-----|-----|-----|-------|-----------------
-1001 | 1 | 001 | 001 | 001 | cluster: alpha
+----|-----|-------|-----|-------|-----------------
+1001 | 1 | 001   | 001 | 001 | cluster: alpha
 ```
 
 The placeholder also works in the submit command. A row without a value is

@@ -35,7 +35,7 @@ def study(root: Path) -> Path:
     (root / "inputs/geometries/mesh.dat").write_bytes(b"synthetic mesh")
     path = root / "inputs/matrices/study.fs"
     path.write_text(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|WALLTIME\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|WALLTIME\n"
         "1001|1|002|003|001|MACH:0.2, ALPHA:sweep|-2,0,2|4h\n"
     )
     return path

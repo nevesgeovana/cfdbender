@@ -298,6 +298,7 @@ def test_init_creates_the_numerics_folder_for_the_cfd_solvers_and_documents_it(t
     guide = (tmp_path / "inputs/INPUTS.md").read_text()
     assert ("inputs/numerics/" in guide) is cfd
     assert ("NUMERICS" in guide) is cfd
+    assert ("## `inputs/numerics/n001.toml`" in guide) is cfd
     assert "SETUP 001" in guide and "SET 001" not in guide
 
 

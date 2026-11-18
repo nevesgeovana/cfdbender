@@ -21,7 +21,7 @@ def with_build(root, build):
     workspace(root)
     matrix = root / "inputs/matrices/study.fs"
     matrix.write_text(
-        "POL|RUN|SET|REF|PPROC|SOLVER_BUILD\n" + ("1001|1|001|001|001|" + (build or "-") + "\n"),
+        "POL|RUN|SETUP|REF|PPROC|SOLVER_BUILD\n" + ("1001|1|001|001|001|" + (build or "-") + "\n"),
         encoding="ascii",
     )
 

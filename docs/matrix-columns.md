@@ -17,8 +17,8 @@ starting with `#` are comments, and a line of dashes under the header is a rule.
 
 ```text
 POL  | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION       | FLIGHT_CONDITION                                  | SWEEP_VALUES | GEOMETRY     | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS | WALLTIME | SOLVER_BUILD | WORKFLOW | VAR_NAMES_VALUES
------|--------|-----|----------|---------------|-------------------|---------------------------------------------------|--------------|--------------|-----|-----|-------|----------|----------------|-------|----------|--------------|----------|-----------------
-5001 |   0    |  1  | WB       | cruise        | Polar near design | MACH:0.85, REmi:5, TK:310.928, ALPHA:sweep, BETA:0 | 2.5,2.75     | wb.su2       | 001 | 001 | 001   | -        | -              | 192   | 4h       | 8.3.0        | -        | iterations: 2000
+-----|--------|-----|----------|---------------|-------------------|---------------------------------------------------|--------------|--------------|-----|-------|-------|----------|----------------|-------|----------|--------------|----------|-----------------
+5001 |   0    |  1  | WB       | cruise        | Polar near design | MACH:0.85, REmi:5, TK:310.928, ALPHA:sweep, BETA:0 | 2.5,2.75     | wb.su2       | 001 | 001   | 001   | -        | -              | 192   | 4h       | 8.3.0        | -        | iterations: 2000
 ```
 
 POL, RUN, SETUP, REF and PPROC are required; every other column is optional and

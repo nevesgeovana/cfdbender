@@ -15,7 +15,7 @@ def test_changed_fs_geometry_is_still_stale(tmp_path, operation):
     geometry.parent.mkdir()
     geometry.write_text("planned geometry")
     (tmp_path / "inputs/matrices/study.fs").write_text(
-        "POL|RUN|SET|REF|PPROC|GEOMETRY\n1001|1|001|001|001|shape.fs\n"
+        "POL|RUN|SETUP|REF|PPROC|GEOMETRY\n1001|1|001|001|001|shape.fs\n"
     )
     plan = plan_workspace(tmp_path, "study")
     point = load_point(tmp_path, plan.points[0], solver="mock")

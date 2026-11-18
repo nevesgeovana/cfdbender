@@ -72,7 +72,7 @@ def test_an_airframe_matrix_writes_family_and_group_files_per_polar(tmp_path):
 def test_the_dimensional_loads_are_the_body_coefficients_times_q_sref(tmp_path):
     workspace(tmp_path)
     (tmp_path / "inputs/matrices/study.fs").write_text(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         "1001|1|001|001|001|MACH:0.2, ALTFT:0, ALPHA:sweep|4\n",
         encoding="ascii",
     )
@@ -96,7 +96,7 @@ def test_the_dimensional_loads_are_the_body_coefficients_times_q_sref(tmp_path):
 def test_qprop_writes_rotor_coefficients_and_skips_the_empty_airframe(tmp_path):
     qw.workspace(tmp_path, condition="V:sweep,RPM:6000,BETA07:30,RHO:1.2,MU:1.8e-5,A:340")
     (tmp_path / "inputs/matrices/study.fs").write_text(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         "1001|1|001|001|001|V:sweep,RPM:6000,BETA07:30,RHO:1.2,MU:1.8e-5,A:340|20,0\n",
         encoding="ascii",
     )

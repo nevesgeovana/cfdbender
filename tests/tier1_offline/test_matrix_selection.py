@@ -16,7 +16,7 @@ def three(root):
     workspace(root)
     matrix = root / "inputs/matrices/study.fs"
     matrix.write_text(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         "1001|1|001|001|001|ALPHA:sweep|0,2\n"
         "1002|1|001|001|001|ALPHA:0|\n"
         "1003|1|001|001|001|ALPHA:0|\n",
