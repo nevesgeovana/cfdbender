@@ -164,17 +164,27 @@ large_input_check = "digest"    # the default
   holds the SHA-256 of the unchanged file, that digest is recorded instead, without a read.
 
 The option `--no-read-large-inputs` of `plan`, `run` and `collect`, or the environment variable
-`CFDBENDER_NO_READ_LARGE_INPUTS=1`, gives one command the `"identity"` behaviour; it cannot be
-combined with `--rehash-inputs`, which reads every input again. Files of 8 MiB or less are always
-read and hashed.
+`CFDBENDER_NO_READ_LARGE_INPUTS=1`, gives one command the `"identity"` behaviour. The option
+cannot be combined with `--rehash-inputs`, which reads every input again and overrides the
+environment variable and workspace setting. An empty variable or `0` leaves the setting in
+charge; every other value, including `false` and whitespace, enables identity mode. Files of
+8 MiB or less are always read and hashed. The FlightStream engine controls its own reads:
+these identity controls have no effect on that route, and the option is stripped with a warning.
 
-With the check off, a mesh changed in place with the same size and modification time is not
-detected, and its contents are never verified: a planned SHA-256 met by a command that does not
+With the check off, a mesh changed in place or replaced by a different file with the
+same size and modification time is not detected. File identity here does not compare the
+inode or creation time. Its contents are never verified: a planned SHA-256 met by a command that does not
 read the file is accepted with a warning that it was not verified, and a planned identity met by
 a command that reads large inputs is checked by size and modification time only, with a warning.
 Plan again with the check on to record a digest. OpenFOAM still reads a mesh whose `[groups]`
 give its wall markers, and XFOIL and QPROP still read an airfoil or blade file, because their
 runs need those bytes.
+
+A run rebuilds its plan in the current mode, so `runs.json` records that plan's current
+values, even when its earlier receipt was made in the other mode. Accepting that receipt
+checks only the size and modification time when either side is an identity, and warns
+about that weaker check. Exact nanosecond comparison can also refuse unchanged files when
+copies or mounts report timestamps at different resolutions; no tolerance is applied.
 
 `.input-digests.cache`, also in the workspace root, lets a large input (above 8 MiB, such as a mesh) be read and hashed once rather than by every command. It holds each such file's size, modification time, change time, SHA-256 and, for an SU2 mesh, its marker names, or, for a Gmsh mesh, its format line and physical names. It is never a planned input and never enters a record, and deleting it loses nothing. A file whose size or timestamps still match is not read again; one rewritten with the same size and timestamps goes unnoticed unless the command runs with `--rehash-inputs`.
 

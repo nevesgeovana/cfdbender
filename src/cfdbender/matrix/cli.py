@@ -311,8 +311,9 @@ NO_READ_HELP = (
     "do not open any input larger than 8 MiB (a mesh): record its size and modification time "
     "instead of its SHA-256, check it by those two, and skip with a warning the checks that "
     'need its contents; the same as large_input_check = "identity" in init.toml or '
-    "CFDBENDER_NO_READ_LARGE_INPUTS=1; a mesh changed in place with the same size and "
-    "modification time goes unnoticed"
+    "CFDBENDER_NO_READ_LARGE_INPUTS=1; a mesh changed in place or replaced by a different file "
+    "with the same size and modification time goes unnoticed; ignored with a warning on "
+    "the FlightStream route"
 )
 REHASH_HELP = (
     "read every input again instead of trusting the digest cache of large files "
