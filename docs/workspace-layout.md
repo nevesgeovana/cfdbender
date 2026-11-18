@@ -15,7 +15,7 @@ campaign/
     numerics/n<id>.toml         # numerical setup (CFD solvers), named by the NUMERICS column
     references/r<id>.toml       # reference values, named by the REF column
     pproc/p<id>.toml            # post-processing options, named by the PPROC column
-    mesh/                       # meshes and geometry files, named by the GEOMETRY column
+    mesh/                       # meshes and geometry files, named by the MESH column
     hpc/h<id>.toml              # cluster profiles (optional)
     executables.toml            # solver builds a row may name (optional)
     executables.local.toml      # this machine's paths for those builds (optional)
@@ -58,7 +58,7 @@ write belongs anywhere else.
 | `inputs/numerics/n<id>.toml` | The numerical keys of an SU2, OpenFOAM or PyFR setup: schemes, limiters, CFL, iteration counts, convergence criteria. Several setups can share one file. It may hold no `[solver]` table and no mesh. Optional: without it the setup file carries the numerics. `cfd-workspace init` creates the folder for these three solvers. | the `NUMERICS` cell (`001` and `n001` name `n001.toml`) |
 | `inputs/references/r<id>.toml` | Reference area, reference length and moment origin, where the solver takes them from a file. | the `REF` cell |
 | `inputs/pproc/p<id>.toml` | What to keep from each run beyond the coefficients. | the `PPROC` cell |
-| `inputs/mesh/<file>` | The mesh or geometry file, in the format the solver reads. | the `GEOMETRY` cell |
+| `inputs/mesh/<file>` | The mesh or geometry file, in the format the solver reads. | the `MESH` cell |
 
 A matrix row names its mesh by file name, for example `wing.su2`, and the file
 is read from `inputs/mesh/`. A stem that names exactly one file there is enough.
@@ -119,7 +119,7 @@ threads = 2
 
 The setup file overrides these values, including individual keys in nested tables.
 The row's `VAR_NAMES_VALUES` overrides apply last. Explicit row flight conditions
-and `GEOMETRY` also replace the corresponding
+and `MESH` also replace the corresponding
 fallback setup values. Explicit setup values still undergo the adapter's normal
 agreement checks with the row. The point records `defaults_omitted`, the default
 keys the row replaced, so planning and execution use the same effective setup.

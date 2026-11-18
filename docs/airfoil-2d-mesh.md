@@ -135,7 +135,7 @@ mesh = "inputs/mesh/naca0012.msh"
 ```
 
 The span is one chord, so a reference file with `area = 1.0` and `length = 1.0` is right for
-both solvers. In the matrix the mesh can also be named in the `GEOMETRY` column.
+both solvers. In the matrix the mesh can also be named in the `MESH` column.
 
 ## Repeatability
 

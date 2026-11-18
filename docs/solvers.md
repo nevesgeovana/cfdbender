@@ -6,7 +6,7 @@ You choose a solver once, when you run `cfd-workspace init --solver <name>`, and
 |---|---|---|---|---|---|---|
 | Computes | steady flow, any SU2 solver | steady `simpleFoam` flow on a 2D extruded mesh | unsteady 2D compressible flow, time-averaged forces | 2D airfoil polar, one point per angle | isolated propeller performance | see [FlightStream](flightstream-workspaces.md) |
 | Mesh | `.su2`, `.cgns` | `.msh` (gmsh 2.2 ASCII); `.cgns`, `.ugrid` with `mesh_converter` | `.msh` (gmsh) | none: `NACA` designation or `.dat` coordinates | blade `.obj` or a polars-2D set | see [FlightStream](flightstream-workspaces.md) |
-| GEOMETRY becomes | `MESH_FILENAME` | `mesh` | `mesh` | `airfoil_file` | `blade` (an OBJ) | see [FlightStream](flightstream-workspaces.md) |
+| MESH becomes | `MESH_FILENAME` | `mesh` | `mesh` | `airfoil_file` | `blade` (an OBJ) | see [FlightStream](flightstream-workspaces.md) |
 | Setup keys | `iterations`, SU2 keys in capitals | `application`, `speed`, `nu`, `turbulence`, `iterations` | `mach`, `reynolds`, `order`, `tend`, `window_start` | `airfoil`, `reynolds`, `mach`, `ncrit` | `blade`, `n_blades`, `n_sections` | see [FlightStream](flightstream-workspaces.md) |
 | `[solver]` keys | `route`, `executable`, `pysu2_path` | `foam_bashrc`, `launcher` | `executable`, `launcher` | `executable`, `launcher` | `executable`, `xfoil_executable`, `launcher` | see [FlightStream](flightstream-workspaces.md) |
 | Environment variable | `CFDBENDER_SU2_EXE`, `CFDBENDER_PYSU2_PATH` | `CFDBENDER_OPENFOAM_BASHRC` | none | `CFDBENDER_XFOIL_EXE` | `CFDBENDER_QPROP_EXE`, `CFDBENDER_XFOIL_EXE` | see [FlightStream](flightstream-workspaces.md) |

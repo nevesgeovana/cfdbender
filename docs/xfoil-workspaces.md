@@ -49,7 +49,7 @@ XFOIL needs no mesh. You give the airfoil in one of two ways, and exactly one:
 | `airfoil` | a NACA four- or five-digit designation, for example `"NACA 0012"` |
 | `airfoil_file` | a coordinate file `<name>.dat` in `inputs/mesh/` (or `inputs/airfoils/`) |
 
-The matrix `GEOMETRY` column names the coordinate file and becomes `airfoil_file`; the setup then states no `airfoil`. Stating both, or neither, is refused: `specify exactly one of airfoil and airfoil_file`. A designation that is not `NACA` plus four digits, or five digits starting with 1 to 6, is refused: `setup file airfoil must be a NACA 4 or 5 digit designation, e.g. NACA 0012 or NACA 23012` (with the file name in place of `setup file`). A coordinate file elsewhere is refused: `airfoil_file must name inputs/mesh/<name>.dat or inputs/airfoils/<name>.dat`.
+The matrix `MESH` column names the coordinate file and becomes `airfoil_file`; the setup then states no `airfoil`. Stating both, or neither, is refused: `specify exactly one of airfoil and airfoil_file`. A designation that is not `NACA` plus four digits, or five digits starting with 1 to 6, is refused: `setup file airfoil must be a NACA 4 or 5 digit designation, e.g. NACA 0012 or NACA 23012` (with the file name in place of `setup file`). A coordinate file elsewhere is refused: `airfoil_file must name inputs/mesh/<name>.dat or inputs/airfoils/<name>.dat`.
 
 cfdbender writes the coordinate file into each point folder as `airfoil.dat`, and `xfoil.in` loads it.
 
@@ -86,7 +86,7 @@ Any other key is refused as `<file>: unknown key '<key>' (closest known key: <na
 | Matrix | XFOIL key |
 |---|---|
 | `MACH`, `REmi` | `mach`, `reynolds` (`REmi` x 1e6) |
-| `GEOMETRY` | `airfoil_file` |
+| `MESH` | `airfoil_file` |
 
 A row that states only `MACH` and angles sets the setup's `mach`. `BETA` must be 0: `a two-dimensional case flies at BETA 0; remove BETA from the row`. A setup value that disagrees with the row is refused: `conflict: <key> is <value> in the inputs and <value> from the matrix row; state it in one place`.
 
