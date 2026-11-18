@@ -208,3 +208,34 @@ def big_hex_grid(n: int) -> UnstructuredGrid:
         np.full(n_cells, HEX, dtype=np.uint8),
         {"f": points[:, 0] + 2.0 * points[:, 1] - points[:, 2]},
     )
+
+
+def write_vtu_ascii(path: object, grid: UnstructuredGrid) -> None:
+    """Write ``grid`` as an ascii XML VTU file, for the tests that read a file."""
+    from pathlib import Path
+
+    def block(name: str, kind: str, values: NDArray[np.float64], comps: int = 1) -> str:
+        text = " ".join(
+            repr(float(v)) if kind.startswith("Float") else str(int(v)) for v in values.ravel()
+        )
+        return (
+            f'<DataArray type="{kind}" Name="{name}" NumberOfComponents="{comps}" '
+            f'format="ascii">{text}</DataArray>'
+        )
+
+    pdata = "".join(
+        block(k, "Float64", v, 1 if v.ndim == 1 else 3) for k, v in grid.point_data.items()
+    )
+    xml = (
+        '<?xml version="1.0"?>\n<VTKFile type="UnstructuredGrid" version="1.0" '
+        'byte_order="LittleEndian"><UnstructuredGrid>'
+        f'<Piece NumberOfPoints="{len(grid.points)}" NumberOfCells="{grid.n_cells}">'
+        f"<PointData>{pdata}</PointData><CellData></CellData><Points>"
+        + block("Points", "Float64", grid.points, 3)
+        + "</Points><Cells>"
+        + block("connectivity", "Int64", grid.connectivity)
+        + block("offsets", "Int64", grid.offsets)
+        + block("types", "UInt8", grid.types)
+        + "</Cells></Piece></UnstructuredGrid></VTKFile>\n"
+    )
+    Path(str(path)).write_text(xml, encoding="utf-8")
