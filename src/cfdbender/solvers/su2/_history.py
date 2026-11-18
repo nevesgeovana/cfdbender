@@ -120,11 +120,40 @@ def _convergence_columns(cfg: dict[str, str], residuals: list[str]) -> tuple[lis
     return columns, ", ".join(columns)
 
 
+#: The counters of a history row the adapter reads.
+_COUNTERS = ("Inner_Iter", "Outer_Iter", "Time_Iter")
+
+
+def _used(name: str) -> bool:
+    """Whether the adapter reads a history column: a counter, a residual or a coefficient."""
+    return name in _COUNTERS or name.startswith(("rms[", "TAVG_")) or name.split("(", 1)[0] in _AXES
+
+
+def history_headers(raw: list[str], path: Path) -> list[str]:
+    """Return the history's column names, a duplicated one kept apart by position.
+
+    SU2 8.6.0 writes ``Time(sec)`` twice when HISTORY_OUTPUT holds WALL_TIME. The first
+    occurrence keeps its name and a later one gets ``#2``, ``#3``; a duplicated column the
+    adapter reads is refused, naming the column and the file.
+    """
+    names: list[str] = []
+    seen: dict[str, int] = {}
+    for key in (cell.strip() for cell in raw):
+        count = seen.get(key, 0) + 1
+        seen[key] = count
+        if count > 1 and _used(key):
+            raise ValueError(f"{path}: column {key} is duplicated, so its value is ambiguous")
+        names.append(key if count == 1 else f"{key}#{count}")
+    return names
+
+
 def residual_field(folder: Path) -> str | None:
     """Return the name of the residual the history records, or None without a history."""
     try:
         with (folder / "history.csv").open(encoding="utf-8-sig", newline="") as stream:
-            headers = [key.strip() for key in next(csv.reader(stream, skipinitialspace=True))]
+            headers = history_headers(
+                next(csv.reader(stream, skipinitialspace=True)), folder / "history.csv"
+            )
         residuals = [key for key in headers if key.startswith("rms[")]
         return _convergence_columns(_cfg(folder), residuals)[1] if residuals else None
     except (OSError, ValueError, StopIteration):
@@ -172,12 +201,13 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
     try:
         with (folder / "history.csv").open(encoding="utf-8-sig", newline="") as stream:
             reader = csv.reader(stream, skipinitialspace=True)
-            headers = [key.strip() for key in next(reader)]
-            if len(set(headers)) != len(headers) or "Inner_Iter" not in headers:
-                raise ValueError("history.csv needs unique headers and Inner_Iter")
+            path = folder / "history.csv"
+            headers = history_headers(next(reader), path)
+            if "Inner_Iter" not in headers:
+                raise ValueError(f"{path}: no Inner_Iter column")
             residuals = [key for key in headers if key.startswith("rms[")]
             if not residuals or not any(key in _AXES for key in headers):
-                raise ValueError("history.csv needs residual and coefficient columns")
+                raise ValueError(f"{path}: no residual or no coefficient column")
             # The residual recorded is the one SU2 converges on, so it shows the criterion.
             residuals = _convergence_columns(cfg, residuals)[0]
             for cells in reader:
@@ -202,8 +232,13 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
                 }
         if history and converged:
             history[-1] = replace(history[-1], converged=True)
-    except (OSError, ValueError, StopIteration, OverflowError):
-        return result, {}, refs
+    except (OSError, ValueError, StopIteration, OverflowError) as error:
+        reason = str(error) or type(error).__name__
+        if isinstance(error, StopIteration):
+            reason = f"{folder / 'history.csv'}: empty"
+        elif "history.csv" not in reason:
+            reason = f"{folder / 'history.csv'}: {reason}"
+        return replace(result, evidence_error=reason), {}, refs
     return replace(result, history=tuple(history)), coefficients, refs
 
 
@@ -213,12 +248,14 @@ def force_groups(
     """Sum native per-marker coefficients about the same axes and reference origin."""
     if not requested:
         return {}
-    with (folder / "history.csv").open(encoding="utf-8-sig", newline="") as stream:
-        reader = csv.DictReader(stream, skipinitialspace=True)
+    path = folder / "history.csv"
+    with path.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.reader(stream, skipinitialspace=True)
+        headers = history_headers(next(reader, []), path)
         rows = list(reader)
     if not rows or not total:
         raise ValueError("history.csv: missing boundary force results")
-    row = {key.strip(): value for key, value in rows[-1].items()}
+    row = dict(zip(headers, rows[-1], strict=False))
     result: dict[str, Mapping[str, Coefficient]] = {"TOTAL": dict(total)}
     for name, markers in requested.items():
         coefficients = {}

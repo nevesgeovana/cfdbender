@@ -81,6 +81,8 @@ class ExecutionResult:
     history: tuple[Iteration, ...]
     iteration_limit: int
     solver_version: str
+    #: Why the numerical evidence could not be read, when it could not; None otherwise.
+    evidence_error: str | None = None
 
 
 @dataclass(frozen=True)

@@ -216,7 +216,8 @@ def execute_plan(
                 classification = "failed"
                 error = f"FAILED_EXECUTION: {mismatch}"
             elif classification == "failed":
-                error = f"FAILED_EXECUTION: exit code {result.exit_code}; numerical evidence failed"
+                cause = getattr(result, "evidence_error", None) or "numerical evidence failed"
+                error = f"FAILED_EXECUTION: exit code {result.exit_code}; {cause}"
             elif any(
                 not workspace_path(plan.root, name).is_file() for name in context.point.outputs
             ):
