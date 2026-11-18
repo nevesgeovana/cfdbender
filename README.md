@@ -7,7 +7,7 @@ the pysu2 Python wrapper route, run in a child interpreter where the wrapper is
 installed), FlightStream workspaces delegated to pyflightstream, ESI OpenFOAM,
 XFOIL, PyFR, QPROP, and HPC profiles
 with plan/run/collect and --hpc. It includes a draft SRS and documentation.
-Grouped HPC jobs (--batch) for SU2 are not implemented.
+`cfd-matrix run --batch N` groups rows into N scheduler jobs and writes the shell script each runs.
 
 ```console
 cfd-workspace init --solver mock --workspace campaign

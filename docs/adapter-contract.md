@@ -291,6 +291,7 @@ An adapter declares these behaviours by providing the attribute.
 | `stage(point)` | Write every file a job reads into a new point folder, without running the solver. |
 | `STAGED_CONFIG` | The file in the point folder that the job's solver actually reads (QPROP: `propeller.prop`; SU2: `su2.cfg`). It is the file the recorded staged config names whenever it exists at staging. A descriptor such as QPROP's `sections.plan` (the plan of section polars) is recorded in its place only for a point whose polars are computed at execution; staging itself refuses such a point, so it never reaches a cluster job without `propeller.prop`. |
 | `JOB_OUTPUTS` | The declared outputs a cluster job writes. |
+| `job_command(point)` | Optional. The command line, as a list, that a `--batch` script runs in the point folder (SU2: the launcher, the executable as stated, `su2.cfg`). An adapter without it can be grouped only for rows that state `hpc.application_id`. |
 | `SOLVER_TYPE` | The solver's name as a cluster profile spells it, when it differs from the registered name. |
 | `EXECUTABLE_KEYS` | The adapter's own `[solver]` option names for the executable path and the launcher. |
 | `BUILD_OPTIONS` | Fixed `[solver]` options that apply when a build is bound. |
