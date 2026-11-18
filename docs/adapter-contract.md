@@ -76,7 +76,10 @@ launches no process.
 `workspace.setup`, `workspace.reference`, `workspace.post`). The reader
 records the SHA-256 of each file, and the core checks those digests again
 before the point runs and before it is collected. A file opened any other way
-is invisible to that check. A path outside the workspace is refused.
+is invisible to that check. A path outside the workspace is refused. Planning reads and
+hashes each file once, however many rows and points share it; a file larger than 8 MiB is
+streamed through its digest, and `workspace.track` records such a file without returning its
+bytes. A file that changes while planning is refused.
 
 **C-08.** An invalid input is refused with a `ValueError` whose message names
 the key or value at fault and, where a choice exists, the accepted values.

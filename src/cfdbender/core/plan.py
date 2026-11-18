@@ -13,11 +13,11 @@ import hashlib
 import os
 import re
 import tomllib
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
-from typing import Protocol, cast
+from typing import BinaryIO, Protocol, cast
 
 from cfdbender.core.flight import ATTITUDE_KEYS, STATE_KEYS
 from cfdbender.core.matrix import MatrixRow, parse_matrix
@@ -108,12 +108,129 @@ def is_matrix_file(name: str) -> bool:
     return re.fullmatch(r"(?:inputs/matrices/)?[A-Za-z0-9][A-Za-z0-9_-]*[.]fs", name) is not None
 
 
-class InputFiles:
-    """Read byte snapshots once, tracking workspace-relative SHA-256 keys."""
+#: Inputs up to this size are read whole and held, so their digest and their parse come from one
+#: byte snapshot; a larger input is streamed through the digest and never held by planning.
+LARGE_INPUT_BYTES = 8 << 20
+#: Bytes read per block when a large input is streamed.
+_BLOCK = 1 << 20
 
-    def __init__(self, root: Path) -> None:
+
+def _open_input(path: Path) -> BinaryIO:
+    """Open an input for reading; every read of a tracked input goes through here."""
+    return open(path, "rb")
+
+
+def _hasher() -> hashlib._Hash:
+    """Return a new SHA-256 state; every digest of a tracked input is fed through one."""
+    return hashlib.sha256()
+
+
+class ByteScanner(Protocol):
+    """Collect a result from the bytes of an input while planning digests them."""
+
+    def feed(self, chunk: bytes) -> None:
+        """Take the next block of bytes, in file order."""
+        ...
+
+    def result(self) -> object:
+        """Return what the scan found, after the last block."""
+        ...
+
+
+@dataclass
+class _Snapshot:
+    """What one plan knows of one file: its identity on disk, digest, and cached derivations."""
+
+    path: Path
+    size: int
+    mtime_ns: int
+    digest: str
+    data: bytes | None = None
+    derived: dict[str, object] = field(default_factory=dict)
+
+
+class InputFiles:
+    """Read byte snapshots once, tracking workspace-relative SHA-256 keys.
+
+    Every file is read and hashed at most once per plan: the snapshot is cached by resolved path,
+    size and modification time in nanoseconds, and shared by the row-level objects of one plan. A
+    file up to ``LARGE_INPUT_BYTES`` is held whole; a larger one is streamed through its digest
+    (and through a scanner or ``derive`` callback when an adapter needs something from it) and is
+    held only when an adapter asks for its bytes. A file that changes after it was snapshotted
+    is refused rather than recorded with a digest that does not match what was parsed.
+    """
+
+    def __init__(self, root: Path, snapshots: dict[str, _Snapshot] | None = None) -> None:
         self.root = root
-        self._bytes: dict[str, bytes] = {}
+        self._snapshots: dict[str, _Snapshot] = {} if snapshots is None else snapshots
+        self._tracked: set[str] = set()
+
+    def _locate(self, name: str) -> tuple[str, Path]:
+        path = workspace_path(self.root, name)
+        return path.relative_to(self.root).as_posix(), path
+
+    def _current(self, name: str, key: str, path: Path) -> _Snapshot | None:
+        """Return the cached snapshot after checking the file still is the one it describes."""
+        snapshot = self._snapshots.get(key)
+        if snapshot is None:
+            return None
+        try:
+            stat = path.stat()
+        except OSError as error:
+            raise PlanError(f"{name}: cannot read: {error}") from error
+        if (stat.st_size, stat.st_mtime_ns) != (snapshot.size, snapshot.mtime_ns):
+            raise PlanError(f"{name}: input changed while planning; plan again")
+        return snapshot
+
+    def _load(
+        self,
+        name: str,
+        key: str,
+        path: Path,
+        *,
+        hold: bool,
+        scanner: ByteScanner | None = None,
+        expect: str | None = None,
+    ) -> _Snapshot:
+        """Read a file once, hashing it (and feeding ``scanner``) in the same pass."""
+        try:
+            before = path.stat()
+            state = _hasher()
+            data: bytes | None = None
+            count = 0
+            with _open_input(path) as stream:
+                if hold or before.st_size <= LARGE_INPUT_BYTES:
+                    data = stream.read()
+                    count = len(data)
+                    state.update(data)
+                    if scanner is not None:
+                        scanner.feed(data)
+                else:
+                    while chunk := stream.read(_BLOCK):
+                        count += len(chunk)
+                        state.update(chunk)
+                        if scanner is not None:
+                            scanner.feed(chunk)
+            after = path.stat()
+        except OSError as error:
+            raise PlanError(f"{name}: cannot read: {error}") from error
+        digest = state.hexdigest()
+        unchanged = (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns)
+        if not unchanged or count != before.st_size or (expect is not None and digest != expect):
+            raise PlanError(f"{name}: input changed while planning; plan again")
+        return _Snapshot(path, before.st_size, before.st_mtime_ns, digest, data)
+
+    def _snapshot(self, name: str, *, hold: bool) -> tuple[str, _Snapshot]:
+        key, path = self._locate(name)
+        snapshot = self._current(name, key, path)
+        if snapshot is None:
+            snapshot = self._load(name, key, path, hold=hold)
+            self._snapshots[key] = snapshot
+        elif hold and snapshot.data is None:
+            loaded = self._load(name, key, path, hold=True, expect=snapshot.digest)
+            snapshot.data = loaded.data
+        self._tracked.add(key)
+        return key, snapshot
 
     def read_bytes(self, name: str) -> bytes:
         """Read and memoize an input, refusing a path outside this workspace.
@@ -128,14 +245,60 @@ class InputFiles:
         bytes
             Exact first-read bytes, also used for the recorded digest.
         """
-        path = workspace_path(self.root, name)
-        key = path.relative_to(self.root).as_posix()
-        if key not in self._bytes:
-            try:
-                self._bytes[key] = path.read_bytes()
-            except OSError as error:
-                raise PlanError(f"{name}: cannot read: {error}") from error
-        return self._bytes[key]
+        data = self._snapshot(name, hold=True)[1].data
+        assert data is not None
+        return data
+
+    def track(self, name: str) -> None:
+        """Record an input in the provenance without handing its bytes to the caller.
+
+        A large file is streamed through its digest and not held.
+        """
+        self._snapshot(name, hold=False)
+
+    def scan(self, name: str, tag: str, factory: Callable[[], ByteScanner]) -> object:
+        """Return what a scanner finds in an input, reading and hashing the file only once.
+
+        The scan runs in the same pass that digests the file; the result is cached for the plan
+        under ``tag``, so a file shared by many rows and points is scanned once.
+
+        Parameters
+        ----------
+        name : str
+            Workspace-relative input path.
+        tag : str
+            Identity of the scan, for example the kind of marker listing.
+        factory : callable
+            Builds a fresh scanner.
+        """
+        key, path = self._locate(name)
+        snapshot = self._current(name, key, path)
+        if snapshot is None:
+            scanner = factory()
+            snapshot = self._load(name, key, path, hold=False, scanner=scanner)
+            snapshot.derived[tag] = scanner.result()
+            self._snapshots[key] = snapshot
+        elif tag not in snapshot.derived:
+            scanner = factory()
+            if snapshot.data is not None:
+                scanner.feed(snapshot.data)
+            else:
+                self._load(name, key, path, hold=False, scanner=scanner, expect=snapshot.digest)
+            snapshot.derived[tag] = scanner.result()
+        self._tracked.add(key)
+        return snapshot.derived[tag]
+
+    def derive(self, name: str, tag: str, compute: Callable[[Path], object]) -> object:
+        """Return ``compute(path)`` for a tracked input, computed once per plan.
+
+        The file is digested first (streamed when large); ``compute`` may open it by path, for a
+        format that is read by seeking rather than in full. The file is checked unchanged after.
+        """
+        key, snapshot = self._snapshot(name, hold=False)
+        if tag not in snapshot.derived:
+            snapshot.derived[tag] = compute(snapshot.path)
+            self._current(name, key, snapshot.path)
+        return snapshot.derived[tag]
 
     def read_toml(self, name: str) -> Mapping[str, object]:
         """Read TOML from the same byte snapshot used for its digest.
@@ -158,9 +321,7 @@ class InputFiles:
 
     def digests(self) -> Mapping[str, str]:
         """Return a sorted, immutable digest snapshot of every file read."""
-        return MappingProxyType(
-            {k: hashlib.sha256(v).hexdigest() for k, v in sorted(self._bytes.items())}
-        )
+        return MappingProxyType({key: self._snapshots[key].digest for key in sorted(self._tracked)})
 
 
 def apply_variables(
@@ -243,8 +404,8 @@ class RowInputs(InputFiles):
         common: InputFiles,
         default_overrides: Mapping[str, Collection[str]] | None = None,
     ) -> None:
-        super().__init__(root)
-        self._bytes.update(common._bytes)
+        super().__init__(root, common._snapshots)
+        self._tracked.update(common._tracked)
         defaults = cast(Mapping[str, object], self.read_toml("init.toml").get("defaults", {}))
         overridden = {
             name

@@ -55,7 +55,7 @@ from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate
 from cfdbender.solvers._host._config import steady_only
-from cfdbender.solvers._host._groups import groups, point_markers, validate_groups
+from cfdbender.solvers._host._groups import groups, point_markers, validate_tracked_groups
 from cfdbender.solvers.su2._config import (
     NEUTRAL_KEYS,
     config,
@@ -137,7 +137,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             condition,
             geometry=workspace.geometry,
         )
-        validate_groups(workspace.setup, workspace.read_bytes(mesh_name(values)), mesh_name(values))
+        validate_tracked_groups(workspace.setup, workspace, mesh_name(values))
     return RowRequirements(
         ("write SU2 cfg", "stage mesh", "run SU2", "read SU2 history"),
         tuple(
