@@ -10,6 +10,7 @@ from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate, read_init
 from cfdbender.solvers._host._config import steady_only
+from cfdbender.solvers._host._gmsh import gmsh_header
 from cfdbender.solvers.pyfr._config import config, options, render
 from cfdbender.solvers.pyfr._execute import run, stage_case
 from cfdbender.solvers.pyfr._history import Evidence, read
@@ -56,8 +57,10 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         conditions = [dict(row.condition, **{row.sweep_key: value}) for value in row.sweep_values]
     for condition in conditions:
         case = config(workspace.setup, condition, workspace.reference, workspace.geometry)
-        mesh = workspace.read_bytes(case.mesh)
-        if not mesh.startswith((b"$MeshFormat\n", b"$MeshFormat\r\n")):
+        # One streamed pass digests the mesh and reads its header; it is never held whole.
+        if workspace.unread(case.mesh, "gmsh-info"):
+            workspace.skip_content(case.mesh, "Gmsh format line")
+        elif gmsh_header(workspace, case.mesh) == "other":
             raise ValueError("mesh must be gmsh format")
     return RowRequirements(
         ("stage mesh", "import mesh", "run PyFR", "read fluid force"),

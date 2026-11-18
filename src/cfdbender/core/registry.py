@@ -39,6 +39,7 @@ from cfdbender.core.plan import (
     RunPlan,
     check_claims,
     owned_path,
+    recorded_value_valid,
     workspace_path,
 )
 from cfdbender.core.results import Classification
@@ -319,9 +320,9 @@ def _decode(raw: object, root: Path) -> RunRecord:
     digests: dict[str, str] = {}
     for key, value in _object(row["inputs_sha256"]).items():
         workspace_path(root, key)
-        if not isinstance(value, str) or re.fullmatch("[0-9a-f]{64}", value) is None:
+        if not recorded_value_valid(value):
             raise RegistryError(f"inputs_sha256 for {key} must be a SHA-256 hex digest")
-        digests[key] = value
+        digests[key] = cast(str, value)
     pol = _text(row, "pol")
     point_id = _text(row, "point_id")
     if not point_id.startswith(pol + "/DP-") or re.fullmatch("[A-Za-z0-9_-]+", pol) is None:
@@ -414,13 +415,9 @@ def _decode(raw: object, root: Path) -> RunRecord:
         raise RegistryError("error must be a non-empty string or null")
     output_digests: dict[str, str] = {}
     for name, digest in _object(row["outputs_sha256"]).items():
-        if (
-            name not in outputs
-            or not isinstance(digest, str)
-            or not re.fullmatch("[0-9a-f]{64}", digest)
-        ):
+        if name not in outputs or not recorded_value_valid(digest):
             raise RegistryError("outputs_sha256 must name declared outputs with SHA-256 digests")
-        output_digests[name] = digest
+        output_digests[name] = cast(str, digest)
     if status in ("RUNNING", "SUBMITTED"):
         if classification is not None or row["completed_at"] is not None or output_digests or error:
             raise RegistryError(f"{status} must not carry terminal evidence")
@@ -661,7 +658,7 @@ class RunRegistry:
                     for name, digest in previous.point.inputs_sha256.items():
                         if name == previous.matrix:
                             continue
-                        if self._inputs.files().digest(name) != digest:
+                        if not self._inputs.files().agrees(name, digest):
                             raise RegistryError(f"input changed after planning: {name}; plan again")
                     for name in (previous.point.directory, *previous.point.outputs):
                         if workspace_path(self.root, name).exists():
@@ -861,12 +858,12 @@ class RunRegistry:
                         if name == record.matrix:
                             continue
                         try:
-                            actual = self._inputs.files().digest(name)
+                            same = self._inputs.files().agrees(name, expected)
                         except OSError as error:
                             raise RegistryError(
                                 f"input changed or missing: {name}: {error}"
                             ) from error
-                        if actual != expected:
+                        if not same:
                             raise RegistryError(f"input changed after planning: {name}; plan again")
                 self._replace((*previous, *records))
                 return records

@@ -17,6 +17,7 @@ import re
 import tempfile
 import time
 import tomllib
+import warnings
 from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -125,6 +126,40 @@ def _open_input(path: Path) -> BinaryIO:
     return open(path, "rb")
 
 
+#: Blocks streamed between two requests to drop the bytes already read from the page cache.
+_DROP_EVERY = 16
+
+
+def _drop_cached(stream: BinaryIO, upto: int) -> None:
+    """Ask the kernel to drop the first ``upto`` bytes of a streamed file from its page cache.
+
+    A large input is read once, so keeping it cached only fills the memory of a shared host
+    (on Linux a cgroup counts page cache against the session). Where ``os.posix_fadvise`` is
+    missing (Windows) or the stream has no descriptor, nothing happens; nothing here fails.
+    """
+    advise = getattr(os, "posix_fadvise", None)
+    flag = getattr(os, "POSIX_FADV_DONTNEED", None)
+    if advise is None or flag is None or upto <= 0:
+        return
+    try:
+        advise(stream.fileno(), 0, upto, flag)
+    except (AttributeError, OSError, ValueError):
+        pass
+
+
+def _stream_blocks(stream: BinaryIO) -> Iterator[bytes]:
+    """Yield a large input block by block, dropping what was read from the page cache."""
+    done = 0
+    blocks = 0
+    while chunk := stream.read(_BLOCK):
+        done += len(chunk)
+        blocks += 1
+        yield chunk
+        if blocks % _DROP_EVERY == 0:
+            _drop_cached(stream, done)
+    _drop_cached(stream, done)
+
+
 def _hasher() -> hashlib._Hash:
     """Return a new SHA-256 state; every digest of a tracked input is fed through one."""
     return hashlib.sha256()
@@ -164,6 +199,151 @@ def rehash_inputs(enabled: bool = True) -> Iterator[None]:
         yield
     finally:
         _REHASH.reset(token)
+
+
+#: Values of the init.toml setting ``large_input_check``: ``digest`` reads and hashes a large
+#: input (the default), ``identity`` never opens it and records its size and modification time.
+LARGE_INPUT_CHECKS = ("digest", "identity")
+#: Environment variable that turns the large-input check off, as ``--no-read-large-inputs`` does.
+NO_READ_ENV = "CFDBENDER_NO_READ_LARGE_INPUTS"
+_IDENTITY_TEXT = re.compile(r"identity:size=([0-9]{1,19});mtime_ns=([0-9]{1,28})")
+_CHECK: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "cfdbender_large_input_check", default=None
+)
+_WARNED: contextvars.ContextVar[set[str] | None] = contextvars.ContextVar(
+    "cfdbender_large_input_warned", default=None
+)
+
+
+@contextmanager
+def large_input_check(mode: str | None) -> Iterator[None]:
+    """Set the large-input check of the commands inside the block.
+
+    Parameters
+    ----------
+    mode : str or None
+        ``"digest"`` or ``"identity"``; None leaves the workspace setting and the environment
+        variable in charge. Each warning about an unread file is given once inside the block.
+    """
+    if mode is not None and mode not in LARGE_INPUT_CHECKS:
+        raise ValueError(f"large_input_check must be one of {', '.join(LARGE_INPUT_CHECKS)}")
+    token = _CHECK.set(mode)
+    warned = _WARNED.set(set())
+    try:
+        yield
+    finally:
+        _WARNED.reset(warned)
+        _CHECK.reset(token)
+
+
+def workspace_large_input_check(root: str | Path) -> str:
+    """Return the ``large_input_check`` setting of a workspace's init.toml (``digest`` unset).
+
+    Raises
+    ------
+    WorkspaceError
+        The setting is present and is not one of ``LARGE_INPUT_CHECKS``.
+    """
+    source = Path(root) / "init.toml"
+    try:
+        values = tomllib.loads(source.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return "digest"
+    value = values.get("large_input_check", "digest")
+    if value not in LARGE_INPUT_CHECKS:
+        raise WorkspaceError(f'{source}: large_input_check must be "digest" or "identity"')
+    return cast(str, value)
+
+
+def reads_large_inputs(root: str | Path) -> bool:
+    """Return whether this command reads and hashes inputs above ``LARGE_INPUT_BYTES``.
+
+    ``--rehash-inputs`` always reads. Otherwise the command's option, then the environment
+    variable ``CFDBENDER_NO_READ_LARGE_INPUTS`` (any value but empty or ``0``), then the
+    workspace setting decide.
+    """
+    if _REHASH.get():
+        return True
+    mode = _CHECK.get()
+    if mode is not None:
+        return mode == "digest"
+    if os.environ.get(NO_READ_ENV, "") not in ("", "0"):
+        return False
+    return workspace_large_input_check(root) == "digest"
+
+
+def identity_value(stat: os.stat_result) -> str:
+    """Return the recorded value of a large input that was not read: its size and mtime.
+
+    It is never 64 hexadecimal characters, so it cannot be taken for a SHA-256.
+    """
+    return f"identity:size={stat.st_size};mtime_ns={stat.st_mtime_ns}"
+
+
+def is_identity_value(value: object) -> bool:
+    """Return whether a recorded input value is a file identity rather than a SHA-256."""
+    match = _IDENTITY_TEXT.fullmatch(value) if isinstance(value, str) else None
+    # Bound conversion before calling int, including on untrusted registry/receipt data.
+    return (
+        match is not None
+        and int(match[1]) <= (1 << 63) - 1
+        and int(match[2]) <= ((1 << 63) - 1) * 10**9
+    )
+
+
+def recorded_value_valid(value: object) -> bool:
+    """Return whether a recorded input or output value is a SHA-256 or a file identity."""
+    return isinstance(value, str) and (
+        re.fullmatch("[0-9a-f]{64}", value) is not None or is_identity_value(value)
+    )
+
+
+def shown_digest(value: object) -> object:
+    """Return a recorded value for display: ``not hashed`` for a file identity."""
+    return "not hashed" if is_identity_value(value) else value
+
+
+def warn_once(key: str, message: str, warned: set[str] | None = None) -> None:
+    """Warn once per command about something the large-input check did not do.
+
+    It never refuses, also under ``warning_refusals``: the check is off by choice.
+    """
+    seen = _WARNED.get()
+    seen = seen if seen is not None else warned
+    if seen is not None:
+        if key in seen:
+            return
+        seen.add(key)
+    warnings.warn(message, UserWarning, stacklevel=3)
+
+
+def skipped_content(name: str, what: str) -> str:
+    """Return the warning text of a content check skipped because a file was not read."""
+    return (
+        f"{name}: {what} not checked; the large-input check is off, so the file is not read "
+        "(use --rehash-inputs without --no-read-large-inputs to check it)"
+    )
+
+
+def recorded_values_agree(root: Path, name: str, recorded: object, current: str) -> bool:
+    """Return whether two recorded values of one input describe the file on disk now.
+
+    Equal values agree. A file identity on either side agrees when it is the identity of the
+    file now; the other side, a SHA-256, was then taken of this same file or not at all.
+    """
+    if not recorded_value_valid(recorded) or not recorded_value_valid(current):
+        return False
+    if recorded == current:
+        return True
+    if not isinstance(recorded, str):
+        return False
+    if not (is_identity_value(recorded) or is_identity_value(current)):
+        return False
+    try:
+        now = identity_value(workspace_path(root, name).stat())
+    except OSError:
+        return False
+    return all(now == value for value in (recorded, current) if is_identity_value(value))
 
 
 def _clock_ns() -> int:
@@ -352,6 +532,7 @@ class _Snapshot:
     derived: dict[str, object] = field(default_factory=dict)
     ctime_ns: int = 0
     stat: os.stat_result | None = None
+    unread: bool = False
 
 
 class InputSession:
@@ -372,10 +553,13 @@ class InputSession:
         self.root = Path(root).resolve()
         self.snapshots: dict[str, _Snapshot] = {}
         self.cache = DigestCache(self.root)
+        self.warned: set[str] = set()
 
     def files(self) -> InputFiles:
         """Return a fresh tracking view over the shared reads."""
-        return InputFiles(self.root, self.snapshots, cache=self.cache, refresh=True)
+        files = InputFiles(self.root, self.snapshots, cache=self.cache, refresh=True)
+        files._warned = self.warned
+        return files
 
 
 class InputFiles:
@@ -406,6 +590,55 @@ class InputFiles:
         self._tracked: set[str] = set()
         self._cache = DigestCache(root) if cache is None else cache
         self._refresh = refresh
+        self._reads: bool | None = None
+        self._warned: set[str] = set()
+
+    def reads_large(self) -> bool:
+        """Return whether this reader opens inputs above ``LARGE_INPUT_BYTES`` (decided once)."""
+        if self._reads is None or _REHASH.get():
+            self._reads = reads_large_inputs(self.root)
+        return self._reads
+
+    def warn(self, key: str, message: str) -> None:
+        """Warn once per command (or per reader without a command) under ``key``."""
+        warn_once(key, message, self._warned)
+
+    def unread(self, name: str, tag: str | None = None) -> bool:
+        """Return whether ``name`` is a large input this command does not open.
+
+        True when the large-input check is off and the file is larger than
+        ``LARGE_INPUT_BYTES``, unless the result of the scan ``tag`` is already known from the
+        command's reads or the digest cache. A caller that needs the contents then skips its
+        check with a warning (see ``skip_content``).
+
+        Parameters
+        ----------
+        name : str
+            Workspace-relative input path.
+        tag : str, optional
+            Scan whose cached result would make reading unnecessary.
+        """
+        key, path = self._locate(name)
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return False
+        if size <= LARGE_INPUT_BYTES or self.reads_large():
+            return False
+        snapshot = self._current(name, key, path)
+        if snapshot is None or snapshot.unread:
+            cached = self._cached(key, path)
+            if cached is not None:
+                if snapshot is not None:
+                    cached.derived.update(snapshot.derived)
+                self._snapshots[key] = snapshot = cached
+        return not (snapshot is not None and tag is not None and tag in snapshot.derived)
+
+    def skip_content(self, name: str, what: str) -> None:
+        """Track an unread large input and warn once that ``what`` was not checked."""
+        self.track(name)
+        key, _ = self._locate(name)
+        self.warn(f"{key}|{what}", skipped_content(name, what))
 
     def _locate(self, name: str) -> tuple[str, Path]:
         path = workspace_path(self.root, name)
@@ -463,7 +696,7 @@ class InputFiles:
 
     def _remember(self, key: str, snapshot: _Snapshot) -> None:
         """Store a large file's digest and its name-list scans in the persistent cache."""
-        if snapshot.stat is None or snapshot.size <= LARGE_INPUT_BYTES:
+        if snapshot.stat is None or snapshot.size <= LARGE_INPUT_BYTES or snapshot.unread:
             return
         scans = {
             tag: value
@@ -496,7 +729,7 @@ class InputFiles:
                     if scanner is not None:
                         scanner.feed(data)
                 else:
-                    while chunk := stream.read(_BLOCK):
+                    for chunk in _stream_blocks(stream):
                         count += len(chunk)
                         state.update(chunk)
                         if scanner is not None:
@@ -522,15 +755,39 @@ class InputFiles:
             stat=before,
         )
 
+    def _unread_snapshot(self, path: Path) -> _Snapshot | None:
+        """Return a snapshot of a large file from its identity alone, never opening it."""
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        if stat.st_size <= LARGE_INPUT_BYTES:
+            return None
+        return _Snapshot(
+            path,
+            stat.st_size,
+            stat.st_mtime_ns,
+            identity_value(stat),
+            ctime_ns=stat.st_ctime_ns,
+            stat=stat,
+            unread=True,
+        )
+
     def _snapshot(self, name: str, *, hold: bool) -> tuple[str, _Snapshot]:
         key, path = self._locate(name)
         snapshot = self._current(name, key, path)
+        derived: dict[str, object] = {}
+        if snapshot is not None and snapshot.unread and (hold or self.reads_large()):
+            derived, snapshot = snapshot.derived, None  # the bytes are wanted now: read them
         if snapshot is None:
             if not hold:
                 snapshot = self._cached(key, path)
+            if snapshot is None and not hold and not self.reads_large():
+                snapshot = self._unread_snapshot(path)
             if snapshot is None:
                 snapshot = self._load(name, key, path, hold=hold)
                 self._remember(key, snapshot)
+            snapshot.derived = {**derived, **snapshot.derived}
             self._snapshots[key] = snapshot
         elif hold and snapshot.data is None:
             loaded = self._load(name, key, path, hold=True, expect=snapshot.digest)
@@ -592,7 +849,7 @@ class InputFiles:
                     return self.digest(name)
         state = _hasher()
         with _open_input(path) as stream:
-            while chunk := stream.read(_BLOCK):
+            for chunk in _stream_blocks(stream):
                 state.update(chunk)
         return state.hexdigest()
 
@@ -611,7 +868,11 @@ class InputFiles:
         """
         key, source = self._locate(name)
         stat = path.stat()
-        if stat.st_size > LARGE_INPUT_BYTES and os.path.samefile(source, path):
+        try:
+            same = stat.st_size > LARGE_INPUT_BYTES and os.path.samefile(source, path)
+        except OSError:
+            same = False
+        if same:
             snapshot = self._snapshots.get(key)
             if (
                 snapshot is not None
@@ -622,9 +883,11 @@ class InputFiles:
             entry = self._cache.get(key, stat)
             if entry is not None:
                 return str(entry["sha256"])
+        if stat.st_size > LARGE_INPUT_BYTES and not self.reads_large():
+            return identity_value(stat)
         state = _hasher()
         with _open_input(path) as stream:
-            while chunk := stream.read(_BLOCK):
+            for chunk in _stream_blocks(stream):
                 state.update(chunk)
         return state.hexdigest()
 
@@ -647,6 +910,94 @@ class InputFiles:
             if isinstance(error.__cause__, OSError):
                 raise error.__cause__ from None
             raise
+
+    def agrees(self, name: str, planned: str, *, via: Path | None = None) -> bool:
+        """Return whether an input still is the file its planned value describes.
+
+        A planned file identity (``identity:size=...;mtime_ns=...``) is compared with the size
+        and modification time of the file now, without reading it; a command that reads large
+        inputs says once that it could only check that much. A planned SHA-256 is compared with
+        the digest now, unless this command does not read the large file and the digest cache
+        has no entry for it: the file is then accepted unverified, with one warning.
+
+        Parameters
+        ----------
+        name : str
+            Workspace-relative input path.
+        planned : str
+            The value recorded when the point was planned.
+        via : Path, optional
+            A link to the input (for example in a point folder), checked instead of the input.
+        """
+        if not recorded_value_valid(planned):
+            return False
+        key, path = self._locate(name)
+        if is_identity_value(planned):
+            target = path if via is None else via
+            try:
+                stat = target.stat()
+            except OSError as error:
+                raise PlanError(f"{name}: cannot read: {error}") from error
+            if identity_value(stat) != planned:
+                return False
+            if via is None:
+                known = self._snapshots.get(key)
+                if known is None or _identity(known.stat) != _identity(stat):
+                    self._snapshots[key] = _Snapshot(
+                        path,
+                        stat.st_size,
+                        stat.st_mtime_ns,
+                        planned,
+                        ctime_ns=stat.st_ctime_ns,
+                        stat=stat,
+                        unread=True,
+                    )
+                self._tracked.add(key)
+            if self.reads_large():
+                self.warn(
+                    f"{key}|identity",
+                    f"{name}: checked by size and modification time only; it was planned "
+                    "with the large-input check off, so no SHA-256 was taken (plan again "
+                    "with --rehash-inputs to hash it)",
+                )
+            return True
+        current = self.digest(name) if via is None else self.digest_via(name, via)
+        if is_identity_value(current):
+            self.warn(
+                f"{key}|unverified",
+                f"{name}: not verified against its planned SHA-256; the large-input check is "
+                "off, so the file is not read (use --rehash-inputs without "
+                "--no-read-large-inputs to verify it)",
+            )
+            return True
+        return current == planned
+
+    def output_agrees(self, path: Path, candidates: Iterable[str], expected: str) -> bool:
+        """Return whether a recorded output still matches its recorded value.
+
+        Parameters
+        ----------
+        path : Path
+            The output file.
+        candidates : iterable of str
+            Workspace-relative names of the inputs the output may be a link to.
+        expected : str
+            The recorded SHA-256 or file identity.
+        """
+        if not recorded_value_valid(expected):
+            return False
+        if is_identity_value(expected):
+            return identity_value(path.stat()) == expected
+        current = self.digest_output(path, candidates)
+        if is_identity_value(current):
+            self.warn(
+                f"{path}|unverified",
+                f"{path.name}: output not verified against its recorded SHA-256; the "
+                "large-input check is off, so the file is not read (use --rehash-inputs "
+                "without --no-read-large-inputs to verify it)",
+            )
+            return True
+        return current == expected
 
     def read_bytes(self, name: str) -> bytes:
         """Read and memoize an input, refusing a path outside this workspace.
@@ -693,6 +1044,10 @@ class InputFiles:
             snapshot = self._cached(key, path)
             if snapshot is not None:
                 self._snapshots[key] = snapshot
+        if snapshot is not None and tag in snapshot.derived:
+            validate = getattr(factory(), "valid_result", None)
+            if validate is not None and not validate(snapshot.derived[tag]):
+                del snapshot.derived[tag]
         if snapshot is None:
             scanner = factory()
             snapshot = self._load(name, key, path, hold=False, scanner=scanner)

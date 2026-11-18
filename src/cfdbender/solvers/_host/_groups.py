@@ -9,7 +9,8 @@ from collections.abc import Mapping
 from typing import Any, cast
 
 from cfdbender.core.adapter import AdapterPoint
-from cfdbender.core.plan import InputFiles
+from cfdbender.core.plan import InputFiles, is_identity_value
+from cfdbender.solvers._host._gmsh import gmsh_names, physical_names, section_text
 
 
 def groups(setup: Mapping[str, object]) -> dict[str, tuple[str, ...]]:
@@ -179,8 +180,7 @@ def marker_names(data: bytes, name: str) -> tuple[str, ...]:
     text = data.decode("ascii", errors="replace")
     if name.endswith(".su2"):
         return tuple(sorted(_su2_markers(text)))
-    section = text.partition("$PhysicalNames")[2].partition("$EndPhysicalNames")[0]
-    return tuple(sorted(set(re.findall(r'^\s*[12]\s+\d+\s+"([^"]+)"', section, re.MULTILINE))))
+    return physical_names(section_text(text))
 
 
 def _refuse_unknown(
@@ -207,9 +207,9 @@ def validate_groups(setup: Mapping[str, object], data: bytes, mesh: str) -> tupl
 def tracked_markers(files: InputFiles, mesh: str) -> tuple[str, ...]:
     """Return a mesh's marker names, tracking the file without holding it in memory.
 
-    A ``.su2`` file is scanned in the pass that digests it and a ``.cgns`` file is opened by
-    path, so a large mesh is read at most once per plan and never held; any other format keeps
-    the whole-bytes route. The tracked reader caches the result for the plan.
+    A ``.su2`` or Gmsh-style file is scanned in the pass that digests it and a ``.cgns`` file is
+    opened by path, so a large mesh is read at most once per plan and never held. The tracked
+    reader caches the result with the digest.
     """
     if mesh.endswith(".su2"):
         found = files.scan(mesh, "su2-markers", _Su2Markers)
@@ -223,29 +223,54 @@ def tracked_markers(files: InputFiles, mesh: str) -> tuple[str, ...]:
             tuple[str, ...],
             files.derive(mesh, "cgns-markers", lambda path: _cgns_names(path, mesh)),
         )
-    return marker_names(files.read_bytes(mesh), mesh)
+    found = gmsh_names(files, mesh)
+    if found is None:  # a names section the scan cannot bound: the exact, whole-file route
+        found = cast(
+            tuple[str, ...],
+            files.derive(
+                mesh,
+                "gmsh-names-exact",
+                lambda _path: marker_names(files.read_bytes(mesh), mesh),
+            ),
+        )
+    return found
+
+
+def _scan_tag(mesh: str) -> str:
+    """Return the tag under which a mesh's marker names are cached."""
+    if mesh.endswith(".su2"):
+        return "su2-markers"
+    return "cgns-markers" if mesh.endswith(".cgns") else "gmsh-info"
 
 
 def validate_tracked_groups(
-    setup: Mapping[str, object], files: InputFiles, mesh: str
+    setup: Mapping[str, object], files: InputFiles, mesh: str, *, skip_unread: bool = True
 ) -> tuple[str, ...]:
-    """Track a mesh and refuse an unknown marker, as ``validate_groups`` does for held bytes."""
+    """Track a mesh and refuse an unknown marker, as ``validate_groups`` does for held bytes.
+
+    With the large-input check off, a large mesh is not read: the check is skipped with one
+    warning (when ``skip_unread``) and the markers named in [groups] are returned.
+    """
     requested = groups(setup)
     if not requested:
         files.track(mesh)
         return ()
+    if skip_unread and files.unread(mesh, _scan_tag(mesh)):
+        files.skip_content(mesh, "[groups] marker names")
+        return tuple(sorted({marker for markers in requested.values() for marker in markers}))
     known = tracked_markers(files, mesh)
     _refuse_unknown(requested, known, mesh)
     return known
 
 
-def point_markers(point: AdapterPoint, mesh: str) -> tuple[str, ...]:
+def point_markers(point: AdapterPoint, mesh: str, *, skip_unread: bool = True) -> tuple[str, ...]:
     """Read an already planned mesh through the tracked reader to validate group names."""
     files = point.session.files() if point.session is not None else InputFiles(point.root)
-    if mesh.endswith(".su2") and groups(point.setup):
+    planned = point.point.inputs_sha256.get(mesh)
+    if groups(point.setup) and not (skip_unread and files.unread(mesh, _scan_tag(mesh))):
         tracked_markers(files, mesh)  # one pass digests and scans the file
-    else:
+    elif not is_identity_value(planned):
         files.track(mesh)
-    if files.digests().get(mesh) != point.point.inputs_sha256.get(mesh):
+    if planned is None or not files.agrees(mesh, planned):
         raise ValueError(f"{mesh}: input changed after planning; plan again")
-    return validate_tracked_groups(point.setup, files, mesh)
+    return validate_tracked_groups(point.setup, files, mesh, skip_unread=skip_unread)

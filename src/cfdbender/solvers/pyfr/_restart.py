@@ -1,7 +1,6 @@
 """Select the most recently written PyFR solution file of a recorded point."""
 
 import configparser
-import hashlib
 import importlib
 import math
 import re
@@ -27,7 +26,7 @@ def restart_files(point: AdapterPoint) -> dict[str, Path]:
     if (
         expected
         and original_mesh.is_file()
-        and hashlib.sha256(original_mesh.read_bytes()).hexdigest() != expected
+        and not point.inputs().agrees(mesh, expected, via=original_mesh)
     ):
         raise ValueError(
             f"RESTART {point.point.restart_from}: mesh differs from the saved solution"

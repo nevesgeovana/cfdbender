@@ -110,6 +110,7 @@ cfd-matrix plan MATRIX [options]
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again when its file identity, size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed. On a FlightStream workspace the option is ignored with a warning |
+| `--no-read-large-inputs` | Do not open any input larger than 8 MiB (a mesh): record its size and modification time instead of its SHA-256, check it by those two, and skip with a warning the checks that need its contents; the same as large_input_check = "identity" in init.toml or CFDBENDER_NO_READ_LARGE_INPUTS=1; a mesh changed in place or replaced by a different file with the same size and modification time goes unnoticed; ignored with a warning on the FlightStream route |
 | `--warning-refusals` | Refuse warnings, including unused cluster values |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
@@ -133,6 +134,7 @@ cfd-matrix run MATRIX [options]
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again when its file identity, size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed. On a FlightStream workspace the option is ignored with a warning |
+| `--no-read-large-inputs` | Do not open any input larger than 8 MiB (a mesh): record its size and modification time instead of its SHA-256, check it by those two, and skip with a warning the checks that need its contents; the same as large_input_check = "identity" in init.toml or CFDBENDER_NO_READ_LARGE_INPUTS=1; a mesh changed in place or replaced by a different file with the same size and modification time goes unnoticed; ignored with a warning on the FlightStream route |
 | `--restart` | Continue every selected point from its own last solution, archiving its previous run first |
 | `--one-run-at-a-time` | Reserve this machine for one guarded local run at a time |
 | `--resume` | Skip points already recorded COMPLETED or SUBMITTED and run the rest, so a grown matrix runs only its new points; a RUNNING point is skipped because its process may still be alive. Without it a recorded point refuses the run |
@@ -286,6 +288,7 @@ cfd-matrix collect [MATRIX] [options]
 | `[MATRIX]` | Recorded matrix name (default: all) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again when its file identity, size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed. On a FlightStream workspace the option is ignored with a warning |
+| `--no-read-large-inputs` | Do not open any input larger than 8 MiB (a mesh): record its size and modification time instead of its SHA-256, check it by those two, and skip with a warning the checks that need its contents; the same as large_input_check = "identity" in init.toml or CFDBENDER_NO_READ_LARGE_INPUTS=1; a mesh changed in place or replaced by a different file with the same size and modification time goes unnoticed; ignored with a warning on the FlightStream route |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |

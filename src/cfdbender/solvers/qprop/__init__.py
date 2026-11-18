@@ -109,11 +109,8 @@ def _context(
     opts = options(point.setup, declaration.solver_options)
     settings = setup(_with_geometry(point.setup, point.geometry))
     op = operating(point.point.condition)
-    blade = resolve(
-        settings,
-        op.n_sections or settings.n_sections,
-        lambda name: workspace_path(point.root, name).read_bytes(),
-    )
+    # The command's shared read: a large blade file is read once, not once per call and point.
+    blade = resolve(settings, op.n_sections or settings.n_sections, point.inputs().read_bytes)
     rpm = rotation_rate(op, blade.radius)
     return opts, settings, op, blade, rpm, plan_sections(blade, op, rpm)
 

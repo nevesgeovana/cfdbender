@@ -50,7 +50,7 @@ def references(cfg: dict[str, str]) -> References:
     )
 
 
-def dimensions(folder: Path) -> int | None:
+def dimensions(folder: Path, *, mesh: bool = True) -> int | None:
     """Return 2 or 3, the dimension of the problem SU2 solved, or None when unstated.
 
     SU2 prints "Two dimensional problem." or "Three dimensional problem." while it
@@ -67,9 +67,11 @@ def dimensions(folder: Path) -> int | None:
             )
             if found:
                 return 2 if found[1] == "Two" else 3
-    mesh = folder / "mesh.su2"
+    if not mesh:
+        return None
+    staged = folder / "mesh.su2"
     try:
-        with mesh.open(encoding="ascii", errors="replace") as stream:
+        with staged.open(encoding="ascii", errors="replace") as stream:
             for _, line in zip(range(200), stream, strict=False):
                 stated = re.fullmatch("NDIME[ ]*=[ ]*([23])[ ]*", line.strip())
                 if stated:

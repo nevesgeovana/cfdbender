@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -104,8 +103,10 @@ def stage(point: AdapterPoint) -> None:
 def _staged(point: AdapterPoint, values: Config) -> Mapping[str, bytes]:
     if not values.airfoil_file:
         return {}
-    airfoil = workspace_path(point.root, values.airfoil_file).read_bytes()
-    if hashlib.sha256(airfoil).hexdigest() != point.point.inputs_sha256.get(values.airfoil_file):
+    files = point.inputs()  # the command's shared read: a large file is read once, not per point
+    airfoil = files.read_bytes(values.airfoil_file)
+    planned = point.point.inputs_sha256.get(values.airfoil_file)
+    if planned is None or not files.agrees(values.airfoil_file, planned):
         raise ValueError("airfoil changed after planning; plan again")
     return {"airfoil.dat": airfoil}
 

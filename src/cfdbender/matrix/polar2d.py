@@ -33,7 +33,7 @@ from cfdbender import __version__
 from cfdbender.core.convergence import SOLVERS, Verdict, judge_point
 from cfdbender.core.matrix import MatrixError, read_matrix
 from cfdbender.core.neutral import neutral_values
-from cfdbender.core.plan import workspace_path
+from cfdbender.core.plan import shown_digest, workspace_path
 from cfdbender.core.refusals import warn_or_refuse
 
 #: The CSV columns of the verdict, after the fixed block of every table.
@@ -171,7 +171,7 @@ def _mesh(geometry: str | None, members: Sequence[Mapping[str, object]]) -> tupl
     for row in members:
         for path, digest in cast(Mapping[str, str], row.get("inputs_sha256") or {}).items():
             if Path(path).name == name:
-                return name, digest
+                return name, str(shown_digest(digest))
     return name, "not recorded"
 
 

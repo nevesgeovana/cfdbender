@@ -67,7 +67,7 @@ def _verify_outputs(root: Path, record: RunRecord, session: InputSession) -> Non
     files = session.files()
     for name, expected in record.outputs_sha256.items():
         path = workspace_path(root, name)
-        if files.digest_output(path, record.point.inputs_sha256) != expected:
+        if not files.output_agrees(path, record.point.inputs_sha256, expected):
             raise RegistryError(f"{record.point_id}: output changed after execution: {name}")
 
 

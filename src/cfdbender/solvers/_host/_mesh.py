@@ -14,7 +14,7 @@ import hashlib
 import os
 from pathlib import Path
 
-from cfdbender.core.plan import InputFiles
+from cfdbender.core.plan import InputFiles, identity_value, is_identity_value
 
 _REFUSAL = (
     "cannot link the mesh {source} into the point folder: {error}. Meshes are always "
@@ -61,7 +61,7 @@ def link_mesh(
         Neither link can be created, or the mesh changed after planning.
     """
     relative = os.path.relpath(source, target.parent)
-    if inputs is not None and name is not None:
+    if inputs is not None and name is not None and not is_identity_value(digest):
         inputs.track(name)
     try:
         _symlink(target, relative)
@@ -73,12 +73,15 @@ def link_mesh(
                 inputs.acknowledge_link(name, before, source.stat())
         except (OSError, NotImplementedError) as error:
             raise ValueError(_REFUSAL.format(source=source.name, error=error)) from error
-    # Read through the link without allocating a multi-gigabyte buffer.
-    if inputs is not None and name is not None:
-        measured = inputs.digest_via(name, target)
+    # Read through the link without allocating a multi-gigabyte buffer; a mesh planned
+    # without reading it is checked by its size and modification time only.
+    if inputs is not None and name is not None and digest is not None:
+        same = inputs.agrees(name, digest, via=target)
+    elif is_identity_value(digest):
+        same = identity_value(target.stat()) == digest
     else:
         with target.open("rb") as stream:
-            measured = hashlib.file_digest(stream, "sha256").hexdigest()
-    if measured != digest:
+            same = hashlib.file_digest(stream, "sha256").hexdigest() == digest
+    if not same:
         target.unlink()
         raise ValueError("mesh changed after planning; plan again")

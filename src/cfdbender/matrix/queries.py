@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+from cfdbender.core.plan import shown_digest
 from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.core.registry import (
     RegistryError,
@@ -315,7 +316,7 @@ def run_diff(args: argparse.Namespace) -> int:
         _flat("", encode_record(run.record), values)
         flat.append(values)
     rows = [
-        {"field": key, "a": flat[0].get(key), "b": flat[1].get(key)}
+        {"field": key, "a": shown_digest(flat[0].get(key)), "b": shown_digest(flat[1].get(key))}
         for key in sorted(set(flat[0]) | set(flat[1]))
         if flat[0].get(key) != flat[1].get(key)
     ]
@@ -374,9 +375,13 @@ def run_trace(args: argparse.Namespace) -> int:
                 "matrix": record.matrix,
                 "status": record.status,
                 "classification": record.classification,
-                "inputs_sha256": dict(record.point.inputs_sha256),
-                "outputs_sha256": dict(record.outputs_sha256),
-                "product_sha256": dict(record.outputs_sha256).get(product),
+                "inputs_sha256": {
+                    name: shown_digest(value) for name, value in record.point.inputs_sha256.items()
+                },
+                "outputs_sha256": {
+                    name: shown_digest(value) for name, value in record.outputs_sha256.items()
+                },
+                "product_sha256": shown_digest(dict(record.outputs_sha256).get(product)),
             }
         )
     target = root / product
