@@ -298,7 +298,7 @@ def _flat(prefix: str, value: object, out: dict[str, object]) -> None:
         for key, inner in value.items():
             _flat(f"{prefix}.{key}" if prefix else str(key), inner, out)
     else:
-        out[prefix] = shown_digest(value)  # a file recorded without reading it: not hashed
+        out[prefix] = value
 
 
 def run_diff(args: argparse.Namespace) -> int:
@@ -316,7 +316,7 @@ def run_diff(args: argparse.Namespace) -> int:
         _flat("", encode_record(run.record), values)
         flat.append(values)
     rows = [
-        {"field": key, "a": flat[0].get(key), "b": flat[1].get(key)}
+        {"field": key, "a": shown_digest(flat[0].get(key)), "b": shown_digest(flat[1].get(key))}
         for key in sorted(set(flat[0]) | set(flat[1]))
         if flat[0].get(key) != flat[1].get(key)
     ]
