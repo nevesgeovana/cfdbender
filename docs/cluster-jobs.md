@@ -105,6 +105,37 @@ The placeholder also works in the submit command. A row without a value is
 refused when the profile uses it. An unused row value produces a warning;
 `--warning-refusals` makes that warning a refusal. Local runs ignore it.
 
+## Overriding the profile per row
+
+The profile is the base of every row. A row can replace one value of it with an
+`hpc.<name>` entry in `VAR_NAMES_VALUES`, next to the `hpc:` selector:
+
+```text
+POL | RUN | SETUP | REF | PPROC | VAR_NAMES_VALUES
+----|-----|-------|-----|-------|-----------------
+1001 | 1 | 001   | 001 | 001 | hpc: alpha / cluster: one
+1002 | 1 | 001   | 001 | 001 | hpc: alpha / hpc.cluster: two / hpc.mode: custom / hpc.application_id: "tools/run_all.sh"
+```
+
+Row 1002 uses the profile `alpha` with `{cluster}` set to `two`, the descriptor
+field `mode` written as `custom`, and `tools/run_all.sh` as the application.
+Every other value of the profile is kept.
+
+| Name | Replaces |
+|---|---|
+| a field of `[descriptor.fields]` | That field's line, with the text of the entry. |
+| `application_id` | What the job launches: `{application_id}` in the descriptor and in the submit command. It takes a solver executable, an installed command, or a script of the workspace. |
+| `cluster` | `{cluster}`, when the profile uses it. |
+
+A name the profile does not declare is refused with the names it accepts.
+`NCPUS` and `WALLTIME` are not overridden here: state them in their columns.
+An application with a folder or a script extension (`.py`, `.sh`) is a file of the
+workspace, written relative to it between double quotes; it is checked when the
+plan is made, and written to the descriptor as its absolute path. A row with an
+`hpc.<name>` entry needs a selected profile (`hpc:` in the row, or `--hpc`), and
+`--local` ignores the entries with one warning. The plan record and the run
+record keep each override with its origin, `matrix row`.
+
 ## See what would be submitted
 
 With a profile in `inputs/hpc/`, `plan` adds the job description of each point
