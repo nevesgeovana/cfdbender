@@ -24,7 +24,7 @@ from cfdbender.solvers import available_solvers  # noqa: E402
 FAKE = HERE.parent / "tests" / "fixtures" / "su2" / "fake_su2.py"
 HEADER = (
     "POL | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION | FLIGHT_CONDITION "
-    "| SWEEP_VALUES | GEOMETRY | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
+    "| SWEEP_VALUES | MESH | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
     "| WALLTIME | FS_BUILD | WORKFLOW | VAR_NAMES_VALUES"
 )
 

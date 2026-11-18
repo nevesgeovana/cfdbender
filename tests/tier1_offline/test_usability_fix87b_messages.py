@@ -25,7 +25,7 @@ def test_u17_su2_names_what_the_user_wrote_not_internal_keys(tmp_path, capsys):
     edit(reference, "length = 1.0", "area = 1.0\nlength = 1.0")
     edit(matrix, "| model.su2 |", "| - |")
     err = plan_error(capsys, root)
-    assert "GEOMETRY names no mesh and inputs/setups/s001.toml states none" in err
+    assert "MESH names no mesh and inputs/setups/s001.toml states none" in err
     edit(matrix, "| - | 001 | 001 | 001 |", "| model.su2 | 001 | 001 | 001 |")
     edit(matrix, "MACH:0.5", "MACH:0")
     err = plan_error(capsys, root)

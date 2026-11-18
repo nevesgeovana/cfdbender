@@ -124,7 +124,7 @@ def config(
 
     A FLIGHT_CONDITION stating the air (MACH or TASmps with any other keys)
     gives ``speed`` (the resolved velocity) and ``nu`` (viscosity over density,
-    REmi solved over the REF length); GEOMETRY gives ``mesh``. A setup value
+    REmi solved over the REF length); MESH gives ``mesh``. A setup value
     that disagrees with the row is refused. A BETA of zero is dropped.
     """
     if condition.get("BETA", 0.0) != 0.0:

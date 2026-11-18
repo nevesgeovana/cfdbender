@@ -1,4 +1,4 @@
-"""Migrate a workspace to the SETUP and NUMERICS matrix columns.
+"""Migrate a workspace to the SETUP, NUMERICS and MESH matrix columns.
 
 Usage::
 
@@ -18,7 +18,9 @@ would change. With ``--apply`` the script
    and the other keys, which stay; tables such as ``[solver]`` are never touched;
 4. gives setups whose numerical keys and values are identical ONE numerics file (numbered
    in the order of the sorted setup names) and writes its id in the NUMERICS cell of every
-   row that names such a setup; a setup without numerical keys gets an empty cell.
+   row that names such a setup; a setup without numerical keys gets an empty cell;
+5. renames the header ``GEOMETRY`` of every ``inputs/matrices/*.fs`` to ``MESH`` in the
+   same pass (the column keeps its width, every cell stays as it is).
 
 Only SU2 has a list of numerical keys; for any other solver the script renames the column
 and adds an empty NUMERICS column. Running it on a migrated workspace changes nothing.
@@ -143,8 +145,35 @@ def _artifact_id(cell: str, prefix: str) -> str:
     return name
 
 
+def rename_mesh_header(text: str) -> tuple[str, str]:
+    """Return a matrix text with the header GEOMETRY renamed MESH, and a note.
+
+    The note is empty when nothing changes (no GEOMETRY header, or a header that
+    already holds MESH too, which is left unchanged).
+    """
+    lines = text.splitlines(keepends=True)
+    bom = "\ufeff" if text.startswith("\ufeff") else ""
+    if bom:
+        lines[0] = lines[0][1:]
+    head = next((i for i, line in enumerate(lines) if _is_content(line)), None)
+    if head is None:
+        return text, ""
+    body, eol = _split_eol(lines[head])
+    lead, cells, tail = _pieces(body)
+    names = [c.strip() for c in cells]
+    if "GEOMETRY" not in names:
+        return text, ""
+    if "MESH" in names:
+        return text, "both GEOMETRY and MESH in the header; left unchanged"
+    column = names.index("GEOMETRY")
+    pad = column < len(cells) - 1
+    cells[column] = cells[column].replace("GEOMETRY", "MESH" + "    " * pad, 1)
+    lines[head] = lead + "|".join(cells) + tail + eol
+    return bom + "".join(lines), "renamed GEOMETRY to MESH"
+
+
 def migrate_matrix(text: str, numerics_of: dict[str, str]) -> tuple[str, str]:
-    """Return a matrix text with SET renamed SETUP and a NUMERICS column added, and a note.
+    """Return a matrix text with SET, GEOMETRY and the NUMERICS column migrated, and a note.
 
     Parameters
     ----------
@@ -158,6 +187,17 @@ def migrate_matrix(text: str, numerics_of: dict[str, str]) -> tuple[str, str]:
     tuple of str
         The new text (equal to ``text`` when nothing changes) and a one-line note.
     """
+    renamed, mesh_note = rename_mesh_header(text)
+    new, note = _migrate_columns(renamed, numerics_of)
+    if not mesh_note:
+        return new, note
+    if new == renamed:
+        return new, mesh_note
+    return new, f"{mesh_note} and {note}"
+
+
+def _migrate_columns(text: str, numerics_of: dict[str, str]) -> tuple[str, str]:
+    """Rename SET to SETUP and add the NUMERICS column; see :func:`migrate_matrix`."""
     lines = text.splitlines(keepends=True)
     bom = "﻿" if text.startswith("﻿") else ""
     if bom:
@@ -298,7 +338,7 @@ def migrate(root: Path, solver: str | None = None) -> Result:
     if not keys:
         result.notes.append(
             f"solver {solver}: no numerical-key list; only the columns are migrated "
-            "(SET renamed SETUP, an empty NUMERICS column added)"
+            "(SET renamed SETUP, GEOMETRY renamed MESH, an empty NUMERICS column added)"
         )
     numerics_dir = root / "inputs" / "numerics"
     if keys and numerics_dir.is_dir() and any(numerics_dir.glob("n*.toml")):
@@ -395,7 +435,10 @@ def main(argv: list[str] | None = None) -> int:
     """Run the migration; return 0, or 2 on a usage error."""
     parser = argparse.ArgumentParser(
         prog="migrate_setup_numerics",
-        description="Rename the matrix column SET to SETUP, add NUMERICS and split the setups.",
+        description=(
+            "Rename the matrix columns SET to SETUP and GEOMETRY to MESH, add NUMERICS and "
+            "split the setups."
+        ),
     )
     parser.add_argument("workspace", help="the workspace root (the folder with init.toml)")
     parser.add_argument("--apply", action="store_true", help="write the changes (default: dry run)")

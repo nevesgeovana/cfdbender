@@ -6,7 +6,7 @@ Required columns are POL, RUN, SETUP, REF and PPROC. SETUP names the physical se
 numerics. The earlier header ``SET`` is still read as SETUP, with one warning per matrix file.
 The other optional columns are
 those of a pyflightstream matrix, with the same names and meanings: HIDDEN,
-AIRCRAFT, CONFIGURATION, DESCRIPTION, FLIGHT_CONDITION, SWEEP_VALUES, GEOMETRY,
+AIRCRAFT, CONFIGURATION, DESCRIPTION, FLIGHT_CONDITION, SWEEP_VALUES, MESH,
 SYMMETRY, SYMMETRY_LOADS, NCPUS, WALLTIME, SOLVER_BUILD (FS_BUILD is accepted as
 its pyflightstream name), WORKFLOW and VAR_NAMES_VALUES. A cell holding ``-``
 states nothing. FLIGHT_CONDITION holds comma-separated KEY:number pairs and at
@@ -40,7 +40,7 @@ OPTIONAL_COLUMNS = (
     "DESCRIPTION",
     "FLIGHT_CONDITION",
     "SWEEP_VALUES",
-    "GEOMETRY",
+    "MESH",
     "SYMMETRY",
     "SYMMETRY_LOADS",
     "NCPUS",
@@ -53,8 +53,10 @@ OPTIONAL_COLUMNS = (
 )
 COLUMNS = (*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS)
 UNSTATED = ("", "-", "NA")
-#: The retired header of the SETUP column, still read with one warning per matrix file.
+#: The retired headers, each still read as its new name with one warning per matrix file.
 RETIRED_SETUP_COLUMN = "SET"
+RETIRED_MESH_COLUMN = "GEOMETRY"
+RETIRED_COLUMNS = {RETIRED_SETUP_COLUMN: "SETUP", RETIRED_MESH_COLUMN: "MESH"}
 
 
 class MatrixError(WorkspaceError):
@@ -263,11 +265,11 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
     build = cells.get("SOLVER_BUILD", cells.get("FS_BUILD", ""))
     if build not in UNSTATED and re.fullmatch("[A-Za-z0-9][A-Za-z0-9._+-]*", build) is None:
         raise MatrixError(f"{label}: SOLVER_BUILD {build!r} must be a version such as 8.3.0")
-    geometry = cells.get("GEOMETRY", "")
+    geometry = cells.get("MESH", "")
     if geometry not in UNSTATED and (
         chr(92) in geometry or any(ord(c) < 32 or c in '<>"|?*' for c in geometry)
     ):
-        raise MatrixError(f"{label}: GEOMETRY {geometry!r} must name a file with / separators")
+        raise MatrixError(f"{label}: MESH {geometry!r} must name a file with / separators")
     workflow = cells.get("WORKFLOW", "")
     restart = cells.get("RESTART", "")
     if (
@@ -315,7 +317,7 @@ def parse_matrix(
     source: Path,
     *,
     active_only: bool = True,
-    on_retired_header: Callable[[], None] | None = None,
+    on_retired_header: Callable[[str], None] | None = None,
 ) -> tuple[MatrixRow, ...]:
     """Parse exact input bytes, retaining data row numbers before the RUN filter.
 
@@ -328,7 +330,8 @@ def parse_matrix(
     active_only : bool, optional
         Return only RUN = 1 rows; all rows are checked regardless.
     on_retired_header : callable, optional
-        Called once when the header names the retired column SET, which is read as SETUP.
+        Called once per retired header name (SET, read as SETUP; GEOMETRY, read as MESH),
+        with that name.
 
     Returns
     -------
@@ -356,14 +359,17 @@ def parse_matrix(
             f"{source.as_posix()}: columns are separated by |, not by commas "
             "(POL | RUN | SETUP | ...)"
         )
-    if RETIRED_SETUP_COLUMN in header:
-        if "SETUP" in header:
+    for retired, current in RETIRED_COLUMNS.items():
+        if retired not in header:
+            continue
+        if current in header:
             raise MatrixError(
-                f"{source.as_posix()}: the columns SET and SETUP name one column; keep SETUP"
+                f"{source.as_posix()}: the columns {retired} and {current} name one column; "
+                f"keep {current}"
             )
         if on_retired_header is not None:
-            on_retired_header()
-        header = ["SETUP" if name == RETIRED_SETUP_COLUMN else name for name in header]
+            on_retired_header(retired)
+        header = [current if name == retired else name for name in header]
     missing = set(REQUIRED_COLUMNS) - set(header)
     unknown = set(header) - set(COLUMNS)
     if missing or unknown:
