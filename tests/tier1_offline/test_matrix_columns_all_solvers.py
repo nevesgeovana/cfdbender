@@ -14,7 +14,7 @@ from cfdbender.workspace.planning import plan_workspace
 
 HEADER = (
     "POL | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION | FLIGHT_CONDITION "
-    "| SWEEP_VALUES | GEOMETRY | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
+    "| SWEEP_VALUES | MESH | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
     "| WALLTIME | FS_BUILD | WORKFLOW | VAR_NAMES_VALUES"
 )
 MSH2 = "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n"

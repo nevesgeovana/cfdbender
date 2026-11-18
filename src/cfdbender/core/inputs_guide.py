@@ -10,14 +10,13 @@ from __future__ import annotations
 #: The CFD solvers whose adapters read a numerics file (inputs/numerics/n<id>.toml).
 NUMERICS_SOLVERS = frozenset({"su2", "openfoam", "pyfr"})
 
-HEADER = "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | GEOMETRY | SETUP | REF | PPROC | WALLTIME"
+HEADER = "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | MESH | SETUP | REF | PPROC | WALLTIME"
 #: The header and the cells of the CFD solvers, whose setups may name a numerics file.
 HEADER_NUMERICS = (
-    "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | GEOMETRY | SETUP | NUMERICS | REF | PPROC "
-    "| WALLTIME"
+    "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | MESH | SETUP | NUMERICS | REF | PPROC | WALLTIME"
 )
 
-#: Per solver: the example row's FLIGHT_CONDITION, SWEEP_VALUES and GEOMETRY cells, then the
+#: Per solver: the example row's FLIGHT_CONDITION, SWEEP_VALUES and MESH cells, then the
 #: setup (s001.toml), reference (r001.toml) and post (p001.toml) examples.
 _EXAMPLES: dict[str, tuple[str, str, str, str, str, str]] = {
     "mock": (
@@ -96,7 +95,7 @@ def guide_text(solver: str) -> str:
         "Everything the campaign reads lives under `inputs/`. A matrix row names the files",
         "by id: `SETUP 001` reads `inputs/setups/s001.toml`, `REF 001` reads",
         "`inputs/references/r001.toml`, `PPROC 001` reads `inputs/pproc/p001.toml`, and",
-        "GEOMETRY names a file in `inputs/mesh/`.",
+        "MESH names a file in `inputs/mesh/`.",
         "",
         "| Folder | Holds |",
         "|---|---|",
@@ -126,7 +125,7 @@ def guide_text(solver: str) -> str:
             f"{'- | ' if solver in NUMERICS_SOLVERS else ''}001 | 001 | 2h",
             "```",
             "",
-            f"GEOMETRY: {_MESH_NOTE[solver]}.",
+            f"MESH: {_MESH_NOTE[solver]}.",
             "",
             "FLIGHT_CONDITION is `KEY:value` pairs; the key that varies carries the word",
             "`sweep` and SWEEP_VALUES lists its values. A key this package does not know is",

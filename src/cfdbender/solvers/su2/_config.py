@@ -324,7 +324,7 @@ def config(
     stated = set(values)
     for key, value in derived.items():
         if key in values and not _same(values[key], value):
-            source = "GEOMETRY" if key == "MESH_FILENAME" else "FLIGHT_CONDITION"
+            source = "MESH" if key == "MESH_FILENAME" else "FLIGHT_CONDITION"
             raise ValueError(
                 f"conflict: {key} is {values[key]!r} in the s/r/p files and "
                 f"{value!r} from the matrix {source}; state it in one place"
@@ -342,7 +342,7 @@ def config(
     for key in ("REF_AREA", "REF_LENGTH", "ITER", "MESH_FILENAME"):
         if key not in values:
             if key == "MESH_FILENAME":
-                raise ValueError("GEOMETRY names no mesh and setup file states none")
+                raise ValueError("MESH names no mesh and setup file states none")
             raise ValueError(_needs(key))
     for key in values.keys() & _NUMERIC:
         value = number(values[key], key)

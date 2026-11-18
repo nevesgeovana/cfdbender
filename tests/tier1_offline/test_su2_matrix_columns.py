@@ -16,7 +16,7 @@ from cfdbender.workspace.planning import plan_workspace
 
 HEADER = (
     "POL | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION | FLIGHT_CONDITION "
-    "| SWEEP_VALUES | GEOMETRY | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
+    "| SWEEP_VALUES | MESH | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
     "| WALLTIME | SOLVER_BUILD | WORKFLOW | VAR_NAMES_VALUES"
 )
 ROW = (
@@ -109,7 +109,7 @@ def test_su2_row_flight_condition_geometry_and_variables_reach_the_deck(tmp_path
     ("setup", "message"),
     [
         ("mach = 0.8", "MACH_NUMBER"),
-        ('mesh = "inputs/geometries/other.su2"', "GEOMETRY"),
+        ('mesh = "inputs/geometries/other.su2"', "MESH"),
         ("reynolds = 1e6", "REYNOLDS_NUMBER"),
     ],
 )
@@ -153,6 +153,6 @@ def test_su2_plan_listing_carries_the_row_text(tmp_path, capsys):
     assert main(["plan", "dpw", "--workspace", str(root), "--verbose"]) == 0
     out = capsys.readouterr().out
     assert "AIRCRAFT=WB CONFIGURATION=cruise DESCRIPTION=Polar near design" in out
-    assert "GEOMETRY=inputs/geometries/wb.su2 NCPUS=192 SOLVER_BUILD=8.3.0" in out
+    assert "MESH=inputs/geometries/wb.su2 NCPUS=192 SOLVER_BUILD=8.3.0" in out
     assert "variable iterations = 25" in out
     assert out.count("descriptor: ") == 2

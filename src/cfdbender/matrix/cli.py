@@ -685,7 +685,7 @@ def _execute_inner(
         columns = [
             f"{name}={value}"
             for name, value in (
-                ("GEOMETRY", point.geometry),
+                ("MESH", point.geometry),
                 ("NCPUS", point.ncpus),
                 ("SOLVER_BUILD", point.solver_build),
                 ("HIDDEN", 1 if point.hidden else None),

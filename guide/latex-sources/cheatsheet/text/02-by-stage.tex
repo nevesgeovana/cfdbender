@@ -50,7 +50,7 @@ POL\ \ | RUN | FLIGHT\_CONDITION\ \ \ \ \ \ | SWEEP\_VALUES | REF | SET | PPROC\
 1001 | 1\ \ \ | MACH:0.2, ALPHA:sweep | 0,2,4\ \ \ \ \ \ \ \ | 001 | 001 | 001\par}
 \vspace{2pt}
 \textbf{Required:} \texttt{POL}, \texttt{RUN}, \texttt{SET}, \texttt{REF}, \texttt{PPROC}.\\
-\textbf{Optional:} \texttt{FLIGHT\_CONDITION}, \texttt{SWEEP\_VALUES}, \texttt{GEOMETRY}, \texttt{AIRCRAFT}, \texttt{CONFIGURATION}, \texttt{DESCRIPTION}, \texttt{NCPUS}, \texttt{WALLTIME}, \texttt{SOLVER\_BUILD}, \texttt{VAR\_NAMES\_VALUES}, \texttt{HIDDEN}, \texttt{SYMMETRY}, \texttt{SYMMETRY\_LOADS}, \texttt{WORKFLOW}.
+\textbf{Optional:} \texttt{FLIGHT\_CONDITION}, \texttt{SWEEP\_VALUES}, \texttt{MESH}, \texttt{AIRCRAFT}, \texttt{CONFIGURATION}, \texttt{DESCRIPTION}, \texttt{NCPUS}, \texttt{WALLTIME}, \texttt{SOLVER\_BUILD}, \texttt{VAR\_NAMES\_VALUES}, \texttt{HIDDEN}, \texttt{SYMMETRY}, \texttt{SYMMETRY\_LOADS}, \texttt{WORKFLOW}.
 
 \hd{FLIGHT\_CONDITION keys}
 \texttt{KEY:value} pairs, comma separated; one key may say \texttt{sweep}.\par\vspace{1pt}
@@ -74,12 +74,12 @@ Each setup key replaces its value for that row. \texttt{hpc: alpha / cluster: we
 \columnbreak
 \hd{What each solver needs}
 \begin{tabular}{@{}>{\ttfamily}p{12mm}p{25mm}p{41mm}@{}}
-\textrm{\textbf{Solver}} & \textbf{GEOMETRY} & \textbf{Setup file states}\\
+\textrm{\textbf{Solver}} & \textbf{MESH} & \textbf{Setup file states}\\
 su2 & \texttt{.su2}, \texttt{.cgns} & \texttt{iterations}, \texttt{SOLVER}, the markers\\
 openfoam & 2D gmsh \texttt{.msh} & \texttt{application}, \texttt{turbulence}, \texttt{iterations}\\
 pyfr & 2D gmsh \texttt{.msh} & \texttt{order}, \texttt{tend}, \texttt{window\_start}\\
 xfoil & coordinate file, or none & \texttt{airfoil} or \texttt{airfoil\_file}\\
-qprop & blade \texttt{.obj} & \texttt{n\_blades}; the blade is \texttt{GEOMETRY}\\
+qprop & blade \texttt{.obj} & \texttt{n\_blades}; the blade is \texttt{MESH}\\
 mock & none & \texttt{[mock]} \texttt{outcome}, \texttt{iterations}\\
 \end{tabular}\par\vspace{2pt}
 The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_origin} where the solver takes them from a file; the post file reads \texttt{history = true}. Guide 3 has one worked setup per solver.
@@ -88,7 +88,7 @@ The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_orig
 \err{The solver name is not one of the listed names.}{The refusal lists them; capitals are accepted: \texttt{--solver SU2} is \texttt{su2}.}
 \err{The columns are separated by commas or tabs.}{Separate them with \texttt{|}.}
 \err{A \texttt{SET} cell names a file that is not there.}{\texttt{001} and \texttt{s001} both mean \file{inputs/setups/s001.toml}.}
-\err{The mesh is somewhere else on the disk.}{Put it in \file{inputs/mesh/} and write its file name in \texttt{GEOMETRY}.}
+\err{The mesh is somewhere else on the disk.}{Put it in \file{inputs/mesh/} and write its file name in \texttt{MESH}.}
 \err{Both \texttt{MACH} and \texttt{TASmps} are stated, or \texttt{REmi} beside \texttt{RHOkgm3}.}{State one of each pair.}
 \end{multicols}
 \foot
@@ -119,7 +119,7 @@ The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_orig
 \rd{inputs/setups/s<id>.toml}{named by \texttt{SET}}
 \rd{inputs/references/r<id>.toml}{named by \texttt{REF}}
 \rd{inputs/pproc/p<id>.toml}{named by \texttt{PPROC}}
-\rd{inputs/mesh/}{the file named by \texttt{GEOMETRY}, hashed}
+\rd{inputs/mesh/}{the file named by \texttt{MESH}, hashed}
 \rd{inputs/hpc/}{the profile, when the run will be submitted}
 \wf{post/<matrix>/plan.json}{the receipt: the matrix and every input, as planned}
 

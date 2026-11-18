@@ -84,7 +84,7 @@ class AdapterPoint:
 
     @property
     def geometry(self) -> str | None:
-        """The workspace-relative GEOMETRY file of the row, or None."""
+        """The workspace-relative MESH file of the row, or None."""
         return self.point.geometry
 
     def inputs(self) -> InputFiles:

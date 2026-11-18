@@ -23,7 +23,7 @@ def legacy_mesh_workspace(root):
     legacy.mkdir(parents=True)
     (legacy / "wing.dat").write_text("x")
     (root / "inputs/matrices/study.fs").write_text(
-        "POL|RUN|SETUP|REF|PPROC|GEOMETRY\n1001|1|001|001|001|wing.dat\n", encoding="ascii"
+        "POL|RUN|SETUP|REF|PPROC|MESH\n1001|1|001|001|001|wing.dat\n", encoding="ascii"
     )
     mesh._warned.clear()
 

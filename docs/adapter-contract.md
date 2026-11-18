@@ -110,7 +110,7 @@ not declared, not digested and not part of the record.
 parsed row it is given and never reads the matrix file itself.
 
 **C-12.** An adapter that takes a mesh or a geometry file accepts it from the
-`GEOMETRY` column and reads it through the tracked reader. Where the s file
+`MESH` column and reads it through the tracked reader. Where the s file
 may also name it, the two must agree or the row is refused.
 
 **C-13.** An adapter does not spell a mesh folder name. It asks the core's
@@ -349,7 +349,8 @@ and PyFR). The adapter's documentation states the direction of positive
 **C-57.** An adapter declares optional behaviours with a module attribute
 `CAPABILITIES = frozenset({...})`. The closed vocabulary lives in
 `cfdbender.core.adapter.CAPABILITIES`: `restart`, `unsteady`,
-`boundary_groups` (per-boundary force groups) and `cluster_staging`.
+`boundary_groups` (per-boundary force groups), `cluster_staging` and `numerics_file`
+(the adapter reads the NUMERICS column).
 The core reader `capabilities(adapter)` returns the declaration; a missing
 attribute means none. The registry validates it when loading the adapter.
 An unknown name or a declaration other than a frozenset of names is a

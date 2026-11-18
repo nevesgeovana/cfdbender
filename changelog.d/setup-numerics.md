@@ -7,7 +7,7 @@
 
 ## Changed
 
-- The matrix column `SET` is renamed `SETUP`, and `cfd-matrix plan` lists `SETUP=`. The canonical order is `SETUP`, `NUMERICS`, `REF`, `PPROC`. A matrix whose header still says `SET` is read as `SETUP` with one warning per matrix file and command; a header with both is refused.
+- The matrix column `SET` is renamed `SETUP`, and `cfd-matrix plan` lists `SETUP=`. The canonical order is `SETUP`, `NUMERICS`, `REF`, `PPROC`. A matrix whose header still says `SET` is read as `SETUP` with one warning per matrix file and command; a header with both is refused. In the same way the column `GEOMETRY` is renamed `MESH`: a header that still says `GEOMETRY` is read as `MESH` with one warning per matrix file and command, a header with both is refused, and the migration script renames it too.
 
 ## Migration
 
