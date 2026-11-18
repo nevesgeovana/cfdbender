@@ -13,7 +13,7 @@ make symbolic links, never a copy; staging refuses when neither works. mesh_link
 immutable for the lifetime of the run.
 Duplicate assignments to a SU2 key refuse, including matrix conditions.
 
-The matrix GEOMETRY column may name the mesh instead of the setup. A row whose
+The matrix MESH column may name the mesh instead of the setup. A row whose
 FLIGHT_CONDITION states the air with more than MACH (for example
 MACH:0.85, REmi:5, TK:310.928) is resolved in the core and written as
 MACH_NUMBER, FREESTREAM_TEMPERATURE, REYNOLDS_NUMBER and REYNOLDS_LENGTH (the r

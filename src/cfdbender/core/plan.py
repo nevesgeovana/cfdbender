@@ -26,7 +26,7 @@ from types import MappingProxyType
 from typing import BinaryIO, Protocol, cast
 
 from cfdbender.core.flight import ATTITUDE_KEYS, STATE_KEYS
-from cfdbender.core.matrix import HPC_OVERRIDE_PREFIX, MatrixRow, parse_matrix
+from cfdbender.core.matrix import HPC_OVERRIDE_PREFIX, RETIRED_COLUMNS, MatrixRow, parse_matrix
 from cfdbender.core.mesh import mesh_candidates, resolve_setup_paths
 from cfdbender.core.naming import PointNameError, datapoint_dir_name, point_name
 from cfdbender.core.refusals import refusing, warn_or_refuse
@@ -1137,7 +1137,7 @@ def apply_variables(
 
 
 def resolve_geometry(root: Path, cell: str | None) -> str | None:
-    """Resolve a GEOMETRY cell to a workspace-relative file, without reading it.
+    """Resolve a MESH cell to a workspace-relative file, without reading it.
 
     Parameters
     ----------
@@ -1161,7 +1161,7 @@ def resolve_geometry(root: Path, cell: str | None) -> str | None:
         found = mesh_candidates(root, cell)
     if len(found) != 1:
         raise ValueError(
-            f"GEOMETRY {cell!r} names "
+            f"MESH {cell!r} names "
             + (f"several files: {', '.join(found)}" if found else "no file")
             + "; name one file of inputs/mesh/ (with its extension when stems repeat)"
         )
@@ -1269,7 +1269,7 @@ class RowInputs(InputFiles):
     """One row's s/r/p tables plus tracked access to further workspace inputs.
 
     ``setup`` carries the row's VAR_NAMES_VALUES overrides. ``geometry`` is the
-    resolved GEOMETRY file, or None; an adapter reads it through read_bytes.
+    resolved MESH file, or None; an adapter reads it through read_bytes.
     """
 
     def __init__(
@@ -1643,16 +1643,16 @@ def _closed_condition_keys(row: MatrixRow, native: tuple[str, ...]) -> None:
         )
 
 
-def _warn_retired_header(common: InputFiles, root: Path, matrix: str) -> None:
-    """Warn once per matrix file and command that its header still says SET."""
-    text = _RETIRED_SET.format(matrix=matrix)
+def _warn_retired_header(common: InputFiles, root: Path, matrix: str, retired: str) -> None:
+    """Warn once per matrix file and command that its header still says ``retired``."""
+    text = _RETIRED.format(matrix=matrix, old=retired, new=RETIRED_COLUMNS[retired])
     if refusing():
         warn_or_refuse(text)
-    common.warn(f"retired SET|{root.as_posix()}|{matrix}", text)
+    common.warn(f"retired {retired}|{root.as_posix()}|{matrix}", text)
 
 
-_RETIRED_SET = (
-    "{matrix}: column SET is now SETUP; run the migration script "
+_RETIRED = (
+    "{matrix}: column {old} is now {new}; run the migration script "
     "(python -m cfdbender.migrate_setup_numerics WORKSPACE --apply)"
 )
 
@@ -1698,7 +1698,7 @@ def plan_matrix(
     rows = parse_matrix(
         common.read_bytes(matrix),
         Path(matrix),
-        on_retired_header=lambda: _warn_retired_header(common, target, matrix),
+        on_retired_header=lambda old: _warn_retired_header(common, target, matrix, old),
     )
     points: list[Point] = []
     if not accepts_numerics and any(row.numerics_id for row in rows):
@@ -1729,8 +1729,8 @@ def plan_matrix(
             needs = hook(row, inputs)
             if inputs.geometry is not None and inputs.geometry not in inputs.digests():
                 warn_or_refuse(
-                    f"POL {row.pol}: GEOMETRY {row.geometry!r} is skipped; solver "
-                    f"{config.solver!r} does not read the GEOMETRY column (name the geometry "
+                    f"POL {row.pol}: MESH {row.geometry!r} is skipped; solver "
+                    f"{config.solver!r} does not read the MESH column (name the geometry "
                     "where its setup documents it, and write - in the cell to silence this)",
                     UserWarning,
                     stacklevel=2,

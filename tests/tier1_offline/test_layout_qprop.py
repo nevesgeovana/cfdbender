@@ -1,4 +1,4 @@
-"""QPROP takes its blade from the row's GEOMETRY through the one mesh resolver."""
+"""QPROP takes its blade from the row's MESH through the one mesh resolver."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from cfdbender.core import mesh as mesh_module
 from cfdbender.workspace.planning import plan_workspace
 
 MATRIX = (
-    "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|GEOMETRY\n1001|1|001|001|001|"
+    "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|MESH\n1001|1|001|001|001|"
     + CONDITION
     + "|blade.obj\n"
 )

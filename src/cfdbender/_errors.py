@@ -16,6 +16,7 @@ __all__ = [
     "GeometryError",
     "GeometryWarning",
     "InputArtifactError",
+    "InputTypeError",
     "InputValueError",
     "NotApplicableWarning",
     "warn",
@@ -29,6 +30,10 @@ class GeometryError(Exception):
 
 class InputValueError(GeometryError, ValueError):
     """A value given by the caller cannot be used; the message names the cause and the remedy."""
+
+
+class InputTypeError(GeometryError, TypeError):
+    """An argument given by the caller has the wrong type; the message names the remedy."""
 
 
 class InputArtifactError(GeometryError, RuntimeError):

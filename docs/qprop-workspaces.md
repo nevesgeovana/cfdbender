@@ -17,7 +17,7 @@ A matrix row can also pick a build by name; see [Executables](executables.md).
 
 ## Mesh
 
-QPROP takes a blade, not a mesh. The setup key `blade` names either one OBJ in `inputs/mesh/` or one set in `inputs/polars-2D/`. The matrix `GEOMETRY` column names the OBJ and becomes `blade`, so a row that names the blade only in `GEOMETRY` runs; a `blade` in the setup must name the same file. See [Workspace layout](workspace-layout.md) for how a mesh is linked.
+QPROP takes a blade, not a mesh. The setup key `blade` names either one OBJ in `inputs/mesh/` or one set in `inputs/polars-2D/`. The matrix `MESH` column names the OBJ and becomes `blade`, so a row that names the blade only in `MESH` runs; a `blade` in the setup must name the same file. See [Workspace layout](workspace-layout.md) for how a mesh is linked.
 
 ```text
 campaign/
@@ -87,7 +87,7 @@ on_unconverged_section = "warn"
 
 | Key | Meaning | Unit | Default |
 |---|---|---|---|
-| `blade` | OBJ or polars-2D set, see Mesh | - | required (or `GEOMETRY`) |
+| `blade` | OBJ or polars-2D set, see Mesh | - | required (or `MESH`) |
 | `mesh_frame` | OBJ axes before conversion, see Mesh | - | `["aft", "right", "up"]` |
 | `n_blades` | number of blades, integer from 1 | - | required |
 | `n_sections` | radial stations of an OBJ; the matrix key `N_SECTIONS` overrides it | - | required for an OBJ, unless the row states it |

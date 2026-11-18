@@ -9,14 +9,14 @@ the QPROP section reader both read it unchanged, so the file can feed a QPROP bl
 ## The matrix row
 
 One polar is one row: `FLIGHT_CONDITION` holds the Mach number, the Reynolds number and
-`ALPHA:sweep`, `SWEEP_VALUES` lists the angles, and `GEOMETRY` names the 2D mesh
+`ALPHA:sweep`, `SWEEP_VALUES` lists the angles, and `MESH` names the 2D mesh
 (`<name>.su2` for SU2, `<name>.msh` for OpenFOAM). The recommended sweep is -8 to 16
 degrees in steps of 1, 25 points, listed in ascending order (the matrix takes no range
 syntax):
 
 ```text
-POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY
----|---|-----|---|-----|----------------|------------|--------
+POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|MESH
+---|---|-----|---|-----|----------------|------------|----
 1001|1|001  |001|001|MACH:0.15, REmi:6, ALPHA:sweep|-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16|naca0012.su2
 ```
 

@@ -98,8 +98,8 @@ _MOMENTS = {"Q", "P", "CP", "CP_QPROP", "CQ"}
 
 
 def _with_geometry(values: Mapping[str, object], geometry: str | None) -> Mapping[str, object]:
-    """Use the row's GEOMETRY as the blade OBJ; a setup blade must agree with it."""
-    return values if geometry is None else agree(values, {"blade": geometry}, "GEOMETRY")
+    """Use the row's MESH as the blade OBJ; a setup blade must agree with it."""
+    return values if geometry is None else agree(values, {"blade": geometry}, "MESH")
 
 
 def _context(

@@ -385,7 +385,7 @@ def test_warning_off_hides_the_console_warning_and_keeps_it_in_the_log(tmp_path,
     (legacy / "wing.dat").write_text("x")
     matrix_file = tmp_path / "inputs/matrices/study.fs"
     matrix_file.write_text(
-        "POL|RUN|SETUP|REF|PPROC|GEOMETRY\n1001|1|001|001|001|wing.dat\n", encoding="ascii"
+        "POL|RUN|SETUP|REF|PPROC|MESH\n1001|1|001|001|001|wing.dat\n", encoding="ascii"
     )
     from cfdbender.core import mesh
 

@@ -99,7 +99,7 @@ _FIT_RANGE = (-4.0, 6.0)
 
 
 def _alpha_rows(root: Path, matrix: str) -> dict[str, str | None]:
-    """Return POL to its GEOMETRY cell for every matrix row that sweeps ALPHA."""
+    """Return POL to its MESH cell for every matrix row that sweeps ALPHA."""
     try:
         rows = read_matrix(workspace_path(root, matrix), active_only=False)
     except (MatrixError, OSError, ValueError):

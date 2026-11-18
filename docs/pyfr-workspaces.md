@@ -25,7 +25,7 @@ A matrix row can also pick a build by name; see [Executables](executables.md).
 
 ## Mesh
 
-PyFR reads a gmsh `.msh` file. Put it in `inputs/mesh/` and name it in the matrix `GEOMETRY` column or in the setup key `mesh`. See [Workspace layout](workspace-layout.md) for how a mesh is linked. The point folder holds the link as `mesh.msh`; PyFR imports it to `mesh.pyfrm`. A file that does not start with `$MeshFormat` is refused: `mesh must be gmsh format`.
+PyFR reads a gmsh `.msh` file. Put it in `inputs/mesh/` and name it in the matrix `MESH` column or in the setup key `mesh`. See [Workspace layout](workspace-layout.md) for how a mesh is linked. The point folder holds the link as `mesh.msh`; PyFR imports it to `mesh.pyfrm`. A file that does not start with `$MeshFormat` is refused: `mesh must be gmsh format`.
 
 The mesh is two-dimensional, with the physical groups `fluid`, `wall` and `far`. A mesh that mixes quadrilaterals and triangles is supported: both element types are written.
 
@@ -35,7 +35,7 @@ The mesh is two-dimensional, with the physical groups `fluid`, `wall` and `far`.
 
 | Key | Meaning | Unit | Default |
 |---|---|---|---|
-| `mesh` | gmsh file under `inputs/mesh/` | - | required (or `GEOMETRY`) |
+| `mesh` | gmsh file under `inputs/mesh/` | - | required (or `MESH`) |
 | `mach` | free stream Mach number, above 0 | - | required (or from the row) |
 | `reynolds` | Reynolds number over the chord, above 0 | - | required (or from the row) |
 | `alpha` | angle of attack | degrees | 0 |
@@ -65,7 +65,7 @@ The mesh is two-dimensional, with the physical groups `fluid`, `wall` and `far`.
 |---|---|
 | `MACH`, `REmi` | `mach`, `reynolds` (`REmi` x 1e6) |
 | `ALPHA` | `alpha` |
-| `GEOMETRY` | `mesh` |
+| `MESH` | `mesh` |
 
 `REmi` gives the Reynolds number, since the reference file is empty. A row that states only `MACH` and angles replaces the setup's `mach`. A row can also carry `ORDER`, `TEND`, `WINDOW_START` and `TOLERANCE`; any other key is refused as `FLIGHT_CONDITION: unknown key '<key>' (closest known key: <name>); known keys: ...`. `BETA` must be 0: `a two-dimensional case flies at BETA 0; remove BETA from the row`. A setup value that disagrees with the row is refused: `conflict: <key> is <value> in the inputs and <value> from the matrix row; state it in one place`. See [Matrix columns](matrix-columns.md).
 
