@@ -130,7 +130,7 @@ executable = "/home/your-user/bin/xfoil"
 `inputs/references/r001.toml` and `inputs/pproc/p001.toml` are empty files. `inputs/matrices/study.fs`:
 
 ```text
-POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES
+POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES
 ---|---|---|---|-----|----------------|------------
 1001|1|001|001|001|ALPHA:sweep|0,2,4
 ```

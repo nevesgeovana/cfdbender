@@ -52,6 +52,6 @@ environments so another Python installation cannot override this kit. Do not cha
    Put its SU2 keys and relative mesh path in inputs/setups/s002.toml; omit generated/output keys.
    Put reference area, length and moment_origin in inputs/references/r002.toml.
    Put history=true and output settings in inputs/pproc/p002.toml; cfdbender writes a new .cfg from s/r/p.
-   Add a new named .fs matrix with SET/REF/PPROC=002 and a new POL; plan, run --local, then collect.
+   Add a new named .fs matrix with SETUP/REF/PPROC=002 and a new POL; plan, run --local, then collect.
 
 ---

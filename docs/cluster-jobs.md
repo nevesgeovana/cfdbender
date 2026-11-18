@@ -10,7 +10,7 @@ Put profiles such as `alpha.toml` and `beta.toml` in `inputs/hpc/` and select
 them in the last column:
 
 ```text
-POL | RUN | SET | REF | PPROC | VAR_NAMES_VALUES
+POL | RUN | SETUP | REF | PPROC | VAR_NAMES_VALUES
 ----|-----|-----|-----|-------|-----------------
 1001 | 1 | 001 | 001 | 001 | hpc: alpha / cluster: one
 1002 | 1 | 001 | 001 | 001 | hpc: beta / cluster: two
@@ -96,7 +96,7 @@ cluster = "{cluster}"
 Then choose a value in each row using the same profile:
 
 ```text
-POL | RUN | SET | REF | PPROC | VAR_NAMES_VALUES
+POL | RUN | SETUP | REF | PPROC | VAR_NAMES_VALUES
 ----|-----|-----|-----|-------|-----------------
 1001 | 1 | 001 | 001 | 001 | cluster: alpha
 ```

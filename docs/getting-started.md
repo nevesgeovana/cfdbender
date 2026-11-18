@@ -55,7 +55,7 @@ A campaign is described by a matrix and the three files each of its rows names.
 `inputs/matrices/polar.fs`:
 
 ```text
-POL  | RUN | DESCRIPTION | FLIGHT_CONDITION      | SWEEP_VALUES | REF | SET | PPROC
+POL  | RUN | DESCRIPTION | FLIGHT_CONDITION      | SWEEP_VALUES | REF | SETUP | PPROC
 -----|-----|-------------|-----------------------|--------------|-----|-----|------
 1001 | 1   | First polar | MACH:0.2, ALPHA:sweep | 0,2,4        | 001 | 001 | 001
 ```
@@ -65,7 +65,7 @@ called a sim. `POL` is the number you give it. `RUN` is `1` for a row to run
 and `0` for a row to keep without running. `FLIGHT_CONDITION` states the flow:
 here Mach 0.2 and an angle of attack, in degrees, that takes each value of
 `SWEEP_VALUES` in turn. Each value is one point, so this row has three points.
-`SET`, `REF` and `PPROC` name the three files below by their number.
+`SETUP`, `REF` and `PPROC` name the three files below by their number.
 
 Save every input file as UTF-8 without a byte order mark. A TOML file with one
 is refused as invalid TOML. Windows PowerShell 5.1 `Set-Content -Encoding UTF8`
@@ -113,9 +113,9 @@ cfd-matrix plan polar
 matrix: inputs/matrices/polar.fs
 solver: mock
 3 point(s)
-  1001/DP-M200AL+000: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=0, MACH=0.2
-  1001/DP-M200AL+020: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=2, MACH=0.2
-  1001/DP-M200AL+040: SET=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=4, MACH=0.2
+  1001/DP-M200AL+000: SETUP=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=0, MACH=0.2
+  1001/DP-M200AL+020: SETUP=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=2, MACH=0.2
+  1001/DP-M200AL+040: SETUP=s001 REF=r001 PPROC=p001 WALLTIME=NA  ALPHA=4, MACH=0.2
 3 point(s) planned; receipt post/polar/plan.json; next: cfd-matrix run polar
 ```
 

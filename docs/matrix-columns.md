@@ -16,12 +16,12 @@ places is refused as ambiguous. Cells may be padded with spaces, lines
 starting with `#` are comments, and a line of dashes under the header is a rule.
 
 ```text
-POL  | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION       | FLIGHT_CONDITION                                  | SWEEP_VALUES | GEOMETRY     | REF | SET | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS | WALLTIME | SOLVER_BUILD | WORKFLOW | VAR_NAMES_VALUES
+POL  | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION       | FLIGHT_CONDITION                                  | SWEEP_VALUES | GEOMETRY     | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS | WALLTIME | SOLVER_BUILD | WORKFLOW | VAR_NAMES_VALUES
 -----|--------|-----|----------|---------------|-------------------|---------------------------------------------------|--------------|--------------|-----|-----|-------|----------|----------------|-------|----------|--------------|----------|-----------------
 5001 |   0    |  1  | WB       | cruise        | Polar near design | MACH:0.85, REmi:5, TK:310.928, ALPHA:sweep, BETA:0 | 2.5,2.75     | wb.su2       | 001 | 001 | 001   | -        | -              | 192   | 4h       | 8.3.0        | -        | iterations: 2000
 ```
 
-POL, RUN, SET, REF and PPROC are required; every other column is optional and
+POL, RUN, SETUP, REF and PPROC are required; every other column is optional and
 may be left out of the header. **A cell holding `-` states nothing.** A column
 the layout does not know is refused before anything is planned, naming the
 closest known column. A header whose columns are separated by commas is refused
@@ -39,7 +39,8 @@ with `columns are separated by |`.
 | `SWEEP_VALUES` | The comma-separated values of the one `FLIGHT_CONDITION` key written `sweep`. |
 | `GEOMETRY` | The mesh or geometry file: a file name in `inputs/mesh/`, a stem naming exactly one file there, or a workspace-relative path. The older folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/` are still read, after `inputs/mesh/`. The setup may then omit its mesh key; one it states must name the same file. A solver that does not read the column warns and skips it. |
 | `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same, and a name works too: `rwing` is `inputs/references/rwing.toml`. |
-| `SET` | Setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). |
+| `SETUP` | The physical setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). The header was `SET` before this column was renamed; a matrix that still says `SET` is read as `SETUP` with one warning per matrix file, and a header with both is refused. |
+| `NUMERICS` | The numerical setup file `inputs/numerics/n<id>.toml`, numbered or named, for the CFD solvers (SU2, OpenFOAM, PyFR); see [Setup and numerics](#setup-and-numerics). A column that is absent, or a cell holding `-` or nothing, means the setup file carries the numerics. A solver without the column warns once and ignores a filled cell. |
 | `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`, numbered or named. |
 | `SYMMETRY`, `SYMMETRY_LOADS` | Accepted in the header and must be `-`: symmetry comes from the mesh markers and the setup. |
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
@@ -102,6 +103,29 @@ and QPROP in axial flow, so a nonzero `BETA` (or `ALPHA` for QPROP) is refused
 and a zero one is accepted. A value the setup also states must agree with the
 row's, except that a PyFR row stating only `MACH` and angles replaces the setup's
 `mach`, as before.
+
+## Setup and numerics
+
+`SETUP` names the physical setup of a row and `NUMERICS` names how the solver
+solves it, so one numerical recipe can be shared by many setups. The setup
+the solver reads is merged from four layers; each later layer replaces a key of
+the earlier ones:
+
+1. the `[defaults]` table of `init.toml`;
+2. the numerics file;
+3. the setup file;
+4. the row's `VAR_NAMES_VALUES`.
+
+A key stated in both the numerics file and the setup file takes the setup
+file's value, and one warning names the key and both files. A numerics file
+that holds a `[solver]` table or the mesh is refused: those are execution and
+geometry, not numerics. The numerics file is a planned input like the setup:
+its digest is recorded, a change after planning is refused with
+`input changed after planning: inputs/numerics/n001.toml; plan again`, and the
+run record names the numerics id. `cfd-matrix plan --verbose` lists, for a row
+with a numerics file, which layer each setup key came from. Where a solver does
+not read the column, a filled `NUMERICS` cell is ignored with one warning.
+Post-processing keys stay in the `PPROC` file.
 
 ## VAR_NAMES_VALUES
 

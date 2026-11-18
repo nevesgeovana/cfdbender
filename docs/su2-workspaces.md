@@ -37,6 +37,37 @@ Marker names come from the setup file, never from the mesh. Match the names and 
 
 ## Setup file
 
+### Setup and numerics
+
+The `SETUP` column (named `SET` before) names the physical setup
+`inputs/setups/s<id>.toml`; the optional `NUMERICS` column names the numerical
+keys in `inputs/numerics/n<id>.toml`: the schemes, limiters, gradient method,
+time discretisation, CFL, linear solver, multigrid, iteration counts and
+convergence criteria. The merge order and the rules are in
+[Setup and numerics](matrix-columns.md#setup-and-numerics). A matrix without the
+column plans exactly as before.
+
+To move an existing workspace to the new layout, run the migration script. It
+needs only Python 3.11 or later and imports nothing from cfdbender, so it also
+runs beside an older install; the same file ships as
+`python -m cfdbender.migrate_setup_numerics` and as `tools/migrate_setup_numerics.py`.
+The default is a dry run:
+
+```text
+python migrate_setup_numerics.py campaign            # prints what would change
+python migrate_setup_numerics.py campaign --apply    # archives, then changes
+cfd-matrix plan study --workspace campaign --verbose
+```
+
+With `--apply` the script first copies every file it changes to
+`archive/migration-setup-numerics-<n>/`, renames the header `SET` to `SETUP` and
+inserts `NUMERICS` after it, and moves the numerical top-level keys of each setup
+(with the comment lines directly above each key) to `inputs/numerics/`. Setups
+whose numerical keys are identical share one numerics file. Keys it does not
+list stay in the setup. Run on a migrated workspace it changes nothing. For a
+solver other than SU2 it only renames the column and adds an empty `NUMERICS`
+column. The solver input planned before and after is byte-identical.
+
 ### Boundary force groups
 
 Use a setup `[groups]` table to keep forces for parts of a model separately:
@@ -225,7 +256,7 @@ history = true
 `inputs/matrices/airfoil.fs`:
 
 ```text
-POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY
+POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY
 ---|---|---|---|-----|----------------|------------|--------
 1001|1|001|001|001|MACH:0.3, ALTFT:0, ALPHA:sweep|0,2|airfoil.su2
 ```
