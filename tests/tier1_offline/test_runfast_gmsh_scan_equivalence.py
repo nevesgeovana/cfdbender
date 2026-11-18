@@ -38,6 +38,9 @@ def scan(data: bytes, block: int) -> tuple[str, ...]:
 def check(data: bytes, block: int) -> None:
     found = scan(data, block)
     assert found[0] == whole_header(data), (data, block)
+    if found[1] == "overflow":
+        assert b"$PhysicalNames" in data and b"$EndPhysicalNames" not in data.partition(b"$PhysicalNames")[2]
+        return
     assert found[1] == "names" and found[2:] == marker_names(data, "x.msh"), (data, block)
 
 
@@ -158,3 +161,6 @@ def test_corrupt_gmsh_cache_fact_is_recomputed(tmp_path, monkeypatch, bad):
     document["entries"]["m.msh"]["scans"]["gmsh-info"] = bad
     cache.write_text(json.dumps(document))
     assert tracked_markers(InputFiles(tmp_path), "m.msh") == ("wing",)
+
+def test_unterminated_names_section_requests_exact_route():
+    assert scan(b'$PhysicalNames\n2 1 "wing"\n', 3) == ("other", "overflow")

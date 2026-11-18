@@ -35,8 +35,9 @@ class GmshScan:
     """Collect the header kind and the physical names of a Gmsh mesh, block by block.
 
     The names are those the whole-file route finds: the text after the first ``$PhysicalNames``
-    up to the next ``$EndPhysicalNames`` (or the end of the file), searched with the same
-    pattern. Memory is one block, a tail shorter than a marker and the section itself.
+    up to the next ``$EndPhysicalNames``, searched with the same pattern. An unterminated
+    section takes the exact route. Memory is one block, a tail shorter than a marker and the
+    section itself.
 
     ``result`` returns a tuple of strings so that it can be cached with the digest: the header
     kind (``2.2`` for the Gmsh 2.2 ASCII line, ``gmsh`` for any other Gmsh format line, ``other``),
@@ -105,10 +106,7 @@ class GmshScan:
             kind = "gmsh"
         else:
             kind = "other"
-        if self._state == 1 and not self._overflow:
-            self._add(self._carry)  # the section runs to the end of the file
-            self._carry = b""
-        if self._overflow:
+        if self._overflow or self._state == 1:
             return (kind, "overflow")
         text = b"".join(self._parts).decode("ascii", errors="replace")
         return (kind, "names", *physical_names(text))
