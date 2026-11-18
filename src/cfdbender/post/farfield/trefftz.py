@@ -17,13 +17,13 @@ from typing import Literal
 
 import numpy as np
 
-from cfdbender.core.farfield.balances import (
+from cfdbender.post.farfield.balances import (
     axial_force,
     crossflow_integrand,
     crossflow_kinetic_energy,
 )
-from cfdbender.core.farfield.fields import FarfieldInputError, LatticeFields, PlaneFields
-from cfdbender.core.farfield.quadrature import (
+from cfdbender.post.farfield.fields import FarfieldInputError, LatticeFields, PlaneFields
+from cfdbender.post.farfield.quadrature import (
     grid_coverage,
     grid_integral,
     grid_weights,
@@ -202,7 +202,7 @@ def trace_forces(
     The trace is a list of points ``(y, z)`` in the Trefftz plane, in wind
     axes (m), each carrying the circulation of the strip around it, grouped in
     sheets and ordered along each sheet. Strip edges follow
-    :func:`~cfdbender.core.farfield.quadrature.strip_edges`; a filament leaves
+    :func:`~cfdbender.post.farfield.quadrature.strip_edges`; a filament leaves
     every edge with the circulation shed there; the normalwash at each point is
     induced by every sheet's filaments; and
 
@@ -612,7 +612,7 @@ def rotor_channels(
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     rho : float
         Density in kg/m3.
     v_inf : float

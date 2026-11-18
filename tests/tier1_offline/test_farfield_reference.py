@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 from farfield_support import SurveyLattice
 
-from cfdbender.core.farfield import (
+from cfdbender.post.farfield import (
     axial_flux,
     axial_force,
     azimuthal_harmonics,

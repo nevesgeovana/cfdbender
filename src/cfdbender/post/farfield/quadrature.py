@@ -17,7 +17,7 @@ from typing import Literal, cast
 
 import numpy as np
 
-from cfdbender.core.farfield.fields import FarfieldInputError, LatticeFields
+from cfdbender.post.farfield.fields import FarfieldInputError, LatticeFields
 
 __all__ = [
     "azimuthal_harmonics",
@@ -96,7 +96,7 @@ def ring_sample_weights(fields: LatticeFields) -> np.ndarray:
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     """
     edges = np.asarray(fields.ring_edges)
     return cast(np.ndarray, 0.5 * (edges[1:] ** 2 - edges[:-1] ** 2) * delta_psi(fields.psi))

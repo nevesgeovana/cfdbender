@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from farfield_support import build_lattice
 
-from cfdbender.core.farfield import (
+from cfdbender.post.farfield import (
     FarfieldInputError,
     azimuthal_harmonics,
     grid_coverage,

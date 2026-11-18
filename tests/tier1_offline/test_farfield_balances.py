@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from farfield_support import build_lattice
 
-from cfdbender.core.farfield import (
+from cfdbender.post.farfield import (
     FarfieldInputError,
     axial_flux,
     axial_force,

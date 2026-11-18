@@ -5,7 +5,7 @@ Run once with the reference library on the path, for example
 calls the reference functions of the far-field core (quadrature, containers, balances) on
 seeded synthetic fields and writes a JSON of the inputs and the outputs. The cfdbender test
 ``tests/tier1_offline/test_farfield_reference.py`` recomputes every output from the stored
-inputs with ``cfdbender.core.farfield`` and compares: exactly where the operations are the
+inputs with ``cfdbender.post.farfield`` and compares: exactly where the operations are the
 same, to 1e-12 relative where an output is a least-squares fit. The test reads only the
 JSON, so it does not need the reference library. This script is a tool and lives outside
 ``src``; it is the one place that imports the reference library.

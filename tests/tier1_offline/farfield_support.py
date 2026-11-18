@@ -1,7 +1,7 @@
 """A small survey-lattice builder for the far-field core tests.
 
 The core integrates the samples of a cylindrical survey lattice and reads only a few
-attributes from it (see ``cfdbender.core.farfield.fields.ProbeLattice``). This module
+attributes from it (see ``cfdbender.post.farfield.fields.ProbeLattice``). This module
 builds such a lattice for the tests: annular stations, ring edges clustered near the hub
 and at the tip, uniform azimuths and an optional lateral cylinder.
 """

@@ -115,9 +115,11 @@ def check(root: Path) -> list[str]:
                     and parts[2] not in {owner, "_host"}
                 ):
                     findings.add(prefix + f"{owner} must not import sibling solver: {target}")
-            if relative.parts[0] in {"core", "hpc"} and _within(target, "cfdbender.solvers"):
+            if relative.parts[0] in {"core", "hpc", "post"} and _within(
+                target, "cfdbender.solvers"
+            ):
                 findings.add(prefix + f"{relative.parts[0]} must not import solvers: {target}")
-            if relative.parts[0] in {"core", "hpc"} and _within(target, "cfdbender._pyfs"):
+            if relative.parts[0] in {"core", "hpc", "post"} and _within(target, "cfdbender._pyfs"):
                 findings.add(prefix + f"{relative.parts[0]} must not import cfdbender._pyfs")
             if relative.as_posix() != "_pyfs.py" and _within(target, "pyflightstream"):
                 findings.add(prefix + "use cfdbender._pyfs for upstream imports")

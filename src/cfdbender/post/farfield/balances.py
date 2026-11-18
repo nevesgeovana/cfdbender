@@ -2,8 +2,8 @@
 
 Pipeline role: the mass, momentum, swirl and crossflow-kinetic-energy balances
 of the far-field extraction, on the samples of a
-:class:`~cfdbender.core.farfield.fields.LatticeFields`. Every integral goes
-through :func:`~cfdbender.core.farfield.quadrature.plane_integral`; the
+:class:`~cfdbender.post.farfield.fields.LatticeFields`. Every integral goes
+through :func:`~cfdbender.post.farfield.quadrature.plane_integral`; the
 crossflow kinetic energy has one integrand, :func:`crossflow_integrand`, which
 the probe-plane crossflow-energy drag calls too.
 
@@ -30,8 +30,8 @@ from typing import cast
 import numpy as np
 
 from cfdbender._errors import InputTypeError
-from cfdbender.core.farfield.fields import FarfieldInputError, LatticeFields
-from cfdbender.core.farfield.quadrature import (
+from cfdbender.post.farfield.fields import FarfieldInputError, LatticeFields
+from cfdbender.post.farfield.quadrature import (
     azimuthal_harmonics,
     delta_psi,
     half_spectrum,
@@ -123,7 +123,7 @@ def mass_flux(fields: LatticeFields, rho: float) -> np.ndarray:
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     rho : float
         Density in kg/m3.
 
@@ -150,7 +150,7 @@ def mass_closure(fields: LatticeFields, rho: float) -> MassClosure:
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     rho : float
         Density in kg/m3.
     """
@@ -182,7 +182,7 @@ def axial_flux(fields: LatticeFields, rho: float, v_inf: float) -> np.ndarray:
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     rho : float
         Density in kg/m3.
     v_inf : float
@@ -322,7 +322,7 @@ def lateral_flux(
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     rho : float
         Density in kg/m3.
     inlet : float
@@ -416,14 +416,14 @@ def shaft_torque(fields: LatticeFields, rho: float) -> np.ndarray:
 
     The order-0 ``v_theta`` content weighted by the dimensional moment arm
     ``r``; the sign follows the ``v_theta`` convention of
-    :func:`~cfdbender.core.farfield.fields.cylindrical_components`.
+    :func:`~cfdbender.post.farfield.fields.cylindrical_components`.
 
     Parameters
     ----------
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     rho : float
         Density in kg/m3.
 
@@ -567,7 +567,7 @@ def crossflow_kinetic_energy(fields: LatticeFields, rho: float) -> CrossflowEner
     fields : LatticeFields
         Survey samples in the shaft-aligned axes of
         the survey lattice, with the units of
-        :class:`~cfdbender.core.farfield.fields.LatticeFields`.
+        :class:`~cfdbender.post.farfield.fields.LatticeFields`.
     rho : float
         Density in kg/m3.
 

@@ -17,7 +17,7 @@ dimensionless weight), so it is in SI (N, W, kg/s, N m) only when the fields are
 
 from __future__ import annotations
 
-from cfdbender.core.farfield.balances import (
+from cfdbender.post.farfield.balances import (
     CrossflowEnergy,
     InPlaneMoment,
     MassClosure,
@@ -36,7 +36,7 @@ from cfdbender.core.farfield.balances import (
     transverse_flux,
     transverse_force,
 )
-from cfdbender.core.farfield.fields import (
+from cfdbender.post.farfield.fields import (
     FarfieldInputError,
     LatticeFields,
     PlaneFields,
@@ -45,7 +45,7 @@ from cfdbender.core.farfield.fields import (
     lattice_fields,
     plane_fields,
 )
-from cfdbender.core.farfield.quadrature import (
+from cfdbender.post.farfield.quadrature import (
     azimuthal_harmonics,
     grid_coverage,
     grid_integral,
@@ -57,7 +57,7 @@ from cfdbender.core.farfield.quadrature import (
     strip_edges,
     symmetry_floor,
 )
-from cfdbender.core.farfield.trefftz import (
+from cfdbender.post.farfield.trefftz import (
     PlaneDrag,
     RotorChannels,
     TraceResult,
