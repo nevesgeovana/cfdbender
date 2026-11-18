@@ -20,14 +20,14 @@ def reader():
 
 def test_p051_f3c_closed_vocabulary_and_missing_declaration():
     assert getattr(contract, "CAPABILITIES", None) == frozenset(
-        {"restart", "unsteady", "boundary_groups", "cluster_staging"}
+        {"restart", "unsteady", "boundary_groups", "cluster_staging", "numerics_file"}
     )
     assert reader()(SimpleNamespace()) == frozenset()
 
 
 @pytest.mark.parametrize("solver", SOLVERS)
 @pytest.mark.parametrize(
-    "capability", ("restart", "unsteady", "boundary_groups", "cluster_staging")
+    "capability", ("restart", "unsteady", "boundary_groups", "cluster_staging", "numerics_file")
 )
 def test_p051_f3c_each_declared_capability(solver, capability):
     adapter = load_solver(solver)
@@ -38,6 +38,7 @@ def test_p051_f3c_each_declared_capability(solver, capability):
         or (solver == "pyfr" and capability == "unsteady")
         or (solver in {"su2", "openfoam", "pyfr"} and capability == "restart")
         or (solver in {"su2", "openfoam"} and capability == "boundary_groups")
+        or (solver in {"su2", "openfoam", "pyfr"} and capability == "numerics_file")
     )
     assert (capability in reader()(adapter)) == expected
 
@@ -49,7 +50,7 @@ def test_p051_f3c_unknown_capability_refused_at_load(monkeypatch):
         load_solver("mock")
     text = str(caught.value)
     assert "restat" in text and "mock" in text
-    for name in ("restart", "unsteady", "boundary_groups", "cluster_staging"):
+    for name in ("restart", "unsteady", "boundary_groups", "cluster_staging", "numerics_file"):
         assert name in text
 
 
