@@ -206,6 +206,7 @@ def parse_vtu(content: bytes) -> UnstructuredGrid:
             raise VtuError(f"array format {fmt!r} is not read")
         n_comp = int(node.get("NumberOfComponents", "1"))
         return values.reshape(-1, n_comp) if n_comp > 1 else values
+
     def named(section: str) -> dict[str, NDArray[np.float64]]:
         out: dict[str, NDArray[np.float64]] = {}
         parent = piece.find(section)
