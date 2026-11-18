@@ -26,13 +26,35 @@ from cfdbender.core.farfield.fields import (
     lattice_fields,
     plane_fields,
 )
+from cfdbender.core.farfield.quadrature import (
+    azimuthal_harmonics,
+    grid_coverage,
+    grid_integral,
+    grid_weights,
+    plane_integral,
+    ring_sample_weights,
+    sample_area_coverage,
+    sample_coverage,
+    strip_edges,
+    symmetry_floor,
+)
 
 __all__ = [
     "FarfieldInputError",
     "LatticeFields",
     "PlaneFields",
     "ProbeLattice",
+    "azimuthal_harmonics",
     "cylindrical_components",
+    "grid_coverage",
+    "grid_integral",
+    "grid_weights",
     "lattice_fields",
     "plane_fields",
+    "plane_integral",
+    "ring_sample_weights",
+    "sample_area_coverage",
+    "sample_coverage",
+    "strip_edges",
+    "symmetry_floor",
 ]
