@@ -109,7 +109,7 @@ cfd-matrix plan MATRIX [options]
 |---|---|
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
-| `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again only when its size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed |
+| `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again when its file identity, size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed |
 | `--warning-refusals` | Refuse warnings, including unused cluster values |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
@@ -132,7 +132,7 @@ cfd-matrix run MATRIX [options]
 |---|---|
 | `MATRIX` | Matrix name in inputs/matrices/ (.fs is optional) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
-| `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again only when its size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed |
+| `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again when its file identity, size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed |
 | `--restart` | Continue every selected point from its own last solution, archiving its previous run first |
 | `--one-run-at-a-time` | Reserve this machine for one guarded local run at a time |
 | `--resume` | Skip points already recorded COMPLETED or SUBMITTED and run the rest, so a grown matrix runs only its new points; a RUNNING point is skipped because its process may still be alive. Without it a recorded point refuses the run |
@@ -285,7 +285,7 @@ cfd-matrix collect [MATRIX] [options]
 |---|---|
 | `[MATRIX]` | Recorded matrix name (default: all) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
-| `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again only when its size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed |
+| `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again when its file identity, size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |

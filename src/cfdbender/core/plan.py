@@ -13,6 +13,7 @@ import difflib
 import hashlib
 import json
 import os
+import platform
 import re
 import tempfile
 import time
@@ -175,6 +176,15 @@ def _is_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
+def _identity(stat: os.stat_result | None) -> tuple[int, ...] | None:
+    """Return a usable followed-file identity, or disable reuse on this filesystem."""
+    fields = ("st_size", "st_mtime_ns", "st_ctime_ns", "st_dev", "st_ino")
+    values = tuple(getattr(stat, name, None) for name in fields)
+    if not all(_is_int(value) for value in values) or not values[-1]:
+        return None
+    return cast(tuple[int, ...], values)
+
+
 def _valid_entry(entry: object) -> bool:
     """Return whether a cache entry has the documented shape."""
     if not isinstance(entry, dict):
@@ -182,7 +192,7 @@ def _valid_entry(entry: object) -> bool:
     digest = entry.get("sha256")
     scans = entry.get("scans")
     return (
-        all(_is_int(entry.get(key)) for key in ("size", "mtime_ns", "ctime_ns"))
+        all(_is_int(entry.get(key)) for key in ("size", "mtime_ns", "ctime_ns", "dev", "ino"))
         and isinstance(digest, str)
         and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
         and isinstance(scans, dict)
@@ -202,7 +212,7 @@ class DigestCache:
     run records. It is never a planned input: it does not enter ``inputs_sha256`` or any record.
     An entry holds a file's size, modification time and change time in nanoseconds, its SHA-256
     and the results of scans of its bytes (for example the marker names of an SU2 mesh). An entry
-    is served only when the file's three identity values still match. A missing, unreadable,
+    is served only when timestamps, size, device and inode still match in this host/workspace. A missing, unreadable,
     corrupt or wrong-version file is an empty cache, and a failed write is ignored.
     """
 
@@ -212,6 +222,7 @@ class DigestCache:
 
     def __init__(self, root: Path) -> None:
         self.path = root / self.NAME
+        self._scope = [platform.node(), str(root.resolve())]
         self._entries: dict[str, dict[str, object]] | None = None
 
     def _read(self) -> dict[str, dict[str, object]]:
@@ -224,6 +235,8 @@ class DigestCache:
         except (OSError, ValueError, RecursionError):
             return {}
         if not isinstance(document, dict) or document.get("format") != self.FORMAT:
+            return {}
+        if document.get("scope") != self._scope:
             return {}
         entries = document.get("entries")
         if not isinstance(entries, dict):
@@ -248,10 +261,11 @@ class DigestCache:
         if _REHASH.get():
             return None
         entry = self._all().get(key)
-        if entry is not None and (entry["size"], entry["mtime_ns"], entry["ctime_ns"]) == (
-            stat.st_size,
-            stat.st_mtime_ns,
-            stat.st_ctime_ns,
+        identity = _identity(stat)
+        if (
+            identity is not None
+            and entry is not None
+            and tuple(entry[k] for k in ("size", "mtime_ns", "ctime_ns", "dev", "ino")) == identity
         ):
             return entry
         return None
@@ -277,6 +291,8 @@ class DigestCache:
             Tag to tuple of names produced by scans made in the same read.
         """
         entries = self._all()
+        if _identity(stat) is None:
+            return
         newest = max(stat.st_mtime_ns, stat.st_ctime_ns)
         if _clock_ns() - newest < CACHE_SETTLE_NS:
             if entries.pop(key, None) is not None:
@@ -286,6 +302,8 @@ class DigestCache:
             "size": stat.st_size,
             "mtime_ns": stat.st_mtime_ns,
             "ctime_ns": stat.st_ctime_ns,
+            "dev": stat.st_dev,
+            "ino": stat.st_ino,
             "sha256": digest,
             "scans": {tag: list(names) for tag, names in scans.items()},
         }
@@ -293,7 +311,9 @@ class DigestCache:
 
     def _flush(self) -> None:
         """Replace the file atomically; a concurrent writer may win, a reader never sees half."""
-        text = json.dumps({"format": self.FORMAT, "entries": self._all()}, sort_keys=True)
+        text = json.dumps(
+            {"format": self.FORMAT, "scope": self._scope, "entries": self._all()}, sort_keys=True
+        )
         temp = ""
         try:
             handle, temp = tempfile.mkstemp(
@@ -392,11 +412,10 @@ class InputFiles:
         if self._refresh and snapshot.size <= LARGE_INPUT_BYTES:
             del self._snapshots[key]
             return None
-        if (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns) != (
-            snapshot.size,
-            snapshot.mtime_ns,
-            snapshot.ctime_ns,
-        ):
+        if _identity(stat) is None:
+            del self._snapshots[key]
+            return None
+        if _identity(stat) != _identity(snapshot.stat):
             if self._refresh:
                 del self._snapshots[key]
                 return None
@@ -471,7 +490,11 @@ class InputFiles:
         except OSError as error:
             raise PlanError(f"{name}: cannot read: {error}") from error
         digest = state.hexdigest()
-        unchanged = (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns)
+        unchanged = (before.st_size, before.st_mtime_ns, before.st_ctime_ns) == (
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ) and (before.st_dev, before.st_ino) == (after.st_dev, after.st_ino)
         if not unchanged or count != before.st_size or (expect is not None and digest != expect):
             raise PlanError(f"{name}: input changed while planning; plan again")
         return _Snapshot(
@@ -543,15 +566,15 @@ class InputFiles:
         path : Path
             The link, for example in a point folder.
         """
-        key, _ = self._locate(name)
+        key, source = self._locate(name)
         stat = path.stat()
-        if stat.st_size > LARGE_INPUT_BYTES:
+        if stat.st_size > LARGE_INPUT_BYTES and os.path.samefile(source, path):
             snapshot = self._snapshots.get(key)
-            if snapshot is not None and (
-                snapshot.size,
-                snapshot.mtime_ns,
-                snapshot.ctime_ns,
-            ) == (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns):
+            if (
+                snapshot is not None
+                and _identity(stat) is not None
+                and (_identity(snapshot.stat) == _identity(stat))
+            ):
                 return snapshot.digest
             entry = self._cache.get(key, stat)
             if entry is not None:

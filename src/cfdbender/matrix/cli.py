@@ -306,7 +306,7 @@ def build_parser() -> tuple[
 
 REHASH_HELP = (
     "read every input again instead of trusting the digest cache of large files "
-    "(.input-digests.cache); without it a file is read again only when its size or "
+    "(.input-digests.cache); without it a file is read again when its file identity, size or "
     "timestamps changed, so a file rewritten with the same size and timestamps goes "
     "unnoticed"
 )

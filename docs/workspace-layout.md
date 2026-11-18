@@ -183,3 +183,5 @@ write nothing.
 `executables.local.toml`, which holds paths of one machine, stays out of a
 repository. `inputs/` is small text and is worth committing. `sims/` and
 `archive/` hold solver output and are usually left out.
+
+The cache is local to a host and resolved workspace path, and also checks device and inode/file identity. Moving or copying a workspace invalidates it. All checks follow symbolic links to the target. On POSIX, ctime is metadata change time: restoring mtime after a write normally still invalidates the entry. On Windows, Python ctime is creation time, so an in-place same-size rewrite with restored mtime can remain undetected. Coarse filesystem timestamps can hide same-tick writes on either platform. Use `--rehash-inputs` after such changes. Files less than two seconds past their newest timestamp (including future-dated files) are not persisted. Timestamps are epoch values, independent of time zone.
