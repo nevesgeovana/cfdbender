@@ -54,6 +54,7 @@ _REAL_RECEIPT_MODULES = {
     "test_plan_receipt",
     "test_p053_rowhpc_profiles",
     "test_p060_int060_rowhpc_merge",
+    "test_submit_batch",
 }
 
 
@@ -68,8 +69,8 @@ def _planned_before_run(request, monkeypatch):
     from cfdbender.matrix import cli
     from cfdbender.matrix.receipt import require_receipt, write_receipt
 
-    def planned_first(plan, profiles=()):
-        write_receipt(plan, profiles)
-        require_receipt(plan, profiles)
+    def planned_first(plan, profiles=(), grouping=None):
+        write_receipt(plan, profiles, grouping)
+        require_receipt(plan, profiles, grouping)
 
     monkeypatch.setattr(cli, "require_receipt", planned_first)

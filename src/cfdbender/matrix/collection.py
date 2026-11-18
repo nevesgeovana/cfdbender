@@ -30,6 +30,7 @@ from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
 from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix._tree_migration import warn_retired
+from cfdbender.matrix.batch import batch_status
 from cfdbender.matrix.exports import _write as _write_product
 from cfdbender.matrix.exports import write_polar_files
 from cfdbender.matrix.polar2d import judge_rows, write_polars
@@ -326,6 +327,11 @@ def collect_workspace(
             _verify_outputs(target, measured, session)
             result = adapter.collect(point)
             mismatch = build_mismatch(record.point.solver_build, result.solver_version)
+            reported = batch_status(target, record)
+            if reported:
+                mismatch = mismatch or (
+                    f"the batch script reported exit status {reported} for this run"
+                )
             if mismatch:
                 result = replace(result, classification="failed")
             _verify_outputs(target, measured, session)

@@ -23,7 +23,7 @@ import warnings
 from dataclasses import replace
 from pathlib import Path
 
-from cfdbender.core.adapter import SolverAdapter, load_point
+from cfdbender.core.adapter import AdapterPoint, SolverAdapter, load_point
 from cfdbender.core.matrix import HPC_OVERRIDE_PREFIX, MatrixError, parse_matrix
 from cfdbender.core.plan import InputFiles, InputSession, Point, RunPlan, workspace_path
 from cfdbender.core.refusals import warn_or_refuse, warn_unused_cluster
@@ -162,6 +162,42 @@ def warn_ignored_overrides(plan: RunPlan) -> None:
         )
 
 
+def point_values(
+    plan: RunPlan,
+    point: Point,
+    context: AdapterPoint,
+    config_name: str,
+    solver_type: str,
+    cluster: object | None,
+) -> dict[str, object]:
+    """Return the substitution values one point supplies to a profile's descriptor and command."""
+    folder = workspace_path(plan.root, point.directory)
+    config = (folder / config_name).as_posix()
+    values: dict[str, object] = {
+        "row_id": point.pol,
+        "point": Path(point.directory).name,
+        "workdir": folder.as_posix(),
+        "config_path": config,
+        "script_path": config,
+        "stdout_log": (folder / "stdout.log").as_posix(),
+        "stderr_log": (folder / "stderr.log").as_posix(),
+        "walltime": point.walltime,
+    }
+    if cluster is not None:
+        values["cluster"] = cluster
+    for key in ("solver_version", "ncpus", "solver_type"):
+        value = context.setup.get(key)
+        if value is not None and value != "":
+            values[key] = value
+    # The row's columns win over the setup, as in a pyflightstream matrix.
+    if point.ncpus is not None:
+        values["ncpus"] = point.ncpus
+    if point.solver_build is not None:
+        values["solver_version"] = point.solver_build
+    values.setdefault("solver_type", solver_type)
+    return values
+
+
 def submission_plans(
     plan: RunPlan, profile: HpcProfile | tuple[HpcProfile, ...]
 ) -> tuple[SubmissionPlan, ...]:
@@ -196,30 +232,14 @@ def submission_plans(
         if cluster is not None and not uses_cluster:
             warn_unused_cluster(point.pol)
         context = load_point(plan.root, point, solver=plan.solver, session=session)
-        folder = workspace_path(plan.root, point.directory)
-        config = (folder / name).as_posix()
-        values: dict[str, object] = {
-            "row_id": point.pol,
-            "point": Path(point.directory).name,
-            "workdir": folder.as_posix(),
-            "config_path": config,
-            "script_path": config,
-            "stdout_log": (folder / "stdout.log").as_posix(),
-            "stderr_log": (folder / "stderr.log").as_posix(),
-            "walltime": point.walltime,
-        }
-        if cluster is not None and uses_cluster:
-            values["cluster"] = cluster
-        for key in ("solver_version", "ncpus", "solver_type"):
-            value = context.setup.get(key)
-            if value is not None and value != "":
-                values[key] = value
-        # The row's columns win over the setup, as in a pyflightstream matrix.
-        if point.ncpus is not None:
-            values["ncpus"] = point.ncpus
-        if point.solver_build is not None:
-            values["solver_version"] = point.solver_build
-        values.setdefault("solver_type", solver_type)
+        values = point_values(
+            plan,
+            point,
+            context,
+            name,
+            solver_type,
+            cluster if cluster is not None and uses_cluster else None,
+        )
         jobs.append(plan_submission([values], profile))
     return tuple(jobs)
 

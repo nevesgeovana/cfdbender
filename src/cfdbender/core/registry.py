@@ -158,6 +158,7 @@ def _submission(raw: object, root: Path, directory: str, started: str) -> Mappin
     job_end_files = values.pop("job_end_files", None)
     cluster = values.pop("cluster", None)
     overrides = values.pop("hpc_overrides", None)
+    job = values.pop("job", None)
     has_profile = "profile" in values
     profile = values.pop("profile", None)
     if set(values) != {
@@ -189,11 +190,27 @@ def _submission(raw: object, root: Path, directory: str, started: str) -> Mappin
         ):
             raise RegistryError("submission hpc_overrides must hold an origin and its values")
         values["hpc_overrides"] = overrides
+    home = directory
+    if job is not None:
+        if (
+            not isinstance(job, dict)
+            or not isinstance(job.get("dir"), str)
+            or not isinstance(job.get("script"), str)
+            or type(job.get("batch_id")) is not int
+            or type(job.get("batch")) is not int
+        ):
+            raise RegistryError("submission job must name its batch, batch_id, dir and script")
+        home = cast(str, job["dir"])
+        values["job"] = job
     for key in ("descriptor", "config_path", "stdout_path", "stderr_path"):
         name = _text(values, key)
         path = workspace_path(root, name)
-        if path.relative_to(root).as_posix() != name or path.parent != root / directory:
-            raise RegistryError(f"submission {key} must be in the point directory")
+        folder = directory if key == "config_path" else home
+        if path.relative_to(root).as_posix() != name or path.parent != root / folder:
+            raise RegistryError(
+                f"submission {key} must be in the "
+                f"{'point' if folder == directory else 'batch'} directory"
+            )
     for key in ("descriptor_sha256", "config_sha256"):
         if re.fullmatch("[0-9a-f]{64}", _text(values, key)) is None:
             raise RegistryError(f"submission {key} must be a SHA-256 hex digest")
