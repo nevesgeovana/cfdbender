@@ -114,6 +114,13 @@ def dispatch(argv: list[str], *, workspace: bool, matrix_verbs: Collection[str] 
         config = read_init(root, available_solvers=available_solvers())
         if config.solver != SOLVER_NAME:
             return None
+        if "--rehash-inputs" in argv:
+            print(
+                "warning: --rehash-inputs is ignored on a FlightStream workspace "
+                "(the FlightStream engine keeps no digest cache)",
+                file=sys.stderr,
+            )
+            argv = [word for word in argv if word != "--rehash-inputs"]
         verb = next((word for word in argv if not word.startswith("-")), None)
         if workspace and verb not in matrix_verbs:
             return _pyfs.workspace_main(argv)

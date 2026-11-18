@@ -22,8 +22,8 @@ versions follow SemVer and are independent of solver versions.
 ### Added
 
 - `--rehash-inputs` on `plan`, `run` and `collect` forces every input to be read again. A file
-  rewritten in place with identical size and timestamps is not detected without it. The option
-  applies to the solvers cfdbender runs itself and not to the FlightStream route.
+  rewritten in place with identical size and timestamps is not detected without it. On a
+  FlightStream workspace the option is ignored with a warning.
 - The workspace keeps `.input-digests.cache` at its root. It is not an input and is safe to
   delete. New workspaces get a `.gitignore` entry for it.
 
