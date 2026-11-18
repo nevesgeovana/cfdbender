@@ -240,9 +240,9 @@ history = true
 `inputs/matrices/study.fs`:
 
 ```text
-POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES
----|---|---|---|-----|----------------|------------
-1001|1|001|001|001|ALPHA:4|
+POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES
+---|---|-----|---|-----|----------------|------------
+1001|1|001  |001|001|ALPHA:4|
 ```
 
 ```console

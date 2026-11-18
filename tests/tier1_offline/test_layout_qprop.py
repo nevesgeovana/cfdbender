@@ -11,7 +11,7 @@ from cfdbender.core import mesh as mesh_module
 from cfdbender.workspace.planning import plan_workspace
 
 MATRIX = (
-    "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|GEOMETRY\n1001|1|001|001|001|"
+    "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|GEOMETRY\n1001|1|001|001|001|"
     + CONDITION
     + "|blade.obj\n"
 )

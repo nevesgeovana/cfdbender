@@ -92,8 +92,8 @@ def test_u01_a_run_takes_the_blade_from_geometry_alone(tmp_path):
     root = qw.workspace(tmp_path / "w", setup=qw.setup_text(blade=None))
     matrix = root / "inputs/matrices/study.fs"
     text = matrix.read_text(encoding="ascii").replace(
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES",
-        "POL|RUN|SET|REF|PPROC|GEOMETRY|FLIGHT_CONDITION|SWEEP_VALUES",
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES",
+        "POL|RUN|SETUP|REF|PPROC|GEOMETRY|FLIGHT_CONDITION|SWEEP_VALUES",
     )
     text = text.replace("1001|1|001|001|001|", "1001|1|001|001|001|blade.obj|")
     matrix.write_text(text, encoding="ascii")

@@ -55,7 +55,7 @@ def case(root, *, sweep="0,4", turbulence="SpalartAllmaras", extra=""):
         ),
         "inputs/pproc/p001.toml": "history = true\n",
         "inputs/matrices/study.fs": (
-            "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+            "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
             f"1001|1|001|001|001|ALPHA:sweep|{sweep}\n"
         ),
         "inputs/meshes/tiny.msh": "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n",

@@ -19,7 +19,7 @@ from cfdbender.solvers.pyfr._restart import source_time
 
 SOLVER_NAME = "pyfr"
 validate_restart = source_time
-CAPABILITIES = frozenset({"unsteady", "cluster_staging", "restart"})
+CAPABILITIES = frozenset({"unsteady", "cluster_staging", "restart", "numerics_file"})
 STAGED_CONFIG = "case.ini"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "launcher"}
 JOB_OUTPUTS = ("forces.csv",)

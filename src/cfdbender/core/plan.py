@@ -29,7 +29,7 @@ from cfdbender.core.flight import ATTITUDE_KEYS, STATE_KEYS
 from cfdbender.core.matrix import MatrixRow, parse_matrix
 from cfdbender.core.mesh import mesh_candidates, resolve_setup_paths
 from cfdbender.core.naming import PointNameError, datapoint_dir_name, point_name
-from cfdbender.core.refusals import warn_or_refuse
+from cfdbender.core.refusals import refusing, warn_or_refuse
 from cfdbender.core.settings import WorkspaceError, _validate, setup_defaults
 
 
@@ -1168,6 +1168,103 @@ def resolve_geometry(root: Path, cell: str | None) -> str | None:
     return found[0]
 
 
+NUMERICS_HOME = "inputs/numerics"
+#: Top-level keys a numerics file may not state: execution and geometry, not numerics.
+NUMERICS_REFUSED = ("solver", "mesh", "MESH_FILENAME")
+
+
+def numerics_refusal(name: str, numerics: Mapping[str, object]) -> str | None:
+    """Return the refusal text for a numerics file that states execution or the mesh, or None.
+
+    Parameters
+    ----------
+    name : str
+        Workspace-relative path of the numerics file, used in the message.
+    numerics : Mapping
+        Its parsed top-level keys.
+    """
+    for key in numerics:
+        if key in NUMERICS_REFUSED:
+            what = "the [solver] table" if key == "solver" else f"the mesh key {key}"
+            kind = "execution" if key == "solver" else "geometry"
+            return (
+                f"{name}: states {what}, which is {kind}, not numerics; state it in the setup file"
+            )
+    return None
+
+
+def _leaves(table: Mapping[str, object], prefix: str = "") -> set[str]:
+    found: set[str] = set()
+    for key, value in table.items():
+        if isinstance(value, Mapping):
+            found |= _leaves(value, f"{prefix}{key}.")
+        else:
+            found.add(f"{prefix}{key}")
+    return found
+
+
+def numerics_conflicts(
+    numerics: Mapping[str, object], setup: Mapping[str, object]
+) -> tuple[str, ...]:
+    """Return the sorted keys (dotted for tables) that both files state; the setup wins."""
+    return tuple(sorted(_leaves(numerics) & _leaves(setup)))
+
+
+def resolve_setup(
+    defaults: Mapping[str, object],
+    numerics: Mapping[str, object],
+    setup: Mapping[str, object],
+    variables: Mapping[str, object],
+    *,
+    omitted: Collection[str] = (),
+) -> Mapping[str, object]:
+    """Merge a point's setup: defaults, then the numerics file, then the setup, then the row.
+
+    Parameters
+    ----------
+    defaults : Mapping
+        The init.toml defaults table.
+    numerics : Mapping
+        The parsed numerics file, empty when the row names none.
+    setup : Mapping
+        The parsed setup file; it wins over the numerics file for a key both state.
+    variables : Mapping
+        The row's VAR_NAMES_VALUES overrides, applied last.
+    omitted : collection of str, optional
+        Default keys that explicit row columns replace.
+
+    Returns
+    -------
+    Mapping
+        The setup the adapter reads. Without a numerics file it equals the earlier merge.
+    """
+    base = setup_defaults(defaults, numerics, omitted=omitted) if numerics else defaults
+    merged = setup_defaults(base, setup, omitted=() if numerics else omitted)
+    return apply_variables(merged, variables)
+
+
+def setup_origins(
+    defaults: Mapping[str, object],
+    numerics: Mapping[str, object],
+    setup: Mapping[str, object],
+    variables: Mapping[str, object],
+    *,
+    omitted: Collection[str] = (),
+) -> Mapping[str, str]:
+    """Return, for each top-level key of the resolved setup, where its value came from.
+
+    The origin is ``defaults``, ``numerics``, ``setup`` or ``row``; the last writer wins.
+    """
+    origins: dict[str, str] = {key: "defaults" for key in defaults if key not in omitted}
+    for origin, table in (("numerics", numerics), ("setup", setup)):
+        for key in table:
+            origins[key] = origin
+    for key in variables:
+        if key.casefold() not in {"cluster", "hpc"}:
+            origins[key.split(".")[0]] = "row"
+    return origins
+
+
 class RowInputs(InputFiles):
     """One row's s/r/p tables plus tracked access to further workspace inputs.
 
@@ -1181,8 +1278,10 @@ class RowInputs(InputFiles):
         row: MatrixRow,
         common: InputFiles,
         default_overrides: Mapping[str, Collection[str]] | None = None,
+        accepts_numerics: bool = True,
     ) -> None:
         super().__init__(root, common._snapshots, cache=common._cache)
+        self._warned = common._warned
         self._tracked.update(common._tracked)
         defaults = cast(Mapping[str, object], self.read_toml("init.toml").get("defaults", {}))
         overridden = {
@@ -1192,15 +1291,29 @@ class RowInputs(InputFiles):
             for name in names
         }
         self.defaults_omitted = tuple(sorted(set(defaults) & overridden))
+        raw_setup = self._named("SETUP", f"inputs/setups/{row.setup_id}.toml", row.setup_id)
+        raw_numerics: Mapping[str, object] = {}
+        if row.numerics_id and accepts_numerics:
+            where = f"inputs/numerics/{row.numerics_id}.toml"
+            raw_numerics = self._named("NUMERICS", where, row.numerics_id)
+            refusal = numerics_refusal(where, raw_numerics)
+            if refusal:
+                raise PlanError(refusal)
+            for key in numerics_conflicts(raw_numerics, raw_setup):
+                common.warn(
+                    f"numerics|{where}|{row.setup_id}|{key}",
+                    f"{key!r} is stated in both {where} and inputs/setups/{row.setup_id}.toml; "
+                    "the setup file wins",
+                )
+        self.numerics_id = row.numerics_id if accepts_numerics else ""
+        self.numerics = raw_numerics
+        self.origins = setup_origins(
+            defaults, raw_numerics, raw_setup, row.variables, omitted=self.defaults_omitted
+        )
         self.setup = resolve_setup_paths(
             root,
-            apply_variables(
-                setup_defaults(
-                    defaults,
-                    self._named("SET", f"inputs/setups/{row.setup_id}.toml", row.setup_id),
-                    omitted=self.defaults_omitted,
-                ),
-                row.variables,
+            resolve_setup(
+                defaults, raw_numerics, raw_setup, row.variables, omitted=self.defaults_omitted
             ),
         )
         self.reference = self._named(
@@ -1219,7 +1332,11 @@ class RowInputs(InputFiles):
     def file_names(self) -> Mapping[str, str]:
         """Return the words an adapter refusal uses for the row's files and the files they are."""
         row = self._row
+        numerics = (
+            {"numerics file": f"inputs/numerics/{row.numerics_id}.toml"} if row.numerics_id else {}
+        )
         return {
+            **numerics,
             "setup file": f"inputs/setups/{row.setup_id}.toml",
             "REF file": f"inputs/references/{row.reference_id}.toml",
             "PPROC file": f"inputs/pproc/{row.post_id}.toml",
@@ -1319,6 +1436,9 @@ class Point:
     restart_directory: str | None = None
     restart_sha256: Mapping[str, str] = field(default_factory=dict)
     defaults_omitted: tuple[str, ...] = ()
+    numerics_id: str = ""
+    #: Where each top-level setup key came from (planning only; never recorded).
+    origins: Mapping[str, str] = field(default_factory=dict, compare=False, repr=False)
 
 
 #: Point fields beyond the original record, with the value an older record implies.
@@ -1336,6 +1456,7 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "restart_directory": None,
         "restart_sha256": {},
         "defaults_omitted": (),
+        "numerics_id": "",
     }
 )
 
@@ -1416,6 +1537,8 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 hidden=row.hidden,
                 restart_from=row.restart_from,
                 defaults_omitted=inputs.defaults_omitted,
+                numerics_id=inputs.numerics_id,
+                origins=inputs.origins,
             )
         )
     return points
@@ -1520,7 +1643,27 @@ def _closed_condition_keys(row: MatrixRow, native: tuple[str, ...]) -> None:
         )
 
 
-def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowValidator]) -> RunPlan:
+def _warn_retired_header(common: InputFiles, root: Path, matrix: str) -> None:
+    """Warn once per matrix file and command that its header still says SET."""
+    text = _RETIRED_SET.format(matrix=matrix)
+    if refusing():
+        warn_or_refuse(text)
+    common.warn(f"retired SET|{root.as_posix()}|{matrix}", text)
+
+
+_RETIRED_SET = (
+    "{matrix}: column SET is now SETUP; run the migration script "
+    "(python -m cfdbender.migrate_setup_numerics WORKSPACE --apply)"
+)
+
+
+def plan_matrix(
+    root: str | Path,
+    name: str,
+    *,
+    validators: Mapping[str, RowValidator],
+    accepts_numerics: bool = False,
+) -> RunPlan:
     """Plan a named matrix (inputs/matrices/<name>.fs or <name>.fs in the root) read-only.
 
     Parameters
@@ -1531,6 +1674,9 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
         Matrix filename or stem, without directory components.
     validators : Mapping of str to RowValidator
         Solver name to hook, supplied by the application. Core imports no adapters.
+    accepts_numerics : bool, optional
+        Whether the solver declares the ``numerics_file`` capability. When it does not, a
+        NUMERICS cell is ignored with one warning per matrix.
 
     Returns
     -------
@@ -1549,15 +1695,37 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
     except WorkspaceError as error:
         raise PlanError(str(error)) from error
     matrix = resolve_matrix(target, name)
-    rows = parse_matrix(common.read_bytes(matrix), Path(matrix))
+    rows = parse_matrix(
+        common.read_bytes(matrix),
+        Path(matrix),
+        on_retired_header=lambda: _warn_retired_header(common, target, matrix),
+    )
     points: list[Point] = []
+    if not accepts_numerics and any(row.numerics_id for row in rows):
+        warn_or_refuse(
+            f"{matrix}: NUMERICS is ignored for solver {config.solver}; "
+            "its setup file carries the numerics"
+        )
     for row in rows:
         names: Mapping[str, str] = {}
         try:
             hook = validators[config.solver]
-            inputs = RowInputs(target, row, common, getattr(hook, "default_setup_overrides", {}))
+            inputs = RowInputs(
+                target,
+                row,
+                common,
+                getattr(hook, "default_setup_overrides", {}),
+                accepts_numerics=accepts_numerics,
+            )
             names = inputs.file_names()
             _closed_condition_keys(row, tuple(getattr(hook, "native_condition_keys", ())))
+            for column in ("SYMMETRY", "SYMMETRY_LOADS"):
+                if column in row.variables and not getattr(hook, "reads_symmetry", False):
+                    raise ValueError(
+                        f"{column} {row.variables[column]!r} is not read by solver "
+                        f"{config.solver!r}, which takes symmetry from the mesh and the "
+                        "setup; write - in the cell"
+                    )
             needs = hook(row, inputs)
             if inputs.geometry is not None and inputs.geometry not in inputs.digests():
                 warn_or_refuse(

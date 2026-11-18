@@ -69,7 +69,12 @@ def test_u32_the_table_states_sea_level_where_it_was_assumed(tmp_path, capsys):
     ("old", "new", "expected", "absent"),
     [
         (" | ", ",", "columns are separated by |", "(none)"),
-        ("| SET |", "| SETT |", "SETT (closest known column: SET)", "unsupported columns: (none)"),
+        (
+            "| SETUP |",
+            "| SETT |",
+            "SETT (closest known column: SETUP)",
+            "unsupported columns: (none)",
+        ),
         ("| FS_BUILD |", "| FS_BUILD | HIDDEN2 |", "HIDDEN2", "missing columns: (none)"),
     ],
 )

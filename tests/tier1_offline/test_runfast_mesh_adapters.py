@@ -56,7 +56,7 @@ def mesh_text(version: str = "2.2", names: str = NAMES, lines: int = 80) -> byte
 def build(root: Path, adapter: str, *, sweep: str = "0,1", mesh: bytes | None = None) -> Path:
     init_workspace(root, solver=adapter, available_solvers=available_solvers())
     matrix = (
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         f"1001|1|001|001|001|ALPHA:sweep|{sweep}\n"
     )
     if adapter == "openfoam":

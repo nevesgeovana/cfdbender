@@ -14,7 +14,7 @@ from cfdbender.core.plan import apply_variables
 
 HEADER = (
     "POL | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION | FLIGHT_CONDITION "
-    "| SWEEP_VALUES | GEOMETRY | REF | SET | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
+    "| SWEEP_VALUES | GEOMETRY | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
     "| WALLTIME | FS_BUILD | WORKFLOW | VAR_NAMES_VALUES"
 )
 ROW = (
@@ -63,10 +63,10 @@ def test_full_pyflightstream_header_is_read_with_padded_cells(tmp_path):
 
 
 def test_solver_build_column_and_old_layout(tmp_path):
-    header = "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|SOLVER_BUILD"
+    header = "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|SOLVER_BUILD"
     (row,) = read_matrix(write(tmp_path, header, "1|1|001|001|001|alpha:sweep|2.5|8.3.0"))
     assert row.solver_build == "8.3.0"
-    old = "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES"
+    old = "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES"
     (row,) = read_matrix(write(tmp_path, old, " 5001 |1  | 001 | 001 | 001 | alpha:sweep | 2.50"))
     assert (row.sweep_key, row.ncpus, row.geometry, dict(row.variables)) == (
         "ALPHA",
@@ -79,15 +79,15 @@ def test_solver_build_column_and_old_layout(tmp_path):
 @pytest.mark.parametrize(
     ("header", "row", "message"),
     [
-        ("POL|RUN|SET|REF|PPROC|FLIGHT_CONDITON", "1|1|1|1|1|-", "FLIGHT_CONDITION"),
-        ("POL|RUN|SET|REF|PPROC|FS_BUILD|SOLVER_BUILD", "1|1|1|1|1|-|-", "one column"),
-        ("POL|RUN|SET|REF|PPROC|SYMMETRY", "1|1|1|1|1|MIRROR", "SYMMETRY"),
-        ("POL|RUN|SET|REF|PPROC|NCPUS", "1|1|1|1|1|0", "NCPUS"),
-        ("POL|RUN|SET|REF|PPROC|HIDDEN", "1|1|1|1|1|2", "HIDDEN"),
-        ("POL|RUN|SET|REF|PPROC|VAR_NAMES_VALUES", "1|1|1|1|1|ITER: 1 / ITER: 2", "twice"),
-        ("POL|RUN|SET|REF|PPROC|VAR_NAMES_VALUES", "1|1|1|1|1|NCPUS: 8", "NCPUS column"),
-        ("POL|RUN|SET|REF|PPROC|VAR_NAMES_VALUES", "1|1|1|1|1|ITER 4", "KEY: value"),
-        ("POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION", "1|1|1|1|1|MACH:0.2, mach:0.3", "repeats"),
+        ("POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITON", "1|1|1|1|1|-", "FLIGHT_CONDITION"),
+        ("POL|RUN|SETUP|REF|PPROC|FS_BUILD|SOLVER_BUILD", "1|1|1|1|1|-|-", "one column"),
+        ("POL|RUN|SETUP|REF|PPROC|SYMMETRY", "1|1|1|1|1|MIRROR", "SYMMETRY"),
+        ("POL|RUN|SETUP|REF|PPROC|NCPUS", "1|1|1|1|1|0", "NCPUS"),
+        ("POL|RUN|SETUP|REF|PPROC|HIDDEN", "1|1|1|1|1|2", "HIDDEN"),
+        ("POL|RUN|SETUP|REF|PPROC|VAR_NAMES_VALUES", "1|1|1|1|1|ITER: 1 / ITER: 2", "twice"),
+        ("POL|RUN|SETUP|REF|PPROC|VAR_NAMES_VALUES", "1|1|1|1|1|NCPUS: 8", "NCPUS column"),
+        ("POL|RUN|SETUP|REF|PPROC|VAR_NAMES_VALUES", "1|1|1|1|1|ITER 4", "KEY: value"),
+        ("POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION", "1|1|1|1|1|MACH:0.2, mach:0.3", "repeats"),
     ],
 )
 def test_column_refusals_name_the_cell(tmp_path, header, row, message):
@@ -150,7 +150,7 @@ def test_registry_keeps_the_row_columns(tmp_path):
         "inputs/geometries/wing.dat": "mesh",
         "inputs/matrices/study.fs": "\n".join(
             [
-                "POL|RUN|HIDDEN|DESCRIPTION|GEOMETRY|NCPUS|SOLVER_BUILD|VAR_NAMES_VALUES|SET|REF|PPROC",
+                "POL|RUN|HIDDEN|DESCRIPTION|GEOMETRY|NCPUS|SOLVER_BUILD|VAR_NAMES_VALUES|SETUP|REF|PPROC",
                 "7|1|1|cruise point|wing|8|2.0|ITER: 3|001|001|001",
             ]
         ),

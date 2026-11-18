@@ -263,7 +263,7 @@ def test_p0600_openfoam_workspace_accepts_the_generated_mesh(sharp, tmp_path):
         ),
         "inputs/pproc/p001.toml": "history = true\n",
         "inputs/matrices/study.fs": (
-            "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n1001|1|001|001|001|ALPHA:sweep|0,4\n"
+            "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n1001|1|001|001|001|ALPHA:sweep|0,4\n"
         ),
     }
     for name, text in files.items():

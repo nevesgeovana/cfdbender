@@ -145,7 +145,7 @@ def test_p0000_item3f_missing_value_refuses_instead_of_inheriting(tmp_path, caps
     prepared(tmp_path)
     matrix = tmp_path / "inputs/matrices/study.fs"
     matrix.write_text(
-        "POL|RUN|SET|REF|PPROC" + chr(10) + "1001|1|001|001|001" + chr(10) + "1002|1|002|001|001"
+        "POL|RUN|SETUP|REF|PPROC" + chr(10) + "1001|1|001|001|001" + chr(10) + "1002|1|002|001|001"
     )
     (tmp_path / "inputs/setups/s002.toml").write_text(
         'solver_version = "mock-1"'

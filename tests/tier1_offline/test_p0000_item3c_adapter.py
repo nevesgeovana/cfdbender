@@ -45,7 +45,7 @@ def workspace(root: Path, outcome: str = "converged") -> Point:
             ]
         ),
         "inputs/pproc/p001.toml": "history = true",
-        "inputs/matrices/study.fs": "POL|RUN|SET|REF|PPROC" + chr(10) + "1001|1|001|001|001",
+        "inputs/matrices/study.fs": "POL|RUN|SETUP|REF|PPROC" + chr(10) + "1001|1|001|001|001",
     }
     for name, text in files.items():
         path = root / name

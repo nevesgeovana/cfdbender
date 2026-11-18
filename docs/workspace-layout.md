@@ -11,7 +11,8 @@ campaign/
   init.toml                     # cfd-workspace init: the solver of this workspace
   inputs/                       # yours: everything a run reads
     matrices/<name>.fs          # the run matrix, one row per simulation
-    setups/s<id>.toml           # solver setup, named by the SET column
+    setups/s<id>.toml           # physical solver setup, named by the SETUP column
+    numerics/n<id>.toml         # numerical setup (CFD solvers), named by the NUMERICS column
     references/r<id>.toml       # reference values, named by the REF column
     pproc/p<id>.toml            # post-processing options, named by the PPROC column
     mesh/                       # meshes and geometry files, named by the GEOMETRY column
@@ -53,7 +54,8 @@ write belongs anywhere else.
 | File | What it holds | Named by |
 |---|---|---|
 | `inputs/matrices/<name>.fs` | The run matrix: one row per simulation, with its flight condition and the files it uses. See [matrix columns](matrix-columns.md). | the name you give `cfd-matrix plan <name>` |
-| `inputs/setups/s<id>.toml` | How the solver runs: model, numerics, iteration limit. The keys belong to the solver; see its page. | the `SET` cell (`001` and `s001` name `s001.toml`) |
+| `inputs/setups/s<id>.toml` | How the solver runs: model, numerics, iteration limit. The keys belong to the solver; see its page. | the `SETUP` cell (`001` and `s001` name `s001.toml`) |
+| `inputs/numerics/n<id>.toml` | The numerical keys of an SU2, OpenFOAM or PyFR setup: schemes, limiters, CFL, iteration counts, convergence criteria. Several setups can share one file. It may hold no `[solver]` table and no mesh. Optional: without it the setup file carries the numerics. `cfd-workspace init` creates the folder for these three solvers. | the `NUMERICS` cell (`001` and `n001` name `n001.toml`) |
 | `inputs/references/r<id>.toml` | Reference area, reference length and moment origin, where the solver takes them from a file. | the `REF` cell |
 | `inputs/pproc/p<id>.toml` | What to keep from each run beyond the coefficients. | the `PPROC` cell |
 | `inputs/mesh/<file>` | The mesh or geometry file, in the format the solver reads. | the `GEOMETRY` cell |

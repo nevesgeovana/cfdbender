@@ -1,6 +1,10 @@
 """Read named pipe-delimited matrices without any solver dependency.
 
-Required columns are POL, RUN, SET, REF and PPROC. The optional columns are
+Required columns are POL, RUN, SETUP, REF and PPROC. SETUP names the physical setup file
+(``inputs/setups/s<id>.toml``). The optional column NUMERICS names the numerical setup file
+(``inputs/numerics/n<id>.toml``); an empty cell or ``-`` means the setup file carries the
+numerics. The earlier header ``SET`` is still read as SETUP, with one warning per matrix file.
+The other optional columns are
 those of a pyflightstream matrix, with the same names and meanings: HIDDEN,
 AIRCRAFT, CONFIGURATION, DESCRIPTION, FLIGHT_CONDITION, SWEEP_VALUES, GEOMETRY,
 SYMMETRY, SYMMETRY_LOADS, NCPUS, WALLTIME, SOLVER_BUILD (FS_BUILD is accepted as
@@ -19,7 +23,7 @@ import difflib
 import math
 import re
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
@@ -27,8 +31,9 @@ from types import MappingProxyType
 from cfdbender.core.flight import canonical_key
 from cfdbender.core.settings import WorkspaceError
 
-REQUIRED_COLUMNS = ("POL", "RUN", "SET", "REF", "PPROC")
+REQUIRED_COLUMNS = ("POL", "RUN", "SETUP", "REF", "PPROC")
 OPTIONAL_COLUMNS = (
+    "NUMERICS",
     "HIDDEN",
     "AIRCRAFT",
     "CONFIGURATION",
@@ -48,6 +53,8 @@ OPTIONAL_COLUMNS = (
 )
 COLUMNS = (*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS)
 UNSTATED = ("", "-", "NA")
+#: The retired header of the SETUP column, still read with one warning per matrix file.
+RETIRED_SETUP_COLUMN = "SET"
 
 
 class MatrixError(WorkspaceError):
@@ -89,6 +96,7 @@ class MatrixRow:
     variables: Mapping[str, object] = field(default_factory=_no_variables)
     condition_order: tuple[str, ...] = ()
     restart_from: str | None = None
+    numerics_id: str = ""
 
 
 def _number(text: str, label: str) -> float:
@@ -232,12 +240,20 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
     hidden = cells.get("HIDDEN", "")
     if hidden not in (*UNSTATED, "0", "1"):
         raise MatrixError(f"{label}: HIDDEN must be 0, 1 or -")
-    for column in ("SYMMETRY", "SYMMETRY_LOADS"):
-        if cells.get(column, "") not in UNSTATED:
+    symmetry = cells.get("SYMMETRY", "")
+    loads = cells.get("SYMMETRY_LOADS", "")
+    row_controls: dict[str, object] = {}
+    if symmetry not in UNSTATED:
+        if symmetry.upper() not in ("NONE", "PERIODIC"):
             raise MatrixError(
-                f"{label}: {column} {cells[column]!r} is not read by cfdbender solvers, which "
-                "take symmetry from the mesh and the setup; write - in the cell"
+                f"{label}: SYMMETRY {symmetry!r} is not read by cfdbender, which reads NONE, "
+                "PERIODIC or -"
             )
+        row_controls["SYMMETRY"] = symmetry.upper()
+    if loads not in UNSTATED:
+        if loads.lower() not in ("true", "false"):
+            raise MatrixError(f"{label}: SYMMETRY_LOADS must be true, false or -")
+        row_controls["SYMMETRY_LOADS"] = loads.lower() == "true"
     ncpus_text = cells.get("NCPUS", "")
     ncpus: int | None = None
     if ncpus_text not in UNSTATED:
@@ -268,7 +284,7 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
         row_number=number,
         pol=pol,
         run=int(cells["RUN"]),
-        setup_id=_artifact_id(cells["SET"], "s", f"{label} SET"),
+        setup_id=_artifact_id(cells["SETUP"], "s", f"{label} SETUP"),
         reference_id=_artifact_id(cells["REF"], "r", f"{label} REF"),
         post_id=_artifact_id(cells["PPROC"], "p", f"{label} PPROC"),
         condition=MappingProxyType(held),
@@ -283,13 +299,24 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
         geometry=None if geometry in UNSTATED else geometry,
         ncpus=ncpus,
         solver_build=None if build in UNSTATED else build,
-        variables=_variables(cells.get("VAR_NAMES_VALUES", ""), label),
+        variables={**_variables(cells.get("VAR_NAMES_VALUES", ""), label), **row_controls},
         condition_order=order,
         restart_from=None if restart in UNSTATED else restart,
+        numerics_id=(
+            ""
+            if cells.get("NUMERICS", "") in UNSTATED
+            else _artifact_id(cells["NUMERICS"], "n", f"{label} NUMERICS")
+        ),
     )
 
 
-def parse_matrix(data: bytes, source: Path, *, active_only: bool = True) -> tuple[MatrixRow, ...]:
+def parse_matrix(
+    data: bytes,
+    source: Path,
+    *,
+    active_only: bool = True,
+    on_retired_header: Callable[[], None] | None = None,
+) -> tuple[MatrixRow, ...]:
     """Parse exact input bytes, retaining data row numbers before the RUN filter.
 
     Parameters
@@ -300,6 +327,8 @@ def parse_matrix(data: bytes, source: Path, *, active_only: bool = True) -> tupl
         Source name for refusal messages.
     active_only : bool, optional
         Return only RUN = 1 rows; all rows are checked regardless.
+    on_retired_header : callable, optional
+        Called once when the header names the retired column SET, which is read as SETUP.
 
     Returns
     -------
@@ -325,8 +354,16 @@ def parse_matrix(data: bytes, source: Path, *, active_only: bool = True) -> tupl
     if len(header) == 1 and "," in header[0] and set(header[0].split(",")) & set(COLUMNS):
         raise MatrixError(
             f"{source.as_posix()}: columns are separated by |, not by commas "
-            "(POL | RUN | SET | ...)"
+            "(POL | RUN | SETUP | ...)"
         )
+    if RETIRED_SETUP_COLUMN in header:
+        if "SETUP" in header:
+            raise MatrixError(
+                f"{source.as_posix()}: the columns SET and SETUP name one column; keep SETUP"
+            )
+        if on_retired_header is not None:
+            on_retired_header()
+        header = ["SETUP" if name == RETIRED_SETUP_COLUMN else name for name in header]
     missing = set(REQUIRED_COLUMNS) - set(header)
     unknown = set(header) - set(COLUMNS)
     if missing or unknown:

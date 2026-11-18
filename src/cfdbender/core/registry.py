@@ -270,6 +270,11 @@ def _extras(row: Mapping[str, object]) -> dict[str, Any]:
             valid = value is None or (type(value) is int and value > 0)
         elif key == "hidden":
             valid = isinstance(value, bool)
+        elif key == "numerics_id":
+            valid = (
+                isinstance(value, str)
+                and re.fullmatch("n[A-Za-z0-9][A-Za-z0-9._-]*", value) is not None
+            )
         else:
             valid = isinstance(value, str)
         if not valid:
@@ -335,6 +340,8 @@ def _decode(raw: object, root: Path) -> RunRecord:
         f"inputs/references/{_text(row, 'reference_id')}.toml",
         f"inputs/pproc/{_text(row, 'post_id')}.toml",
     }
+    if row.get("numerics_id"):
+        required_inputs.add(f"inputs/numerics/{_text(row, 'numerics_id')}.toml")
     if not required_inputs <= set(digests):
         raise RegistryError("inputs_sha256 is missing a matrix, init.toml or s/r/p input")
     directory = _text(row, "directory")

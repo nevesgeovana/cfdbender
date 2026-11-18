@@ -665,7 +665,9 @@ def _execute_inner(
     for point in plan.points:
         condition = ", ".join(f"{key}={value:g}" for key, value in sorted(point.condition.items()))
         console.say(
-            f"  {point.point_id}: SET={point.setup_id} REF={point.reference_id} "
+            f"  {point.point_id}: SETUP={point.setup_id} "
+            f"{'NUMERICS=' + point.numerics_id + ' ' if point.numerics_id else ''}"
+            f"REF={point.reference_id} "
             f"PPROC={point.post_id} WALLTIME={point.walltime or 'NA'}"
             f"  {condition or 'no condition stated'}"
         )
@@ -694,6 +696,13 @@ def _execute_inner(
             console.detail(f"    {' '.join(columns)}")
         for key, value in point.variables.items():
             console.detail(f"    variable {key} = {value!r}")
+        if point.numerics_id:
+            by_origin: dict[str, list[str]] = {}
+            for key, origin in point.origins.items():
+                by_origin.setdefault(origin, []).append(key)
+            for origin in ("defaults", "numerics", "setup", "row"):
+                if origin in by_origin:
+                    console.detail(f"    setup keys from {origin}: {', '.join(by_origin[origin])}")
         console.detail(f"    would: {'; '.join(point.actions)}")
         for output in point.outputs:
             console.detail(f"    output: {output}")

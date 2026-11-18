@@ -38,7 +38,12 @@ def plan_workspace(root: str | Path, name: str) -> RunPlan:
     hook = getattr(module, "validate_row", None)
     if not callable(hook):
         raise PlanError(f"solver {config.solver!r} has no validate_row planning hook")
-    plan = plan_matrix(root, name, validators={config.solver: cast(RowValidator, hook)})
+    plan = plan_matrix(
+        root,
+        name,
+        validators={config.solver: cast(RowValidator, hook)},
+        accepts_numerics="numerics_file" in capabilities(module),
+    )
     if "restart" not in capabilities(module) and any(p.restart_from for p in plan.points):
         warn_or_refuse(
             f"solver {config.solver!r} does not support restart; RESTART entries skipped"

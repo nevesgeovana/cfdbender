@@ -16,7 +16,7 @@ from cfdbender.workspace.planning import plan_workspace
 
 HEADER = (
     "POL | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION | FLIGHT_CONDITION "
-    "| SWEEP_VALUES | GEOMETRY | REF | SET | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
+    "| SWEEP_VALUES | GEOMETRY | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
     "| WALLTIME | SOLVER_BUILD | WORKFLOW | VAR_NAMES_VALUES"
 )
 ROW = (
@@ -82,6 +82,7 @@ def test_su2_init_creates_only_the_folders_it_reads(tmp_path):
         "hpc",
         "matrices",
         "mesh",
+        "numerics",
         "pproc",
         "references",
         "setups",

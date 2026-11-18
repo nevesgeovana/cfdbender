@@ -78,7 +78,7 @@ def build(root: Path, adapter: str, mib: int, points: int) -> str:
         reference = ""
         version = "4.1"
     matrix = (
-        "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         f"1001|1|001|001|001|ALPHA:sweep|{sweep}\n"
     )
     files = {

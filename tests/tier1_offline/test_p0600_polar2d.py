@@ -28,7 +28,7 @@ from cfdbender.solvers.xfoil._polar import read_polar
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 FAKE = FIXTURES / "su2/fake_su2_polar.py"
-HEADER = "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY"
+HEADER = "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY"
 
 
 def su2_workspace(

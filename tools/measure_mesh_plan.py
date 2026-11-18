@@ -40,7 +40,7 @@ def build(root: Path, mib: int, rows: int, points: int) -> Path:
         "inputs/setups/s001.toml": SETUP + "\n",
         "inputs/references/r001.toml": REFERENCE,
         "inputs/pproc/p001.toml": "history = true\noutput_frequency = 5\n",
-        "inputs/matrices/study.fs": "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+        "inputs/matrices/study.fs": "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
         + "".join(f"{1001 + i}|1|001|001|001|MACH:0.3,ALPHA:sweep|{sweep}\n" for i in range(rows)),
     }
     for name, content in files.items():

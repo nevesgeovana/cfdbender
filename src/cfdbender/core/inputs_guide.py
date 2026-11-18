@@ -7,7 +7,15 @@ shows a working example of each, so nothing has to be copied from the test suite
 
 from __future__ import annotations
 
-HEADER = "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | GEOMETRY | REF | SET | PPROC | WALLTIME"
+#: The CFD solvers whose adapters read a numerics file (inputs/numerics/n<id>.toml).
+NUMERICS_SOLVERS = frozenset({"su2", "openfoam", "pyfr"})
+
+HEADER = "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | GEOMETRY | SETUP | REF | PPROC | WALLTIME"
+#: The header and the cells of the CFD solvers, whose setups may name a numerics file.
+HEADER_NUMERICS = (
+    "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | GEOMETRY | SETUP | NUMERICS | REF | PPROC "
+    "| WALLTIME"
+)
 
 #: Per solver: the example row's FLIGHT_CONDITION, SWEEP_VALUES and GEOMETRY cells, then the
 #: setup (s001.toml), reference (r001.toml) and post (p001.toml) examples.
@@ -86,14 +94,19 @@ def guide_text(solver: str) -> str:
         f"# Inputs of this workspace (solver: {solver})",
         "",
         "Everything the campaign reads lives under `inputs/`. A matrix row names the files",
-        "by id: `SET 001` reads `inputs/setups/s001.toml`, `REF 001` reads",
+        "by id: `SETUP 001` reads `inputs/setups/s001.toml`, `REF 001` reads",
         "`inputs/references/r001.toml`, `PPROC 001` reads `inputs/pproc/p001.toml`, and",
         "GEOMETRY names a file in `inputs/mesh/`.",
         "",
         "| Folder | Holds |",
         "|---|---|",
         "| `inputs/matrices/` | `<name>.fs`: one row per simulation, columns separated by `\\|` |",
-        "| `inputs/setups/` | `s<id>.toml`: the solver setup |",
+        "| `inputs/setups/` | `s<id>.toml`: the physical setup of the solver |",
+        *(
+            ["| `inputs/numerics/` | `n<id>.toml`: the numerical setup, named by NUMERICS |"]
+            if solver in NUMERICS_SOLVERS
+            else []
+        ),
         "| `inputs/references/` | `r<id>.toml`: reference area, length, moment origin |",
         "| `inputs/pproc/` | `p<id>.toml`: what to extract after the run |",
         "| `inputs/mesh/` | meshes and geometry files |",
@@ -108,8 +121,9 @@ def guide_text(solver: str) -> str:
             "## A first matrix, `inputs/matrices/first.fs`",
             "",
             "```text",
-            HEADER,
-            f"7001 | 1 | {condition} | {sweep} | {geometry} | 001 | 001 | 001 | 2h",
+            HEADER_NUMERICS if solver in NUMERICS_SOLVERS else HEADER,
+            f"7001 | 1 | {condition} | {sweep} | {geometry} | 001 | "
+            f"{'- | ' if solver in NUMERICS_SOLVERS else ''}001 | 001 | 2h",
             "```",
             "",
             f"GEOMETRY: {_MESH_NOTE[solver]}.",
@@ -124,6 +138,19 @@ def guide_text(solver: str) -> str:
             setup.rstrip(),
             "```",
         ]
+        if solver in NUMERICS_SOLVERS:
+            lines += [
+                "",
+                "## `inputs/numerics/n001.toml` (optional)",
+                "",
+                "The NUMERICS column names a file of numerical keys (schemes, limiters, CFL,",
+                "iteration counts, convergence criteria) that several setups can share. `-` or an",
+                "empty cell means the setup file carries the numerics. The merge order, lowest to",
+                "highest, is: `init.toml` defaults, the numerics file, the setup file, the row's",
+                "VAR_NAMES_VALUES. A key stated in both files takes the setup file's value, with",
+                "one warning. The file may not hold a `[solver]` table or the mesh. To split",
+                "existing setups, run `python -m cfdbender.migrate_setup_numerics WORKSPACE`.",
+            ]
         lines += ["", "## `inputs/references/r001.toml`", "", "```toml", reference.rstrip(), "```"]
         lines += ["", "## `inputs/pproc/p001.toml`", "", "```toml", post.rstrip(), "```", ""]
     lines += [

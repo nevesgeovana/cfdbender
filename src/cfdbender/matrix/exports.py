@@ -29,6 +29,7 @@ from cfdbender.core.flight import FlightConditionError, resolve_flow
 from cfdbender.core.plan import workspace_path
 from cfdbender.matrix._family_columns import SOLVER_ROTORS
 from cfdbender.matrix._family_polar import Point, PolarFiles, point_loads, polar_files
+from cfdbender.matrix._rotor_table import rotor_table
 from cfdbender.matrix._section_tables import section_files
 from cfdbender.matrix.polar2d import verdict_cells
 
@@ -279,9 +280,10 @@ def write_polar_files(
     sections, columns, skipped = section_files(
         root, folder, rows, points, polar, solver, write=_write, cell=_cell
     )
+    rotors = rotor_table(folder, rows, write=_write, cell=_cell)
     return replace(
         polar,
-        paths=(*polar.paths, *sections),
+        paths=(*polar.paths, *sections, *rotors),
         sections=sections,
         sections_columns=columns,
         sections_skipped=skipped,

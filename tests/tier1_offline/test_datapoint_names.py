@@ -74,7 +74,7 @@ def test_native_solver_keys_are_named_and_j_is_the_advance_ratio():
     assert point_name([], {}) == "NOCOND"
 
 
-HEADER = "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
+HEADER = "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES\n"
 
 
 def workspace(root: Path, rows: str) -> None:

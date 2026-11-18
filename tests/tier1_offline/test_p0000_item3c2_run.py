@@ -73,7 +73,7 @@ def test_p0000_item3c2_failure_does_not_skip_next_point(tmp_path, failure):
     workspace(tmp_path)
     matrix = tmp_path / "inputs/matrices/study.fs"
     matrix.write_text(
-        "POL|RUN|SET|REF|PPROC" + chr(10) + "1001|1|001|001|001" + chr(10) + "1002|1|001|001|001"
+        "POL|RUN|SETUP|REF|PPROC" + chr(10) + "1001|1|001|001|001" + chr(10) + "1002|1|001|001|001"
     )
     plan = plan_workspace(tmp_path, "study")
     calls = []

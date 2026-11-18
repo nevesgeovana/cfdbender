@@ -61,7 +61,7 @@ def named(root):
     ):
         (root / f"inputs/{kind}/{old}.toml").rename(root / f"inputs/{kind}/{new}.toml")
     path = root / "inputs/matrices/study.fs"
-    path.write_text("POL|RUN|SET|REF|PPROC\n1001|1|sxbbase|rwing|pforces\n", encoding="ascii")
+    path.write_text("POL|RUN|SETUP|REF|PPROC\n1001|1|sxbbase|rwing|pforces\n", encoding="ascii")
 
 
 def test_named_artifact_ids_plan_run_and_record(tmp_path):
@@ -78,7 +78,7 @@ def test_numeric_and_suffixed_ids_keep_their_meaning(tmp_path):
     workspace(tmp_path)
     path = tmp_path / "inputs/matrices/study.fs"
     for cell in ("001", "s001", "s001.toml"):
-        path.write_text(f"POL|RUN|SET|REF|PPROC\n1001|1|{cell}|001|001\n", encoding="ascii")
+        path.write_text(f"POL|RUN|SETUP|REF|PPROC\n1001|1|{cell}|001|001\n", encoding="ascii")
         assert plan_workspace(tmp_path, "study").points[0].setup_id == "s001"
 
 
@@ -86,8 +86,8 @@ def test_numeric_and_suffixed_ids_keep_their_meaning(tmp_path):
 def test_an_id_of_the_wrong_kind_or_shape_is_refused(tmp_path, cell):
     workspace(tmp_path)
     path = tmp_path / "inputs/matrices/study.fs"
-    path.write_text(f"POL|RUN|SET|REF|PPROC\n1001|1|{cell}|001|001\n", encoding="ascii")
-    with pytest.raises(Exception, match="SET"):
+    path.write_text(f"POL|RUN|SETUP|REF|PPROC\n1001|1|{cell}|001|001\n", encoding="ascii")
+    with pytest.raises(Exception, match="SETUP"):
         plan_workspace(tmp_path, "study")
 
 

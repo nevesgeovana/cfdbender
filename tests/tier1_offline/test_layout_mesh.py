@@ -12,7 +12,7 @@ from cfdbender.core.workspace import init_workspace
 from cfdbender.solvers import available_solvers
 from cfdbender.workspace.planning import plan_workspace
 
-HEADER = "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | GEOMETRY | REF | SET | PPROC | WALLTIME"
+HEADER = "POL | RUN | FLIGHT_CONDITION | SWEEP_VALUES | GEOMETRY | REF | SETUP | PPROC | WALLTIME"
 ROW = " 5001 | 1 | MACH:0.5, ALPHA:sweep | 1,2 | wb.su2 | 001 | 001 | 001 | 1h"
 
 

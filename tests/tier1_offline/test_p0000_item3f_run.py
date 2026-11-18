@@ -122,7 +122,7 @@ def test_p0000_item3f_run_preflights_all_before_writes(tmp_path, capsys, problem
     else:
         matrix = tmp_path / "inputs/matrices/study.fs"
         matrix.write_text(
-            "POL|RUN|SET|REF|PPROC"
+            "POL|RUN|SETUP|REF|PPROC"
             + chr(10)
             + "1001|1|001|001|001"
             + chr(10)

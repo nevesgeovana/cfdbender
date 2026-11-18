@@ -54,17 +54,17 @@ closest name, and says `missing columns: ...` first when a required column is
 absent too. [Matrix columns](matrix-columns.md) lists them.
 
 ```text
-inputs/matrices/polar.fs: columns are separated by |, not by commas (POL | RUN | SET | ...)
+inputs/matrices/polar.fs: columns are separated by |, not by commas (POL | RUN | SETUP | ...)
 ```
 
 A matrix uses `|` between columns, not commas or tabs.
 
 ```text
-inputs/matrices/polar.fs, data row 1 (POL 2001): SET s002 names inputs/setups/s002.toml, which does not exist
+inputs/matrices/polar.fs, data row 1 (POL 2001): SETUP s002 names inputs/setups/s002.toml, which does not exist
 ```
 
 The row names a setup, reference or pproc file that does not exist. Here the
-`SET` cell is `002` and `inputs/setups/s002.toml` is missing; `REF` and `PPROC`
+`SETUP` cell is `002` and `inputs/setups/s002.toml` is missing; `REF` and `PPROC`
 are worded the same. Every refusal of a row starts like this, with the path of
 the matrix, the row counted from the first row under the header, and its `POL`.
 

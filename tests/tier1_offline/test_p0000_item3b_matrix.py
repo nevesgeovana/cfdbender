@@ -22,7 +22,7 @@ def matrix_api():
 
 def matrix_file(tmp_path: Path, rows: list[str] | None = None) -> Path:
     path = tmp_path / "study.fs"
-    header = "POL | RUN | SET | REF | PPROC | FLIGHT_CONDITION | SWEEP_VALUES | WALLTIME"
+    header = "POL | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION | SWEEP_VALUES | WALLTIME"
     body = rows or ["1001 | 1 | 002 | r003 | p001 | MACH:0.2, ALPHA:sweep | -2,0,2 | 4h"]
     path.write_text(chr(10).join(["# synthetic study", header, "-" * 40, *body, ""]))
     return path
@@ -64,7 +64,7 @@ def test_p0000_item3b_run_filter_and_data_row_numbers(tmp_path):
         (("-2,0,2", "nan"), "finite"),
         (("ALPHA:sweep", "ALPHA:sweep, BETA:sweep"), "one"),
         (("MACH:0.2", "MACH:0.2, mach:0.3"), "MACH"),
-        (("002 | r003", "../s002 | r003"), "SET"),
+        (("002 | r003", "../s002 | r003"), "SETUP"),
         (("1001 | 1", "../1001 | 1"), "POL"),
         (("1001 | 1", "1001 | yes"), "RUN"),
         (("4h", "forever"), "WALLTIME"),
