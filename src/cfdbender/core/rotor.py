@@ -46,6 +46,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from cfdbender.core.refusals import warn_or_refuse
+from cfdbender.core.rotor_coefficients import rotor_coefficients
 
 Vector = tuple[float, float, float]
 
@@ -249,84 +250,6 @@ def periodic_sum(
 
 
 NOT_APPLICABLE = "NA"
-
-
-def rotor_coefficients(
-    *,
-    thrust_n: float,
-    torque_nm: float,
-    rps: float,
-    diameter_m: float,
-    density_kg_m3: float,
-    speed_m_s: float,
-) -> dict[str, float | str]:
-    """Return the standard coefficients of one rotor.
-
-    The definitions are those of ``docs/post-processing-definitions.md`` of pyflightstream.
-    ``n`` is signed revolutions per second and ``D`` the diameter; its magnitude normalises
-    the coefficients and its sign enters power only. ``CQ`` keeps the signed torque about the
-    fixed rotor axis, and reversing the rotation alone does not change ``J``::
-
-        J   = V / (|n| D)
-        CT  = T / (rho n^2 D^4)
-        CQ  = Q / (rho n^2 D^5)
-        CP  = 2 pi CQ sign(n)
-        ETA = J CT / CP
-
-    ``ETA`` is NA on a static point (V = 0) and where CP is zero.
-
-    Parameters
-    ----------
-    thrust_n : float
-        Thrust along the shaft in N.
-    torque_nm : float
-        Torque about the shaft in N m, signed about the fixed rotor axis.
-    rps : float
-        Signed revolutions per second; the sign is the sense of rotation.
-    diameter_m, density_kg_m3, speed_m_s : float
-        Rotor diameter in m, air density in kg/m3 and free-stream speed in m/s.
-
-    Returns
-    -------
-    dict of str to float or str
-        ``J``, ``CT``, ``CQ``, ``CP`` and ``ETA``.
-
-    Raises
-    ------
-    ValueError
-        The rotor is not turning, or the diameter or density is not positive, or the speed or
-        diameter is infinite: every coefficient divides by the square of the speed.
-    """
-    if rps == 0:
-        raise ValueError(
-            "rps is zero: the rotor is not turning, so it has no thrust or torque coefficient: "
-            "every one of them divides by the square of its speed"
-        )
-    if diameter_m <= 0:
-        raise ValueError("diameter_m must be positive to define rotor coefficients")
-    if math.isinf(rps) or math.isinf(diameter_m):
-        raise ValueError("rps and diameter_m must be finite to define rotor coefficients")
-    if not density_kg_m3 > 0:
-        raise ValueError(
-            f"density_kg_m3 must be positive to define rotor coefficients, got {density_kg_m3!r}"
-        )
-    rate = abs(rps)
-    sense = 1.0 if rps > 0 else -1.0
-    advance_ratio = speed_m_s / (rate * diameter_m)
-    thrust_coefficient = thrust_n / (density_kg_m3 * rate**2 * diameter_m**4)
-    torque_coefficient = torque_nm / (density_kg_m3 * rate**2 * diameter_m**5)
-    power_coefficient = 2.0 * math.pi * torque_coefficient * sense
-    values: dict[str, float | str] = {
-        "J": advance_ratio,
-        "CT": thrust_coefficient,
-        "CQ": torque_coefficient,
-        "CP": power_coefficient,
-    }
-    if speed_m_s == 0 or power_coefficient == 0:
-        values["ETA"] = NOT_APPLICABLE
-    else:
-        values["ETA"] = advance_ratio * thrust_coefficient / power_coefficient
-    return values
 
 
 def rotor_quantities(

@@ -61,6 +61,107 @@ ROTOR_FRAME_COLUMNS: tuple[tuple[str, str, str, str | None], ...] = (
 PER_FRAME_ROTOR_COLUMNS: tuple[str, ...] = ("CT", "CQ", "ETA")
 
 
+def force_scale(rate_rps: float, density_kg_m3: float, diameter_m: float) -> float:
+    """``rho n^2 D^4``: what a rotor force is divided by to give its coefficient."""
+    return density_kg_m3 * rate_rps * rate_rps * diameter_m**4
+
+
+def moment_scale(rate_rps: float, density_kg_m3: float, diameter_m: float) -> float:
+    """``rho n^2 D^5``: what a rotor moment is divided by to give its coefficient."""
+    return force_scale(rate_rps, density_kg_m3, diameter_m) * diameter_m
+
+
+def power_scale(rate_rps: float, density_kg_m3: float, diameter_m: float) -> float:
+    """``rho n^3 D^5``: what a shaft power in W is divided by to give ``CP``."""
+    return moment_scale(rate_rps, density_kg_m3, diameter_m) * rate_rps
+
+
+def advance_ratio(speed_m_s: float, rate_rps: float, diameter_m: float) -> float:
+    """``J = V / (|n| D)``."""
+    return speed_m_s / (abs(rate_rps) * diameter_m)
+
+
+def power_from_torque(torque_coefficient: float, rate_rps: float) -> float:
+    """``CP = 2 pi CQ sign(n)``: the sense of rotation enters the power only."""
+    return 2.0 * math.pi * torque_coefficient * (1.0 if rate_rps > 0 else -1.0) + 0.0
+
+
+def rotor_coefficients(
+    *,
+    thrust_n: float,
+    torque_nm: float,
+    rps: float,
+    diameter_m: float,
+    density_kg_m3: float,
+    speed_m_s: float,
+) -> dict[str, float | str]:
+    """Return the standard coefficients of one rotor.
+
+    The definitions are those of ``docs/post-processing-definitions.md`` of pyflightstream.
+    ``n`` is signed revolutions per second and ``D`` the diameter; its magnitude normalises
+    the coefficients and its sign enters power only. ``CQ`` keeps the signed torque about the
+    fixed rotor axis, and reversing the rotation alone does not change ``J``::
+
+        J   = V / (|n| D)
+        CT  = T / (rho n^2 D^4)
+        CQ  = Q / (rho n^2 D^5)
+        CP  = 2 pi CQ sign(n)
+        ETA = J CT / CP
+
+    ``ETA`` is NA on a static point (V = 0) and where CP is zero.
+
+    Parameters
+    ----------
+    thrust_n : float
+        Thrust along the shaft in N.
+    torque_nm : float
+        Torque about the shaft in N m, signed about the fixed rotor axis.
+    rps : float
+        Signed revolutions per second; the sign is the sense of rotation.
+    diameter_m, density_kg_m3, speed_m_s : float
+        Rotor diameter in m, air density in kg/m3 and free-stream speed in m/s.
+
+    Returns
+    -------
+    dict of str to float or str
+        ``J``, ``CT``, ``CQ``, ``CP`` and ``ETA``.
+
+    Raises
+    ------
+    ValueError
+        The rotor is not turning, or the diameter or density is not positive, or the speed or
+        diameter is infinite: every coefficient divides by the square of the speed.
+    """
+    if rps == 0:
+        raise ValueError(
+            "rps is zero: the rotor is not turning, so it has no thrust or torque coefficient: "
+            "every one of them divides by the square of its speed"
+        )
+    if diameter_m <= 0:
+        raise ValueError("diameter_m must be positive to define rotor coefficients")
+    if math.isinf(rps) or math.isinf(diameter_m):
+        raise ValueError("rps and diameter_m must be finite to define rotor coefficients")
+    if not density_kg_m3 > 0:
+        raise ValueError(
+            f"density_kg_m3 must be positive to define rotor coefficients, got {density_kg_m3!r}"
+        )
+    thrust_coefficient = thrust_n / force_scale(rps, density_kg_m3, diameter_m)
+    torque_coefficient = torque_nm / moment_scale(rps, density_kg_m3, diameter_m)
+    power_coefficient = power_from_torque(torque_coefficient, rps)
+    advance = advance_ratio(speed_m_s, rps, diameter_m)
+    values: dict[str, float | str] = {
+        "J": advance,
+        "CT": thrust_coefficient,
+        "CQ": torque_coefficient,
+        "CP": power_coefficient,
+    }
+    if speed_m_s == 0 or power_coefficient == 0:
+        values["ETA"] = NOT_APPLICABLE
+    else:
+        values["ETA"] = advance * thrust_coefficient / power_coefficient
+    return values
+
+
 def _usable(value: object) -> float | None:
     if value is None or isinstance(value, bool) or not isinstance(value, int | float):
         return None
@@ -140,16 +241,16 @@ def rotor_frame_coefficients(
         diameter = None
     rho = _usable(density_kg_m3)
     vinf = _usable(vinf_m_s)
-    force_scale = (
-        rho * rate * rate * diameter**4
+    forces = (
+        force_scale(rate, rho, diameter)
         if turning and rate is not None and rho is not None and diameter is not None
         else None
     )
-    moment_scale = None if force_scale is None or diameter is None else force_scale * diameter
+    moments = None if forces is None or diameter is None else forces * diameter
     advance = (
         None
         if not turning or vinf is None or rate is None or diameter is None
-        else vinf / (abs(rate) * diameter)
+        else advance_ratio(vinf, rate, diameter)
     )
     pressure = None if vinf is None or vinf == 0.0 or rho is None else 0.5 * rho * vinf * vinf
     area = None if diameter is None else math.pi * diameter**2 / 4.0
@@ -166,19 +267,15 @@ def rotor_frame_coefficients(
             if rate == 0.0
             else _over(2.0 * math.pi * rate * torque, 1000.0)
         ),
-        "CT": _over(thrust, force_scale),
-        "CQ": _over(torque, moment_scale),
+        "CT": _over(thrust, forces),
+        "CQ": _over(torque, moments),
     }
     cq = values["CQ"]
-    values["CP"] = (
-        2.0 * math.pi * cq * (1.0 if rate and rate > 0 else -1.0) + 0.0
-        if isinstance(cq, float)
-        else NOT_APPLICABLE
-    )
-    values["CFZ"] = _over(normal, force_scale)
-    values["CFY"] = _over(side, force_scale)
-    values["CMZ"] = _over(yawing, moment_scale)
-    values["CMY"] = _over(pitching, moment_scale)
+    values["CP"] = power_from_torque(cq, rate) if isinstance(cq, float) and rate else NOT_APPLICABLE
+    values["CFZ"] = _over(normal, forces)
+    values["CFY"] = _over(side, forces)
+    values["CMZ"] = _over(yawing, moments)
+    values["CMY"] = _over(pitching, moments)
     values["ETA"] = _efficiency(advance, values["CT"], values["CP"])
     disc = None if pressure is None or area is None else pressure * area
     sref, cref, bref = (_usable(v) for v in (sref_m2, cref_m, bref_m))
@@ -205,8 +302,8 @@ def rotor_frame_coefficients(
     )
     for name, matrix in rotations.items():
         along, _side, _normal, about, _pitch, _yaw = _loads(force_n, moment_hub_nm, matrix)
-        values[f"CT{name}"] = _over(along, force_scale)
-        values[f"CQ{name}"] = _over(about, moment_scale)
+        values[f"CT{name}"] = _over(along, forces)
+        values[f"CQ{name}"] = _over(about, moments)
         values[f"ETA{name}"] = _efficiency(advance, values[f"CT{name}"], values["CP"])
     wind = values.get("CTW")
     if isinstance(wind, float) and abs(frame.body_to_rotor[0][0]) < 1e-12:
