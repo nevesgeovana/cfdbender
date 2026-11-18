@@ -43,7 +43,8 @@ from cfdbender.core.plan import Point, RowInputs, RowRequirements, workspace_pat
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate, read_init
 from cfdbender.solvers._host._config import steady_only
-from cfdbender.solvers._host._groups import point_markers, validate_groups
+from cfdbender.solvers._host._gmsh import gmsh_header
+from cfdbender.solvers._host._groups import point_markers, validate_tracked_groups
 from cfdbender.solvers.openfoam._config import (
     POST_KEYS,
     REFERENCE_KEYS,
@@ -98,18 +99,17 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             condition,
             geometry=workspace.geometry,
         )
-        mesh = workspace.read_bytes(case.mesh)
+        # The mesh is digested in one streamed pass that also scans it; it is never held whole.
         if case.groups:
-            known = validate_groups(workspace.setup, mesh, case.mesh)
+            known = validate_tracked_groups(workspace.setup, workspace, case.mesh)
             case = replace(
                 case, wall_markers=tuple(m for m in known if m not in {"farfield", "front", "back"})
             )
-        if (
-            case.mesh_converter is None
-            and not mesh.startswith(b"$MeshFormat\n2.2 0 8\n")
-            and not mesh.startswith(b"$MeshFormat\r\n2.2 0 8\r\n")
-        ):
-            raise ValueError("mesh must be gmsh 2.2 ASCII")
+        if case.mesh_converter is None:
+            if gmsh_header(workspace, case.mesh) != "2.2":
+                raise ValueError("mesh must be gmsh 2.2 ASCII")
+        elif not case.groups:
+            workspace.track(case.mesh)
         names = tuple(files(case, opts))
     return RowRequirements(
         (
