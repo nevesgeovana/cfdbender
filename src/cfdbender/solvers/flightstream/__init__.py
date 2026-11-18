@@ -14,6 +14,7 @@ from pathlib import Path
 from cfdbender import _pyfs
 from cfdbender.core import WorkspaceError, read_init
 from cfdbender.core import init_workspace as write_init
+from cfdbender.core.plan import reads_large_inputs
 from cfdbender.solvers import available_solvers
 from cfdbender.solvers.flightstream.reader import FlightStreamPoint, read_workspace
 
@@ -114,6 +115,18 @@ def dispatch(argv: list[str], *, workspace: bool, matrix_verbs: Collection[str] 
         config = read_init(root, available_solvers=available_solvers())
         if config.solver != SOLVER_NAME:
             return None
+        boundary = argv.index("--") if "--" in argv else len(argv)
+        options = argv[:boundary]
+        no_read = "--no-read-large-inputs" in options
+        if no_read and "--rehash-inputs" in options:
+            raise WorkspaceError("--no-read-large-inputs and --rehash-inputs contradict each other")
+        if no_read or not reads_large_inputs(root):
+            print(
+                "warning: the optional large-input check does not apply to the FlightStream "
+                "route; its engine controls input reads. --no-read-large-inputs is ignored.",
+                file=sys.stderr,
+            )
+        argv = [word for word in options if word != "--no-read-large-inputs"] + argv[boundary:]
         verb = next((word for word in argv if not word.startswith("-")), None)
         if workspace and verb not in matrix_verbs:
             return _pyfs.workspace_main(argv)
