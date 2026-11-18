@@ -93,6 +93,9 @@ class _Su2Markers:
             self._overflow = True
 
     def _line(self, line: bytes) -> None:
+        if len(line) > _LONG_LINE and (self._pending or b"MARKER_TAG" in line):
+            self._overflow = True
+            return
         if b"MARKER_TAG" in line:
             self._keep(line)
             self._pending = 2
