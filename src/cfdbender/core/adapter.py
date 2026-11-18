@@ -65,7 +65,11 @@ def capabilities(adapter: object) -> frozenset[str]:
 
 @dataclass(frozen=True)
 class AdapterPoint:
-    """A planned point and its workspace, with digest-checked s/r/p snapshots."""
+    """A planned point and its workspace, with digest-checked s/r/p snapshots.
+
+    The ``session`` field, when set, is the command's shared input reads, so a large input is
+    read once for all its points; it takes no part in comparison.
+    """
 
     root: Path
     point: Point

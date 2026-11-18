@@ -220,11 +220,16 @@ class DigestCache:
     run records. It is never a planned input: it does not enter ``inputs_sha256`` or any record.
     An entry holds a file's size, modification time and change time in nanoseconds, its SHA-256
     and the results of scans of its bytes (for example the marker names of an SU2 mesh). An entry
-    is served only when size, timestamps and inode still match; the host name, the workspace
-    path and the device number are not part of that identity, so the cache works across the nodes
-    of a shared file system, and a copied workspace (new inodes) is hashed again.
+    is served only when size, timestamps and inode are unchanged. The host name, the workspace
+    path and the device number are not checked, so that a workspace on a shared file system can
+    be used from several nodes, and a copied workspace (new inodes) is hashed again.
     A missing, unreadable, corrupt or wrong-version file is an empty cache.
     Failed writes are ignored.
+
+    Parameters
+    ----------
+    root : Path
+        Workspace root, where the cache file lives.
     """
 
     NAME = ".input-digests.cache"
@@ -356,6 +361,11 @@ class InputSession:
     large input is read and hashed once for the command rather than once per point. A file
     whose size or timestamps differ when it is touched again is read again, never trusted.
     Small inputs are always read again, as they are without a session.
+
+    Parameters
+    ----------
+    root : str or Path
+        Workspace root; it is resolved, and the digest cache is kept there.
     """
 
     def __init__(self, root: str | Path) -> None:

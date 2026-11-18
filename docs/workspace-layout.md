@@ -30,6 +30,7 @@ campaign/
     <matrix>/products.json
     <matrix>/post.log
   archive/<stamp>/              # earlier evidence, moved here and never deleted
+  .input-digests.cache          # digests of large inputs, reused between commands; safe to delete
   runs.json                     # the record of every point that was run
   marks.json                    # verdicts you recorded with mark-failed and mark-converged
   storage_management.json       # the record of every storage command
@@ -39,7 +40,8 @@ campaign/
 `cfd-workspace init` creates `init.toml`, `sims/`, `post/`, `archive/`, the
 input folders `matrices`, `setups`, `references`, `pproc`, `mesh` and `hpc`
 (the mock solver creates a few more), the file `inputs/INPUTS.md`, which says
-what each input file of the solver holds, and `inputs/.gitignore`. You create
+what each input file of the solver holds, and `inputs/.gitignore`. It also adds
+`/.input-digests.cache` to the `.gitignore` of the workspace root. You create
 `inputs/management/` and the optional files when you need them. Every other
 file appears when the command beside it first runs.
 
@@ -141,7 +143,9 @@ hashes, its status, when it started and finished, and the verdict on its
 convergence. `cfd-matrix status` and `cfd-workspace show`, `history` and `log` read this file;
 you never edit it.
 
-`.input-digests.cache`, also in the workspace root, lets a large input (above 8 MiB, such as a mesh) be read and hashed once rather than by every command. It holds each such file's size, modification time, change time, SHA-256 and, for an SU2 mesh, its marker names. It is never a planned input and never enters a record, and deleting it loses nothing. A file whose size or timestamps still match is not read again; one rewritten with the same size and timestamps goes unnoticed unless the command runs with `--rehash-inputs`.
+`.input-digests.cache`, also in the workspace root, lets a large input (above 8 MiB, such as a mesh) be read and hashed once rather than by every command. It holds each such file's size, modification time, change time, SHA-256 and, for an SU2 mesh, its marker names. It is never a planned input and never enters a record, and deleting it loses nothing. A file whose size, timestamps and inode still match is not read again.
+
+A stored digest is reused while the file's size, timestamps and inode are unchanged. The host name, the workspace path and the device number are not checked, so that a workspace on a shared file system can be used from several nodes, for example `plan` on one login node and `run` or `collect` on another. This rule is tested with simulated file identities, not on a real shared file system; where a file system reports unstable inodes or delayed timestamps, use `--rehash-inputs`. A copy of the workspace has new inodes and is hashed again once. All checks follow symbolic links to the target. On POSIX, ctime is metadata change time: restoring mtime after a write normally still invalidates the entry. On Windows, the ctime that Python reports is the creation time, so an in-place same-size rewrite with restored mtime can remain undetected. Coarse filesystem timestamps can hide same-tick writes on either platform. Use `--rehash-inputs` after such changes. Files less than two seconds past their newest timestamp (including future-dated files) are not persisted. Timestamps are epoch values, independent of time zone.
 
 ## What plan, collect and post write
 
@@ -179,9 +183,8 @@ write nothing.
 
 ## Version control
 
-`cfd-workspace init` writes `inputs/.gitignore` so that
+`cfd-workspace init` also adds `/.input-digests.cache` to the `.gitignore` of the
+workspace root. It writes `inputs/.gitignore` so that
 `executables.local.toml`, which holds paths of one machine, stays out of a
 repository. `inputs/` is small text and is worth committing. `sims/` and
 `archive/` hold solver output and are usually left out.
-
-A stored digest is reused while the file's size, timestamps and inode are unchanged. The host name, the workspace path and the device number are not checked, so the cache works across the nodes of a shared file system (for example `plan` on one login node and `run` or `collect` on another). A copy of the workspace has new inodes and is hashed again once. All checks follow symbolic links to the target. On POSIX, ctime is metadata change time: restoring mtime after a write normally still invalidates the entry. On Windows, Python ctime is creation time, so an in-place same-size rewrite with restored mtime can remain undetected. Coarse filesystem timestamps can hide same-tick writes on either platform. Use `--rehash-inputs` after such changes. Files less than two seconds past their newest timestamp (including future-dated files) are not persisted. Timestamps are epoch values, independent of time zone.
