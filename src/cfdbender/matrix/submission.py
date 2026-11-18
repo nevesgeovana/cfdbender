@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import string
+import warnings
 from dataclasses import replace
 from pathlib import Path
 
@@ -28,7 +29,7 @@ from cfdbender.core.plan import InputFiles, InputSession, Point, RunPlan, worksp
 from cfdbender.core.refusals import warn_unused_cluster
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.restart import check_restart
-from cfdbender.core.run import check_available_ram
+from cfdbender.core.run import FLOOR_GIB, free_ram_gib
 from cfdbender.hpc import HpcProfile, SubmissionPlan, plan_submission, resolve_hpc_profile
 from cfdbender.hpc._submit import submit
 from cfdbender.solvers import load_solver
@@ -199,6 +200,29 @@ def submission_plans(
     return tuple(jobs)
 
 
+def warn_low_ram() -> None:
+    """Warn, never refuse, when this host's free RAM is below the floor or unknown.
+
+    A submitted job runs on the cluster, not on the host that submits it, so the memory
+    of the submitting host (often a shared login node) is no reason to refuse.
+    """
+    try:
+        available = free_ram_gib()
+    except (OSError, ValueError, IndexError):
+        message = (
+            "cannot measure free RAM on this host; submitting anyway because the job runs "
+            "on the cluster"
+        )
+    else:
+        if available >= FLOOR_GIB:
+            return
+        message = (
+            f"free RAM {available:.3f} GiB on this host is below the {FLOOR_GIB} GiB floor; "
+            "submitting anyway because the job runs on the cluster"
+        )
+    warnings.warn(message, UserWarning, stacklevel=2)
+
+
 def submit_plan(
     plan: RunPlan,
     jobs: tuple[SubmissionPlan, ...],
@@ -226,7 +250,7 @@ def submit_plan(
         SUBMITTED because the scheduler may have accepted it. Interruption
         before the submission is recorded leaves RUNNING, preventing a retry.
     """
-    check_available_ram()
+    warn_low_ram()
     session = InputSession(plan.root)
     registry = RunRegistry(plan.root, session=session)
     previous = {r.point_id: r for r in registry.read()}
@@ -268,7 +292,6 @@ def submit_plan(
     for point, job, ascii_input, profile in zip(
         plan.points, jobs, translated, profiles, strict=True
     ):
-        check_available_ram()
         registry.transition(point.point_id, "RUNNING")
         folder = workspace_path(plan.root, point.directory)
         config = folder / config_name
