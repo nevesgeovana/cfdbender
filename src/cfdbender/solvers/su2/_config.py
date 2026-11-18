@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import cast
 
 from cfdbender.core.flight import (
@@ -15,8 +16,18 @@ from cfdbender.core.flight import (
     resolve_flow,
     speed_of_sound,
     states_flow,
+    sutherland_viscosity,
 )
 from cfdbender.core.refusals import warn_or_refuse
+from cfdbender.core.rotor import (
+    ROW_CONTROLS,
+    PeriodicState,
+    RotorBlock,
+    periodic_state,
+    rotation_rate,
+    rotor_block,
+    rotor_quantities,
+)
 from cfdbender.solvers._host._config import number as number
 from cfdbender.solvers._host._config import unknown_keys
 from cfdbender.solvers._host._groups import groups
@@ -173,7 +184,7 @@ def _flow(
     """Split the matrix condition into SU2 keys and the resolved free stream."""
     kept = {key: value for key, value in condition.items() if key not in STATE_KEYS}
     for key in kept:
-        if key in ATTITUDE_KEYS and key not in {"ALPHA", "BETA"}:
+        if key in ATTITUDE_KEYS and key not in {"ALPHA", "BETA", "ADVANCE_RATIO"}:
             raise ValueError(f"the SU2 adapter does not read FLIGHT_CONDITION key {key}")
     if not states_flow(condition):
         if "MACH" in condition:
@@ -258,6 +269,9 @@ def config(
     if post.get("history") is not True:
         raise ValueError("pproc history must be true")
     condition, derived = _flow(condition, setup, reference)
+    advance = condition.pop("ADVANCE_RATIO", None)
+    rotor = rotor_block(reference)
+    periodic = periodic_state(setup)
     if geometry is not None:
         derived["MESH_FILENAME"] = geometry
     values: dict[str, object] = {}
@@ -280,8 +294,13 @@ def config(
             if (
                 key in {"solver", "mesh_link", "groups"}
                 and table is setup
+                or key in ROW_CONTROLS
+                and table is setup
                 or key == "history"
                 and table is post
+                or table is reference
+                and isinstance(value, dict)
+                and value.get("kind") == "rotor"
             ):
                 continue
             if key in RAMP_KEYS and table is setup:
@@ -369,6 +388,9 @@ def config(
     _history_output(values)
     _cfl_ramp(values, ramp)
     _fluid_model(values)
+    if advance is not None:
+        _advance_ratio(values, number(advance, "ADVANCE_RATIO"), rotor)
+    _periodic_warnings(values, rotor, periodic)
     _dimensionalization(values)
     _sa_variant(values)
     _heatflux_values(values)
@@ -522,6 +544,294 @@ def _fluid_model(values: dict[str, object]) -> None:
             UserWarning,
             stacklevel=3,
         )
+
+
+def _periodic_angle(values: Mapping[str, object]) -> float | None:
+    """Return the rotation angle in degrees of the setup's MARKER_PERIODIC, or None."""
+    given = values.get("MARKER_PERIODIC")
+    if given is None:
+        return None
+    parts = (
+        [str(item) for item in given]
+        if isinstance(given, list)
+        else [part for part in re.split(r"[\s,()]+", str(given).strip()) if part]
+    )
+    try:
+        angles = [float(part) for part in parts[5:8]]
+    except ValueError:
+        return None
+    return max(angles, key=abs) if angles else None
+
+
+def _periodic_warnings(
+    values: Mapping[str, object], rotor: RotorBlock | None, periodic: PeriodicState
+) -> None:
+    """Warn where the row's symmetry and the setup's periodic boundary disagree."""
+    if rotor is None and periodic.symmetry != "PERIODIC":
+        return
+    angle = _periodic_angle(values)
+    if periodic.symmetry == "PERIODIC":
+        if "MARKER_PERIODIC" not in values:
+            warn_or_refuse(
+                "SYMMETRY is PERIODIC but the setup states no MARKER_PERIODIC: the mesh needs "
+                "a periodic boundary for a sector",
+                UserWarning,
+                stacklevel=3,
+            )
+        elif angle and not math.isclose(360.0 / abs(angle), periodic.copies, rel_tol=1e-6):
+            warn_or_refuse(
+                f"MARKER_PERIODIC turns by {angle:g} degrees, which makes "
+                f"{360.0 / abs(angle):g} copies, and PERIODIC_COPIES is {periodic.copies}",
+                UserWarning,
+                stacklevel=3,
+            )
+        elif angle and not periodic.loads:
+            warn_or_refuse(
+                "SYMMETRY_LOADS is false: the loads are reported for the sector only",
+                UserWarning,
+                stacklevel=3,
+            )
+    elif "MARKER_PERIODIC" in values:
+        warn_or_refuse(
+            "the setup states MARKER_PERIODIC but SYMMETRY is not PERIODIC: the loads are "
+            "reported for the sector only",
+            UserWarning,
+            stacklevel=3,
+        )
+
+
+#: SU2's own default free-stream temperature (K) and pressure (Pa).
+SU2_DEFAULT_TEMPERATURE = 288.15
+SU2_DEFAULT_PRESSURE = 101325.0
+
+
+@dataclass(frozen=True)
+class FreeStream:
+    """The free stream of a deck as SU2 reads it.
+
+    Attributes
+    ----------
+    mach, sonic_velocity, velocity : float
+        MACH_NUMBER, the speed of sound of the ideal gas at the free-stream temperature and
+        their product V, in m/s.
+    density : float or None
+        The free-stream density in kg/m3; None when the deck does not determine it.
+    dynamic_pressure : float or None
+        ``0.5 rho V_q^2`` in Pa with ``V_q`` the speed SU2 scales its force coefficients by:
+        MACH_MOTION times the speed of sound when the deck states MACH_MOTION, else V.
+    """
+
+    mach: float
+    sonic_velocity: float
+    velocity: float
+    density: float | None
+    dynamic_pressure: float | None
+
+
+def free_stream(values: Mapping[str, object]) -> FreeStream | None:
+    """Return the free stream of a deck, or None without a Mach number or an ideal gas.
+
+    The speed of sound is ``sqrt(GAMMA R T)`` with the deck's ideal-gas constants
+    (STANDARD_AIR: SU2's own) and ``T`` FREESTREAM_TEMPERATURE (else SU2's 288.15 K). The
+    density is FREESTREAM_DENSITY under ``FREESTREAM_OPTION = DENSITY_FS``; for a viscous
+    deck that SU2 initialises from REYNOLDS_NUMBER it is ``Re mu / (V L)`` with the
+    Sutherland (or constant) viscosity and REYNOLDS_LENGTH; otherwise ``p / (R T)``.
+    """
+    if "MACH_NUMBER" not in values:
+        return None
+    model = _upper(values, "FLUID_MODEL")
+    if model == "STANDARD_AIR":
+        gas, gamma = SU2_AIR["GAS_CONSTANT"], SU2_AIR["GAMMA_VALUE"]
+    elif model in {"", "IDEAL_GAS"}:
+        gas = number(values.get("GAS_CONSTANT", SU2_AIR["GAS_CONSTANT"]), "GAS_CONSTANT")
+        gamma = number(values.get("GAMMA_VALUE", SU2_AIR["GAMMA_VALUE"]), "GAMMA_VALUE")
+    else:
+        return None
+    temperature = number(
+        values.get("FREESTREAM_TEMPERATURE", SU2_DEFAULT_TEMPERATURE), "FREESTREAM_TEMPERATURE"
+    )
+    mach = number(values["MACH_NUMBER"], "MACH_NUMBER")
+    sonic = math.sqrt(gamma * gas * temperature)
+    velocity = mach * sonic
+    density: float | None
+    if _upper(values, "FREESTREAM_OPTION") == "DENSITY_FS" and "FREESTREAM_DENSITY" in values:
+        density = number(values["FREESTREAM_DENSITY"], "FREESTREAM_DENSITY")
+    elif (
+        _upper(values, "SOLVER") in VISCOUS
+        and "REYNOLDS_NUMBER" in values
+        and _upper(values, "INIT_OPTION") != "TD_CONDITIONS"
+    ):
+        viscosity = (
+            number(values.get("MU_CONSTANT", 0.0), "MU_CONSTANT")
+            if _upper(values, "VISCOSITY_MODEL") == "CONSTANT_VISCOSITY"
+            else sutherland_viscosity(temperature)
+        )
+        length = number(values.get("REYNOLDS_LENGTH", 1.0), "REYNOLDS_LENGTH")
+        density = (
+            number(values["REYNOLDS_NUMBER"], "REYNOLDS_NUMBER") * viscosity / (velocity * length)
+            if velocity > 0.0 and length > 0.0
+            else None
+        )
+    else:
+        pressure = number(
+            values.get("FREESTREAM_PRESSURE", SU2_DEFAULT_PRESSURE), "FREESTREAM_PRESSURE"
+        )
+        density = pressure / (gas * temperature)
+    if density is not None and density <= 0.0:
+        density = None
+    motion = number(values.get("MACH_MOTION", mach), "MACH_MOTION") * sonic
+    pressure_q = None if density is None else 0.5 * density * motion * motion
+    return FreeStream(mach, sonic, velocity, density, pressure_q)
+
+
+def _vector_text(vector: Sequence[float]) -> str:
+    """Write a vector as SU2 reads the rotation keys: three numbers beside each other."""
+    return " ".join(format(component, ".15g") for component in vector)
+
+
+def _stated_vector(value: object, name: str) -> tuple[float, float, float]:
+    """Parse a stated three-component key, a list or the text SU2 reads."""
+    parts = (
+        [str(item) for item in value]
+        if isinstance(value, list)
+        else [part for part in re.split(r"[\s,()]+", str(value).strip()) if part]
+    )
+    if len(parts) != 3:
+        raise ValueError(f"{name} needs three finite coordinates")
+    x, y, z = (number(float(part), name) for part in parts)
+    return (x, y, z)
+
+
+def _advance_ratio(values: dict[str, object], advance: float, rotor: RotorBlock | None) -> None:
+    """Write the steady rotating frame of an advance ratio: the rotation, its origin and Mach.
+
+    ``J = V / (n D)`` with ``V`` the free-stream speed of the deck (MACH_NUMBER times the
+    speed of sound), ``n`` the rotation speed in rev/s and ``D`` the rotor block's
+    diameter_m. ROTATION_RATE is ``rpm_sign 2 pi n`` along the rotor's shaft, MOTION_ORIGIN
+    the rotor's origin, and MACH_MOTION the free-stream Mach number unless the setup states
+    it, in which case the setup wins.
+
+    Raises
+    ------
+    ValueError
+        The advance ratio is not positive; the REF file has no rotor block; the setup does
+        not declare GRID_MOVEMENT = ROTATING_FRAME; ROTATION_RATE is stated as well; the deck
+        has no free-stream speed above zero; or MOTION_ORIGIN disagrees with the rotor.
+    """
+    if not math.isfinite(advance) or advance <= 0.0:
+        raise ValueError("FLIGHT_CONDITION ADVANCE_RATIO must be positive")
+    if rotor is None:
+        raise ValueError(
+            "FLIGHT_CONDITION ADVANCE_RATIO needs the rotor declaration of the REF file: add "
+            'a table with kind = "rotor", axis, rpm_sign and diameter_m (for example [ROTOR])'
+        )
+    frame = _upper(values, "GRID_MOVEMENT")
+    if frame != "ROTATING_FRAME":
+        stated = f"states GRID_MOVEMENT = {frame}" if frame else "states no GRID_MOVEMENT"
+        raise ValueError(
+            "FLIGHT_CONDITION ADVANCE_RATIO needs a steady rotating frame: the setup file "
+            f'{stated}; state GRID_MOVEMENT = "ROTATING_FRAME"'
+        )
+    if "ROTATION_RATE" in values:
+        raise ValueError(
+            "FLIGHT_CONDITION ADVANCE_RATIO and ROTATION_RATE both state the rotation: the "
+            "advance ratio sets ROTATION_RATE, so remove it from the setup file and the row"
+        )
+    stream = free_stream(values)
+    if stream is None or stream.velocity <= 0.0:
+        raise ValueError(
+            "FLIGHT_CONDITION ADVANCE_RATIO needs a free-stream speed above zero: state MACH "
+            "above zero (an ideal gas, with the FREESTREAM_TEMPERATURE of the deck)"
+        )
+    rate, _ = rotation_rate(rotor, advance, stream.velocity)
+    if "MOTION_ORIGIN" in values:
+        given = _stated_vector(values["MOTION_ORIGIN"], "MOTION_ORIGIN")
+        if not all(
+            math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-12)
+            for a, b in zip(given, rotor.origin, strict=True)
+        ):
+            raise ValueError(
+                f"conflict: MOTION_ORIGIN is {given!r} in the s/r/p files and the rotor "
+                f"{rotor.name} has origin {rotor.origin!r}; state it in one place"
+            )
+    else:
+        values["MOTION_ORIGIN"] = _vector_text(rotor.origin)
+    values["ROTATION_RATE"] = _vector_text(rate)
+    values.setdefault("MACH_MOTION", stream.mach)
+    for key, label in (("AOA", "ALPHA"), ("SIDESLIP_ANGLE", "BETA")):
+        if key in values and number(values[key], key) != 0.0:
+            warn_or_refuse(
+                f"FLIGHT_CONDITION {label} is not zero with a steady rotating frame: the "
+                "frame assumes axial flow along the shaft, and the run continues",
+                UserWarning,
+                stacklevel=3,
+            )
+
+
+def rotor_point(
+    values: Mapping[str, object],
+    reference: Mapping[str, object],
+    coefficients: Mapping[str, float],
+    periodic: PeriodicState | None = None,
+) -> dict[str, object] | None:
+    """Return the rotor quantities of one rotating-frame point, or None without a rotor.
+
+    Parameters
+    ----------
+    values : mapping
+        The point's SU2 deck (:func:`config`).
+    reference : mapping
+        The point's REF file.
+    coefficients : mapping
+        The last CFx, CFy, CFz, CMx, CMy and CMz of the monitored surface.
+    periodic : PeriodicState, optional
+        The row's symmetry; without it the monitored surface is the whole rotor.
+
+    Returns
+    -------
+    dict or None
+        None when the REF file has no rotor block, the deck is not a steady rotating frame
+        with a ROTATION_RATE, or the history lacks the force and moment coefficients.
+        Otherwise the rotor, its inputs and :func:`cfdbender.solvers.su2._rotor.rotor_quantities`.
+    """
+    rotor = rotor_block(reference)
+    if (
+        rotor is None
+        or _upper(values, "GRID_MOVEMENT") != "ROTATING_FRAME"
+        or "ROTATION_RATE" not in values
+        or not all(key in coefficients for key in ("CFx", "CFy", "CFz", "CMx", "CMy", "CMz"))
+    ):
+        return None
+    stream = free_stream(values)
+    if stream is None or stream.velocity <= 0.0:
+        return None
+    origin = [number(values[f"REF_ORIGIN_MOMENT_{axis}"], "moment_origin") for axis in "XYZ"]
+    quantities = rotor_quantities(
+        rotor,
+        rotation=_stated_vector(values["ROTATION_RATE"], "ROTATION_RATE"),
+        velocity=stream.velocity,
+        density=stream.density,
+        dynamic_pressure=stream.dynamic_pressure,
+        area=number(values["REF_AREA"], "REF_AREA"),
+        length=number(values["REF_LENGTH"], "REF_LENGTH"),
+        moment_origin=origin,
+        force_coefficients=[coefficients[key] for key in ("CFx", "CFy", "CFz")],
+        moment_coefficients=[coefficients[key] for key in ("CMx", "CMy", "CMz")],
+        copies=1 if periodic is None else periodic.multiplier,
+    )
+    return {
+        "rotor": rotor.name,
+        "blades": rotor.blades,
+        "periodic_copies": 1 if periodic is None else periodic.copies,
+        "loads": "SECTOR"
+        if periodic is not None and periodic.multiplier == 1 and periodic.symmetry == "PERIODIC"
+        else "WHOLE",
+        "diameter_m": rotor.diameter_m,
+        "velocity_m_s": stream.velocity,
+        "density_kg_m3": stream.density,
+        "dynamic_pressure_pa": stream.dynamic_pressure,
+        **quantities,
+    }
 
 
 #: The CFL ramp written when the setup states no CFL key.

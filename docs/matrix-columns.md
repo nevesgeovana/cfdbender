@@ -42,7 +42,7 @@ with `columns are separated by |`.
 | `SETUP` | The physical setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). The header was `SET` before this column was renamed; a matrix that still says `SET` is read as `SETUP` with one warning per matrix file, and a header with both is refused. |
 | `NUMERICS` | The numerical setup file `inputs/numerics/n<id>.toml`, numbered or named, for the CFD solvers (SU2, OpenFOAM, PyFR); see [Setup and numerics](#setup-and-numerics). A column that is absent, or a cell holding `-` or nothing, means the setup file carries the numerics. A solver without the column warns once and ignores a filled cell. |
 | `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`, numbered or named. |
-| `SYMMETRY`, `SYMMETRY_LOADS` | Accepted in the header and must be `-`: symmetry comes from the mesh markers and the setup. |
+| `SYMMETRY`, `SYMMETRY_LOADS` | What was meshed (`NONE` or `PERIODIC`) and whether the loads are the whole model's (`true`, `false`). SU2 reads `NONE` and `PERIODIC` (with the row variable `PERIODIC_COPIES`; see its page); the other solvers need `-`: symmetry comes from the mesh markers and the setup. |
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
 | `WALLTIME` | Wall clock with its unit: `90s`, `240m`, `4h`, `1d`. `{walltime}` in an HPC profile. |
 | `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [Executables](executables.md)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. The column may also be named `FS_BUILD`, with the same meaning; a header holding both names is refused. |
@@ -82,6 +82,14 @@ The attitude keys are `ALPHA` and `BETA` in degrees, and `ADVANCE_RATIO`, `RPM`,
 `roll_rate`, `pitch_rate` and `yaw_rate` for solvers that read them. Other keys a
 solver documents (for example `ORDER` for PyFR or `J` for QPROP) are kept in upper case.
 
+`ADVANCE_RATIO` is `J = V / (n D)`, with `V` the free-stream speed, `n` the rotation speed in
+revolutions per second and `D` the rotor diameter. QPROP reads it as its `J`. SU2 reads it for a
+propeller in a steady rotating frame, with the rotor block of the REF file, as a value or as
+`ADVANCE_RATIO:sweep`, and writes the rotation of each point; see
+[Propeller in a steady rotating frame](su2-workspaces.md#propeller-in-a-steady-rotating-frame)
+(for a one-sixth sector: `SYMMETRY` `PERIODIC` and, in `VAR_NAMES_VALUES`, `hpc: h004 / PERIODIC_COPIES: 6`).
+A point name carries it as `J` and the value times 100 with its sign (`J+030` for 0.3).
+
 For SU2, PyFR and XFOIL, a row that states only `MACH` and angles, such as
 `MACH:0.3, ALPHA:sweep`, keeps the flow state of its setup file, as matrices
 written before these keys did. OpenFOAM and QPROP resolve a bare `MACH` at sea
@@ -91,7 +99,7 @@ level like any other air statement.
 
 | Solver | Row state becomes | GEOMETRY becomes |
 |---|---|---|
-| SU2 | `MACH_NUMBER`, `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them, `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` (see the SU2 page) | `MESH_FILENAME` |
+| SU2 | `MACH_NUMBER`, `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them, `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH`; `ADVANCE_RATIO` becomes `ROTATION_RATE`, `MOTION_ORIGIN` and `MACH_MOTION` of a steady rotating frame (see the SU2 page) | `MESH_FILENAME` |
 | OpenFOAM | `speed` (the velocity) and `nu` (viscosity over density) | `mesh` |
 | PyFR | `mach` and `reynolds` | `mesh` |
 | XFOIL | `mach` and `reynolds`; a bare `MACH` is the setup's `mach` | `airfoil_file` |
