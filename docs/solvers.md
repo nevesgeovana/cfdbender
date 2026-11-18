@@ -28,7 +28,10 @@ checked against the declarations by
 | `unsteady` | No | No | Yes | No | No | No |
 | `boundary_groups` | No | Yes | No | No | Yes | No |
 | `cluster_staging` | Yes | Yes | Yes | Yes | Yes | Yes |
+| `numerics_file` | No | Yes | Yes | No | Yes | No |
 
+`numerics_file` means the adapter reads the matrix column `NUMERICS`, a separate
+file of numerical keys; see [matrix columns](matrix-columns.md#setup-and-numerics).
 `restart` means resuming a solver from saved solution state. The run command's
 `--resume` selects unfinished points and is not a solver restart.
 `boundary_groups` means separate per-boundary force results. SU2 and OpenFOAM

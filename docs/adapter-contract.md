@@ -349,7 +349,8 @@ and PyFR). The adapter's documentation states the direction of positive
 **C-57.** An adapter declares optional behaviours with a module attribute
 `CAPABILITIES = frozenset({...})`. The closed vocabulary lives in
 `cfdbender.core.adapter.CAPABILITIES`: `restart`, `unsteady`,
-`boundary_groups` (per-boundary force groups) and `cluster_staging`.
+`boundary_groups` (per-boundary force groups), `cluster_staging` and `numerics_file`
+(the adapter reads the NUMERICS column).
 The core reader `capabilities(adapter)` returns the declaration; a missing
 attribute means none. The registry validates it when loading the adapter.
 An unknown name or a declaration other than a frozenset of names is a
