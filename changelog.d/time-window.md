@@ -14,3 +14,9 @@
   per revolution, and the azimuth of blade one at each step from the `azimuth_deg` of the
   reference rotor's `blade1` table and the sign of the rpm. Pure functions only; no row key is
   read by any command yet.
+- `cfdbender.core.revolutions`: one mean of each column per complete revolution
+  (`per_revolution_table`), the drift of a mean from the previous revolution in per cent
+  (`revolution_drift_pct`), and `revolution_drift_warnings`, which judges the last revolution's
+  change of each load column at 1 percent by default against the scale of its load group, so an
+  in-plane force is judged against the thrust. The warning is advice and never blocks. The
+  classifier that names a column's load kind and group is a parameter.
