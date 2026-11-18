@@ -683,6 +683,10 @@ class InputFiles:
             snapshot = self._cached(key, path)
             if snapshot is not None:
                 self._snapshots[key] = snapshot
+        if snapshot is not None and tag in snapshot.derived:
+            validate = getattr(factory(), "valid_result", None)
+            if validate is not None and not validate(snapshot.derived[tag]):
+                del snapshot.derived[tag]
         if snapshot is None:
             scanner = factory()
             snapshot = self._load(name, key, path, hold=False, scanner=scanner)

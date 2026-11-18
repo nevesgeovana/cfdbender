@@ -143,3 +143,18 @@ def test_the_tracked_reader_gives_the_whole_file_names_for_any_threshold(
         (tmp_path / f"m{index}.msh").write_bytes(data)
         found = tracked_markers(InputFiles(tmp_path.resolve()), f"m{index}.msh")
         assert found == marker_names(data, "m.msh"), data
+
+@pytest.mark.parametrize("bad", [[], ["gmsh"], ["bad", "names"], ["2.2", "bogus"], ["2.2", "overflow", "wing"]])
+def test_corrupt_gmsh_cache_fact_is_recomputed(tmp_path, monkeypatch, bad):
+    import json
+    import time
+
+    monkeypatch.setattr(plan_module, "LARGE_INPUT_BYTES", 0)
+    monkeypatch.setattr(plan_module, "_clock_ns", lambda: time.time_ns() + 60 * 10**9)
+    (tmp_path / "m.msh").write_bytes(b'$MeshFormat\n2.2 0 8\n$PhysicalNames\n2 1 "wing"\n$EndPhysicalNames')
+    assert tracked_markers(InputFiles(tmp_path), "m.msh") == ("wing",)
+    cache = tmp_path / plan_module.DigestCache.NAME
+    document = json.loads(cache.read_text())
+    document["entries"]["m.msh"]["scans"]["gmsh-info"] = bad
+    cache.write_text(json.dumps(document))
+    assert tracked_markers(InputFiles(tmp_path), "m.msh") == ("wing",)

@@ -53,6 +53,17 @@ class GmshScan:
         self._size = 0
         self._overflow = False
 
+    @staticmethod
+    def valid_result(value: object) -> bool:
+        """Reject malformed persistent facts before using them as scanner results."""
+        return (
+            isinstance(value, tuple)
+            and len(value) >= 2
+            and all(isinstance(item, str) for item in value)
+            and value[0] in {"2.2", "gmsh", "other"}
+            and (value[1] == "names" or (value[1] == "overflow" and len(value) == 2))
+        )
+
     def feed(self, chunk: bytes) -> None:
         """Take the next block of the mesh, in file order."""
         if len(self._head) < _HEAD:
