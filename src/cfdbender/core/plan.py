@@ -13,7 +13,6 @@ import difflib
 import hashlib
 import json
 import os
-import platform
 import re
 import tempfile
 import time
@@ -185,6 +184,15 @@ def _identity(stat: os.stat_result | None) -> tuple[int, ...] | None:
     return cast(tuple[int, ...], values)
 
 
+def _persistent_identity(stat: os.stat_result | None) -> tuple[int, ...] | None:
+    """Return the identity valid across the nodes of a shared file system, or None.
+
+    The device number is left out: a network mount can report a different one on each client.
+    """
+    values = _identity(stat)
+    return None if values is None else values[:3] + values[4:]
+
+
 def _valid_entry(entry: object) -> bool:
     """Return whether a cache entry has the documented shape."""
     if not isinstance(entry, dict):
@@ -192,7 +200,7 @@ def _valid_entry(entry: object) -> bool:
     digest = entry.get("sha256")
     scans = entry.get("scans")
     return (
-        all(_is_int(entry.get(key)) for key in ("size", "mtime_ns", "ctime_ns", "dev", "ino"))
+        all(_is_int(entry.get(key)) for key in ("size", "mtime_ns", "ctime_ns", "ino"))
         and isinstance(digest, str)
         and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
         and isinstance(scans, dict)
@@ -212,7 +220,9 @@ class DigestCache:
     run records. It is never a planned input: it does not enter ``inputs_sha256`` or any record.
     An entry holds a file's size, modification time and change time in nanoseconds, its SHA-256
     and the results of scans of its bytes (for example the marker names of an SU2 mesh). An entry
-    is served only when timestamps, size, device and inode still match in this host/workspace.
+    is served only when size, timestamps and inode still match; the host name, the workspace
+    path and the device number are not part of that identity, so the cache works across the nodes
+    of a shared file system, and a copied workspace (new inodes) is hashed again.
     A missing, unreadable, corrupt or wrong-version file is an empty cache.
     Failed writes are ignored.
     """
@@ -223,7 +233,6 @@ class DigestCache:
 
     def __init__(self, root: Path) -> None:
         self.path = root / self.NAME
-        self._scope = [platform.node(), str(root.resolve())]
         self._entries: dict[str, dict[str, object]] | None = None
 
     def _read(self) -> dict[str, dict[str, object]]:
@@ -236,8 +245,6 @@ class DigestCache:
         except (OSError, ValueError, RecursionError):
             return {}
         if not isinstance(document, dict) or document.get("format") != self.FORMAT:
-            return {}
-        if document.get("scope") != self._scope:
             return {}
         entries = document.get("entries")
         if not isinstance(entries, dict):
@@ -262,11 +269,11 @@ class DigestCache:
         if _REHASH.get():
             return None
         entry = self._all().get(key)
-        identity = _identity(stat)
+        identity = _persistent_identity(stat)
         if (
             identity is not None
             and entry is not None
-            and tuple(entry[k] for k in ("size", "mtime_ns", "ctime_ns", "dev", "ino")) == identity
+            and tuple(entry[k] for k in ("size", "mtime_ns", "ctime_ns", "ino")) == identity
         ):
             return entry
         return None
@@ -292,7 +299,7 @@ class DigestCache:
             Tag to tuple of names produced by scans made in the same read.
         """
         entries = self._all()
-        if _identity(stat) is None:
+        if _persistent_identity(stat) is None:
             return
         newest = max(stat.st_mtime_ns, stat.st_ctime_ns)
         if _clock_ns() - newest < CACHE_SETTLE_NS:
@@ -303,7 +310,6 @@ class DigestCache:
             "size": stat.st_size,
             "mtime_ns": stat.st_mtime_ns,
             "ctime_ns": stat.st_ctime_ns,
-            "dev": stat.st_dev,
             "ino": stat.st_ino,
             "sha256": digest,
             "scans": {tag: list(names) for tag, names in scans.items()},
@@ -312,9 +318,7 @@ class DigestCache:
 
     def _flush(self) -> None:
         """Replace the file atomically; a concurrent writer may win, a reader never sees half."""
-        text = json.dumps(
-            {"format": self.FORMAT, "scope": self._scope, "entries": self._all()}, sort_keys=True
-        )
+        text = json.dumps({"format": self.FORMAT, "entries": self._all()}, sort_keys=True)
         temp = ""
         try:
             handle, temp = tempfile.mkstemp(

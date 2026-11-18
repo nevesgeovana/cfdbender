@@ -23,7 +23,8 @@ def test_cache_copied_to_another_workspace_is_not_used(tmp_path):
     target.mkdir()
     DigestCache(source).put("mesh", identity(), "a" * 64, {})
     (target / DigestCache.NAME).write_bytes((source / DigestCache.NAME).read_bytes())
-    assert DigestCache(target).get("mesh", identity()) is None
+    # A real copy has new inodes, so the copied entry is not served.
+    assert DigestCache(target).get("mesh", identity(st_ino=99)) is None
 
 
 def test_missing_file_identity_disables_cache(tmp_path):
