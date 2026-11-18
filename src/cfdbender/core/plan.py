@@ -212,8 +212,9 @@ class DigestCache:
     run records. It is never a planned input: it does not enter ``inputs_sha256`` or any record.
     An entry holds a file's size, modification time and change time in nanoseconds, its SHA-256
     and the results of scans of its bytes (for example the marker names of an SU2 mesh). An entry
-    is served only when timestamps, size, device and inode still match in this host/workspace. A missing, unreadable,
-    corrupt or wrong-version file is an empty cache, and a failed write is ignored.
+    is served only when timestamps, size, device and inode still match in this host/workspace.
+    A missing, unreadable, corrupt or wrong-version file is an empty cache.
+    Failed writes are ignored.
     """
 
     NAME = ".input-digests.cache"
@@ -522,6 +523,34 @@ class InputFiles:
             snapshot.data = loaded.data
         self._tracked.add(key)
         return key, snapshot
+
+    def acknowledge_link(self, name: str, before: os.stat_result, after: os.stat_result) -> None:
+        """Refresh metadata only for an observed hard-link count increment.
+
+        Parameters
+        ----------
+        name : str
+            Input linked by the library.
+        before, after : os.stat_result
+            Followed source stats immediately around the library's hard-link call.
+        """
+        key, _ = self._locate(name)
+        snapshot = self._snapshots.get(key)
+        identity = _identity(before)
+        current = _identity(after)
+        if (
+            snapshot is None
+            or identity is None
+            or current is None
+            or _identity(snapshot.stat) != identity
+            or identity[:2] + identity[3:] != current[:2] + current[3:]
+            or getattr(before, "st_nlink", 0) < 1
+            or getattr(after, "st_nlink", 0) != before.st_nlink + 1
+        ):
+            return
+        snapshot.stat = after
+        snapshot.ctime_ns = after.st_ctime_ns
+        self._remember(key, snapshot)
 
     def digest_output(self, path: Path, candidates: Iterable[str]) -> str:
         """Return the SHA-256 of a point output, streaming it and never holding it whole.

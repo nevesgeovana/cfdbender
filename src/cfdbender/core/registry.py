@@ -531,7 +531,9 @@ class RunRegistry:
     A lock naming a departed process is reclaimed under an OS lease with a warning.
     """
 
-    def __init__(self, root: str | Path, runs: str = "runs.json") -> None:
+    def __init__(
+        self, root: str | Path, runs: str = "runs.json", *, session: InputSession | None = None
+    ) -> None:
         if (
             "/" in runs
             or chr(92) in runs
@@ -544,7 +546,11 @@ class RunRegistry:
         self.path = self.root / runs
         self.lock_path = self.root / f"{runs}.lock"
         self._transaction = threading.local()
-        self._inputs = InputSession(self.root)
+        self._inputs = (
+            session
+            if session is not None and session.root == self.root
+            else InputSession(self.root)
+        )
 
     def _history(self) -> list[object]:
         if not self.path.exists():

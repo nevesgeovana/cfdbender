@@ -155,10 +155,10 @@ def execute_plan(
         A recorded point, changed input, existing output or threatened memory floor.
     """
     check_ram()
-    registry = RunRegistry(plan.root)
+    session = InputSession(plan.root)
+    registry = RunRegistry(plan.root, session=session)
     previous = {r.point_id: r for r in registry.read()}
     prepared = []
-    session = InputSession(plan.root)
     for point in plan.points:
         recorded = previous.get(point.point_id)
         if recorded is not None:

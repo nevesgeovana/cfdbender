@@ -227,12 +227,12 @@ def submit_plan(
         before the submission is recorded leaves RUNNING, preventing a retry.
     """
     check_available_ram()
-    registry = RunRegistry(plan.root)
+    session = InputSession(plan.root)
+    registry = RunRegistry(plan.root, session=session)
     previous = {r.point_id: r for r in registry.read()}
     config_name = staged_config(adapter)
     stage = getattr(adapter, "stage", None)
     translated = []
-    session = InputSession(plan.root)
     for point, job in zip(plan.points, jobs, strict=True):
         recorded = previous.get(point.point_id)
         if recorded is not None:

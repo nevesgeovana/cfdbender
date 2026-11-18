@@ -61,11 +61,16 @@ def link_mesh(
         Neither link can be created, or the mesh changed after planning.
     """
     relative = os.path.relpath(source, target.parent)
+    if inputs is not None and name is not None:
+        inputs.track(name)
     try:
         _symlink(target, relative)
     except (OSError, NotImplementedError, ValueError):
         try:
+            before = source.stat()
             _hardlink(target, source)
+            if inputs is not None and name is not None:
+                inputs.acknowledge_link(name, before, source.stat())
         except (OSError, NotImplementedError) as error:
             raise ValueError(_REFUSAL.format(source=source.name, error=error)) from error
     # Read through the link without allocating a multi-gigabyte buffer.
