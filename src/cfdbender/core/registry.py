@@ -157,6 +157,7 @@ def _submission(raw: object, root: Path, directory: str, started: str) -> Mappin
     job_outputs = values.pop("job_outputs", None)
     job_end_files = values.pop("job_end_files", None)
     cluster = values.pop("cluster", None)
+    overrides = values.pop("hpc_overrides", None)
     has_profile = "profile" in values
     profile = values.pop("profile", None)
     if set(values) != {
@@ -180,6 +181,14 @@ def _submission(raw: object, root: Path, directory: str, started: str) -> Mappin
         if not isinstance(cluster, str) or not cluster:
             raise RegistryError("submission cluster must be non-empty text")
         values["cluster"] = cluster
+    if overrides is not None:
+        if (
+            not isinstance(overrides, dict)
+            or set(overrides) != {"origin", "values"}
+            or not isinstance(overrides["values"], dict)
+        ):
+            raise RegistryError("submission hpc_overrides must hold an origin and its values")
+        values["hpc_overrides"] = overrides
     for key in ("descriptor", "config_path", "stdout_path", "stderr_path"):
         name = _text(values, key)
         path = workspace_path(root, name)

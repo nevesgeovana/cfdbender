@@ -48,6 +48,7 @@ from cfdbender.matrix.submission import (
     select_profile,
     submission_plans,
     submit_plan,
+    warn_ignored_overrides,
 )
 from cfdbender.solvers import available_solvers, load_solver
 from cfdbender.solvers._host import _exe
@@ -521,6 +522,8 @@ def _execute_inner(
         if not plan.points:
             console.final(f"no active row: every row of {Path(plan.matrix).name} has RUN = 0")
             return 0
+        if args.local:
+            warn_ignored_overrides(plan)
         selected_profiles = () if args.local else point_profiles(plan, args.hpc)
         cluster = bool(selected_profiles) and all(p is not None for p in selected_profiles)
         profiles = cast(tuple[HpcProfile, ...], selected_profiles)

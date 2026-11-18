@@ -24,6 +24,7 @@ from cfdbender.core.plan import (
     warn_once,
     workspace_path,
 )
+from cfdbender.hpc._overrides import ORIGIN, row_overrides
 
 PLAN_REQUIRED_MESSAGE = (
     "no plan for this matrix, and a run needs one. Run `cfd-matrix plan <matrix>` first: "
@@ -99,6 +100,8 @@ def write_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> Path:
             "point_id": point.point_id,
             "inputs_sha256": dict(sorted(point.inputs_sha256.items())),
         }
+        if overrides := row_overrides(point.variables):
+            kept[point.point_id]["hpc_overrides"] = {"origin": ORIGIN, "values": overrides}
         if profiles:
             kept[point.point_id]["profile"] = profiles[index]
             kept[point.point_id]["profile_sha256"] = hashlib.sha256(

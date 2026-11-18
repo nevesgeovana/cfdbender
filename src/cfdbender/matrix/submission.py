@@ -24,13 +24,14 @@ from dataclasses import replace
 from pathlib import Path
 
 from cfdbender.core.adapter import SolverAdapter, load_point
-from cfdbender.core.matrix import MatrixError, parse_matrix
+from cfdbender.core.matrix import HPC_OVERRIDE_PREFIX, MatrixError, parse_matrix
 from cfdbender.core.plan import InputFiles, InputSession, Point, RunPlan, workspace_path
-from cfdbender.core.refusals import warn_unused_cluster
+from cfdbender.core.refusals import warn_or_refuse, warn_unused_cluster
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.restart import check_restart
 from cfdbender.core.run import FLOOR_GIB, free_ram_gib
 from cfdbender.hpc import HpcProfile, SubmissionPlan, plan_submission, resolve_hpc_profile
+from cfdbender.hpc._overrides import ORIGIN, apply_overrides, row_overrides
 from cfdbender.hpc._submit import submit
 from cfdbender.solvers import load_solver
 
@@ -134,11 +135,31 @@ def point_profiles(plan: RunPlan, name: str | None) -> tuple[HpcProfile | None, 
             raise ValueError(f"row {point.pol}: hpc must name a profile")
         if selector not in cache:
             cache[selector] = select_profile(plan.root, selector)
-    return tuple(
+    found = tuple(
         cache[str(value) if value is not None else None]
         for point in plan.points
         for value in (point.variables.get("hpc", name),)
     )
+    for point, chosen in zip(plan.points, found, strict=True):
+        if chosen is None and (names := row_overrides(point.variables)):
+            raise ValueError(
+                f"row {point.pol}: {', '.join(HPC_OVERRIDE_PREFIX + n for n in names)} override "
+                "an HPC profile, and no profile is selected; state hpc: <profile> in the row "
+                "or pass --hpc"
+            )
+    return found
+
+
+def warn_ignored_overrides(plan: RunPlan) -> None:
+    """Warn once that a local run ignores the rows' ``hpc.<name>`` entries."""
+    rows = [p.pol for p in plan.points if row_overrides(p.variables)]
+    if rows:
+        warn_or_refuse(
+            f"--local ignores the {HPC_OVERRIDE_PREFIX}<name> entries of row(s) "
+            f"{', '.join(rows)}; they override an HPC profile, and nothing is submitted",
+            UserWarning,
+            stacklevel=2,
+        )
 
 
 def submission_plans(
@@ -164,9 +185,12 @@ def submission_plans(
     solver_type = str(getattr(adapter, "SOLVER_TYPE", plan.solver))
     name = staged_config(adapter)
     profiles = (profile,) * len(plan.points) if isinstance(profile, HpcProfile) else profile
-    for point, profile in zip(plan.points, profiles, strict=True):
+    for point, base in zip(plan.points, profiles, strict=True):
+        profile, overridden = apply_overrides(
+            base, row_overrides(point.variables), root=plan.root, row=point.pol
+        )
         uses_cluster = _uses_cluster(profile)
-        cluster = point.variables.get("cluster")
+        cluster = overridden.get("cluster", point.variables.get("cluster"))
         if uses_cluster and cluster is None:
             raise ValueError(f"row {point.pol}: state cluster: <name> in VAR_NAMES_VALUES")
         if cluster is not None and not uses_cluster:
@@ -331,8 +355,12 @@ def submit_plan(
             "timeout_s": result.timeout_s,
             "timed_out": result.timed_out,
         }
-        if "cluster" in point.variables and _uses_cluster(profile):
-            submission["cluster"] = point.variables["cluster"]
+        overrides = row_overrides(point.variables)
+        chosen = overrides.get("cluster", point.variables.get("cluster"))
+        if chosen is not None and _uses_cluster(profile):
+            submission["cluster"] = chosen
+        if overrides:
+            submission["hpc_overrides"] = {"origin": ORIGIN, "values": overrides}
         if (names := job_outputs(adapter, point)) != point.outputs:
             submission["job_outputs"] = list(names)
         if profile.job_end_files:

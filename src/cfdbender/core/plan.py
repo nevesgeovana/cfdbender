@@ -26,7 +26,7 @@ from types import MappingProxyType
 from typing import BinaryIO, Protocol, cast
 
 from cfdbender.core.flight import ATTITUDE_KEYS, STATE_KEYS
-from cfdbender.core.matrix import MatrixRow, parse_matrix
+from cfdbender.core.matrix import HPC_OVERRIDE_PREFIX, MatrixRow, parse_matrix
 from cfdbender.core.mesh import mesh_candidates, resolve_setup_paths
 from cfdbender.core.naming import PointNameError, datapoint_dir_name, point_name
 from cfdbender.core.refusals import refusing, warn_or_refuse
@@ -1121,7 +1121,7 @@ def apply_variables(
     """
     result: dict[str, object] = dict(setup)
     for key, value in variables.items():
-        if key.casefold() in {"cluster", "hpc"}:
+        if key.casefold() in {"cluster", "hpc"} or key.startswith(HPC_OVERRIDE_PREFIX):
             continue
         *tables, name = key.split(".")
         target = result
@@ -1260,7 +1260,7 @@ def setup_origins(
         for key in table:
             origins[key] = origin
     for key in variables:
-        if key.casefold() not in {"cluster", "hpc"}:
+        if key.casefold() not in {"cluster", "hpc"} and not key.startswith(HPC_OVERRIDE_PREFIX):
             origins[key.split(".")[0]] = "row"
     return origins
 

@@ -53,6 +53,9 @@ OPTIONAL_COLUMNS = (
 )
 COLUMNS = (*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS)
 UNSTATED = ("", "-", "NA")
+#: Provisional syntax of a row's override of the selected HPC profile: ``hpc.<name>: <value>``.
+#: The one place that spells it; every reader takes it from here.
+HPC_OVERRIDE_PREFIX = "hpc."
 #: The retired header of the SETUP column, still read with one warning per matrix file.
 RETIRED_SETUP_COLUMN = "SET"
 
@@ -162,8 +165,13 @@ def _value(text: str) -> object:
 def _split_outside(text: str, separator: str) -> list[str]:
     parts: list[str] = []
     depth = start = 0
+    quoted = False
     for index, char in enumerate(text):
-        if char in "[{":
+        if char == '"':
+            quoted = not quoted
+        elif quoted:
+            continue
+        elif char in "[{":
             depth += 1
         elif char in "]}":
             depth -= 1
@@ -183,6 +191,8 @@ def _variables(text: str, label: str) -> Mapping[str, object]:
         key, raw = name.strip(), raw.strip()
         if key.casefold() in {"cluster", "hpc"}:
             key = key.casefold()
+        elif key.casefold().startswith(HPC_OVERRIDE_PREFIX):
+            key = HPC_OVERRIDE_PREFIX + key[len(HPC_OVERRIDE_PREFIX) :]
         if not colon:
             raise MatrixError(
                 f"{label}: VAR_NAMES_VALUES entry {pair.strip()!r} is not a KEY: value pair; "
