@@ -158,7 +158,7 @@ def test_receipt_values_agree_only_for_the_file_on_disk(tmp_path, recorded_value
     [
         ("a" * 64, True),
         (IDENTITY, True),
-        ("identity:size=1;mtime_ns=-5", True),
+        ("identity:size=1;mtime_ns=-5", False),
         ("identity:size=x;mtime_ns=1", False),
         ("A" * 64, False),
         ("a" * 63, False),

@@ -206,7 +206,7 @@ def rehash_inputs(enabled: bool = True) -> Iterator[None]:
 LARGE_INPUT_CHECKS = ("digest", "identity")
 #: Environment variable that turns the large-input check off, as ``--no-read-large-inputs`` does.
 NO_READ_ENV = "CFDBENDER_NO_READ_LARGE_INPUTS"
-_IDENTITY_TEXT = re.compile(r"identity:size=([0-9]+);mtime_ns=(-?[0-9]+)")
+_IDENTITY_TEXT = re.compile(r"identity:size=([0-9]{1,19});mtime_ns=([0-9]{1,28})")
 _CHECK: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "cfdbender_large_input_check", default=None
 )
@@ -282,7 +282,13 @@ def identity_value(stat: os.stat_result) -> str:
 
 def is_identity_value(value: object) -> bool:
     """Return whether a recorded input value is a file identity rather than a SHA-256."""
-    return isinstance(value, str) and _IDENTITY_TEXT.fullmatch(value) is not None
+    match = _IDENTITY_TEXT.fullmatch(value) if isinstance(value, str) else None
+    # Bound conversion before calling int, including on untrusted registry/receipt data.
+    return (
+        match is not None
+        and int(match[1]) <= (1 << 63) - 1
+        and int(match[2]) <= ((1 << 63) - 1) * 10**9
+    )
 
 
 def recorded_value_valid(value: object) -> bool:
@@ -325,6 +331,8 @@ def recorded_values_agree(root: Path, name: str, recorded: object, current: str)
     Equal values agree. A file identity on either side agrees when it is the identity of the
     file now; the other side, a SHA-256, was then taken of this same file or not at all.
     """
+    if not recorded_value_valid(recorded) or not recorded_value_valid(current):
+        return False
     if recorded == current:
         return True
     if not isinstance(recorded, str):
@@ -911,6 +919,8 @@ class InputFiles:
         via : Path, optional
             A link to the input (for example in a point folder), checked instead of the input.
         """
+        if not recorded_value_valid(planned):
+            return False
         key, path = self._locate(name)
         if is_identity_value(planned):
             target = path if via is None else via
@@ -963,6 +973,8 @@ class InputFiles:
         expected : str
             The recorded SHA-256 or file identity.
         """
+        if not recorded_value_valid(expected):
+            return False
         if is_identity_value(expected):
             return identity_value(path.stat()) == expected
         current = self.digest_output(path, candidates)

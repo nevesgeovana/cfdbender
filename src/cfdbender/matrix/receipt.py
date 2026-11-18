@@ -16,7 +16,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from cfdbender.core.plan import RunPlan, recorded_values_agree, workspace_path
+from cfdbender.core.plan import RunPlan, recorded_value_valid, recorded_values_agree, workspace_path
 
 PLAN_REQUIRED_MESSAGE = (
     "no plan for this matrix, and a run needs one. Run `cfd-matrix plan <matrix>` first: "
@@ -67,7 +67,10 @@ def _valid_points(points: list[object]) -> bool:
         name = entry.get("point_id")
         if not isinstance(name, str) or not name or name in seen:
             return False
-        if not isinstance(entry.get("inputs_sha256"), dict):
+        values = entry.get("inputs_sha256")
+        if not isinstance(values, dict) or not all(
+            isinstance(key, str) and recorded_value_valid(value) for key, value in values.items()
+        ):
             return False
         seen.add(name)
     return True
