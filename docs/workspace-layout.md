@@ -94,7 +94,8 @@ refuses a folder that already holds an `init.toml`, and a collect refuses
 records made by another solver. The solver names are lower case, and
 `cfd-workspace init --help` lists them.
 
-`init` writes this file. You may add workspace solver settings, `warning_refusals`
+`init` writes this file. You may add workspace solver settings, `warning_refusals`,
+`large_input_check` (see [Large inputs](#large-inputs))
 and a `[defaults]` table of setup keys. A key other than these, a `schema_version` other than the
 integer `1` or a solver name that is not in the list is refused by every
 command, with the name of the file and the problem.
@@ -140,6 +141,40 @@ on this machine also leaves `execution.json`, the record of the process that ran
 hashes, its status, when it started and finished, and the verdict on its
 convergence. `cfd-matrix status` and `cfd-workspace show`, `history` and `log` read this file;
 you never edit it.
+
+## Large inputs
+
+A planned input larger than 8 MiB, usually a mesh, is handled by the workspace setting
+`large_input_check` in `init.toml`:
+
+```toml
+large_input_check = "digest"    # the default
+```
+
+- `"digest"` reads the file once, when it is first seen, and records its SHA-256. Every later
+  command compares the file with that digest (through the digest cache below) and checks what
+  needs its contents: the marker names named in `[groups]`, the Gmsh format line, the problem
+  dimension of an SU2 mesh.
+- `"identity"` never opens the file. Nothing hashes it, scans it, reads it through the link in a
+  point folder or reads its header. Its recorded value is
+  `identity:size=<bytes>;mtime_ns=<nanoseconds>` instead of a SHA-256, and every later command
+  compares the size and modification time of the file with those two numbers, refusing with
+  "input changed after planning" when either differs. The checks that need the contents are
+  skipped, each with one warning naming what was not checked. When the digest cache already
+  holds the SHA-256 of the unchanged file, that digest is recorded instead, without a read.
+
+The option `--no-read-large-inputs` of `plan`, `run` and `collect`, or the environment variable
+`CFDBENDER_NO_READ_LARGE_INPUTS=1`, gives one command the `"identity"` behaviour; it cannot be
+combined with `--rehash-inputs`, which reads every input again. Files of 8 MiB or less are always
+read and hashed.
+
+With the check off, a mesh changed in place with the same size and modification time is not
+detected, and its contents are never verified: a planned SHA-256 met by a command that does not
+read the file is accepted with a warning that it was not verified, and a planned identity met by
+a command that reads large inputs is checked by size and modification time only, with a warning.
+Plan again with the check on to record a digest. OpenFOAM still reads a mesh whose `[groups]`
+give its wall markers, and XFOIL and QPROP still read an airfoil or blade file, because their
+runs need those bytes.
 
 `.input-digests.cache`, also in the workspace root, lets a large input (above 8 MiB, such as a mesh) be read and hashed once rather than by every command. It holds each such file's size, modification time, change time, SHA-256 and, for an SU2 mesh, its marker names, or, for a Gmsh mesh, its format line and physical names. It is never a planned input and never enters a record, and deleting it loses nothing. A file whose size or timestamps still match is not read again; one rewritten with the same size and timestamps goes unnoticed unless the command runs with `--rehash-inputs`.
 
