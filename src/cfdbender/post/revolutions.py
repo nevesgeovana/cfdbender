@@ -1,7 +1,7 @@
 """Per-revolution means of a history, their drift, and the warning that judges it.
 
 A rotor history is cut into COMPLETE revolutions on the rotor's own clock, and each column is
-averaged over each of them by :func:`~cfdbender.core.unsteady_window.window_average`, the one
+averaged over each of them by :func:`~cfdbender.post.time_average.window_average`, the one
 average. From the second revolution the drift of a mean from the previous one is stated in per
 cent (:func:`revolution_drift_pct`). The drift of the LAST revolution is judged by
 :func:`revolution_drift_warnings` against the SCALE of its load group, with a limit of
@@ -18,7 +18,7 @@ import math
 from collections.abc import Callable, Mapping, Sequence
 
 from cfdbender.core.settings import WorkspaceError
-from cfdbender.core.unsteady_window import TimeHistory, window_average
+from cfdbender.post.time_average import TimeHistory, window_average
 
 __all__ = [
     "DEFAULT_DRIFT_LIMIT_PCT",
@@ -162,7 +162,7 @@ def per_revolution_table(
     Revolution ``k`` is rows ``(k-1) * revolution_steps`` to ``k * revolution_steps - 1`` of
     the history, counted from its first row, so a history that begins at step one cuts at
     steps 1 to N, N+1 to 2N and so on. The mean is
-    :func:`~cfdbender.core.unsteady_window.window_average`, so this table cannot disagree with
+    :func:`~cfdbender.post.time_average.window_average`, so this table cannot disagree with
     the time average about what a mean is. A trailing partial revolution is NOT averaged: its
     length differs, so its mean would be the mean of another thing under the same name.
 

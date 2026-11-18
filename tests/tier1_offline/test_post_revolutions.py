@@ -11,7 +11,8 @@ import math
 import numpy as np
 import pytest
 
-from cfdbender.core.revolutions import (
+from cfdbender.core.settings import WorkspaceError
+from cfdbender.post.revolutions import (
     DEFAULT_DRIFT_LIMIT_PCT,
     FORCE_PLOT_PARAMETERS,
     is_force_or_moment_column,
@@ -22,8 +23,7 @@ from cfdbender.core.revolutions import (
     revolution_drift_warnings,
     whole_revolution_steps,
 )
-from cfdbender.core.settings import WorkspaceError
-from cfdbender.core.unsteady_window import TimeHistory
+from cfdbender.post.time_average import TimeHistory
 
 #: FX: revolution means 10, 10.5, 10.5; the partial revolution is 50 and 60 and never averaged.
 FX = [9.0, 11.0, 9.0, 11.0, 10.0, 11.0, 10.0, 11.0, 10.4, 10.6, 10.4, 10.6, 50.0, 60.0]
