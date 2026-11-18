@@ -160,6 +160,84 @@ A row that states only `MACH` and angles keeps the setup's flow state. When neit
 
 The deck states no free-stream value that SU2 recomputes and ignores. Under SU2's default `FREESTREAM_OPTION`, `TEMPERATURE_FS`, the density follows from the pressure and the temperature, so the resolved density is written only with `FREESTREAM_OPTION = "DENSITY_FS"`. A compressible viscous run (`SOLVER` `NAVIER_STOKES` or `RANS`) with a Reynolds number, under SU2's default `INIT_OPTION`, `REYNOLDS`, takes the density from the Reynolds number and recomputes the pressure from it, so the resolved pressure is not written either; `INIT_OPTION = "TD_CONDITIONS"` keeps it. An Euler run gets the pressure. A value you state in the setup is always written. A compressible deck (`SOLVER` `EULER`, `NAVIER_STOKES` or `RANS`) without `REF_DIMENSIONALIZATION` gets `REF_DIMENSIONALIZATION= FREESTREAM_PRESS_EQ_ONE`, as SU2's own NACA 0012 case states: SU2's default, `DIMENSIONAL`, leaves the energy rows of the implicit system about 1e5 times the density rows, and on the TMR NACA 0012 at CFL 1000 SU2's official deck then stalls at rms[Rho] -4.4 instead of converging in 688 iterations. The coefficients do not change; the residual levels in `history.csv` are then relative to the free stream, so a `CONV_RESIDUAL_MINVAL` chosen for a dimensional run means a different level. State `REF_DIMENSIONALIZATION = "DIMENSIONAL"` to keep SU2's default.
 
+### Propeller in a steady rotating frame
+
+A propeller in axial flow can be run steady in a frame that turns with the blade (a moving reference frame). The setup declares the frame with SU2's own keys, the reference file describes the rotor, and the matrix row states the advance ratio `J`. cfdbender then writes the rotation of that point, so a sweep over `J` is one row.
+
+The setup declares the rotating frame; this is the switch (a later release may offer it as a run type):
+
+```toml
+GRID_MOVEMENT = "ROTATING_FRAME"
+freestream_temperature = 288.15
+```
+
+The reference file holds one rotor block, in the vocabulary of pyflightstream's reference rotor:
+
+```toml
+area = 1.0
+length = 1.0
+moment_origin = [0.0, 0.0, 0.0]
+
+[rotors.PROP]
+diameter_m = 0.4064        # rotor diameter D in m, the one the advance ratio uses
+blades = 6                 # blades of the whole rotor
+monitored_blades = 1       # blades inside the monitored surface; default: blades
+origin = [0.0, 0.0, 0.0]   # hub centre in the mesh frame, m
+shaft = [-1.0, 0.0, 0.0]   # direction of positive thrust (any nonzero length)
+rpm_sign = 1               # 1: turns right-handed about the shaft; -1: left-handed
+```
+
+`diameter_m` must be positive, `blades` and `monitored_blades` are positive integers (`monitored_blades` cannot exceed `blades`), `origin` and `shaft` are three finite numbers and `shaft` is not the zero vector. One rotor only: a reference file with two blocks is refused with a message that multi-rotor rotating-frame runs are not supported yet. A reference file without the block behaves exactly as before.
+
+The matrix row states `ADVANCE_RATIO` as a value or as the swept variable:
+
+```text
+POL  | FLIGHT_CONDITION                              | SWEEP_VALUES                       | ...
+1001 | MACH:0.0529, ALPHA:0, BETA:0, ADVANCE_RATIO:sweep | 0.30,0.35,0.45,0.50,0.55,0.60,0.70 | ...
+```
+
+The definition is the one pyflightstream uses, `J = V / (n D)`: `V` is the free-stream speed of the point (the written `MACH_NUMBER` times the speed of sound `sqrt(GAMMA R T)` of the deck's ideal gas, with the deck's `FREESTREAM_TEMPERATURE`, else SU2's 288.15 K), `n` the rotation speed in revolutions per second and `D` the block's `diameter_m`. For each point cfdbender writes:
+
+| Key | Value |
+|---|---|
+| `ROTATION_RATE` | the vector `rpm_sign * 2 pi n * shaft / abs(shaft)` in rad/s, with `n = V / (J D)` |
+| `MOTION_ORIGIN` | the rotor block's `origin` |
+| `MACH_MOTION` | the free-stream Mach number, unless the setup states `MACH_MOTION`: the setup wins |
+
+The sign convention: the shaft is the direction of positive thrust, and `rpm_sign = 1` turns right-handed about it. A rotor that thrusts toward minus x, `shaft = [-1, 0, 0]` with `rpm_sign = 1`, therefore gets a negative x rotation rate. For `V = 18.0017 m/s`, `D = 0.40741537 m` and `J = 0.4116` it writes a `ROTATION_RATE` of about `-674.44 0 0` (printed to 15 digits), the rate of the case this was built from; `rpm_sign = -1` writes `674.44 0 0`.
+
+Each `J` is its own point. The point name carries it like pyflightstream: `J` and the advance ratio times 100 with its sign, for example `DP-M053AL+000BE+000J+030`; the condition is in the record, the summary and the `J` column of the polar files. Two values of `J` that differ by less than 0.01 write the same name, and planning refuses them naming both points.
+
+What is refused, each with its own message:
+
+- `ADVANCE_RATIO` zero or negative, or a speed of zero (`MACH:0`);
+- no rotor block in the reference file;
+- a setup without `GRID_MOVEMENT = "ROTATING_FRAME"`;
+- `ROTATION_RATE` stated as well, in the setup or in `VAR_NAMES_VALUES`: two sources of one quantity, and a silent choice would change the physics;
+- a `MOTION_ORIGIN` in the setup that differs from the rotor's `origin`.
+
+A steady rotating frame assumes axial flow: a nonzero `ALPHA` or `BETA` with `ADVANCE_RATIO` warns and the run continues. `RPM` is not read from `FLIGHT_CONDITION` by SU2; state `ADVANCE_RATIO`.
+
+#### Rotor coefficients
+
+When the reference file has a rotor block and the point is a rotating frame, `collect` adds a `rotor` mapping to the point's result and writes `post/<matrix>/rotor.csv`, one row per such point. It is a table of its own beside the polar files, so the documented columns of those files do not change; a matrix without a rotor writes none.
+
+SU2's coefficients are of the monitored surface only. cfdbender cannot know from the configuration whether that surface is one blade of a periodic sector or the whole rotor, so the block says: `monitored_blades` is the number of blades inside the monitored surface (`1` for a one-blade sector, the default `blades` for the whole rotor), and the loads are scaled by `blades / monitored_blades`. With `q = 0.5 rho V_q^2` the dynamic pressure SU2 divides by (`V_q` is `MACH_MOTION` times the speed of sound), `A` and `L` the reference area and length, `r` the moment origin, `o` the rotor origin and `k = blades / monitored_blades`:
+
+```text
+F   = q A (CFx, CFy, CFz)
+M_o = q A L (CMx, CMy, CMz) + (r - o) x F
+T   = k F . shaft_hat                 thrust, positive along the shaft
+Q   = -k M_o . omega_hat              torque the shaft supplies about the rotation axis
+n   = abs(ROTATION_RATE) / (2 pi)     rev/s
+J   = V / (n D)
+CT  = T / (rho n^2 D^4)    CQ = Q / (rho n^2 D^5)    CP = 2 pi CQ    eta = J CT / CP
+```
+
+`omega_hat` is the unit vector of `ROTATION_RATE`; `Q` is positive for a propeller that absorbs power. The density `rho` is `FREESTREAM_DENSITY` under `FREESTREAM_OPTION = "DENSITY_FS"`; for a viscous deck that SU2 initialises from `REYNOLDS_NUMBER` it is `Re mu / (V L)`; otherwise `p / (R T)` with SU2's 101325 Pa when the deck states no pressure. The columns of `rotor.csv` are `POL`, `POINT`, `ROTOR`, `BLADES`, `MONITORED_BLADES`, `D`, `VINF`, `RHO`, `QINF`, `RPM`, `N`, `J`, `T`, `Q`, `CT`, `CQ`, `CP` and `ETA`; a value that does not exist (no density, `CP` zero) is `NA`. The in-plane forces and the moments about the other axes are not scaled by `k`: they do not add up over blades.
+
+The same quantities hold for a point whose rotation you typed by hand (`GRID_MOVEMENT` and `ROTATION_RATE` in the setup), as long as the reference file has the rotor block.
+
 ## What converged means
 
 cfdbender reads `history.csv` and the SU2 log (`stdout.log` and `stderr.log`). The history gives the residuals and coefficients. The log gives the verdict, because a clean exit says nothing about numerics.

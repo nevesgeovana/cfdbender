@@ -81,6 +81,13 @@ The attitude keys are `ALPHA` and `BETA` in degrees, and `ADVANCE_RATIO`, `RPM`,
 `roll_rate`, `pitch_rate` and `yaw_rate` for solvers that read them. Other keys a
 solver documents (for example `ORDER` for PyFR or `J` for QPROP) are kept in upper case.
 
+`ADVANCE_RATIO` is `J = V / (n D)`, with `V` the free-stream speed, `n` the rotation speed in
+revolutions per second and `D` the rotor diameter. QPROP reads it as its `J`. SU2 reads it for a
+propeller in a steady rotating frame, with the rotor block of the REF file, as a value or as
+`ADVANCE_RATIO:sweep`, and writes the rotation of each point; see
+[Propeller in a steady rotating frame](su2-workspaces.md#propeller-in-a-steady-rotating-frame).
+A point name carries it as `J` and the value times 100 with its sign (`J+030` for 0.3).
+
 For SU2, PyFR and XFOIL, a row that states only `MACH` and angles, such as
 `MACH:0.3, ALPHA:sweep`, keeps the flow state of its setup file, as matrices
 written before these keys did. OpenFOAM and QPROP resolve a bare `MACH` at sea
@@ -90,7 +97,7 @@ level like any other air statement.
 
 | Solver | Row state becomes | GEOMETRY becomes |
 |---|---|---|
-| SU2 | `MACH_NUMBER`, `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them, `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` (see the SU2 page) | `MESH_FILENAME` |
+| SU2 | `MACH_NUMBER`, `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them, `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH`; `ADVANCE_RATIO` becomes `ROTATION_RATE`, `MOTION_ORIGIN` and `MACH_MOTION` of a steady rotating frame (see the SU2 page) | `MESH_FILENAME` |
 | OpenFOAM | `speed` (the velocity) and `nu` (viscosity over density) | `mesh` |
 | PyFR | `mach` and `reynolds` | `mesh` |
 | XFOIL | `mach` and `reynolds`; a bare `MACH` is the setup's `mach` | `airfoil_file` |

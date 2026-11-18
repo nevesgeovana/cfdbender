@@ -248,3 +248,57 @@ def test_a_non_zero_angle_with_the_rotating_frame_warns_and_continues(tmp_path):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         columns.deck(tmp_path / "b")
+
+
+# --- what did not change -----------------------------------------------------------------
+
+
+def _with_advance(root, solver, add):
+    from test_matrix_columns_all_solvers import build as build_other
+
+    build_other(root, solver)
+    matrix = root / "inputs/matrices/full.fs"
+    lines = matrix.read_text(encoding="ascii").splitlines()
+    names = [x.strip() for x in lines[0].split("|")]
+    cells = lines[2].split("|")
+    column = names.index("FLIGHT_CONDITION")
+    cells[column] = cells[column].rstrip() + add + " "
+    lines[2] = "|".join(cells)
+    matrix.write_text("\n".join(lines) + "\n", encoding="ascii")
+    return plan_workspace(root, "full")
+
+
+@pytest.mark.parametrize(
+    ("solver", "message"),
+    [
+        ("openfoam", "unknown key 'advance_ratio'"),
+        ("pyfr", "unknown key 'advance_ratio'"),
+        ("xfoil", "only scalar alpha or an alpha sweep"),
+        ("qprop", "give only one of RPM and J"),
+    ],
+)
+def test_the_other_adapters_keep_their_handling_of_the_key(tmp_path, solver, message):
+    with pytest.raises(PlanError, match=message):
+        _with_advance(tmp_path, solver, ", ADVANCE_RATIO:0.4")
+
+
+def test_the_mock_adapter_still_names_the_point_by_the_advance_ratio(tmp_path):
+    plan = _with_advance(tmp_path, "mock", ", ADVANCE_RATIO:0.4")
+    assert [p.directory.rsplit("/", 1)[1] for p in plan.points] == [
+        "DP-M200AL+000J+040",
+        "DP-M200AL+020J+040",
+    ]
+
+
+@pytest.mark.parametrize("block", [REFERENCE_BLOCK, ""])
+def test_a_matrix_without_advance_ratio_plans_and_writes_what_it_did(tmp_path, block):
+    """The rotating frame typed by hand, with or without the rotor block, is unchanged."""
+    typed = FRAME + 'ROTATION_RATE = "-674.44 0.0 0.0"\nMACH_MOTION = 0.0529\n'
+    build(tmp_path, "MACH:0.0529, ALPHA:0, BETA:0", setup=typed, block=block)
+    plan = plan_workspace(tmp_path, "dpw")
+    assert [p.directory.rsplit("/", 1)[1] for p in plan.points] == ["DP-M053AL+000BE+000"]
+    deck = columns.deck(tmp_path)
+    assert deck["ROTATION_RATE"] == "-674.44 0.0 0.0" and deck["MACH_MOTION"] == "0.0529"
+    assert "MOTION_ORIGIN" not in deck, (
+        "nothing is added to a deck that states ADVANCE_RATIO nowhere"
+    )
