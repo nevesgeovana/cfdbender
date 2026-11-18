@@ -266,7 +266,7 @@ POL  | RUN | SETUP | REF | PPROC | SYMMETRY | SYMMETRY_LOADS | VAR_NAMES_VALUES
 1001 | 1   | 001 | 001 | 001   | PERIODIC | true           | hpc: h004 / PERIODIC_COPIES: 6
 ```
 
-`SYMMETRY`, `SYMMETRY_LOADS` and `PERIODIC_COPIES` are never written to `su2.cfg`; the setup's `MARKER_PERIODIC` is what SU2 reads. `DELTA_THETA` and `REVOLUTIONS` belong to the time-accurate run types, which the SU2 adapter does not offer yet: each warns once and is skipped. These warnings check the row against the setup (they warn and never refuse):
+`SYMMETRY`, `SYMMETRY_LOADS` and `PERIODIC_COPIES` are never written to `su2.cfg`; the setup's `MARKER_PERIODIC` is what SU2 reads. `DELTA_THETA`, `REVOLUTIONS`, `LAST_REVS_AVG`, `CLOCK_MOTION`, `MOTIONS` and every variable that starts with `EXPORT_` belong to the time-accurate run types, which the SU2 adapter does not offer yet: each warns once and is skipped. These warnings check the row against the setup (they warn and never refuse):
 
 - `MARKER_PERIODIC` turns by an angle whose `360 / angle` differs from `PERIODIC_COPIES`;
 - `SYMMETRY` is `PERIODIC` and the setup states no `MARKER_PERIODIC`;

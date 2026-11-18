@@ -9,8 +9,8 @@
   missing rotor, a missing rotating frame, a second `ROTATION_RATE`, a non-positive
   `ADVANCE_RATIO` and more than one rotor are refused.
 - The matrix columns `SYMMETRY` (`NONE` or `PERIODIC` for SU2) and `SYMMETRY_LOADS` are read
-  for SU2 with the row variable `PERIODIC_COPIES`, as on the FlightStream side. `DELTA_THETA`
-  and `REVOLUTIONS` warn and are skipped. None of them reaches `su2.cfg`.
+  for SU2 with the row variable `PERIODIC_COPIES`, as on the FlightStream side. `DELTA_THETA`, `REVOLUTIONS`,
+  `LAST_REVS_AVG`, `CLOCK_MOTION`, `MOTIONS` and every `EXPORT_*` variable warn and are skipped. None of them reaches `su2.cfg`.
 - `collect` computes thrust, torque, `CT`, `CQ`, `CP` and the efficiency of the whole rotor
   for such a point, the periodic copies summed as rotated vectors, into the point's `rotor`
   result and the new `post/<matrix>/rotor.csv`. The polar files keep their columns.

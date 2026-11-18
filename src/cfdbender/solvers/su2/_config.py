@@ -20,9 +20,9 @@ from cfdbender.core.flight import (
 )
 from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.core.rotor import (
-    ROW_CONTROLS,
     PeriodicState,
     RotorBlock,
+    is_row_control,
     periodic_state,
     rotation_rate,
     rotor_block,
@@ -294,7 +294,7 @@ def config(
             if (
                 key in {"solver", "mesh_link", "groups"}
                 and table is setup
-                or key in ROW_CONTROLS
+                or is_row_control(key)
                 and table is setup
                 or key == "history"
                 and table is post

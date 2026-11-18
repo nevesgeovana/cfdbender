@@ -438,8 +438,17 @@ ROW_CONTROLS = (
     "PERIODIC_COPIES",
     "DELTA_THETA",
     "REVOLUTIONS",
+    "LAST_REVS_AVG",
+    "CLOCK_MOTION",
+    "MOTIONS",
 )
-TIME_ACCURATE = ("DELTA_THETA", "REVOLUTIONS")
+TIME_ACCURATE = ("DELTA_THETA", "REVOLUTIONS", "LAST_REVS_AVG", "CLOCK_MOTION", "MOTIONS")
+TIME_ACCURATE_PREFIX = "EXPORT_"
+
+
+def is_row_control(key: str) -> bool:
+    """Whether a row variable is a control of the matrix and never a solver key."""
+    return key in ROW_CONTROLS or key.startswith(TIME_ACCURATE_PREFIX)
 
 
 @dataclass(frozen=True)
@@ -472,8 +481,9 @@ def periodic_state(setup: Mapping[str, object]) -> PeriodicState:
     ``SYMMETRY`` says what was meshed (``NONE``, the default, or ``PERIODIC``);
     ``PERIODIC_COPIES`` is required with ``PERIODIC`` and refused otherwise;
     ``SYMMETRY_LOADS`` (the row's, else the setup's ``symmetry_loads``, else true) says whether
-    the loads are the whole rotor's or the sector's. Warns and skips ``DELTA_THETA`` and
-    ``REVOLUTIONS``, which belong to the time-accurate run types.
+    the loads are the whole rotor's or the sector's. Warns and skips ``DELTA_THETA``,
+    ``REVOLUTIONS``, ``LAST_REVS_AVG``, ``CLOCK_MOTION``, ``MOTIONS`` and every ``EXPORT_*``
+    variable, which belong to the time-accurate run types.
 
     Raises
     ------
@@ -481,13 +491,13 @@ def periodic_state(setup: Mapping[str, object]) -> PeriodicState:
         A symmetry other than NONE or PERIODIC, PERIODIC without a positive whole number of
         copies, copies without PERIODIC, or a non-boolean SYMMETRY_LOADS.
     """
-    for key in TIME_ACCURATE:
-        if key in setup:
+    for key in setup:
+        if key in TIME_ACCURATE or str(key).startswith(TIME_ACCURATE_PREFIX):
             warn_or_refuse(
                 f"{key} is skipped: it belongs to a time-accurate run type that the SU2 "
                 "adapter does not offer yet",
                 UserWarning,
-                stacklevel=3,
+                stacklevel=2,
             )
     symmetry = str(setup.get("SYMMETRY", "NONE")).strip().upper()
     if symmetry not in {"NONE", "PERIODIC"}:

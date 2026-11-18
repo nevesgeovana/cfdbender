@@ -134,3 +134,20 @@ def test_a_reference_file_may_carry_the_whole_flightstream_rotor_part(tmp_path):
         warnings.simplefilter("ignore")
         deck = columns.deck(tmp_path)
     assert "ROTOR" not in deck and "ROTATION_RATE" in deck
+
+
+TIME_ACCURATE_EXTRA = (
+    "LAST_REVS_AVG: 2 / CLOCK_MOTION: true / MOTIONS: 3 / EXPORT_SURFACE: true / EXPORT_FLOW: 1"
+)
+
+
+def test_time_accurate_controls_are_warned_once_and_never_forwarded(tmp_path):
+    periodic(tmp_path, extra=TIME_ACCURATE_EXTRA)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("default")
+        deck = columns.deck(tmp_path)
+    for key in ("LAST_REVS_AVG", "CLOCK_MOTION", "MOTIONS", "EXPORT_SURFACE", "EXPORT_FLOW"):
+        assert key not in deck
+        hits = [str(w.message) for w in caught if f"{key} is skipped" in str(w.message)]
+        assert len(hits) == 1
+        assert "time-accurate run type" in hits[0]
