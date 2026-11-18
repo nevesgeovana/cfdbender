@@ -41,6 +41,10 @@ def _plain(value: Any) -> Any:
         return float(value)
     if isinstance(value, (np.integer, int)):
         return int(value)
+    if isinstance(value, (tuple, list)):
+        return [_plain(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _plain(v) for k, v in value.items()}
     return value
 
 
@@ -59,6 +63,7 @@ def _lattice_case(
         mass_flux,
         plane_integral,
         ring_sample_weights,
+        rotor_channels,
         sample_area_coverage,
         sample_coverage,
         shaft_torque,
@@ -130,6 +135,8 @@ def _lattice_case(
             ds, RHO, V_INF, inlet=0.5, outlet=2.0, axis="z"
         ),
         "crossflow_kinetic_energy": crossflow_kinetic_energy(ds, RHO),
+        "rotor_channels.s1": rotor_channels(ds, rho=RHO, v_inf=V_INF, station=1.0),
+        "rotor_channels.s2": rotor_channels(ds, rho=RHO, v_inf=V_INF, station=2.0),
     }
     if lateral:
         flux = lateral_flux(ds, rho=RHO, inlet=-2.0, outlet=2.0)
@@ -216,6 +223,80 @@ def _harmonic_case(seed: int, n: int, psi_0: float) -> dict[str, Any]:
     }
 
 
+def _plane_case(seed: int, holed: bool) -> dict[str, Any]:
+    from pyflightstream.farfield import (
+        bernoulli_residual,
+        plane_fields,
+        plane_induced_drag,
+        plane_lift,
+        plane_vorticity_drag,
+    )
+
+    rng = np.random.default_rng(seed)
+    y = np.linspace(-2.0, 2.0, 13)
+    z = np.linspace(-1.0, 1.0, 11)
+    shape = (13, 11)
+    fields = {
+        "u": V_INF + 1.5 * rng.standard_normal(shape),
+        "v": 0.8 * rng.standard_normal(shape),
+        "w": 0.8 * rng.standard_normal(shape),
+        "p_prime": 20.0 * rng.standard_normal(shape),
+    }
+    if holed:
+        fields["w"][3, 4] = np.nan
+    plane = plane_fields(y, z=z, fields=fields)
+    outputs = {
+        "plane_induced_drag": plane_induced_drag(plane, rho=RHO, v_inf=V_INF),
+        "plane_vorticity_drag": plane_vorticity_drag(plane, rho=RHO),
+        "plane_vorticity_drag.chunk3": plane_vorticity_drag(plane, rho=RHO, chunk=3),
+        "plane_lift": plane_lift(plane, rho=RHO, v_inf=V_INF),
+        "bernoulli_residual": bernoulli_residual(plane, rho=RHO, v_inf=V_INF),
+    }
+    return {
+        "name": "plane-holed" if holed else "plane",
+        "y": y.tolist(),
+        "z": z.tolist(),
+        "fields": {k: v.tolist() for k, v in fields.items()},
+        "outputs": {k: _plain(v) for k, v in outputs.items()},
+    }
+
+
+def _trace_case(name: str, seed: int, mirror: bool, n_sheets: int) -> dict[str, Any]:
+    from pyflightstream.farfield import trace_coefficients, trace_forces
+
+    rng = np.random.default_rng(seed)
+    n = 14
+    if mirror:
+        y = np.sort(rng.uniform(0.05, 3.0, n))
+    else:
+        y = np.sort(rng.uniform(-3.0, 3.0, n))
+    z = 0.1 * rng.standard_normal(n)
+    gamma = 2.0 + rng.standard_normal(n)
+    sheets = None
+    if n_sheets > 1:
+        sheets = (np.arange(n) % n_sheets).astype(int)
+        y = np.sort(y)
+    result = trace_forces(y, z=z, gamma=gamma, rho=RHO, v_inf=V_INF, sheets=sheets, mirror=mirror)
+    coefficients = trace_coefficients(
+        result.lift,
+        side_force=result.side_force,
+        induced_drag=result.induced_drag,
+        q=0.5 * RHO * V_INF**2,
+        s_ref=2.0,
+        b_ref=6.0,
+    )
+    outputs = {"trace_forces": result, "trace_coefficients": coefficients}
+    return {
+        "name": name,
+        "y": y.tolist(),
+        "z": z.tolist(),
+        "gamma": gamma.tolist(),
+        "sheets": None if sheets is None else sheets.tolist(),
+        "mirror": mirror,
+        "outputs": {k: _plain(v) for k, v in outputs.items()},
+    }
+
+
 def _counts_case() -> dict[str, Any]:
     from pyflightstream.farfield import spurious_diagnostic, to_counts
 
@@ -245,6 +326,12 @@ def record() -> dict[str, Any]:
             _harmonic_case(11, 16, 0.0),
             _harmonic_case(12, 15, 0.3),
             _harmonic_case(13, 24, 0.0),
+        ],
+        "plane_cases": [_plane_case(21, False), _plane_case(22, True)],
+        "trace_cases": [
+            _trace_case("trace-one-sheet", 31, False, 1),
+            _trace_case("trace-mirrored", 32, True, 1),
+            _trace_case("trace-two-sheets", 33, False, 2),
         ],
         "counts_case": _counts_case(),
     }
