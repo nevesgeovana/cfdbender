@@ -308,7 +308,8 @@ REHASH_HELP = (
     "read every input again instead of trusting the digest cache of large files "
     "(.input-digests.cache); without it a file is read again when its file identity, size or "
     "timestamps changed, so a file rewritten with the same size and timestamps goes "
-    "unnoticed"
+    "unnoticed; the option applies to the solvers cfdbender runs itself and not to the "
+    "FlightStream route"
 )
 
 
