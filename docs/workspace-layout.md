@@ -141,6 +141,8 @@ hashes, its status, when it started and finished, and the verdict on its
 convergence. `cfd-matrix status` and `cfd-workspace show`, `history` and `log` read this file;
 you never edit it.
 
+`.input-digests.cache`, also in the workspace root, lets a large input (above 8 MiB, such as a mesh) be read and hashed once rather than by every command. It holds each such file's size, modification time, change time, SHA-256 and, for an SU2 mesh, its marker names. It is never a planned input and never enters a record, and deleting it loses nothing. A file whose size or timestamps still match is not read again; one rewritten with the same size and timestamps goes unnoticed unless the command runs with `--rehash-inputs`.
+
 ## What plan, collect and post write
 
 Everything derived from a matrix is under `post/<matrix>/`:
