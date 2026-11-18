@@ -41,7 +41,7 @@ with `columns are separated by |`.
 | `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same, and a name works too: `rwing` is `inputs/references/rwing.toml`. |
 | `SET` | Setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). |
 | `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`, numbered or named. |
-| `SYMMETRY`, `SYMMETRY_LOADS` | Accepted in the header and must be `-`: symmetry comes from the mesh markers and the setup. |
+| `SYMMETRY`, `SYMMETRY_LOADS` | What was meshed (`NONE` or `PERIODIC`) and whether the loads are the whole model's (`true`, `false`). SU2 reads `NONE` and `PERIODIC` (with the row variable `PERIODIC_COPIES`; see its page); the other solvers need `-`: symmetry comes from the mesh markers and the setup. |
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
 | `WALLTIME` | Wall clock with its unit: `90s`, `240m`, `4h`, `1d`. `{walltime}` in an HPC profile. |
 | `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [Executables](executables.md)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. The column may also be named `FS_BUILD`, with the same meaning; a header holding both names is refused. |
@@ -85,7 +85,8 @@ solver documents (for example `ORDER` for PyFR or `J` for QPROP) are kept in upp
 revolutions per second and `D` the rotor diameter. QPROP reads it as its `J`. SU2 reads it for a
 propeller in a steady rotating frame, with the rotor block of the REF file, as a value or as
 `ADVANCE_RATIO:sweep`, and writes the rotation of each point; see
-[Propeller in a steady rotating frame](su2-workspaces.md#propeller-in-a-steady-rotating-frame).
+[Propeller in a steady rotating frame](su2-workspaces.md#propeller-in-a-steady-rotating-frame)
+(for a one-sixth sector: `SYMMETRY` `PERIODIC` and, in `VAR_NAMES_VALUES`, `hpc: h004 / PERIODIC_COPIES: 6`).
 A point name carries it as `J` and the value times 100 with its sign (`J+030` for 0.3).
 
 For SU2, PyFR and XFOIL, a row that states only `MACH` and angles, such as
