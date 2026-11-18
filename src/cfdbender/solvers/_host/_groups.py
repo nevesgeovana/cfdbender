@@ -88,7 +88,7 @@ class _Su2Markers:
 
     def _keep(self, line: bytes) -> None:
         self._kept.append(line)
-        self._size += len(line) + 1
+        self._size += len(line) + (len(self._kept) > 1)
         if self._size > _REDUCED_LIMIT:
             self._overflow = True
 

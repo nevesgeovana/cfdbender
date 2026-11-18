@@ -28,7 +28,7 @@ def test_reduced_limit_and_exact_fallback(tmp_path, monkeypatch):
     scanner = _groups._Su2Markers()
     scanner.feed(exact)
     assert scanner.result() == _groups.marker_names(exact, "m.su2")
-    data = exact + b"x"
+    data = exact + b"xx"
     scanner = _groups._Su2Markers()
     scanner.feed(data)
     assert scanner.result() is None
@@ -101,3 +101,15 @@ def test_mutated_byte_streams_match_whole_file():
             assert scanner.result() == expected, (data, block)
             count += 1
     assert count == 56000
+
+
+def test_reduced_text_limit_counts_actual_joined_bytes(monkeypatch):
+    monkeypatch.setattr(_groups, "_REDUCED_LIMIT", 20)
+    for size in (19, 20, 21):
+        data = b"MARKER_TAG=" + b"x" * (size - len(b"MARKER_TAG="))
+        scanner = _groups._Su2Markers()
+        scanner.feed(data)
+        if size <= 20:
+            assert scanner.result() == _groups.marker_names(data, "m.su2")
+        else:
+            assert scanner.result() is None
