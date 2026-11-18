@@ -6,7 +6,7 @@ import json
 from collections.abc import Collection
 from pathlib import Path
 
-from cfdbender.core.inputs_guide import guide_text
+from cfdbender.core.inputs_guide import NUMERICS_SOLVERS, guide_text
 from cfdbender.core.settings import WorkspaceError, _validate
 
 INPUT_KINDS = (
@@ -41,7 +41,11 @@ def input_kinds(solver: str) -> tuple[str, ...]:
     tuple of str
         Folder names under inputs/, in creation order.
     """
-    return SOLVER_INPUT_KINDS if solver in _LIBRARY_SOLVERS else INPUT_KINDS
+    if solver not in _LIBRARY_SOLVERS:
+        return INPUT_KINDS
+    if solver in NUMERICS_SOLVERS:
+        return (*SOLVER_INPUT_KINDS[:3], "numerics", *SOLVER_INPUT_KINDS[3:])
+    return SOLVER_INPUT_KINDS
 
 
 def _declaration_text(solver: str) -> str:

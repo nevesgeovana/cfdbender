@@ -24,14 +24,16 @@ from cfdbender.core.plan import (
     Point,
     RowInputs,
     RowRequirements,
-    apply_variables,
     is_identity_value,
     is_matrix_file,
+    resolve_setup,
 )
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
-from cfdbender.core.settings import read_init, setup_defaults
+from cfdbender.core.settings import read_init
 
-CAPABILITIES = frozenset({"restart", "unsteady", "boundary_groups", "cluster_staging"})
+CAPABILITIES = frozenset(
+    {"restart", "unsteady", "boundary_groups", "cluster_staging", "numerics_file"}
+)
 
 
 def capabilities(adapter: object) -> frozenset[str]:
@@ -145,13 +147,14 @@ def load_point(
         solver,
         resolve_setup_paths(
             target,
-            apply_variables(
-                setup_defaults(
-                    config.defaults,
-                    files.read_toml(f"inputs/setups/{point.setup_id}.toml"),
-                    omitted=point.defaults_omitted,
-                ),
+            resolve_setup(
+                config.defaults,
+                files.read_toml(f"inputs/numerics/{point.numerics_id}.toml")
+                if point.numerics_id
+                else {},
+                files.read_toml(f"inputs/setups/{point.setup_id}.toml"),
                 point.variables,
+                omitted=point.defaults_omitted,
             ),
         ),
         files.read_toml(f"inputs/references/{point.reference_id}.toml"),

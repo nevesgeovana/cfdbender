@@ -73,7 +73,7 @@ from cfdbender.solvers.su2._restart import restart_files as restart_files
 from cfdbender.solvers.su2._restart import restart_values
 
 SOLVER_NAME = "su2"
-CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups"})
+CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
 SOLVER_TYPE = "SU2"
 STAGED_CONFIG = "su2.cfg"
 #: The namespace of the s file that SU2 forwards unread (contract C-09): its own option names.

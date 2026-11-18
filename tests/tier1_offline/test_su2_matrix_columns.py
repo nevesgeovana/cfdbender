@@ -82,6 +82,7 @@ def test_su2_init_creates_only_the_folders_it_reads(tmp_path):
         "hpc",
         "matrices",
         "mesh",
+        "numerics",
         "pproc",
         "references",
         "setups",

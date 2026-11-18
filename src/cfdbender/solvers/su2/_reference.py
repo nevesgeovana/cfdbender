@@ -62,8 +62,8 @@ def prepare(root: Path, mesh: Path, route: str, executable: str | None = None) -
         "inputs/references/r001.toml": "area=1.0\nlength=1.0\nmoment_origin=[0.25,0,0]\n",
         "inputs/pproc/p001.toml": "history=true\noutput_frequency=5\n",
         "inputs/matrices/reference.fs": (
-            "POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION\n"
-            "---|---|---|---|-----|----------------\n"
+            "POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION\n"
+            "---|---|-----|---|-----|----------------\n"
             "1001|1|001|001|001|MACH:0.3,ALPHA:2.0\n"
         ),
     }

@@ -8,7 +8,7 @@ bytes are tracked by inputs_sha256 and staged as airfoil.dat for portable script
 Mach defaults to 0, ncrit to 9, iterations to 200. Reynolds absent or 0 is inviscid.
 Optional panels sets PPAR N before PANE; nondefault ncrit sets VPAR N in OPER.
 
-A matrix with columns POL|RUN|SET|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES and row
+A matrix with columns POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES and row
 1001|1|001|001|001|alpha:sweep|0,2,4 plans three independent points through
 ``cfd-matrix plan study --local``. Scalar alpha uses alpha:4 and empty SWEEP_VALUES.
 The core parser canonicalizes condition keys to uppercase; this adapter accepts

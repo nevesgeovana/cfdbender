@@ -59,7 +59,7 @@ from cfdbender.solvers.openfoam._history import Evidence, force_groups, read
 from cfdbender.solvers.openfoam._restart import restart_files as restart_files
 
 SOLVER_NAME = "openfoam"
-CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups"})
+CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
 STAGED_CONFIG = "Allrun"
 EXECUTABLE_KEYS = {"path": "foam_bashrc", "launcher": "launcher"}
 #: The outputs a cluster job writes; only the solver log the point declares is awaited.
