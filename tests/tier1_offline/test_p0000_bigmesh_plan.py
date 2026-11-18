@@ -199,3 +199,11 @@ def test_p0000_bigmesh_loading_a_point_streams_the_large_mesh_once(tmp_path, mon
     assert counting.opens == 1
     assert counting.hashed_meshes(len(data)) == 1
     assert peak < len(data) // 4
+
+
+def test_streamed_markers_after_long_line():
+    data = b"x" * ((1 << 20) + 1) + b"\nMARKER_TAG= wall\n"
+    scanner = _Su2Markers()
+    scanner.feed(data[: (1 << 20) + 1])
+    scanner.feed(data[(1 << 20) + 1 :])
+    assert scanner.result() == marker_names(data, "x.su2")

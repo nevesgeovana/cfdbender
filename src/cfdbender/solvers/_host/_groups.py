@@ -63,11 +63,13 @@ class _Su2Markers:
     def feed(self, chunk: bytes) -> None:
         """Take the next block of the mesh; whole lines are scanned, a partial one is kept."""
         data = self._tail + chunk
-        end = data.rfind(b"\n") + 1
         if self._skipping:
-            self._skipping = end == 0
-            self._tail = data[end:]
-            return
+            end = data.find(b"\n") + 1
+            if not end:
+                return
+            self._skipping = False
+            data = data[end:]
+        end = data.rfind(b"\n") + 1
         block, self._tail = data[:end], data[end:]
         if b"MARKER_TAG" in block:
             self._names |= _su2_markers(block.decode("ascii", errors="replace"))
