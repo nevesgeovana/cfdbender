@@ -16,7 +16,7 @@ places is refused as ambiguous. Cells may be padded with spaces, lines
 starting with `#` are comments, and a line of dashes under the header is a rule.
 
 ```text
-POL  | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION       | FLIGHT_CONDITION                                  | SWEEP_VALUES | GEOMETRY     | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS | WALLTIME | SOLVER_BUILD | WORKFLOW | VAR_NAMES_VALUES
+POL  | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION       | FLIGHT_CONDITION                                  | SWEEP_VALUES | MESH         | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS | WALLTIME | SOLVER_BUILD | WORKFLOW | VAR_NAMES_VALUES
 -----|--------|-----|----------|---------------|-------------------|---------------------------------------------------|--------------|--------------|-----|-------|-------|----------|----------------|-------|----------|--------------|----------|-----------------
 5001 |   0    |  1  | WB       | cruise        | Polar near design | MACH:0.85, REmi:5, TK:310.928, ALPHA:sweep, BETA:0 | 2.5,2.75     | wb.su2       | 001 | 001   | 001   | -        | -              | 192   | 4h       | 8.3.0        | -        | iterations: 2000
 ```
@@ -37,7 +37,7 @@ with `columns are separated by |`.
 | `DESCRIPTION` | Free text for the row. Labels only, as `AIRCRAFT`. |
 | `FLIGHT_CONDITION` | The flow state and attitude as `KEY:value` pairs; see below. |
 | `SWEEP_VALUES` | The comma-separated values of the one `FLIGHT_CONDITION` key written `sweep`. |
-| `GEOMETRY` | The mesh or geometry file: a file name in `inputs/mesh/`, a stem naming exactly one file there, or a workspace-relative path. The older folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/` are still read, after `inputs/mesh/`. The setup may then omit its mesh key; one it states must name the same file. A solver that does not read the column warns and skips it. |
+| `MESH` | The mesh or geometry file: a file name in `inputs/mesh/`, a stem naming exactly one file there, or a workspace-relative path. The older folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/` are still read, after `inputs/mesh/`. The setup may then omit its mesh key; one it states must name the same file. A solver that does not read the column warns and skips it. The header was `GEOMETRY` before this column was renamed; a matrix that still says `GEOMETRY` is read as `MESH` with one warning per matrix file, and a header with both is refused. |
 | `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same, and a name works too: `rwing` is `inputs/references/rwing.toml`. |
 | `SETUP` | The physical setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). The header was `SET` before this column was renamed; a matrix that still says `SET` is read as `SETUP` with one warning per matrix file, and a header with both is refused. |
 | `NUMERICS` | The numerical setup file `inputs/numerics/n<id>.toml`, numbered or named, for the CFD solvers (SU2, OpenFOAM, PyFR); see [Setup and numerics](#setup-and-numerics). A column that is absent, or a cell holding `-` or nothing, means the setup file carries the numerics. A solver without the column warns once and ignores a filled cell. |
@@ -97,7 +97,7 @@ level like any other air statement.
 
 ### What each solver takes from the resolved state
 
-| Solver | Row state becomes | GEOMETRY becomes |
+| Solver | Row state becomes | MESH becomes |
 |---|---|---|
 | SU2 | `MACH_NUMBER`, `FREESTREAM_TEMPERATURE`, `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them, `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH`; `ADVANCE_RATIO` becomes `ROTATION_RATE`, `MOTION_ORIGIN` and `MACH_MOTION` of a steady rotating frame (see the SU2 page) | `MESH_FILENAME` |
 | OpenFOAM | `speed` (the velocity) and `nu` (viscosity over density) | `mesh` |
@@ -160,7 +160,7 @@ See [cluster jobs](cluster-jobs.md#choosing-the-cluster-per-row).
 ## Where the values go
 
 The plan listing (`cfd-matrix plan <name>`) prints AIRCRAFT, CONFIGURATION,
-DESCRIPTION, GEOMETRY, NCPUS, SOLVER_BUILD, HIDDEN and each variable under the
+DESCRIPTION, MESH, NCPUS, SOLVER_BUILD, HIDDEN and each variable under the
 point. The run record keeps them with the point, and the campaign summary written
 by `cfd-matrix collect` carries AIRCRAFT, CONFIGURATION and DESCRIPTION beside each
 result. A value the matrix states and the s/r/p files also state must agree, or

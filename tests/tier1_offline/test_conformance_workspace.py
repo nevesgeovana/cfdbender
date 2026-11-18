@@ -1,7 +1,7 @@
 """One conformance suite over every library adapter, offline, with fake executables.
 
 The same assertions run for su2, openfoam, xfoil, pyfr, qprop and mock: the matrix
-header is accepted, the flight condition is read, the GEOMETRY file resolves, the
+header is accepted, the flight condition is read, the MESH file resolves, the
 s/r/p ids and the DP folder names follow the contract, runs.json records the plan,
 a resumed run skips what is complete, collect writes the common CSV and the HPC
 descriptor renders. No real solver runs: each adapter executes a stand-in script.
@@ -68,7 +68,7 @@ def case(request, tmp_path):
         matrix.write_text(matrix.read_text(encoding="ascii").replace("MACH:0.1", "MACH:0"))
     if solver == "qprop":
         # QPROP executes only a blade named in its setup under its own folder, while
-        # the planner resolves the GEOMETRY column in either: a layout gap.
+        # the planner resolves the MESH column in either: a layout gap.
         setup.write_bytes(b'blade = "inputs/geometry/blade.obj"' + bytes([10]) + setup.read_bytes())
         (root / "inputs/geometry").mkdir()
         (root / "inputs/geometries/blade.obj").rename(root / "inputs/geometry/blade.obj")

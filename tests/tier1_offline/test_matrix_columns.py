@@ -14,7 +14,7 @@ from cfdbender.core.plan import apply_variables
 
 HEADER = (
     "POL | HIDDEN | RUN | AIRCRAFT | CONFIGURATION | DESCRIPTION | FLIGHT_CONDITION "
-    "| SWEEP_VALUES | GEOMETRY | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
+    "| SWEEP_VALUES | MESH | REF | SETUP | PPROC | SYMMETRY | SYMMETRY_LOADS | NCPUS "
     "| WALLTIME | FS_BUILD | WORKFLOW | VAR_NAMES_VALUES"
 )
 ROW = (
@@ -150,7 +150,7 @@ def test_registry_keeps_the_row_columns(tmp_path):
         "inputs/geometries/wing.dat": "mesh",
         "inputs/matrices/study.fs": "\n".join(
             [
-                "POL|RUN|HIDDEN|DESCRIPTION|GEOMETRY|NCPUS|SOLVER_BUILD|VAR_NAMES_VALUES|SETUP|REF|PPROC",
+                "POL|RUN|HIDDEN|DESCRIPTION|MESH|NCPUS|SOLVER_BUILD|VAR_NAMES_VALUES|SETUP|REF|PPROC",
                 "7|1|1|cruise point|wing|8|2.0|ITER: 3|001|001|001",
             ]
         ),
@@ -183,6 +183,6 @@ def test_registry_keeps_the_row_columns(tmp_path):
     def ignores(row, inputs):
         return RowRequirements(("solve",), ("sims/sim_{pol}/datapoints/{point}/out.txt",))
 
-    with pytest.warns(UserWarning, match="does not read the GEOMETRY column"):
+    with pytest.warns(UserWarning, match="does not read the MESH column"):
         skipped = plan_matrix(tmp_path, "study", validators={"mock": ignores})
     assert skipped.points[0].geometry is None

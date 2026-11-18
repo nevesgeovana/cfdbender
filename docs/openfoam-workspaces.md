@@ -24,7 +24,7 @@ A matrix row can also pick a build by name; see [Executables](executables.md).
 
 ## Mesh
 
-OpenFOAM reads a gmsh `.msh` mesh natively, in format 2.2 ASCII. Any other gmsh format is refused: `mesh must be gmsh 2.2 ASCII`. Put the file in `inputs/mesh/` and name it in the matrix `GEOMETRY` column or in the setup key `mesh`. See [Workspace layout](workspace-layout.md) for how a mesh is linked. The point folder holds the link as `mesh.msh`, `mesh.cgns` or `mesh.ugrid`.
+OpenFOAM reads a gmsh `.msh` mesh natively, in format 2.2 ASCII. Any other gmsh format is refused: `mesh must be gmsh 2.2 ASCII`. Put the file in `inputs/mesh/` and name it in the matrix `MESH` column or in the setup key `mesh`. See [Workspace layout](workspace-layout.md) for how a mesh is linked. The point folder holds the link as `mesh.msh`, `mesh.cgns` or `mesh.ugrid`.
 
 The mesh is one extruded layer in the XY plane with four named patches: `airfoil`, `farfield`, `front` and `back`. After import, cfdbender sets `front` and `back` to type `empty` and `airfoil` to type `wall`.
 
@@ -73,7 +73,7 @@ See [results](results.md#boundary-force-sets).
 
 | Key | Meaning | Unit | Default |
 |---|---|---|---|
-| `mesh` | mesh file under `inputs/mesh/`, `.msh`, `.cgns` or `.ugrid` | - | required (or `GEOMETRY`) |
+| `mesh` | mesh file under `inputs/mesh/`, `.msh`, `.cgns` or `.ugrid` | - | required (or `MESH`) |
 | `mesh_converter` | shell template for `.cgns` and `.ugrid`, see Mesh | - | none |
 | `application` | solver; only `simpleFoam` is accepted | - | required |
 | `speed` | free stream speed | m/s | required (or from the row) |
@@ -134,7 +134,7 @@ Each step writes its own `log.*` file, and a failed step stops `Allrun`. ESI wri
 | resolved velocity | `speed` |
 | resolved viscosity over density | `nu` |
 | `REmi` x 1e6, solved over the reference file's `length` | density, hence `nu` |
-| `GEOMETRY` | `mesh` |
+| `MESH` | `mesh` |
 
 A bare `MACH` resolves at sea level. A setup value that disagrees with the row is refused: `conflict: <key> is <value> in the inputs and <value> from the matrix row; state it in one place`.
 

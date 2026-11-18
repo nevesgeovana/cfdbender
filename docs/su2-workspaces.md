@@ -29,7 +29,7 @@ A matrix row can also pick a build by name; see [Executables](executables.md).
 
 ## Mesh
 
-SU2 reads a native `.su2` mesh or a CGNS `.cgns` mesh. Put the file in `inputs/mesh/` and name it in the matrix `GEOMETRY` column (a file name or a stem), or in the setup key `mesh`. A `mesh` key in the setup and a `GEOMETRY` cell must name the same file. Each point folder holds the link as `mesh.su2` (with `MESH_FORMAT= SU2`) or `mesh.cgns` (with `MESH_FORMAT= CGNS`); see [Workspace layout](workspace-layout.md) for how a mesh is linked.
+SU2 reads a native `.su2` mesh or a CGNS `.cgns` mesh. Put the file in `inputs/mesh/` and name it in the matrix `MESH` column (a file name or a stem), or in the setup key `mesh`. A `mesh` key in the setup and a `MESH` cell must name the same file. Each point folder holds the link as `mesh.su2` (with `MESH_FORMAT= SU2`) or `mesh.cgns` (with `MESH_FORMAT= CGNS`); see [Workspace layout](workspace-layout.md) for how a mesh is linked.
 
 Any other suffix is refused: `mesh must name a workspace-relative .su2 or .cgns file`.
 
@@ -61,11 +61,11 @@ cfd-matrix plan study --workspace campaign --verbose
 
 With `--apply` the script first copies every file it changes to
 `archive/migration-setup-numerics-<n>/`, renames the header `SET` to `SETUP` and
-inserts `NUMERICS` after it, and moves the numerical top-level keys of each setup
+`GEOMETRY` to `MESH`, inserts `NUMERICS` after the setup column, and moves the numerical top-level keys of each setup
 (with the comment lines directly above each key) to `inputs/numerics/`. Setups
 whose numerical keys are identical share one numerics file. Keys it does not
 list stay in the setup. Run on a migrated workspace it changes nothing. For a
-solver other than SU2 it only renames the column and adds an empty `NUMERICS`
+solver other than SU2 it only renames the columns and adds an empty `NUMERICS`
 column. The solver input planned before and after is byte-identical.
 
 ### Boundary force groups
@@ -94,7 +94,7 @@ No group CSV is written. See [results](results.md#boundary-force-sets).
 
 | Key | SU2 key | Unit | Default |
 |---|---|---|---|
-| `mesh` | `MESH_FILENAME` | - | none (or `GEOMETRY`) |
+| `mesh` | `MESH_FILENAME` | - | none (or `MESH`) |
 | `iterations` | `ITER` | - | required, integer above 0 |
 | `mach` | `MACH_NUMBER` | - | none |
 | `alpha` or `angle_of_attack` | `AOA` | degrees | none |
@@ -185,7 +185,7 @@ This starts `mpirun -np 192 /opt/su2/bin/SU2_CFD su2.cfg` in the point folder. U
 | resolved temperature, pressure, density | `FREESTREAM_TEMPERATURE`, and `FREESTREAM_PRESSURE` and `FREESTREAM_DENSITY` where SU2 reads them (below) |
 | `REmi` x 1e6 and the reference file's `length` | `REYNOLDS_NUMBER`, `REYNOLDS_LENGTH` |
 | `MUPas` | `VISCOSITY_MODEL= CONSTANT_VISCOSITY`, `MU_CONSTANT` |
-| `GEOMETRY` | `MESH_FILENAME` |
+| `MESH` | `MESH_FILENAME` |
 
 A row that states only `MACH` and angles keeps the setup's flow state. When neither the row nor the setup states a Mach number, `plan` warns that SU2 will run with its own default free stream. When the air is stated without `REmi`, the Reynolds number written is the outcome of the resolved density, velocity and viscosity over the reference file's `length`. A value that the setup also states must agree with the row, or the point is refused: `conflict: <key> is <value> in the s/r/p files and <value> from the matrix FLIGHT_CONDITION; state it in one place`. `ASMPS` is refused unless it equals the speed of sound SU2 derives from the temperature: `ASMPS pins a speed of sound SU2 cannot hold: SU2 derives it from the temperature; pin TK instead`. See [Matrix columns](matrix-columns.md) for every column.
 
@@ -229,8 +229,8 @@ What differs from the FlightStream side: SU2 reads `axis = "X"` only (the free s
 The matrix row states `ADVANCE_RATIO` as a value or as the swept variable:
 
 ```text
-POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION                                  | SWEEP_VALUES                       | GEOMETRY     
---------|-----|-----|-----|-------|---------------------------------------------------|------------------------------------|-------------
+POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION                                  | SWEEP_VALUES                       | MESH         
+-----|-----|-------|-----|-------|---------------------------------------------------|------------------------------------|--------------
 1001 | 1   | 001 | 001 | 001   | MACH:0.0529, ALPHA:0, BETA:0, ADVANCE_RATIO:sweep | 0.30,0.35,0.45,0.50,0.55,0.60,0.70 | tud_xprop.su2
 ```
 
@@ -262,7 +262,7 @@ A sector mesh is stated as FlightStream states it. The matrix column `SYMMETRY` 
 
 ```text
 POL  | RUN | SETUP | REF | PPROC | SYMMETRY | SYMMETRY_LOADS | VAR_NAMES_VALUES              
---------|-----|-----|-----|-------|----------|----------------|------------------------------
+-----|-----|-------|-----|-------|----------|----------------|-------------------------------
 1001 | 1   | 001 | 001 | 001   | PERIODIC | true           | hpc: h004 / PERIODIC_COPIES: 6
 ```
 
@@ -362,8 +362,8 @@ history = true
 `inputs/matrices/airfoil.fs`:
 
 ```text
-POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|GEOMETRY
----|---|-----|---|-----|----------------|------------|--------
+POL|RUN|SETUP|REF|PPROC|FLIGHT_CONDITION|SWEEP_VALUES|MESH
+---|---|-----|---|-----|----------------|------------|----
 1001|1|001  |001|001|MACH:0.3, ALTFT:0, ALPHA:sweep|0,2|airfoil.su2
 ```
 

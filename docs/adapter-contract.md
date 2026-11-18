@@ -110,7 +110,7 @@ not declared, not digested and not part of the record.
 parsed row it is given and never reads the matrix file itself.
 
 **C-12.** An adapter that takes a mesh or a geometry file accepts it from the
-`GEOMETRY` column and reads it through the tracked reader. Where the s file
+`MESH` column and reads it through the tracked reader. Where the s file
 may also name it, the two must agree or the row is refused.
 
 **C-13.** An adapter does not spell a mesh folder name. It asks the core's

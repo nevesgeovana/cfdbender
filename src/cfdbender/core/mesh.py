@@ -3,7 +3,7 @@
 A workspace keeps its meshes and geometry files in ``inputs/mesh/``. Workspaces made
 earlier used ``inputs/geometry/``, ``inputs/geometries/`` or ``inputs/meshes/``;
 those are read too, in that order after ``inputs/mesh/``, and a legacy name is
-reported once per process. Every solver's GEOMETRY and mesh lookup goes through here.
+reported once per process. Every solver's MESH and mesh lookup goes through here.
 
 Generated geometry lives in ``inputs/geometry/<name>/``, a folder holding the sidecar
 ``geometry.json``. Such a folder is not a legacy mesh folder: a path inside it is used as
@@ -132,7 +132,7 @@ def resolve_mesh_path(root: Path, name: str) -> str:
 
 
 def mesh_candidates(root: Path, cell: str) -> list[str]:
-    """Return the workspace-relative files a bare GEOMETRY name or stem can mean.
+    """Return the workspace-relative files a bare MESH name or stem can mean.
 
     The first mesh folder holding a match answers alone, so a canonical file wins
     over a legacy file of the same name.

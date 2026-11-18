@@ -65,10 +65,10 @@ def config(
     reference: Mapping[str, object] | None = None,
     geometry: str | None = None,
 ) -> Config:
-    """Build one operating point from the setup and the row's condition and GEOMETRY.
+    """Build one operating point from the setup and the row's condition and MESH.
 
     A FLIGHT_CONDITION stating MACH, REmi or other air keys gives mach and
-    reynolds (REmi directly, else over the REF length); GEOMETRY gives the
+    reynolds (REmi directly, else over the REF length); MESH gives the
     airfoil_file. A setup value that disagrees with the row is refused.
     """
     condition, flow = mach_reynolds(condition, reference, native_mach=True)

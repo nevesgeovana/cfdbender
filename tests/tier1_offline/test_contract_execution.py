@@ -297,11 +297,11 @@ def test_c34_a_solver_without_an_iteration_budget_never_returns_iteration_limit(
 
 
 def test_c07_every_planned_input_is_digest_tracked_and_a_change_is_refused(case):  # noqa: F811
-    """C-07: the GEOMETRY file is in the plan's digests and a changed byte stops translate."""
+    """C-07: the MESH file is in the plan's digests and a changed byte stops translate."""
     solver, root = case
     adapter, point = prepared(root, solver)
     if point.geometry is None:
-        pytest.skip("this adapter reads no GEOMETRY file")
+        pytest.skip("this adapter reads no MESH file")
     assert point.geometry in point.point.inputs_sha256
     path = root / point.geometry
     path.write_bytes(path.read_bytes() + b"# changed")
