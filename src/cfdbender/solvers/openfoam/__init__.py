@@ -101,12 +101,16 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         )
         # The mesh is digested in one streamed pass that also scans it; it is never held whole.
         if case.groups:
-            known = validate_tracked_groups(workspace.setup, workspace, case.mesh)
+            known = validate_tracked_groups(
+                workspace.setup, workspace, case.mesh, skip_unread=False
+            )
             case = replace(
                 case, wall_markers=tuple(m for m in known if m not in {"farfield", "front", "back"})
             )
         if case.mesh_converter is None:
-            if gmsh_header(workspace, case.mesh) != "2.2":
+            if workspace.unread(case.mesh, "gmsh-info"):
+                workspace.skip_content(case.mesh, "Gmsh 2.2 format line")
+            elif gmsh_header(workspace, case.mesh) != "2.2":
                 raise ValueError("mesh must be gmsh 2.2 ASCII")
         elif not case.groups:
             workspace.track(case.mesh)
@@ -164,7 +168,7 @@ def translate(point: AdapterPoint) -> str:
         geometry=point.geometry,
     )
     if case.groups:
-        known = point_markers(point, case.mesh)
+        known = point_markers(point, case.mesh, skip_unread=False)
         case = replace(
             case, wall_markers=tuple(m for m in known if m not in {"farfield", "front", "back"})
         )

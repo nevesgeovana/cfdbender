@@ -14,7 +14,7 @@ from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
-from cfdbender.core.plan import rehash_inputs
+from cfdbender.core.plan import large_input_check, rehash_inputs
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.refusals import warn_or_refuse, warning_refusals
 from cfdbender.core.registry import RunRecord
@@ -152,6 +152,7 @@ def build_parser() -> tuple[
     plan_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
     plan_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
     plan_parser.add_argument("--rehash-inputs", action="store_true", help=REHASH_HELP)
+    plan_parser.add_argument("--no-read-large-inputs", action="store_true", help=NO_READ_HELP)
     run_parser = commands.add_parser(
         "run",
         help="run every active point; on this machine a row's SOLVER_BUILD picks its "
@@ -161,6 +162,7 @@ def build_parser() -> tuple[
     run_parser.add_argument("matrix", help="matrix name in inputs/matrices/ (.fs is optional)")
     run_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
     run_parser.add_argument("--rehash-inputs", action="store_true", help=REHASH_HELP)
+    run_parser.add_argument("--no-read-large-inputs", action="store_true", help=NO_READ_HELP)
     run_parser.add_argument(
         "--restart",
         action="store_true",
@@ -206,6 +208,7 @@ def build_parser() -> tuple[
     collect_parser.add_argument("matrix", nargs="?", help="recorded matrix name (default: all)")
     collect_parser.add_argument("--workspace", default=".", help=WORKSPACE_HELP)
     collect_parser.add_argument("--rehash-inputs", action="store_true", help=REHASH_HELP)
+    collect_parser.add_argument("--no-read-large-inputs", action="store_true", help=NO_READ_HELP)
     post_parser = commands.add_parser(
         "post",
         help="rebuild every product under post/<matrix>/ from runs.json and the saved "
@@ -304,6 +307,13 @@ def build_parser() -> tuple[
     return parser, verbs
 
 
+NO_READ_HELP = (
+    "do not open any input larger than 8 MiB (a mesh): record its size and modification time "
+    "instead of its SHA-256, check it by those two, and skip with a warning the checks that "
+    'need its contents; the same as large_input_check = "identity" in init.toml or '
+    "CFDBENDER_NO_READ_LARGE_INPUTS=1; a mesh changed in place with the same size and "
+    "modification time goes unnoticed"
+)
 REHASH_HELP = (
     "read every input again instead of trusting the digest cache of large files "
     "(.input-digests.cache); without it a file is read again when its file identity, size or "
@@ -341,6 +351,12 @@ def main(argv: list[str] | None = None) -> int:
         level = level_of(args)
         root = Path(args.workspace).resolve()
         refuse = refusals_wanted(args, root)
+        no_read = getattr(args, "no_read_large_inputs", False)
+        if no_read and getattr(args, "rehash_inputs", False):
+            raise WorkspaceError(
+                "--no-read-large-inputs and --rehash-inputs contradict each other: the first "
+                "never reads a large input, the second reads every input again; give one"
+            )
     except WorkspaceError as error:
         print(str(error), file=sys.stderr)
         return 2
@@ -356,6 +372,7 @@ def main(argv: list[str] | None = None) -> int:
             held_warnings(root, show=args.console_warnings, log=live),
             warning_refusals(refuse),
             rehash_inputs(getattr(args, "rehash_inputs", False)),
+            large_input_check("identity" if no_read else None),
         ):
             code = _execute(args, verbs, console)
         return code

@@ -26,7 +26,7 @@ def restart_files(point: AdapterPoint) -> dict[str, Path]:
     if (
         expected
         and original_mesh.is_file()
-        and point.inputs().digest_via(mesh, original_mesh) != expected
+        and not point.inputs().agrees(mesh, expected, via=original_mesh)
     ):
         raise ValueError(
             f"RESTART {point.point.restart_from}: mesh differs from the saved solution"

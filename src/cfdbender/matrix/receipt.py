@@ -16,7 +16,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from cfdbender.core.plan import RunPlan, workspace_path
+from cfdbender.core.plan import RunPlan, recorded_values_agree, workspace_path
 
 PLAN_REQUIRED_MESSAGE = (
     "no plan for this matrix, and a run needs one. Run `cfd-matrix plan <matrix>` first: "
@@ -154,7 +154,7 @@ def receipt_error(plan: RunPlan, profiles: tuple[str, ...] = ()) -> str | None:
         before = entry.get("inputs_sha256")
         before = before if isinstance(before, dict) else {}
         for name, digest in point.inputs_sha256.items():
-            if before.get(name) != digest:
+            if not recorded_values_agree(plan.root, name, before.get(name), digest):
                 return (
                     f"input changed since it was planned: {name} (point {point.point_id}). "
                     "Plan it again."

@@ -105,7 +105,8 @@ def _staged(point: AdapterPoint, values: Config) -> Mapping[str, bytes]:
         return {}
     files = point.inputs()  # the command's shared read: a large file is read once, not per point
     airfoil = files.read_bytes(values.airfoil_file)
-    if files.digests()[values.airfoil_file] != point.point.inputs_sha256.get(values.airfoil_file):
+    planned = point.point.inputs_sha256.get(values.airfoil_file)
+    if planned is None or not files.agrees(values.airfoil_file, planned):
         raise ValueError("airfoil changed after planning; plan again")
     return {"airfoil.dat": airfoil}
 

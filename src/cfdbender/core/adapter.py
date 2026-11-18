@@ -25,6 +25,7 @@ from cfdbender.core.plan import (
     RowInputs,
     RowRequirements,
     apply_variables,
+    is_identity_value,
     is_matrix_file,
 )
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
@@ -97,8 +98,9 @@ class AdapterPoint:
         for name, digest in self.point.inputs_sha256.items():
             if is_matrix_file(name):
                 continue  # records of earlier plans carry it; a grown matrix is not stale
-            files.track(name)
-            if files.digests()[name] != digest:
+            if not is_identity_value(digest):
+                files.track(name)
+            if not files.agrees(name, digest):
                 raise ValueError(f"input changed after planning: {name}; plan again")
 
 
@@ -153,8 +155,9 @@ def load_point(
         shared,
     )
     result.verify()
-    for name, digest in files.digests().items():
-        if point.inputs_sha256.get(name) != digest:
+    for name in files.digests():
+        planned = point.inputs_sha256.get(name)
+        if planned is None or not files.agrees(name, planned):
             raise ValueError(f"untracked or changed input: {name}")
     return result
 

@@ -58,7 +58,9 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     for condition in conditions:
         case = config(workspace.setup, condition, workspace.reference, workspace.geometry)
         # One streamed pass digests the mesh and reads its header; it is never held whole.
-        if gmsh_header(workspace, case.mesh) == "other":
+        if workspace.unread(case.mesh, "gmsh-info"):
+            workspace.skip_content(case.mesh, "Gmsh format line")
+        elif gmsh_header(workspace, case.mesh) == "other":
             raise ValueError("mesh must be gmsh format")
     return RowRequirements(
         ("stage mesh", "import mesh", "run PyFR", "read fluid force"),

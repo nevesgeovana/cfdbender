@@ -48,6 +48,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from cfdbender.core import plan as plan_module
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.flight import STATE_KEYS
 from cfdbender.core.matrix import MatrixRow
@@ -280,6 +281,21 @@ def collect(point: AdapterPoint) -> NeutralResult:
     result, coefficients, refs = read(folder)
     execution = folder / "execution.json"
     route = json.loads(execution.read_bytes())["route"] if execution.is_file() else "cluster"
+    staged = folder / "mesh.su2"
+    files = point.inputs()
+    if not staged.is_file():
+        found = dimensions(folder, mesh=False)  # a CGNS mesh: only the logs state it
+    elif not files.reads_large() and staged.stat().st_size > plan_module.LARGE_INPUT_BYTES:
+        # The large-input check is off: the mesh is not opened for its NDIME line.
+        found = dimensions(folder, mesh=False)
+        if found is None:
+            files.warn(
+                f"{staged}|dimensions",
+                f"{point.point.point_id}: problem dimension not read from mesh.su2; the "
+                "large-input check is off, so the mesh is not read",
+            )
+    else:
+        found = dimensions(folder)
     return _SU2Result(
         coefficients,
         refs,
@@ -287,7 +303,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
         classify(result),
         result.solver_version,
         route,
-        dimensions(folder),
+        found,
         residual_field(folder),
         force_groups=force_groups(folder, groups(point.setup), coefficients),
     )

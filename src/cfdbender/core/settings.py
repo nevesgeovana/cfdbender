@@ -40,7 +40,13 @@ def _validate(
         choices = ", ".join(sorted(available_solvers)) or "(none)"
         return WorkspaceError(f"{source}: {problem}; available solvers: {choices}")
 
-    unknown = set(values) - {"schema_version", "solver", "warning_refusals", "defaults"}
+    unknown = set(values) - {
+        "schema_version",
+        "solver",
+        "warning_refusals",
+        "defaults",
+        "large_input_check",
+    }
     if unknown:
         raise refuse(f"unknown keys: {', '.join(sorted(unknown))}")
     defaults = values.get("defaults", {})
@@ -49,6 +55,8 @@ def _validate(
     refusals = values.get("warning_refusals", False)
     if type(refusals) is not bool:
         raise refuse("warning_refusals must be true or false")
+    if values.get("large_input_check", "digest") not in ("digest", "identity"):
+        raise refuse('large_input_check must be "digest" or "identity"')
     version = values.get("schema_version")
     if type(version) is not int or version != 1:
         raise refuse("schema_version must be the integer 1")
