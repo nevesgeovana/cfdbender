@@ -8,3 +8,9 @@
   window, and `window_is_covered` gives the reason a history that does not hold every step of
   the window is left out. Nothing reads a solver file and nothing is wired into the matrix, the
   plan or an adapter yet.
+- `cfdbender.core.unsteady_clock`: the clock of an unsteady row, `DELTA_THETA` with
+  `REVOLUTIONS` or `DELTA_TIME` with `TIME_ITERATIONS`, resolved against the signed rotor speed
+  (`DELTA_TIME = DELTA_THETA / (6 abs(rpm))`, a whole number of steps or a refusal), the steps
+  per revolution, and the azimuth of blade one at each step from the `azimuth_deg` of the
+  reference rotor's `blade1` table and the sign of the rpm. Pure functions only; no row key is
+  read by any command yet.
