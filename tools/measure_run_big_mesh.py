@@ -63,7 +63,7 @@ def measure(args: argparse.Namespace) -> None:
 
     A step is a command name, optionally followed by ``+rehash`` for ``--rehash-inputs``.
     """
-    root = Path(tempfile.mkdtemp(dir=args.dir)).resolve()
+    root = Path(tempfile.mkdtemp(dir=args.dir or tempfile.gettempdir())).resolve()
     try:
         mesh = build(root, args.mib, args.rows, args.points).resolve()
         time.sleep(2.5)  # let the file settle, as a mesh that was not just written is
@@ -107,7 +107,7 @@ def cli() -> None:
     parser.add_argument("--rows", type=int, default=3)
     parser.add_argument("--points", type=int, default=4)
     parser.add_argument("--steps", default="plan,plan,run")
-    parser.add_argument("--dir", default="C:/t")
+    parser.add_argument("--dir", default=None, help="parent folder of the temporary workspace")
     parser.add_argument("--no-memory", action="store_true")
     measure(parser.parse_args())
 
