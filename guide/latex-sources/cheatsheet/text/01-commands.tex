@@ -36,6 +36,7 @@
 \item \fl{--sims POL [POL ...]} only these simulations, by POL, space or comma separated; an id the matrix lacks is refused
 \item \fl{--points NAME [NAME ...]} only these points, named \texttt{DP-name} or \texttt{POL/DP-name}, within \fl{--sims} when given
 \item \fl{--hpc NAME} the profile \texttt{inputs/hpc/<NAME>.toml}, when the workspace holds several
+\item \fl{--rehash-inputs} read every input again, ignoring stored digests
 \item \fl{--local} plan for THIS machine, not for a submission; \fl{--warning-refusals} refuse unused cluster values
 \item \fl{--workspace DIR} campaign root (default: the current folder)
 \item \fl{--verbose}, \fl{--log-level LEVEL} console quiet, normal or verbose
@@ -50,6 +51,7 @@
 \item \fl{--restart} continue each selected point from its last solution, archiving the previous run first; SU2, OpenFOAM and PyFR support it
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
 \item \fl{--hpc NAME} the HPC profile to use, as in \cmd{plan}; \fl{--warning-refusals} refuse unused cluster values
+\item \fl{--rehash-inputs} read every input again, ignoring stored digests
 \item \fl{--one-run-at-a-time} refuse a local run while another guarded run holds the machine
 \item \fl{--local} keep the work on THIS machine; \fl{--no-local} submit when a profile exists (the default)
 \item \fl{--workspace DIR} campaign root (default: the current folder)
@@ -103,6 +105,7 @@
 \item \fl{--watch-interval S} seconds between sweeps (default 60); \fl{--rounds N} stop the watch after N sweeps
 \item \fl{--interval S} seconds between the two looks that decide an output is settled
 \item \fl{--archive} keep a copy of each replaced file under \texttt{archive/<stamp>/}
+\item \fl{--rehash-inputs} read every input again, ignoring stored digests
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
 \item \fl{--hpc NAME}, \fl{--local} the profile to use; this machine only
 \item \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
