@@ -45,7 +45,12 @@ def groups(setup: Mapping[str, object]) -> dict[str, tuple[str, ...]]:
 
 
 _MARKER_TAG = re.compile(r"^\s*MARKER_TAG\s*=\s*([^%\r\n]+)", re.MULTILINE)
-_LONG_LINE = 1 << 20
+#: A line longer than this that could matter sends the file to the exact whole-file route.
+_LONG_LINE = 1 << 22
+#: A reduced text longer than this sends the file to the exact whole-file route.
+_REDUCED_LIMIT = 1 << 26
+#: The bytes that a regex whitespace class matches in ASCII-decoded text (a line holds no newline).
+_WHITESPACE = b" \t\r\x0b\x0c\x1c\x1d\x1e\x1f"
 
 
 def _su2_markers(text: str) -> set[str]:
@@ -53,16 +58,55 @@ def _su2_markers(text: str) -> set[str]:
 
 
 class _Su2Markers:
-    """Collect the SU2 MARKER_TAG names block by block, never holding more than one line."""
+    r"""Reduce an SU2 mesh to the lines that can take part in a marker match, block by block.
+
+    The pattern is ``^\s*MARKER_TAG\s*=\s*([^%\r\n]+)``; its whitespace may cross lines. A match
+    starts at a line start, passes only whitespace, and ends on the line holding the name. After
+    the tag a match needs at most two lines that are not whitespace-only: the ``=`` and the
+    name. So the only lines that matter are (1) every line containing ``MARKER_TAG`` and (2) after
+    such a line, every line up to and including the next two that are not whitespace-only (the
+    backtracking ``\s*`` may even give the name a whitespace character of a whitespace-only
+    line). Every other line is removed: a whitespace-only line outside that window adds nothing
+    to ``\s*``, and any other line cannot start, continue or end a match. The kept lines,
+    in order, form a reduced text on which the unchanged whole-file regular expression gives
+    exactly the names of the whole file. Memory is one block, one partial line and the reduced
+    text.
+
+    ``result`` returns None, and the caller then uses the exact whole-file function, when a line
+    longer than ``_LONG_LINE`` could matter or the reduced text exceeds ``_REDUCED_LIMIT``:
+    correct and slow, never truncated. A very long line that cannot matter (it starts with
+    something other than whitespace and the tag, and no tag is awaited) is skipped.
+    """
 
     def __init__(self) -> None:
         self._tail = b""
-        self._names: set[str] = set()
+        self._kept: list[bytes] = []
+        self._size = 0
+        self._pending = 0
         self._skipping = False
+        self._overflow = False
+
+    def _keep(self, line: bytes) -> None:
+        self._kept.append(line)
+        self._size += len(line) + 1
+        if self._size > _REDUCED_LIMIT:
+            self._overflow = True
+
+    def _line(self, line: bytes) -> None:
+        if b"MARKER_TAG" in line:
+            self._keep(line)
+            self._pending = 2
+        elif self._pending:
+            self._keep(line)
+            if line.strip(_WHITESPACE):
+                self._pending -= 1
 
     def feed(self, chunk: bytes) -> None:
-        """Take the next block of the mesh; whole lines are scanned, a partial one is kept."""
+        """Take the next block of the mesh; whole lines are examined, a partial one is kept."""
+        if self._overflow:
+            return
         data = self._tail + chunk
+        self._tail = b""
         if self._skipping:
             end = data.find(b"\n") + 1
             if not end:
@@ -71,15 +115,36 @@ class _Su2Markers:
             data = data[end:]
         end = data.rfind(b"\n") + 1
         block, self._tail = data[:end], data[end:]
-        if b"MARKER_TAG" in block:
-            self._names |= _su2_markers(block.decode("ascii", errors="replace"))
+        if block and (self._pending or b"MARKER_TAG" in block):
+            start = 0
+            while start < len(block):
+                stop = block.find(b"\n", start)
+                self._line(block[start:stop])
+                start = stop + 1
         if len(self._tail) > _LONG_LINE:
-            self._tail, self._skipping = b"", True
+            stripped = self._tail.lstrip(_WHITESPACE)
+            if (
+                self._pending
+                or len(stripped) < len(b"MARKER_TAG")
+                or stripped.startswith(b"MARKER_TAG")
+            ):
+                self._overflow = True
+            else:
+                self._tail, self._skipping = b"", True
+        if self._overflow:
+            self._kept, self._tail = [], b""
 
-    def result(self) -> tuple[str, ...]:
-        """Return the sorted marker names, after the last block."""
-        tail = self._tail.decode("ascii", errors="replace")
-        return tuple(sorted(self._names | _su2_markers(tail)))
+    def result(self) -> tuple[str, ...] | None:
+        """Return the sorted marker names, or None when the exact whole-file route is needed."""
+        if self._overflow:
+            return None
+        if not self._skipping:
+            self._line(self._tail)
+            self._tail = b""
+        if self._overflow:
+            return None
+        text = b"\n".join(self._kept).decode("ascii", errors="replace")
+        return tuple(sorted(_su2_markers(text)))
 
 
 def _cgns_names(source: Any, name: str) -> tuple[str, ...]:
@@ -144,7 +209,12 @@ def tracked_markers(files: InputFiles, mesh: str) -> tuple[str, ...]:
     the whole-bytes route. The tracked reader caches the result for the plan.
     """
     if mesh.endswith(".su2"):
-        return cast(tuple[str, ...], files.scan(mesh, "su2-markers", _Su2Markers))
+        found = files.scan(mesh, "su2-markers", _Su2Markers)
+        if found is None:  # a line the reduction cannot bound: the exact, whole-file route
+            found = files.derive(
+                mesh, "su2-markers-exact", lambda _path: marker_names(files.read_bytes(mesh), mesh)
+            )
+        return cast(tuple[str, ...], found)
     if mesh.endswith(".cgns"):
         return cast(
             tuple[str, ...],
