@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_p0600_release_and_kit_coordinates():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert project["version"] == "0.6.0"
+    assert project["version"] == "0.6.1"
     for name in (
         "src/cfdbender/__init__.py",
         "CITATION.cff",
@@ -19,8 +19,8 @@ def test_p0600_release_and_kit_coordinates():
         "guide/latex-sources/shared/info.tex",
     ):
         text = (ROOT / name).read_text(encoding="utf-8")
-        assert "0.6.0" in text and "0.5.1" not in text, name
-    assert "date-released: 2026-11-16" in (ROOT / "CITATION.cff").read_text(encoding="utf-8")
+        assert "0.6.1" in text and "0.5.1" not in text, name
+    assert "date-released: 2026-11-18" in (ROOT / "CITATION.cff").read_text(encoding="utf-8")
 
 
 def test_p0600_changelog_is_assembled_for_the_release():
@@ -60,7 +60,7 @@ def test_p0600_all_guide_pdfs_state_the_release_version():
             rb"\\(\d{3})", lambda octal: bytes([int(octal.group(1), 8)]), keywords.group(1)
         )
         text = raw.decode("utf-16") if raw.startswith(b"\xfe\xff") else raw.decode("latin-1")
-        assert text == "cfdbender 0.6.0", path.name
+        assert text == "cfdbender 0.6.1", path.name
 
 
 def test_p0600_grid_crossing_advice_is_preserved():

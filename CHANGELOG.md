@@ -5,6 +5,20 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-18
+
+### Fixed
+
+- Planning with large meshes is fast: `cfd-matrix plan` reads and hashes each input file once
+  per plan instead of once per point, streams files above 8 MiB in blocks instead of holding
+  them in memory, and checks SU2 marker groups in the same pass. Results and the recorded input
+  digests are unchanged.
+
+### Changed
+
+- `cfd-matrix plan` refuses an input that changes while planning, with the message
+  `<name>: input changed while planning; plan again`.
+
 ## [0.6.0] - 2026-11-16
 
 ### Added
