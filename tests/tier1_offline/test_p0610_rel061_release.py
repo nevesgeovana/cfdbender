@@ -25,3 +25,13 @@ def test_p0610_changelog_names_the_plan_fix():
     assert "cfd-matrix plan" in release
     assert "once" in release and "streams" in release
     assert "input changed while planning; plan again" in release
+
+
+def test_p0610_changelog_names_the_run_fix_and_the_flag():
+    notes = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    release = notes.split("## [0.6.1] - 2026-11-18", 1)[1].split("## [0.6.0]", 1)[0]
+    assert "`run`" in release and "`collect`" in release and "once" in release
+    assert "`--rehash-inputs`" in release
+    assert ".input-digests.cache" in release
+    assert "OpenFOAM" in release and "PyFR" in release
+    assert chr(0x2014) not in release and chr(0x2013) not in release

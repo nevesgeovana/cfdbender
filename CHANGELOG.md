@@ -13,6 +13,19 @@ versions follow SemVer and are independent of solver versions.
   per plan instead of once per point, streams files above 8 MiB in blocks instead of holding
   them in memory, and checks SU2 marker groups in the same pass. Results and the recorded input
   digests are unchanged.
+- `run`, submission and `collect` no longer read a large input once per point. A large input is
+  read and hashed once, when it is first seen, and later commands reuse its digest while the
+  file's size, timestamps and inode are unchanged. Registry digests are streamed, so a large
+  mesh is no longer held in memory.
+- Known limit: OpenFOAM and PyFR planning still read their mesh whole.
+
+### Added
+
+- `--rehash-inputs` on `plan`, `run` and `collect` forces every input to be read again. A file
+  rewritten in place with identical size and timestamps is not detected without it. The option
+  applies to the solvers cfdbender runs itself and not to the FlightStream route.
+- The workspace keeps `.input-digests.cache` at its root. It is not an input and is safe to
+  delete. New workspaces get a `.gitignore` entry for it.
 
 ### Changed
 
