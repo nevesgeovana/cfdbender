@@ -133,7 +133,8 @@ def dispatch(argv: list[str], *, workspace: bool, matrix_verbs: Collection[str] 
                 file=sys.stderr,
             )
         ignored = {"--no-read-large-inputs", "--rehash-inputs"}
-        argv = [word for word in options if word not in ignored] + argv[boundary:]
+        if any(word in ignored for word in options):
+            argv = [word for word in options if word not in ignored] + argv[boundary:]
         verb = next((word for word in argv if not word.startswith("-")), None)
         if workspace and verb not in matrix_verbs:
             return _pyfs.workspace_main(argv)

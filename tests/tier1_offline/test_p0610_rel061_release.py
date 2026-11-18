@@ -34,4 +34,12 @@ def test_p0610_changelog_names_the_run_fix_and_the_flag():
     assert "`--rehash-inputs`" in release
     assert ".input-digests.cache" in release
     assert "OpenFOAM" in release and "PyFR" in release
+    assert "Known limit: OpenFOAM and PyFR still read" not in release
+    assert "`--no-read-large-inputs`" in release
+    assert "CFDBENDER_NO_READ_LARGE_INPUTS" in release
+    assert "large_input_check" in release
+    assert "identity:size=...;mtime_ns=..." in release
+    assert "never verified" in release
+    assert "`/.input-digests.cache`" in release
+    assert "FlightStream workspace" in release
     assert chr(0x2014) not in release and chr(0x2013) not in release

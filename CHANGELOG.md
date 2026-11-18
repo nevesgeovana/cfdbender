@@ -17,20 +17,39 @@ versions follow SemVer and are independent of solver versions.
   read and hashed once, when it is first seen, and later commands reuse its digest while the
   file's size, timestamps and inode are unchanged. Scheduler submission goes through the same
   reader. Registry digests are streamed, so a large mesh is no longer held in memory.
-- Known limit: OpenFOAM and PyFR still read their planned mesh whole on every command.
+- OpenFOAM and PyFR no longer read their planned mesh whole: it is streamed, read at most once
+  and not read again on later commands while the file is unchanged. A PyFR restart no longer
+  reads the saved mesh whole to check it, and XFOIL and QPROP share a command's read of a large
+  airfoil or blade file instead of reading it again for every call and point.
+- Known limits: OpenFOAM with `[groups]` still reads its mesh in the no-read mode, because its
+  wall markers come from it, and restart solution files are read whole.
 
 ### Added
 
 - `--rehash-inputs` on `plan`, `run` and `collect` forces every input to be read again. A file
-  rewritten in place with identical size and timestamps is not detected without it. On a
-  FlightStream workspace the option is ignored with a warning.
+  rewritten in place with identical size and timestamps is not detected without it.
 - The workspace keeps `.input-digests.cache` at its root. It is not an input and is safe to
-  delete. New workspaces get a `.gitignore` entry for it.
+  delete. New workspaces get a `.gitignore` entry for it. In an existing workspace under
+  version control, add `/.input-digests.cache` to its `.gitignore` by hand.
+- A planned input larger than 8 MiB, such as a mesh, can be left unread. Switch it on with
+  `--no-read-large-inputs` on `plan`, `run` and `collect`, with the environment variable
+  `CFDBENDER_NO_READ_LARGE_INPUTS=1`, or with `large_input_check = "identity"` in `init.toml`;
+  the default, `"digest"`, is unchanged. The file is then never opened: instead of a digest,
+  its size and modification time are recorded as `identity:size=...;mtime_ns=...` and compared
+  by every later command, and the checks that need its contents are skipped with one warning
+  each. A file changed or replaced with the same size and modification time is not detected,
+  and its contents are never verified in this mode. `--no-read-large-inputs` cannot be
+  combined with `--rehash-inputs`.
 
 ### Changed
 
 - `cfd-matrix plan` refuses an input that changes while planning, with the message
   `<name>: input changed while planning; plan again`.
+- A scheduler submission no longer refuses when the submitting host has less than 0.5 GiB of
+  free memory or cannot measure it: it warns once and submits, because the job runs on the
+  cluster. A local run keeps the refusal.
+- On a FlightStream workspace `--rehash-inputs` and `--no-read-large-inputs` are ignored with a
+  warning, because the FlightStream engine controls its own input reads.
 
 ## [0.6.0] - 2026-11-16
 
