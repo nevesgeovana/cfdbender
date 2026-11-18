@@ -1,20 +1,19 @@
-"""The rotor table of a matrix: the whole rotor's quantities, one row per rotating-frame point.
+"""The rotor table: pyflightstream's ``polars/P<sim>-<alias>_rotor.csv``, one row per point.
 
-``post/<matrix>/rotor.csv`` is written only when a point's result carries the ``rotor``
-mapping an SU2 steady rotating-frame point states
-(:func:`cfdbender.solvers.su2._config.rotor_point`).
-It is a product of its own, beside the polar files, so the documented columns of those files
-stay as they are and a matrix without a rotor writes none. The columns are::
+The file name, the column order and the definitions are pyflightstream's
+(``docs/definitions/rotor-coefficients.md`` and ``what-every-product-states.md``)::
 
-    POL  POINT  ROTOR  BLADES  PERIODIC_COPIES  LOADS  D  VINF  RHO  QINF  RPM  N  J  T  Q
-    CT  CQ  CP  ETA  FIP  MIP
+    POL  ROTOR  ALPHA  BETA  MACH  RE  VINF  VREF  ALT  RHO  TEMP  MU  J  J_CLOCK  RPM_CLOCK
+    SREF  CREF  BREF  RPM_<a>  DIAMETER_<a>  J_<a>  CT_<a>  CQ_<a>  CP_<a>  ETA_<a>  ETAW_<a>
+    MTIP_<a>  MHEL_<a>  CN_<a>  CS_<a>  CMN_<a>  CMS_<a>  MADV_<a>
 
-with ``D`` the rotor diameter in m, ``VINF`` the free-stream speed in m/s, ``RHO`` the
-density in kg/m3, ``QINF`` the dynamic pressure SU2 divides by in Pa, ``RPM`` the rotation
-speed in rev/min and ``N`` in rev/s, ``J = VINF / (N D)``, ``T`` the thrust along the shaft in
-N and ``Q`` the shaft torque in N m of the whole rotor, ``CT = T / (RHO N^2 D^4)``,
-``CQ = Q / (RHO N^2 D^5)``, ``CP = 2 pi CQ`` and ``ETA = J CT / CP``. A value that does not
-exist is the token NA.
+with ``<a>`` the rotor's alias. A column is ABSENT from the file, never written as NA, when
+nothing in this package fills it: the columns of :data:`NOT_PORTED` for every adapter, and
+the condition columns an adapter's rotor record names under ``absent`` (SU2: ``BREF``). The
+products manifest names each absent column. A value that does not exist for one row is NA.
+
+The row is formed by :func:`cfdbender.core.rotor.rotor_row` from the force and moment the
+adapter supplies; the condition cells come from the adapter's record and the row.
 """
 
 from __future__ import annotations
@@ -23,28 +22,78 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
-#: The columns of rotor.csv and the key of the result's rotor mapping each one reads.
-ROTOR_COLUMNS: tuple[tuple[str, str], ...] = (
-    ("ROTOR", "rotor"),
-    ("BLADES", "blades"),
-    ("PERIODIC_COPIES", "periodic_copies"),
-    ("LOADS", "loads"),
-    ("D", "diameter_m"),
-    ("VINF", "velocity_m_s"),
-    ("RHO", "density_kg_m3"),
-    ("QINF", "dynamic_pressure_pa"),
-    ("RPM", "rpm"),
-    ("N", "n_rps"),
-    ("J", "advance_ratio"),
-    ("T", "thrust_n"),
-    ("Q", "torque_nm"),
-    ("CT", "ct"),
-    ("CQ", "cq"),
-    ("CP", "cp"),
-    ("ETA", "efficiency"),
-    ("FIP", "in_plane_force_n"),
-    ("MIP", "in_plane_moment_nm"),
+#: The condition block, in pyflightstream's order.
+CONDITION_COLUMNS = (
+    "ALPHA",
+    "BETA",
+    "MACH",
+    "RE",
+    "VINF",
+    "VREF",
+    "ALT",
+    "RHO",
+    "TEMP",
+    "MU",
+    "J",
+    "J_CLOCK",
+    "RPM_CLOCK",
+    "SREF",
+    "CREF",
+    "BREF",
 )
+#: The per-rotor columns, before the alias suffix, in pyflightstream's order.
+ROTOR_COLUMNS = (
+    "RPM",
+    "DIAMETER",
+    "J",
+    "CT",
+    "CQ",
+    "CP",
+    "ETA",
+    "ETAW",
+    "MTIP",
+    "MHEL",
+    "CN",
+    "CS",
+    "CMN",
+    "CMS",
+    "MADV",
+)
+#: pyflightstream's rotor columns this package does not compute yet: absent from every file.
+NOT_PORTED = ("ETAW", "MTIP", "MHEL", "MADV")
+#: What the rotor table's file name ends with.
+SUFFIX = "_rotor.csv"
+
+
+def rotor_file_name(pol: str, alias: str) -> str:
+    """Return ``P<pol>-<alias>_rotor.csv``."""
+    return f"P{pol}-{alias}{SUFFIX}"
+
+
+def full_header(alias: str) -> tuple[str, ...]:
+    """Return every column of pyflightstream's rotor table of ``alias``, in order."""
+    return ("POL", "ROTOR", *CONDITION_COLUMNS, *(f"{name}_{alias}" for name in ROTOR_COLUMNS))
+
+
+def _cells(row: Mapping[str, object], rotor: Mapping[str, object]) -> dict[str, object]:
+    condition = cast(Mapping[str, object], row.get("condition") or {})
+    cells = dict(cast(Mapping[str, object], rotor.get("condition") or {}))
+    values = cast(Mapping[str, object], rotor.get("row") or {})
+    alias = str(rotor["rotor"])
+    cells.update(
+        POL=row["pol"],
+        ROTOR=alias,
+        ALPHA=condition.get("ALPHA"),
+        BETA=condition.get("BETA"),
+        ALT=condition.get("ALTFT"),
+        J=condition.get("ADVANCE_RATIO"),
+        J_CLOCK=values.get("J"),
+        RPM_CLOCK=values.get("RPM"),
+    )
+    for name in ROTOR_COLUMNS:
+        if name in values:
+            cells[f"{name}_{alias}"] = values[name]
+    return cells
 
 
 def rotor_table(
@@ -54,7 +103,7 @@ def rotor_table(
     write: Callable[[Path, str], Path],
     cell: Callable[[object], str],
 ) -> tuple[Path, ...]:
-    """Write ``rotor.csv`` for the points that state a rotor, or nothing.
+    """Write ``polars/P<pol>-<alias>_rotor.csv`` for every polar and rotor, or nothing.
 
     Parameters
     ----------
@@ -68,19 +117,31 @@ def rotor_table(
     Returns
     -------
     tuple of Path
-        The one written path, or an empty tuple when no point has a rotor.
+        The written paths, none when no point has a rotor.
     """
-    lines: list[str] = []
+    files: dict[tuple[str, str], list[dict[str, object]]] = {}
+    absent: dict[tuple[str, str], set[str]] = {}
     for row in rows:
         result = cast(Mapping[str, object], row.get("result") or {})
         rotor = result.get("rotor")
-        if not isinstance(rotor, dict):
+        if not isinstance(rotor, dict) or not isinstance(rotor.get("row"), dict):
             continue
-        name = str(row["point_id"]).split("/", 1)[1]
-        cells = [str(row["pol"]), name, *(cell(rotor.get(key)) for _, key in ROTOR_COLUMNS)]
-        lines.append(",".join(cells))
-    if not lines:
-        return ()
-    header = ",".join(["POL", "POINT", *(name for name, _ in ROTOR_COLUMNS)])
-    text = chr(10).join([header, *lines]) + chr(10)
-    return (write(folder / "rotor.csv", text),)
+        key = (str(row["pol"]), str(rotor["rotor"]))
+        files.setdefault(key, []).append(_cells(row, rotor))
+        absent.setdefault(key, set()).update(str(name) for name in rotor.get("absent", ()))
+    written: list[Path] = []
+    for (pol, alias), lines in files.items():
+        dropped = {*absent[(pol, alias)], *(f"{name}_{alias}" for name in NOT_PORTED)}
+        header = [name for name in full_header(alias) if name not in dropped]
+        text = [",".join(header), *(",".join(cell(line.get(h)) for h in header) for line in lines)]
+        written.append(
+            write(folder / "polars" / rotor_file_name(pol, alias), chr(10).join(text) + chr(10))
+        )
+    return tuple(written)
+
+
+def absent_columns(path: Path) -> list[str]:
+    """Return the columns of pyflightstream's rotor table that ``path`` leaves out, in order."""
+    alias = path.name.removesuffix(SUFFIX).split("-", 1)[1]
+    header = path.read_text(encoding="ascii").splitlines()[0].split(",")
+    return [name for name in full_header(alias) if name not in header]
