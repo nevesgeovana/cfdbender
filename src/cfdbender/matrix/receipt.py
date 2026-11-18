@@ -16,7 +16,14 @@ import os
 import tempfile
 from pathlib import Path
 
-from cfdbender.core.plan import RunPlan, recorded_value_valid, recorded_values_agree, workspace_path
+from cfdbender.core.plan import (
+    RunPlan,
+    is_identity_value,
+    recorded_value_valid,
+    recorded_values_agree,
+    warn_once,
+    workspace_path,
+)
 
 PLAN_REQUIRED_MESSAGE = (
     "no plan for this matrix, and a run needs one. Run `cfd-matrix plan <matrix>` first: "
@@ -137,6 +144,7 @@ def receipt_error(plan: RunPlan, profiles: tuple[str, ...] = ()) -> str | None:
             "Plan it again; a plan that measured another study is not a plan for this one."
         )
     recorded = {str(p["point_id"]): p for p in data["points"] if isinstance(p, dict)}  # type: ignore[attr-defined]
+    warned: set[str] = set()
     for index, point in enumerate(plan.points):
         entry = recorded.get(point.point_id)
         if entry is None:
@@ -161,6 +169,24 @@ def receipt_error(plan: RunPlan, profiles: tuple[str, ...] = ()) -> str | None:
                 return (
                     f"input changed since it was planned: {name} (point {point.point_id}). "
                     "Plan it again."
+                )
+            old_identity = is_identity_value(before.get(name))
+            new_identity = is_identity_value(digest)
+            if old_identity and not new_identity:
+                warn_once(
+                    f"{name}|identity",
+                    f"{name}: checked by size and modification time only; it was planned "
+                    "with the large-input check off, so no SHA-256 was taken (plan again "
+                    "with --rehash-inputs to hash it)",
+                    warned,
+                )
+            elif new_identity and not old_identity:
+                warn_once(
+                    f"{name}|unverified",
+                    f"{name}: not verified against its planned SHA-256; the large-input "
+                    "check is off, so the file is not read (use --rehash-inputs without "
+                    "--no-read-large-inputs to verify it)",
+                    warned,
                 )
     return None
 
