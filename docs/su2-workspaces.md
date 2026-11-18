@@ -230,7 +230,7 @@ The matrix row states `ADVANCE_RATIO` as a value or as the swept variable:
 
 ```text
 POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION                                  | SWEEP_VALUES                       | GEOMETRY     
-------|-----|-----|-----|-------|---------------------------------------------------|------------------------------------|-------------
+--------|-----|-----|-----|-------|---------------------------------------------------|------------------------------------|-------------
 1001 | 1   | 001 | 001 | 001   | MACH:0.0529, ALPHA:0, BETA:0, ADVANCE_RATIO:sweep | 0.30,0.35,0.45,0.50,0.55,0.60,0.70 | tud_xprop.su2
 ```
 
@@ -262,7 +262,7 @@ A sector mesh is stated as FlightStream states it. The matrix column `SYMMETRY` 
 
 ```text
 POL  | RUN | SETUP | REF | PPROC | SYMMETRY | SYMMETRY_LOADS | VAR_NAMES_VALUES              
-------|-----|-----|-----|-------|----------|----------------|------------------------------
+--------|-----|-----|-----|-------|----------|----------------|------------------------------
 1001 | 1   | 001 | 001 | 001   | PERIODIC | true           | hpc: h004 / PERIODIC_COPIES: 6
 ```
 
