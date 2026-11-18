@@ -118,6 +118,15 @@ def init_workspace(
     ignore = target / "inputs" / ".gitignore"
     if not ignore.exists():
         ignore.write_text("executables.local.toml\n", encoding="utf-8", newline="\n")
+    ignore = target / ".gitignore"
+    if not ignore.is_symlink():
+        previous = ignore.read_text(encoding="utf-8") if ignore.exists() else ""
+        if "/.input-digests.cache" not in previous.splitlines():
+            with ignore.open("a", encoding="utf-8", newline="\n") as stream:
+                stream.write(
+                    ("\n" if previous and not previous.endswith("\n") else "")
+                    + "/.input-digests.cache\n/.input-digests-*.tmp\n"
+                )
     guide = target / "inputs" / "INPUTS.md"
     if not guide.exists():
         guide.write_text(guide_text(config.solver), encoding="utf-8", newline="\n")
