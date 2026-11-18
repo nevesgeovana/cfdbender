@@ -45,7 +45,7 @@ MARKER_EULER=["airfoil"], MARKER_FAR=["farfield"]. For native execution add
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from cfdbender.core import plan as plan_module
@@ -53,7 +53,7 @@ from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.flight import STATE_KEYS
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
-from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
+from cfdbender.core.results import Classification, Coefficient, ExecutionResult, NeutralResult
 from cfdbender.core.settings import _validate
 from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers._host._groups import groups, point_markers, validate_tracked_groups
@@ -64,6 +64,7 @@ from cfdbender.solvers.su2._config import (
     options,
     reads_key,
     render,
+    rotor_point,
     staged_mesh,
 )
 from cfdbender.solvers.su2._execute import run
@@ -90,6 +91,7 @@ class _SU2Result(NeutralResult):
     route: str
     dimensions: int | None = None
     residual_field: str | None = None
+    rotor: Mapping[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Serialize the common fields, the route and, when known, dimension and residual."""
@@ -98,6 +100,8 @@ class _SU2Result(NeutralResult):
             data["dimensions"] = self.dimensions
         if self.residual_field is not None:
             data["residual_field"] = self.residual_field
+        if self.rotor is not None:
+            data["rotor"] = dict(self.rotor)
         return data
 
 
@@ -268,6 +272,18 @@ def classify(result: ExecutionResult) -> Classification:
     return "failed"
 
 
+def _rotor(
+    point: AdapterPoint, coefficients: Mapping[str, Coefficient]
+) -> dict[str, object] | None:
+    """Return the rotor quantities of a point whose REF file states a rotor block, else None."""
+    if "rotors" not in point.reference:
+        return None
+    values = config(
+        point.setup, point.reference, point.post, point.point.condition, geometry=point.geometry
+    )
+    return rotor_point(values, point.reference, {k: c.value for k, c in coefficients.items()})
+
+
 def collect(point: AdapterPoint) -> NeutralResult:
     """Collect SU2 coefficients with named axes and references from the used cfg.
 
@@ -315,5 +331,6 @@ def collect(point: AdapterPoint) -> NeutralResult:
         route,
         found,
         residual_field(folder),
+        _rotor(point, coefficients),
         force_groups=force_groups(folder, groups(point.setup), coefficients),
     )
