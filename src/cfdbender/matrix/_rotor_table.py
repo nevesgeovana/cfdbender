@@ -6,8 +6,8 @@ mapping an SU2 steady rotating-frame point states
 It is a product of its own, beside the polar files, so the documented columns of those files
 stay as they are and a matrix without a rotor writes none. The columns are::
 
-    POL  POINT  ROTOR  BLADES  MONITORED_BLADES  D  VINF  RHO  QINF  RPM  N  J  T  Q
-    CT  CQ  CP  ETA
+    POL  POINT  ROTOR  BLADES  PERIODIC_COPIES  LOADS  D  VINF  RHO  QINF  RPM  N  J  T  Q
+    CT  CQ  CP  ETA  FIP  MIP
 
 with ``D`` the rotor diameter in m, ``VINF`` the free-stream speed in m/s, ``RHO`` the
 density in kg/m3, ``QINF`` the dynamic pressure SU2 divides by in Pa, ``RPM`` the rotation
@@ -27,7 +27,8 @@ from typing import cast
 ROTOR_COLUMNS: tuple[tuple[str, str], ...] = (
     ("ROTOR", "rotor"),
     ("BLADES", "blades"),
-    ("MONITORED_BLADES", "monitored_blades"),
+    ("PERIODIC_COPIES", "periodic_copies"),
+    ("LOADS", "loads"),
     ("D", "diameter_m"),
     ("VINF", "velocity_m_s"),
     ("RHO", "density_kg_m3"),
@@ -41,6 +42,8 @@ ROTOR_COLUMNS: tuple[tuple[str, str], ...] = (
     ("CQ", "cq"),
     ("CP", "cp"),
     ("ETA", "efficiency"),
+    ("FIP", "in_plane_force_n"),
+    ("MIP", "in_plane_moment_nm"),
 )
 
 

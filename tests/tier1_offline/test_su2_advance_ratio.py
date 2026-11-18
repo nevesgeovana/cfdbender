@@ -10,18 +10,23 @@ import pytest
 import test_su2_matrix_columns as columns
 
 from cfdbender.core.plan import PlanError
-from cfdbender.solvers.su2._rotor import rotor_block
+from cfdbender.core.rotor import rotor_block
 from cfdbender.workspace.planning import plan_workspace
 
 GAS, GAMMA, TEMPERATURE, MACH = 287.058, 1.4, 288.15, 0.0529
 DIAMETER = 0.4064
 REFERENCE_BLOCK = """
-[rotors.PROP]
+[ROTOR]
+kind = "rotor"
+x_m = 0.0
+y_m = 0.0
+z_m = 0.0
+axis = "X"
+rpm_sign = -1
 diameter_m = 0.4064
-blades = 6
-origin = [0.0, 0.0, 0.0]
-shaft = [-1.0, 0.0, 0.0]
-rpm_sign = 1
+families_general = ["S"]
+families_blades = ["Blade1", "Blade6", "Blade5", "Blade4", "Blade3", "Blade2"]
+blade1 = { azimuth_deg = 0.0, zero = "Z" }
 """
 FRAME = (
     'GRID_MOVEMENT = "ROTATING_FRAME"\nfreestream_temperature = 288.15\n'
@@ -29,11 +34,11 @@ FRAME = (
 )
 
 
-def row(condition: str, sweep: str = "-", var: str = "-") -> str:
+def row(condition: str, sweep: str = "-", var: str = "-", symmetry="-", loads="-") -> str:
     """A matrix row in the column order of the shared SU2 fixture."""
     return (
         f" 5001 | 0 | 1 | WB | cruise | J sweep | {condition} | {sweep} | wb.su2 "
-        f"| 001 | 001 | 001 | - | - | 192 | 4h | 8.3.0 | - | {var} "
+        f"| 001 | 001 | 001 | {symmetry} | {loads} | 192 | 4h | 8.3.0 | - | {var} "
     )
 
 
@@ -55,21 +60,26 @@ def expected_rate(advance, mach=MACH, diameter=DIAMETER, sign=-1.0):
     return sign * 2.0 * math.pi * speed / (advance * diameter)
 
 
-def test_a_rotor_block_is_read_with_its_defaults(tmp_path):
+def test_a_rotor_declaration_of_the_flightstream_reference_file_is_read(tmp_path):
     block = rotor_block(
         {
-            "rotors": {
-                "PROP": {
-                    "diameter_m": 0.5,
-                    "blades": 3,
-                    "origin": [1, 2, 3],
-                    "shaft": [0, 0, -2],
-                }
-            }
+            "area_m2": 50.0,
+            "aliases": {"airframe": ["N"]},
+            "ROTOR": {
+                "kind": "rotor",
+                "x_m": 1.0,
+                "y_m": 2.0,
+                "z_m": 3.0,
+                "axis": "X",
+                "rpm_sign": -1,
+                "diameter_m": 0.5,
+                "families_blades": ["Blade1", "Blade2", "Blade3"],
+            },
         }
     )
-    assert block.monitored_blades == 3 and block.rpm_sign == 1
-    assert block.shaft == (0.0, 0.0, -1.0) and block.origin == (1.0, 2.0, 3.0)
+    assert (block.blades, block.rpm_sign, block.origin) == (3, -1, (1.0, 2.0, 3.0))
+    assert block.axis == (1.0, 0.0, 0.0) and block.thrust_direction == (-1.0, 0.0, 0.0)
+    assert rotor_block({"area": 1.0}) is None
 
 
 @pytest.mark.parametrize(
@@ -78,19 +88,17 @@ def test_a_rotor_block_is_read_with_its_defaults(tmp_path):
         ("diameter_m = 0.0", "diameter_m must be positive"),
         ('diameter_m = "big"', "diameter_m must be a finite number"),
         ("diameter_m = true", "diameter_m must be a finite number"),
-        ("blades = 6.0", "blades must be a positive integer"),
-        ("blades = 0", "blades must be a positive integer"),
-        ("monitored_blades = 7", "monitored_blades cannot exceed blades"),
-        ("monitored_blades = 0", "monitored_blades must be a positive integer"),
-        ("shaft = [0.0, 0.0, 0.0]", "shaft must not be the zero vector"),
-        ("shaft = [1.0, 0.0]", "shaft needs three finite coordinates"),
-        ("origin = 3", "origin needs three finite coordinates"),
+        ('axis = "W"', 'axis must be "X", "Y" or "Z"'),
+        ('axis = "Z"', 'reads axis = "X" only'),
+        ("x_m = [1.0]", "x_m must be a finite number"),
         ("rpm_sign = 2", "rpm_sign must be 1 or -1"),
         ("rpm_sign = 1.0", "rpm_sign must be 1 or -1"),
+        ("families_blades = []", "families_blades must be a list"),
+        ("monitored_blades = 1", "unknown keys: monitored_blades"),
         ("pitch = 3", "unknown keys: pitch"),
     ],
 )
-def test_a_bad_rotor_block_refuses_at_planning(tmp_path, change, message):
+def test_a_bad_rotor_declaration_refuses_at_planning(tmp_path, change, message):
     key = change.split("=")[0].strip()
     lines = [x for x in REFERENCE_BLOCK.splitlines() if not x.startswith(key + " ")]
     build(tmp_path, block="\n".join([*lines, change]))
@@ -98,15 +106,16 @@ def test_a_bad_rotor_block_refuses_at_planning(tmp_path, change, message):
         plan_workspace(tmp_path, "dpw")
 
 
-def test_a_missing_rotor_key_is_named(tmp_path):
-    lines = [x for x in REFERENCE_BLOCK.splitlines() if not x.startswith("blades")]
+@pytest.mark.parametrize("key", ["diameter_m", "axis"])
+def test_a_missing_rotor_key_is_named(tmp_path, key):
+    lines = [x for x in REFERENCE_BLOCK.splitlines() if not x.startswith(key + " ")]
     build(tmp_path, block="\n".join(lines))
-    with pytest.raises(PlanError, match=r"rotors.PROP needs blades"):
+    with pytest.raises(PlanError, match=f"ROTOR needs {key}"):
         plan_workspace(tmp_path, "dpw")
 
 
 def test_two_rotors_are_refused_as_not_supported_yet(tmp_path):
-    second = REFERENCE_BLOCK.replace("PROP", "OTHER")
+    second = REFERENCE_BLOCK.replace("ROTOR", "OTHER")
     build(tmp_path, block=REFERENCE_BLOCK + second)
     with pytest.raises(PlanError, match="multi-rotor rotating-frame runs are not supported yet"):
         plan_workspace(tmp_path, "dpw")
@@ -118,7 +127,7 @@ def test_a_fixed_advance_ratio_writes_the_rotation(tmp_path):
     rate = numbers(deck["ROTATION_RATE"])
     assert rate[1] == 0.0 and rate[2] == 0.0
     assert rate[0] == pytest.approx(expected_rate(0.4), rel=1e-12)
-    assert rate[0] < 0.0, "thrust toward minus x with rpm_sign 1 turns about minus x"
+    assert rate[0] < 0.0, "axis X with rpm_sign -1 turns left-handed about +x: toward minus x"
     assert numbers(deck["MOTION_ORIGIN"]) == [0.0, 0.0, 0.0]
     assert float(deck["MACH_MOTION"]) == pytest.approx(MACH)
     assert deck["GRID_MOVEMENT"] == "ROTATING_FRAME"
@@ -126,24 +135,13 @@ def test_a_fixed_advance_ratio_writes_the_rotation(tmp_path):
 
 
 def test_the_rotor_origin_is_written_as_motion_origin(tmp_path):
-    build(tmp_path, block=REFERENCE_BLOCK.replace("[0.0, 0.0, 0.0]", "[0.1, -0.2, 0.3]"))
-    assert numbers(columns.deck(tmp_path)["MOTION_ORIGIN"]) == [0.1, -0.2, 0.3]
+    build(tmp_path, block=REFERENCE_BLOCK.replace("x_m = 0.0", "x_m = 0.1"))
+    assert numbers(columns.deck(tmp_path)["MOTION_ORIGIN"]) == [0.1, 0.0, 0.0]
 
 
-@pytest.mark.parametrize(
-    ("shaft", "sign", "direction"),
-    [
-        ("[-1.0, 0.0, 0.0]", 1, (-1.0, 0.0, 0.0)),
-        ("[-1.0, 0.0, 0.0]", -1, (1.0, 0.0, 0.0)),
-        ("[1.0, 0.0, 0.0]", 1, (1.0, 0.0, 0.0)),
-        ("[0.0, 0.0, -3.0]", 1, (0.0, 0.0, -1.0)),
-    ],
-)
-def test_the_sign_follows_the_shaft_and_rpm_sign(tmp_path, shaft, sign, direction):
-    block = REFERENCE_BLOCK.replace("[-1.0, 0.0, 0.0]", shaft).replace(
-        "rpm_sign = 1", f"rpm_sign = {sign}"
-    )
-    build(tmp_path, block=block)
+@pytest.mark.parametrize(("sign", "direction"), [(-1, (-1.0, 0.0, 0.0)), (1, (1.0, 0.0, 0.0))])
+def test_the_rotation_follows_the_hand_about_the_declared_axis(tmp_path, sign, direction):
+    build(tmp_path, block=REFERENCE_BLOCK.replace("rpm_sign = -1", f"rpm_sign = {sign}"))
     rate = numbers(columns.deck(tmp_path)["ROTATION_RATE"])
     magnitude = abs(expected_rate(0.4))
     assert rate == pytest.approx([c * magnitude for c in direction], rel=1e-12, abs=1e-9)
@@ -192,13 +190,13 @@ def test_a_stated_origin_that_agrees_is_kept_and_one_that_differs_refuses(tmp_pa
     build(tmp_path, setup=FRAME + 'MOTION_ORIGIN = "0.0 0.0 0.0"\n')
     assert numbers(columns.deck(tmp_path)["MOTION_ORIGIN"]) == [0.0, 0.0, 0.0]
     build(tmp_path / "b", setup=FRAME + 'MOTION_ORIGIN = "0.0 0.0 1.0"\n')
-    with pytest.raises(PlanError, match="MOTION_ORIGIN is .* the rotor PROP has origin"):
+    with pytest.raises(PlanError, match="MOTION_ORIGIN is .* the rotor ROTOR has origin"):
         plan_workspace(tmp_path / "b", "dpw")
 
 
 def test_advance_ratio_without_a_rotor_block_refuses_saying_so(tmp_path):
     build(tmp_path, block="")
-    with pytest.raises(PlanError, match=r"needs the rotor block of the .*r001.toml.*\[rotors"):
+    with pytest.raises(PlanError, match="needs the rotor declaration of the .*r001.toml"):
         plan_workspace(tmp_path, "dpw")
 
 

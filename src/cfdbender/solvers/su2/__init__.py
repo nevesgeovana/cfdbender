@@ -54,6 +54,7 @@ from cfdbender.core.flight import STATE_KEYS
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, Coefficient, ExecutionResult, NeutralResult
+from cfdbender.core.rotor import periodic_state, rotor_block
 from cfdbender.core.settings import _validate
 from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers._host._groups import groups, point_markers, validate_tracked_groups
@@ -167,6 +168,7 @@ _FLOW_SETUP_KEYS = {
     "REYNOLDS_NUMBER",
     "REYNOLDS_LENGTH",
 }
+validate_row.reads_symmetry = True  # type: ignore[attr-defined]
 validate_row.default_setup_overrides = {  # type: ignore[attr-defined]
     **{
         key: tuple(
@@ -276,12 +278,17 @@ def _rotor(
     point: AdapterPoint, coefficients: Mapping[str, Coefficient]
 ) -> dict[str, object] | None:
     """Return the rotor quantities of a point whose REF file states a rotor block, else None."""
-    if "rotors" not in point.reference:
+    if rotor_block(point.reference) is None:
         return None
     values = config(
         point.setup, point.reference, point.post, point.point.condition, geometry=point.geometry
     )
-    return rotor_point(values, point.reference, {k: c.value for k, c in coefficients.items()})
+    return rotor_point(
+        values,
+        point.reference,
+        {k: c.value for k, c in coefficients.items()},
+        periodic_state(point.setup),
+    )
 
 
 def collect(point: AdapterPoint) -> NeutralResult:

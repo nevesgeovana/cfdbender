@@ -232,12 +232,20 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
     hidden = cells.get("HIDDEN", "")
     if hidden not in (*UNSTATED, "0", "1"):
         raise MatrixError(f"{label}: HIDDEN must be 0, 1 or -")
-    for column in ("SYMMETRY", "SYMMETRY_LOADS"):
-        if cells.get(column, "") not in UNSTATED:
+    symmetry = cells.get("SYMMETRY", "")
+    loads = cells.get("SYMMETRY_LOADS", "")
+    row_controls: dict[str, object] = {}
+    if symmetry not in UNSTATED:
+        if symmetry.upper() not in ("NONE", "PERIODIC"):
             raise MatrixError(
-                f"{label}: {column} {cells[column]!r} is not read by cfdbender solvers, which "
-                "take symmetry from the mesh and the setup; write - in the cell"
+                f"{label}: SYMMETRY {symmetry!r} is not read by cfdbender, which reads NONE, "
+                "PERIODIC or -"
             )
+        row_controls["SYMMETRY"] = symmetry.upper()
+    if loads not in UNSTATED:
+        if loads.lower() not in ("true", "false"):
+            raise MatrixError(f"{label}: SYMMETRY_LOADS must be true, false or -")
+        row_controls["SYMMETRY_LOADS"] = loads.lower() == "true"
     ncpus_text = cells.get("NCPUS", "")
     ncpus: int | None = None
     if ncpus_text not in UNSTATED:
@@ -283,7 +291,7 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
         geometry=None if geometry in UNSTATED else geometry,
         ncpus=ncpus,
         solver_build=None if build in UNSTATED else build,
-        variables=_variables(cells.get("VAR_NAMES_VALUES", ""), label),
+        variables={**_variables(cells.get("VAR_NAMES_VALUES", ""), label), **row_controls},
         condition_order=order,
         restart_from=None if restart in UNSTATED else restart,
     )

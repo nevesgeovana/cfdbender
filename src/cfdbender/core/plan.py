@@ -1558,6 +1558,13 @@ def plan_matrix(root: str | Path, name: str, *, validators: Mapping[str, RowVali
             inputs = RowInputs(target, row, common, getattr(hook, "default_setup_overrides", {}))
             names = inputs.file_names()
             _closed_condition_keys(row, tuple(getattr(hook, "native_condition_keys", ())))
+            for column in ("SYMMETRY", "SYMMETRY_LOADS"):
+                if column in row.variables and not getattr(hook, "reads_symmetry", False):
+                    raise ValueError(
+                        f"{column} {row.variables[column]!r} is not read by solver "
+                        f"{config.solver!r}, which takes symmetry from the mesh and the "
+                        "setup; write - in the cell"
+                    )
             needs = hook(row, inputs)
             if inputs.geometry is not None and inputs.geometry not in inputs.digests():
                 warn_or_refuse(

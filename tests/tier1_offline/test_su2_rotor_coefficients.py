@@ -12,7 +12,6 @@ from test_su2_advance_ratio import (
     GAMMA,
     GAS,
     MACH,
-    REFERENCE_BLOCK,
     TEMPERATURE,
     build,
     row,
@@ -20,7 +19,11 @@ from test_su2_advance_ratio import (
 
 from cfdbender.workspace.planning import plan_workspace
 
-SETUP_COLLECT = FRAME + 'INIT_OPTION = "TD_CONDITIONS"\nfreestream_pressure = 101325.0\n'
+SETUP_COLLECT = (
+    FRAME
+    + 'INIT_OPTION = "TD_CONDITIONS"\nfreestream_pressure = 101325.0\n'
+    + 'MARKER_PERIODIC = ["right", "left", 0.0, 0.0, 0.0, -60.0, 0.0, 0.0, 0.0, 0.0, 0.0]\n'
+)
 MOMENT_ORIGIN = (0.1, 0.02, 0.01)
 HISTORY = (
     "Inner_Iter,rms[Rho],CFx,CFy,CFz,CMx,CMy,CMz\n"
@@ -31,18 +34,21 @@ FORCE = (-0.012, 0.003, 0.004)
 MOMENT = (0.0004, 0.0002, 0.0001)
 
 
-def collected(root, monitored=None, advance=0.4):
+def collected(root, copies=None, advance=0.4, setup=None, loads="-"):
     """Plan, write the deck and a fabricated history, and collect the first point."""
     from cfdbender.core.adapter import load_point
     from cfdbender.core.plan import workspace_path
     from cfdbender.solvers import load_solver
 
-    block = REFERENCE_BLOCK + ("" if monitored is None else f"monitored_blades = {monitored}\n")
+    var = "-" if copies is None else f"PERIODIC_COPIES: {copies}"
+    symmetry = "-" if copies is None else "PERIODIC"
     build(
         root,
         f"MACH:0.0529, ALPHA:0, BETA:0, ADVANCE_RATIO:{advance}",
-        setup=SETUP_COLLECT,
-        block=block,
+        setup=setup or SETUP_COLLECT,
+        var=var,
+        symmetry=symmetry,
+        loads=loads,
     )
     reference = root / "inputs/references/r001.toml"
     reference.write_text(
@@ -74,10 +80,10 @@ def expected(advance=0.4, k=6.0):
     _, ay, az = MOMENT_ORIGIN
     cross_x = ay * force[2] - az * force[1]
     thrust = k * (-force[0])  # the shaft points toward minus x
-    torque = k * (moment[0] + cross_x)  # the rotation is about minus x: Q = -M . omega_hat
+    torque = -k * (moment[0] + cross_x)  # Q = -M . axis, the axis being +x
     ct = thrust / (rho * n**2 * DIAMETER**4)
     cq = torque / (rho * n**2 * DIAMETER**5)
-    cp = 2.0 * math.pi * cq
+    cp = 2.0 * math.pi * cq * -1.0  # rpm_sign -1: n is negative
     return {
         "n_rps": n,
         "advance_ratio": advance,
@@ -93,19 +99,19 @@ def expected(advance=0.4, k=6.0):
     }
 
 
-@pytest.mark.parametrize(("monitored", "k"), [(1, 6.0), (6, 1.0), (None, 1.0)])
-def test_the_rotor_quantities_of_the_whole_rotor_from_the_monitored_blades(tmp_path, monitored, k):
-    result, _ = collected(tmp_path, monitored)
+@pytest.mark.parametrize(("copies", "k"), [(1, 1.0), (6, 6.0), (None, 1.0)])
+def test_the_rotor_quantities_of_the_whole_rotor_from_the_periodic_copies(tmp_path, copies, k):
+    result, _ = collected(tmp_path, copies)
     rotor = result.to_dict()["rotor"]
     for key, value in expected(k=k).items():
         assert rotor[key] == pytest.approx(value, rel=1e-9), key
     assert rotor["rpm"] == pytest.approx(60.0 * rotor["n_rps"])
-    assert rotor["monitored_blades"] == (6 if monitored is None else monitored)
+    assert rotor["periodic_copies"] == (1 if copies is None else copies)
     assert rotor["blades"] == 6
 
 
 def test_the_rotor_quantities_follow_the_advance_ratio_of_the_point(tmp_path):
-    result, _ = collected(tmp_path, 1, advance=0.7)
+    result, _ = collected(tmp_path, 6, advance=0.7)
     rotor = result.to_dict()["rotor"]
     assert rotor["advance_ratio"] == pytest.approx(0.7, rel=1e-12)
     assert rotor["ct"] == pytest.approx(expected(0.7, 6.0)["ct"], rel=1e-9)
@@ -130,7 +136,7 @@ def test_a_point_without_a_rotor_block_has_no_rotor_quantities(tmp_path):
 def test_the_rotor_table_is_a_product_of_its_own(tmp_path):
     from cfdbender.matrix.exports import write_tables
 
-    result, plan = collected(tmp_path, 1)
+    result, plan = collected(tmp_path, 6)
     point = plan.points[0]
     rows = [
         {
@@ -145,7 +151,12 @@ def test_the_rotor_table_is_a_product_of_its_own(tmp_path):
     table = next(p for p in paths if p.name == "rotor.csv")
     header, line = table.read_text(encoding="ascii").splitlines()
     cells = dict(zip(header.split(","), line.split(","), strict=True))
-    assert cells["POL"] == "5001" and cells["BLADES"] == "6" and cells["MONITORED_BLADES"] == "1"
+    assert (
+        cells["POL"] == "5001"
+        and cells["BLADES"] == "6"
+        and cells["PERIODIC_COPIES"] == "6"
+        and "MONITORED_BLADES" not in cells
+    )
     for column, key in (("CT", "ct"), ("CQ", "cq"), ("CP", "cp"), ("ETA", "efficiency")):
         assert float(cells[column]) == pytest.approx(expected()[key], rel=1e-9)
     assert float(cells["J"]) == pytest.approx(0.4, rel=1e-12)
@@ -153,3 +164,19 @@ def test_the_rotor_table_is_a_product_of_its_own(tmp_path):
     # the polar files keep their documented columns and gain none of these
     for polar in (p for p in paths if p.name.startswith("FAM-")):
         assert ",CQ," not in polar.read_text(encoding="ascii")
+
+
+def test_symmetry_loads_off_reports_the_sector_as_computed(tmp_path):
+    result, _ = collected(tmp_path, 6, loads="false")
+    rotor = result.to_dict()["rotor"]
+    assert rotor["loads"] == "SECTOR" and rotor["periodic_copies"] == 6
+    assert rotor["thrust_n"] == pytest.approx(expected(k=1.0)["thrust_n"], rel=1e-9)
+    # the in-plane parts of one sector do not cancel
+    assert rotor["in_plane_force_n"] > 0.0
+
+
+def test_the_whole_rotor_has_no_in_plane_load(tmp_path):
+    rotor = collected(tmp_path, 6)[0].to_dict()["rotor"]
+    assert rotor["loads"] == "WHOLE"
+    assert rotor["in_plane_force_n"] == pytest.approx(0.0, abs=1e-9)
+    assert rotor["in_plane_moment_nm"] == pytest.approx(0.0, abs=1e-9)

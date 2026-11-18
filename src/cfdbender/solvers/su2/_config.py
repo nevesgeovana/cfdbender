@@ -19,15 +19,18 @@ from cfdbender.core.flight import (
     sutherland_viscosity,
 )
 from cfdbender.core.refusals import warn_or_refuse
-from cfdbender.solvers._host._config import number as number
-from cfdbender.solvers._host._config import unknown_keys
-from cfdbender.solvers._host._groups import groups
-from cfdbender.solvers.su2._rotor import (
+from cfdbender.core.rotor import (
+    ROW_CONTROLS,
+    PeriodicState,
     RotorBlock,
+    periodic_state,
     rotation_rate,
     rotor_block,
     rotor_quantities,
 )
+from cfdbender.solvers._host._config import number as number
+from cfdbender.solvers._host._config import unknown_keys
+from cfdbender.solvers._host._groups import groups
 from cfdbender.solvers.su2.routes import ROUTES
 
 NEUTRAL_KEYS = {
@@ -58,7 +61,7 @@ def reads_key(key: str) -> bool:
     """Return whether SU2 translates a neutral key or forwards a native key."""
     return (
         key.lower() in NEUTRAL_KEYS
-        or key in {"moment_origin", "rotors", *RAMP_KEYS}
+        or key in {"moment_origin", *RAMP_KEYS}
         or re.fullmatch("[A-Z][A-Z0-9_]*", key) is not None
     )
 
@@ -268,6 +271,7 @@ def config(
     condition, derived = _flow(condition, setup, reference)
     advance = condition.pop("ADVANCE_RATIO", None)
     rotor = rotor_block(reference)
+    periodic = periodic_state(setup)
     if geometry is not None:
         derived["MESH_FILENAME"] = geometry
     values: dict[str, object] = {}
@@ -290,8 +294,13 @@ def config(
             if (
                 key in {"solver", "mesh_link", "groups"}
                 and table is setup
+                or key in ROW_CONTROLS
+                and table is setup
                 or key == "history"
                 and table is post
+                or table is reference
+                and isinstance(value, dict)
+                and value.get("kind") == "rotor"
             ):
                 continue
             if key in RAMP_KEYS and table is setup:
@@ -381,6 +390,7 @@ def config(
     _fluid_model(values)
     if advance is not None:
         _advance_ratio(values, number(advance, "ADVANCE_RATIO"), rotor)
+    _periodic_warnings(values, rotor, periodic)
     _dimensionalization(values)
     _sa_variant(values)
     _heatflux_values(values)
@@ -536,6 +546,60 @@ def _fluid_model(values: dict[str, object]) -> None:
         )
 
 
+def _periodic_angle(values: Mapping[str, object]) -> float | None:
+    """Return the rotation angle in degrees of the setup's MARKER_PERIODIC, or None."""
+    given = values.get("MARKER_PERIODIC")
+    if given is None:
+        return None
+    parts = (
+        [str(item) for item in given]
+        if isinstance(given, list)
+        else [part for part in re.split(r"[\s,()]+", str(given).strip()) if part]
+    )
+    try:
+        angles = [float(part) for part in parts[5:8]]
+    except ValueError:
+        return None
+    return max(angles, key=abs) if angles else None
+
+
+def _periodic_warnings(
+    values: Mapping[str, object], rotor: RotorBlock | None, periodic: PeriodicState
+) -> None:
+    """Warn where the row's symmetry and the setup's periodic boundary disagree."""
+    if rotor is None and periodic.symmetry != "PERIODIC":
+        return
+    angle = _periodic_angle(values)
+    if periodic.symmetry == "PERIODIC":
+        if "MARKER_PERIODIC" not in values:
+            warn_or_refuse(
+                "SYMMETRY is PERIODIC but the setup states no MARKER_PERIODIC: the mesh needs "
+                "a periodic boundary for a sector",
+                UserWarning,
+                stacklevel=3,
+            )
+        elif angle and not math.isclose(360.0 / abs(angle), periodic.copies, rel_tol=1e-6):
+            warn_or_refuse(
+                f"MARKER_PERIODIC turns by {angle:g} degrees, which makes "
+                f"{360.0 / abs(angle):g} copies, and PERIODIC_COPIES is {periodic.copies}",
+                UserWarning,
+                stacklevel=3,
+            )
+        elif angle and not periodic.loads:
+            warn_or_refuse(
+                "SYMMETRY_LOADS is false: the loads are reported for the sector only",
+                UserWarning,
+                stacklevel=3,
+            )
+    elif "MARKER_PERIODIC" in values:
+        warn_or_refuse(
+            "the setup states MARKER_PERIODIC but SYMMETRY is not PERIODIC: the loads are "
+            "reported for the sector only",
+            UserWarning,
+            stacklevel=3,
+        )
+
+
 #: SU2's own default free-stream temperature (K) and pressure (Pa).
 SU2_DEFAULT_TEMPERATURE = 288.15
 SU2_DEFAULT_PRESSURE = 101325.0
@@ -658,8 +722,8 @@ def _advance_ratio(values: dict[str, object], advance: float, rotor: RotorBlock 
         raise ValueError("FLIGHT_CONDITION ADVANCE_RATIO must be positive")
     if rotor is None:
         raise ValueError(
-            "FLIGHT_CONDITION ADVANCE_RATIO needs the rotor block of the REF file: add "
-            "[rotors.<NAME>] with diameter_m, blades, origin and shaft"
+            "FLIGHT_CONDITION ADVANCE_RATIO needs the rotor declaration of the REF file: add "
+            'a table with kind = "rotor", axis, rpm_sign and diameter_m (for example [ROTOR])'
         )
     frame = _upper(values, "GRID_MOVEMENT")
     if frame != "ROTATING_FRAME":
@@ -708,6 +772,7 @@ def rotor_point(
     values: Mapping[str, object],
     reference: Mapping[str, object],
     coefficients: Mapping[str, float],
+    periodic: PeriodicState | None = None,
 ) -> dict[str, object] | None:
     """Return the rotor quantities of one rotating-frame point, or None without a rotor.
 
@@ -719,6 +784,8 @@ def rotor_point(
         The point's REF file.
     coefficients : mapping
         The last CFx, CFy, CFz, CMx, CMy and CMz of the monitored surface.
+    periodic : PeriodicState, optional
+        The row's symmetry; without it the monitored surface is the whole rotor.
 
     Returns
     -------
@@ -750,11 +817,15 @@ def rotor_point(
         moment_origin=origin,
         force_coefficients=[coefficients[key] for key in ("CFx", "CFy", "CFz")],
         moment_coefficients=[coefficients[key] for key in ("CMx", "CMy", "CMz")],
+        copies=1 if periodic is None else periodic.multiplier,
     )
     return {
         "rotor": rotor.name,
         "blades": rotor.blades,
-        "monitored_blades": rotor.monitored_blades,
+        "periodic_copies": 1 if periodic is None else periodic.copies,
+        "loads": "SECTOR"
+        if periodic is not None and periodic.multiplier == 1 and periodic.symmetry == "PERIODIC"
+        else "WHOLE",
         "diameter_m": rotor.diameter_m,
         "velocity_m_s": stream.velocity,
         "density_kg_m3": stream.density,
