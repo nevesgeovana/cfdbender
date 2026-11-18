@@ -14,11 +14,12 @@ from cfdbender.core.rotor import (
     NOT_APPLICABLE,
     PeriodicState,
     RotorBlock,
+    RotorLoads,
     periodic_state,
     periodic_sum,
     rotation_rate,
     rotor_coefficients,
-    rotor_quantities,
+    rotor_row,
 )
 
 D, RHO, SPEED = 0.5, 1.2, 20.0
@@ -51,21 +52,17 @@ def block(axis, sign=1, origin=(0.0, 0.0, 0.0)):
     return RotorBlock("R", D, None, origin, unit(axis), sign)
 
 
-def quantities(rotor, force, moment, copies, reference=(0.0, 0.0, 0.0), rps=30.0):
-    rate = tuple(rotor.rpm_sign * 2.0 * math.pi * rps * c for c in rotor.axis)
-    return rotor_quantities(
+def quantities(rotor, force, moment, copies, reference=(0.0, 0.0, 0.0), rps=30.0, rho=RHO):
+    return rotor_row(
         rotor,
-        rotation=rate,
-        velocity=SPEED,
-        density=RHO,
-        dynamic_pressure=1.0,
-        area=1.0,
-        length=1.0,
-        moment_origin=reference,
-        force_coefficients=force,
-        moment_coefficients=moment,
+        RotorLoads(tuple(force), tuple(moment), tuple(reference), SPEED, rho),
+        rps=rps,
         copies=copies,
     )
+
+
+def scales(rps=30.0):
+    return RHO * rps**2 * D**4, RHO * rps**2 * D**5
 
 
 @pytest.mark.parametrize("axis", [(1.0, 0.0, 0.0), (1.0, 2.0, 2.0), (-0.3, 0.5, 0.8)])
@@ -76,14 +73,17 @@ def test_axial_parts_add_up_and_in_plane_parts_cancel(axis, copies):
     force = combine(a, 3.0, 0.7, -1.1)  # all six components non-zero
     moment = combine(a, 0.4, -0.2, 0.9)
     out = quantities(rotor, force, moment, copies)
-    assert out["thrust_n"] == pytest.approx(-copies * 3.0, rel=1e-12)
-    assert out["torque_nm"] == pytest.approx(-copies * 0.4, rel=1e-12)
+    forces, moments = scales()
+    assert out["T"] == pytest.approx(copies * 3.0, rel=1e-12)
+    assert out["Q"] == pytest.approx(copies * 0.4, rel=1e-12)
+    in_plane_force = math.hypot(out["CN"], out["CS"]) * forces
+    in_plane_moment = math.hypot(out["CMN"], out["CMS"]) * moments
     if copies == 1:
-        assert out["in_plane_force_n"] == pytest.approx(math.hypot(0.7, 1.1), rel=1e-12)
-        assert out["in_plane_moment_nm"] == pytest.approx(math.hypot(0.2, 0.9), rel=1e-12)
+        assert in_plane_force == pytest.approx(math.hypot(0.7, 1.1), rel=1e-12)
+        assert in_plane_moment == pytest.approx(math.hypot(0.2, 0.9), rel=1e-12)
     else:
-        assert out["in_plane_force_n"] == pytest.approx(0.0, abs=1e-12)
-        assert out["in_plane_moment_nm"] == pytest.approx(0.0, abs=1e-12)
+        assert in_plane_force == pytest.approx(0.0, abs=1e-12)
+        assert in_plane_moment == pytest.approx(0.0, abs=1e-12)
 
 
 def test_the_sum_is_a_vector_sum_not_a_multiplication():
@@ -102,51 +102,46 @@ def test_a_sector_turned_by_the_copy_angle_lands_on_the_next_copy():
     assert force == (0.0, 1.0, 0.0)
 
 
-def test_a_moment_reference_off_the_axis_is_moved_to_the_rotor_origin():
-    rotor = block((-1.0, 0.0, 0.0), origin=(0.2, 0.0, 0.0))
+def test_a_moment_reference_off_the_axis_is_moved_to_the_hub():
+    rotor = block((1.0, 0.0, 0.0), origin=(0.2, 0.0, 0.0))
     force = (-2.0, 0.5, 1.5)
     moment = (0.3, 0.1, -0.2)
     reference = (0.5, 0.04, -0.07)
     arm = (reference[0] - 0.2, reference[1], reference[2])
     transfer_x = arm[1] * force[2] - arm[2] * force[1]  # x component of arm x force
-    expected_moment_x = moment[0] + transfer_x
     out = quantities(rotor, force, moment, 6, reference=reference)
-    assert out["thrust_n"] == pytest.approx(6 * -2.0, rel=1e-12)  # F_x is along the axis
-    assert out["torque_nm"] == pytest.approx(
-        6 * expected_moment_x, rel=1e-12
-    )  # omega_hat is minus x
-    assert out["in_plane_moment_nm"] == pytest.approx(0.0, abs=1e-12)
+    assert out["T"] == pytest.approx(6 * -2.0, rel=1e-12)  # T = F . shaft, pyflightstream's sign
+    assert out["Q"] == pytest.approx(6 * (moment[0] + transfer_x), rel=1e-12)
+    assert out["CMN"] == pytest.approx(0.0, abs=1e-12)
 
 
-def test_the_coefficients_follow_the_definitions():
-    rotor = block((1.0, 0.0, 0.0))
-    out = quantities(rotor, (-1.5, 0.0, 0.0), (-0.25, 0.0, 0.0), 1)
-    n = 30.0
-    thrust, torque = 1.5, 0.25
-    assert out["thrust_n"] == pytest.approx(thrust)
-    assert out["torque_nm"] == pytest.approx(torque)
-    assert out["ct"] == pytest.approx(thrust / (RHO * n**2 * D**4))
-    assert out["cq"] == pytest.approx(torque / (RHO * n**2 * D**5))
-    assert out["cp"] == pytest.approx(2.0 * math.pi * out["cq"])
-    assert out["efficiency"] == pytest.approx((SPEED / (n * D)) * out["ct"] / out["cp"], rel=1e-12)
-    assert out["advance_ratio"] == pytest.approx(SPEED / (n * D))
+def test_the_coefficients_follow_the_definitions_with_pyflightstreams_signs():
+    rotor = block((1.0, 0.0, 0.0), sign=-1)
+    out = quantities(rotor, (-1.5, 0.3, 0.2), (0.25, -0.05, 0.04), 1)
+    n = -30.0
+    forces, moments = scales()
+    assert (out["T"], out["Q"]) == (pytest.approx(-1.5), pytest.approx(0.25))
+    assert out["RPM"] == pytest.approx(60.0 * n) and out["DIAMETER"] == D
+    assert out["CT"] == pytest.approx(-1.5 / forces)
+    assert out["CQ"] == pytest.approx(0.25 / moments)
+    assert out["CP"] == pytest.approx(2.0 * math.pi * out["CQ"] * -1.0)
+    assert out["J"] == pytest.approx(SPEED / (abs(n) * D))
+    assert out["ETA"] == pytest.approx(out["J"] * out["CT"] / out["CP"], rel=1e-12)
+    # shaft +x: N is +z and S = N x shaft is +y
+    assert out["CN"] == pytest.approx(0.2 / forces) and out["CS"] == pytest.approx(0.3 / forces)
+    assert out["CMN"] == pytest.approx(0.04 / moments)
+    assert out["CMS"] == pytest.approx(-0.05 / moments)
+
+
+def test_a_shaft_along_up_has_no_in_plane_coefficients():
+    out = quantities(block((0.0, 0.0, 1.0)), (1.0, 2.0, 3.0), (0.1, 0.2, 0.3), 1)
+    assert [out[k] for k in ("CN", "CS", "CMN", "CMS")] == [NOT_APPLICABLE] * 4
+    assert out["CT"] != NOT_APPLICABLE
 
 
 def test_no_density_leaves_the_coefficients_unknown():
-    rotor = block((1.0, 0.0, 0.0))
-    out = rotor_quantities(
-        rotor,
-        rotation=(188.0, 0.0, 0.0),
-        velocity=SPEED,
-        density=None,
-        dynamic_pressure=1.0,
-        area=1.0,
-        length=1.0,
-        moment_origin=(0.0, 0.0, 0.0),
-        force_coefficients=(-1.0, 0.0, 0.0),
-        moment_coefficients=(-1.0, 0.0, 0.0),
-    )
-    assert out["thrust_n"] == pytest.approx(1.0) and out["ct"] is None
+    out = quantities(block((1.0, 0.0, 0.0)), (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), 1, rho=None)
+    assert out["T"] == pytest.approx(-1.0) and out["CT"] == NOT_APPLICABLE
 
 
 @pytest.mark.parametrize("sign", [1, -1])

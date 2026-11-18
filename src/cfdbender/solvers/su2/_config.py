@@ -26,7 +26,6 @@ from cfdbender.core.rotor import (
     periodic_state,
     rotation_rate,
     rotor_block,
-    rotor_quantities,
 )
 from cfdbender.solvers._host._config import number as number
 from cfdbender.solvers._host._config import unknown_keys
@@ -766,72 +765,6 @@ def _advance_ratio(values: dict[str, object], advance: float, rotor: RotorBlock 
                 UserWarning,
                 stacklevel=3,
             )
-
-
-def rotor_point(
-    values: Mapping[str, object],
-    reference: Mapping[str, object],
-    coefficients: Mapping[str, float],
-    periodic: PeriodicState | None = None,
-) -> dict[str, object] | None:
-    """Return the rotor quantities of one rotating-frame point, or None without a rotor.
-
-    Parameters
-    ----------
-    values : mapping
-        The point's SU2 deck (:func:`config`).
-    reference : mapping
-        The point's REF file.
-    coefficients : mapping
-        The last CFx, CFy, CFz, CMx, CMy and CMz of the monitored surface.
-    periodic : PeriodicState, optional
-        The row's symmetry; without it the monitored surface is the whole rotor.
-
-    Returns
-    -------
-    dict or None
-        None when the REF file has no rotor block, the deck is not a steady rotating frame
-        with a ROTATION_RATE, or the history lacks the force and moment coefficients.
-        Otherwise the rotor, its inputs and :func:`cfdbender.solvers.su2._rotor.rotor_quantities`.
-    """
-    rotor = rotor_block(reference)
-    if (
-        rotor is None
-        or _upper(values, "GRID_MOVEMENT") != "ROTATING_FRAME"
-        or "ROTATION_RATE" not in values
-        or not all(key in coefficients for key in ("CFx", "CFy", "CFz", "CMx", "CMy", "CMz"))
-    ):
-        return None
-    stream = free_stream(values)
-    if stream is None or stream.velocity <= 0.0:
-        return None
-    origin = [number(values[f"REF_ORIGIN_MOMENT_{axis}"], "moment_origin") for axis in "XYZ"]
-    quantities = rotor_quantities(
-        rotor,
-        rotation=_stated_vector(values["ROTATION_RATE"], "ROTATION_RATE"),
-        velocity=stream.velocity,
-        density=stream.density,
-        dynamic_pressure=stream.dynamic_pressure,
-        area=number(values["REF_AREA"], "REF_AREA"),
-        length=number(values["REF_LENGTH"], "REF_LENGTH"),
-        moment_origin=origin,
-        force_coefficients=[coefficients[key] for key in ("CFx", "CFy", "CFz")],
-        moment_coefficients=[coefficients[key] for key in ("CMx", "CMy", "CMz")],
-        copies=1 if periodic is None else periodic.multiplier,
-    )
-    return {
-        "rotor": rotor.name,
-        "blades": rotor.blades,
-        "periodic_copies": 1 if periodic is None else periodic.copies,
-        "loads": "SECTOR"
-        if periodic is not None and periodic.multiplier == 1 and periodic.symmetry == "PERIODIC"
-        else "WHOLE",
-        "diameter_m": rotor.diameter_m,
-        "velocity_m_s": stream.velocity,
-        "density_kg_m3": stream.density,
-        "dynamic_pressure_pa": stream.dynamic_pressure,
-        **quantities,
-    }
 
 
 #: The CFL ramp written when the setup states no CFL key.

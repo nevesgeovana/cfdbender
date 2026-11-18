@@ -79,42 +79,45 @@ def expected(advance=0.4, k=6.0):
     # moment about the hub (origin 0, 0, 0): add (reference point - hub) x force
     _, ay, az = MOMENT_ORIGIN
     cross_x = ay * force[2] - az * force[1]
-    thrust = k * (-force[0])  # the shaft points toward minus x
-    torque = -k * (moment[0] + cross_x)  # Q = -M . axis, the axis being +x
+    thrust = k * force[0]  # T = F . shaft, the shaft being +x (pyflightstream's sign)
+    torque = k * (moment[0] + cross_x)  # Q = M_hub . shaft
     ct = thrust / (rho * n**2 * DIAMETER**4)
     cq = torque / (rho * n**2 * DIAMETER**5)
     cp = 2.0 * math.pi * cq * -1.0  # rpm_sign -1: n is negative
     return {
-        "n_rps": n,
-        "advance_ratio": advance,
-        "thrust_n": thrust,
-        "torque_nm": torque,
-        "ct": ct,
-        "cq": cq,
-        "cp": cp,
-        "efficiency": advance * ct / cp,
-        "velocity_m_s": speed,
-        "density_kg_m3": rho,
-        "dynamic_pressure_pa": q,
-    }
+        "RPM": -60.0 * n,
+        "J": advance,
+        "T": thrust,
+        "Q": torque,
+        "CT": ct,
+        "CQ": cq,
+        "CP": cp,
+        "ETA": advance * ct / cp,
+    }, {"speed_m_s": speed, "density_kg_m3": rho, "dynamic_pressure_pa": q}
 
 
 @pytest.mark.parametrize(("copies", "k"), [(1, 1.0), (6, 6.0), (None, 1.0)])
-def test_the_rotor_quantities_of_the_whole_rotor_from_the_periodic_copies(tmp_path, copies, k):
+def test_the_rotor_row_of_the_whole_rotor_from_the_periodic_copies(tmp_path, copies, k):
     result, _ = collected(tmp_path, copies)
     rotor = result.to_dict()["rotor"]
-    for key, value in expected(k=k).items():
-        assert rotor[key] == pytest.approx(value, rel=1e-9), key
-    assert rotor["rpm"] == pytest.approx(60.0 * rotor["n_rps"])
+    row, stream = expected(k=k)
+    for key, value in row.items():
+        assert rotor["row"][key] == pytest.approx(value, rel=1e-9), key
+    assert rotor["loads"]["speed_m_s"] == pytest.approx(stream["speed_m_s"], rel=1e-12)
+    assert rotor["loads"]["density_kg_m3"] == pytest.approx(stream["density_kg_m3"], rel=1e-12)
+    q = stream["dynamic_pressure_pa"]
+    assert rotor["loads"]["force_n"] == pytest.approx([q * c for c in FORCE], rel=1e-12)
+    assert rotor["loads"]["moment_nm"] == pytest.approx([q * 0.5 * c for c in MOMENT], rel=1e-12)
+    assert rotor["loads"]["about_m"] == list(MOMENT_ORIGIN)
     assert rotor["periodic_copies"] == (1 if copies is None else copies)
-    assert rotor["blades"] == 6
+    assert rotor["blades"] == 6 and rotor["rotor"] == "ROTOR"
 
 
-def test_the_rotor_quantities_follow_the_advance_ratio_of_the_point(tmp_path):
+def test_the_rotor_row_follows_the_advance_ratio_of_the_point(tmp_path):
     result, _ = collected(tmp_path, 6, advance=0.7)
     rotor = result.to_dict()["rotor"]
-    assert rotor["advance_ratio"] == pytest.approx(0.7, rel=1e-12)
-    assert rotor["ct"] == pytest.approx(expected(0.7, 6.0)["ct"], rel=1e-9)
+    assert rotor["row"]["J"] == pytest.approx(0.7, rel=1e-12)
+    assert rotor["row"]["CT"] == pytest.approx(expected(0.7, 6.0)[0]["CT"], rel=1e-9)
 
 
 def test_a_point_without_a_rotor_block_has_no_rotor_quantities(tmp_path):
@@ -133,50 +136,17 @@ def test_a_point_without_a_rotor_block_has_no_rotor_quantities(tmp_path):
     assert "rotor" not in solver.collect(point).to_dict()
 
 
-def test_the_rotor_table_is_a_product_of_its_own(tmp_path):
-    from cfdbender.matrix.exports import write_tables
-
-    result, plan = collected(tmp_path, 6)
-    point = plan.points[0]
-    rows = [
-        {
-            "point_id": point.point_id,
-            "pol": point.pol,
-            "condition": dict(point.condition),
-            "status": "COMPLETED",
-            "result": result.to_dict(),
-        }
-    ]
-    paths = write_tables(tmp_path, "inputs/matrices/dpw.fs", rows, "su2")
-    table = next(p for p in paths if p.name == "rotor.csv")
-    header, line = table.read_text(encoding="ascii").splitlines()
-    cells = dict(zip(header.split(","), line.split(","), strict=True))
-    assert (
-        cells["POL"] == "5001"
-        and cells["BLADES"] == "6"
-        and cells["PERIODIC_COPIES"] == "6"
-        and "MONITORED_BLADES" not in cells
-    )
-    for column, key in (("CT", "ct"), ("CQ", "cq"), ("CP", "cp"), ("ETA", "efficiency")):
-        assert float(cells[column]) == pytest.approx(expected()[key], rel=1e-9)
-    assert float(cells["J"]) == pytest.approx(0.4, rel=1e-12)
-    assert header.split(",")[:2] == ["POL", "POINT"]
-    # the polar files keep their documented columns and gain none of these
-    for polar in (p for p in paths if p.name.startswith("FAM-")):
-        assert ",CQ," not in polar.read_text(encoding="ascii")
-
-
 def test_symmetry_loads_off_reports_the_sector_as_computed(tmp_path):
     result, _ = collected(tmp_path, 6, loads="false")
     rotor = result.to_dict()["rotor"]
-    assert rotor["loads"] == "SECTOR" and rotor["periodic_copies"] == 6
-    assert rotor["thrust_n"] == pytest.approx(expected(k=1.0)["thrust_n"], rel=1e-9)
+    assert rotor["symmetry_loads"] == "SECTOR" and rotor["periodic_copies"] == 6
+    assert rotor["row"]["T"] == pytest.approx(expected(k=1.0)[0]["T"], rel=1e-9)
     # the in-plane parts of one sector do not cancel
-    assert rotor["in_plane_force_n"] > 0.0
+    assert abs(rotor["row"]["CN"]) > 0.0
 
 
 def test_the_whole_rotor_has_no_in_plane_load(tmp_path):
     rotor = collected(tmp_path, 6)[0].to_dict()["rotor"]
-    assert rotor["loads"] == "WHOLE"
-    assert rotor["in_plane_force_n"] == pytest.approx(0.0, abs=1e-9)
-    assert rotor["in_plane_moment_nm"] == pytest.approx(0.0, abs=1e-9)
+    assert rotor["symmetry_loads"] == "WHOLE"
+    for key in ("CN", "CS", "CMN", "CMS"):
+        assert rotor["row"][key] == pytest.approx(0.0, abs=1e-9)

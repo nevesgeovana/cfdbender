@@ -1,40 +1,40 @@
-"""The rotor of a steady rotating-frame SU2 point: its reference declaration and its loads.
+"""The rotor of a matrix row: its reference declaration, its speed and its loads.
 
-The REF file declares a rotor as its FlightStream reference file does, a table of its own
-with ``kind = "rotor"`` (any table name)::
+The REF file declares a rotor as a pyflightstream reference file does, a table of its own
+with ``kind = "rotor"`` (the table name is the rotor's alias)::
 
     [ROTOR]
     kind = "rotor"
-    x_m = 0.0                  # hub centre in the mesh frame, m (default 0)
+    alias = "ROTOR"            # optional; when stated it equals the table name
+    x_m = 0.0                  # the hub in the mesh frame, m (default 0)
     y_m = 0.0
     z_m = 0.0
-    axis = "X"                 # the declared shaft; the SU2 adapter reads X
-    rpm_sign = -1              # 1: turns right-handed about the declared axis; -1: left-handed
+    axis = "X"                 # the shaft: the direction thrust is counted positive along
+    rpm_sign = -1              # 1: turns right-handed about the shaft; -1: left-handed
     diameter_m = 0.4064        # rotor diameter D, m
+    families_general = ["SPINNER"]
     families_blades = ["Blade1", "Blade2", "Blade3", "Blade4", "Blade5", "Blade6"]
+    blade1 = { azimuth_deg = 0.0, zero = "Z" }
 
-``families_general``, ``alias`` and ``blade1`` to ``bladeN`` are accepted and not read.
-The blade count is the length of ``families_blades``, as on its FlightStream side; SU2 has no
-use for it beyond the table column and a consistency check.
+The blade count is the length of ``families_blades``. ``blade1`` says where blade one sits
+at step zero, ``azimuth_deg`` measured from the axis ``zero`` (a letter with at most one
+sign, one of the two axes that are not the shaft) right-handed about the shaft; blade ``k``
+of ``B`` sits ``(k - 1) 360 / B`` further on.
 
-The flow runs along the declared axis, so thrust is positive against it: with ``axis = "X"``
-the free stream is along +x and thrust is positive toward -x. With ``n`` the rotation speed
-in rev/s, ``D`` the diameter and ``V`` the free-stream speed, ``J = V / (n D)``. The rotation
-vector the adapter writes is ``rpm_sign 2 pi n axis_hat``.
+The signs are pyflightstream's (``docs/definitions/rotor-coefficients.md``): with ``a`` the
+unit shaft, ``F`` the whole-rotor force and ``M`` its moment about the hub
+(``M_hub = M_ref + (r_ref - r_hub) x F``), ``n`` the speed in rev/s signed by ``rpm_sign``::
+
+    T = F . a        Q = M_hub . a
+    CT = T / (rho n^2 D^4)   CQ = Q / (rho n^2 D^5)   CP = 2 pi CQ sign(n)   ETA = J CT / CP
+
+The in-plane coefficients ``CN``, ``CS``, ``CMN`` and ``CMS`` are the force and the hub
+moment along the rotor's normal ``N`` (the part of the mesh frame's up, ``+z``, square to the
+shaft) and side ``S = N x a``, over the same scales; all four are NA for a shaft along up.
 
 The whole-rotor loads of a point solved on one of ``m`` periodic sectors are the sum over the
-``m`` copies of the sector's force and moment, copy ``j`` turned about the axis through the
-rotor origin by ``360 j / m`` degrees. With ``F`` the sector's force and ``M_o`` its moment
-about the rotor origin (the moment about the reference point plus ``(r_ref - origin) x F``)::
-
-    F_w = sum_j R_j F        M_w = sum_j R_j M_o
-    T = F_w . thrust_hat     Q = -M_w . axis_hat
-    CT = T / (rho n^2 D^4)   CQ = Q / (rho n^2 D^5)   CP = 2 pi CQ sign(n)   eta = J CT / CP
-
-``thrust_hat`` is minus the axis and ``n`` is signed by ``rpm_sign``. ``Q`` is the torque the
-shaft supplies about the fixed axis, signed about it, so ``CP`` is positive for a propeller
-that absorbs power whichever way it turns. The components of ``F_w`` and ``M_w`` normal to
-the axis cancel for equal copies and are reported as magnitudes.
+``m`` copies of the sector's force and hub moment, copy ``j`` turned about the shaft through
+the hub by ``360 j / m`` degrees; they are never the sector's loads times ``m``.
 """
 
 from __future__ import annotations
@@ -42,17 +42,39 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import cast
+from dataclasses import dataclass, field
 
 from cfdbender.core.refusals import warn_or_refuse
-from cfdbender.core.rotor_coefficients import rotor_coefficients
+from cfdbender.core.rotor_coefficients import (
+    advance_ratio,
+    force_scale,
+    moment_scale,
+    power_from_torque,
+    rotor_coefficients,
+)
+from cfdbender.core.unsteady_clock import BladeDatum, blade_datum, blade_one_azimuth
 
 Vector = tuple[float, float, float]
 
-#: The keys of a rotor declaration the adapter reads, and the unread keys of a FlightStream one.
-READ_KEYS = ("kind", "x_m", "y_m", "z_m", "axis", "rpm_sign", "diameter_m", "families_blades")
-UNREAD_KEYS = ("alias", "families_general")
+#: The keys of a rotor declaration of the REF file.
+READ_KEYS = (
+    "kind",
+    "alias",
+    "x_m",
+    "y_m",
+    "z_m",
+    "axis",
+    "rpm_sign",
+    "diameter_m",
+    "families_general",
+    "families_blades",
+    "blade1",
+)
+#: The mesh frame's up direction, which the rotor's normal axis is taken from.
+REFERENCE_UP: Vector = (0.0, 0.0, 1.0)
+#: A shaft whose part square to up is shorter than this has no normal and no side axis.
+ROTOR_NORMAL_FLOOR = 1e-9
+_AXES = {"X": (1.0, 0.0, 0.0), "Y": (0.0, 1.0, 0.0), "Z": (0.0, 0.0, 1.0)}
 
 
 @dataclass(frozen=True)
@@ -62,17 +84,19 @@ class RotorBlock:
     Attributes
     ----------
     name : str
-        The declaration's table name, ``ROTOR`` in ``[ROTOR]``.
+        The declaration's table name, which is its alias: ``ROTOR`` in ``[ROTOR]``.
     diameter_m : float
         The rotor diameter D.
     blades : int or None
         The length of ``families_blades``, None when the table has none.
     origin : tuple of float
-        The hub centre in the mesh frame.
+        The hub in the mesh frame.
     axis : tuple of float
-        The unit vector of the declared axis; the flow runs along it and thrust against it.
+        The unit shaft; thrust is counted positive along it.
     rpm_sign : int
-        1 when the rotor turns right-handed about the axis, -1 when left-handed.
+        1 when the rotor turns right-handed about the shaft, -1 when left-handed.
+    blade1 : BladeDatum
+        Where blade one sits at step zero.
     """
 
     name: str
@@ -81,17 +105,41 @@ class RotorBlock:
     origin: Vector
     axis: Vector
     rpm_sign: int
+    blade1: BladeDatum = field(default_factory=BladeDatum)
 
     @property
-    def thrust_direction(self) -> Vector:
-        """The unit vector of positive thrust, against the declared axis."""
-        return (-self.axis[0] + 0.0, -self.axis[1] + 0.0, -self.axis[2] + 0.0)
+    def alias(self) -> str:
+        """The word every column of the rotor table carries, the table's name."""
+        return self.name
+
+    def blade_azimuth_deg(self, blade: int, *, step: float, steps_per_revolution: float) -> float:
+        """Return where blade ``blade`` (1-based) is at ``step``, in degrees in [0, 360).
+
+        ``(blade1.azimuth_deg + sense step 360 / steps_per_revolution + (blade - 1) 360 / B)``
+        modulo 360, the sense being ``rpm_sign``.
+        """
+        count = self.blades or 1
+        if not 1 <= blade <= count:
+            raise ValueError(f"rotor {self.name} has {count} blades; blade {blade} is not one")
+        one = blade_one_azimuth(
+            step,
+            datum_deg=self.blade1.azimuth_deg,
+            sense=float(self.rpm_sign),
+            steps_per_revolution=steps_per_revolution,
+        )
+        return (one + (blade - 1) * 360.0 / count) % 360.0 + 0.0
 
 
 def _real(value: object, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
         raise ValueError(f"REF file {label} must be a finite number")
     return float(value)
+
+
+def _family_list(value: object, label: str) -> list[str]:
+    if not isinstance(value, list) or not all(isinstance(i, str) and i.strip() for i in value):
+        raise ValueError(f"REF file {label} must be a list of family names")
+    return value
 
 
 def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
@@ -111,7 +159,8 @@ def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
     ------
     ValueError
         More than one rotor is declared, a required key is missing, a key is unknown or of
-        the wrong type, the diameter is not positive, or the axis is not X.
+        the wrong type, the diameter is not positive, the axis is not X, the alias differs
+        from the table name, or blade one's datum is not a usable axis.
     """
     found = {
         key: value
@@ -127,25 +176,30 @@ def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
         )
     ((name, block),) = found.items()
     unknown = sorted(
-        key
-        for key in block
-        if key not in (*READ_KEYS, *UNREAD_KEYS) and re.fullmatch(r"blade[0-9]+", key) is None
+        key for key in block if key not in READ_KEYS and re.fullmatch(r"blade[0-9]+", key) is None
     )
     if unknown:
         raise ValueError(
             f"REF file {name} has unknown keys: {', '.join(unknown)} "
-            f"(the keys are {', '.join((*READ_KEYS, *UNREAD_KEYS))} and blade1 to bladeN)"
+            f"(the keys are {', '.join(READ_KEYS)})"
         )
     for key in ("diameter_m", "axis"):
         if key not in block:
             raise ValueError(f"REF file {name} needs {key}")
+    alias = block.get("alias", name)
+    if not isinstance(alias, str) or alias.strip().casefold() != name.casefold():
+        raise ValueError(
+            f"REF file {name}.alias is {alias!r}: a rotor's alias is its table name; write "
+            f'alias = "{name}" or leave it out'
+        )
     diameter = _real(block["diameter_m"], f"{name}.diameter_m")
     if diameter <= 0.0:
         raise ValueError(f"REF file {name}.diameter_m must be positive")
     axis = block["axis"]
-    if not isinstance(axis, str) or axis.strip().upper() not in ("X", "Y", "Z"):
+    if not isinstance(axis, str) or axis.strip().upper() not in _AXES:
         raise ValueError(f'REF file {name}.axis must be "X", "Y" or "Z"')
-    if axis.strip().upper() != "X":
+    shaft = axis.strip().upper()
+    if shaft != "X":
         raise ValueError(
             f"REF file {name}.axis is {axis!r}: the SU2 adapter runs the rotor in an axial "
             'flow along +x, so it reads axis = "X" only'
@@ -153,22 +207,58 @@ def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
     sign = block.get("rpm_sign", 1)
     if type(sign) is not int or sign not in (1, -1):
         raise ValueError(f"REF file {name}.rpm_sign must be 1 or -1")
+    if "families_general" in block:
+        _family_list(block["families_general"], f"{name}.families_general")
     blades: int | None = None
     if "families_blades" in block:
-        listed = block["families_blades"]
-        if (
-            not isinstance(listed, list)
-            or not listed
-            or not all(isinstance(i, str) for i in listed)
-        ):
+        blades = len(_family_list(block["families_blades"], f"{name}.families_blades"))
+        if not blades:
             raise ValueError(f"REF file {name}.families_blades must be a list of family names")
-        blades = len(listed)
+    datum = blade_datum(block)
+    if datum.zero.lstrip("+-") == shaft:
+        raise ValueError(
+            f"REF file {name}: blade1.zero {datum.zero} equals shaft {shaft}; "
+            "choose one of the two remaining axes"
+        )
     origin = (
         _real(block.get("x_m", 0.0), f"{name}.x_m"),
         _real(block.get("y_m", 0.0), f"{name}.y_m"),
         _real(block.get("z_m", 0.0), f"{name}.z_m"),
     )
-    return RotorBlock(name, diameter, blades, origin, (1.0, 0.0, 0.0), sign)
+    return RotorBlock(name, diameter, blades, origin, _AXES[shaft], sign, datum)
+
+
+def rotor_speed(
+    block: RotorBlock, condition: Mapping[str, float], velocity: float
+) -> tuple[float, str]:
+    """Return the rotor's speed in rev/s, a magnitude, and the key it came from.
+
+    ``RPM / 60`` when the condition states ``RPM``; else ``V / (J D)`` with ``J`` the
+    condition's ``ADVANCE_RATIO``, ``V`` the free-stream speed and ``D`` the diameter.
+
+    Raises
+    ------
+    ValueError
+        The condition states both or neither, or a value that is not positive.
+    """
+    stated = [key for key in ("ADVANCE_RATIO", "RPM") if key in condition]
+    if len(stated) != 1:
+        raise ValueError(
+            "FLIGHT_CONDITION states its rotor speed twice: ADVANCE_RATIO and RPM; keep one"
+            if stated
+            else "FLIGHT_CONDITION states no rotor speed: state 'ADVANCE_RATIO: <J>' or "
+            "'RPM: <rev/min>'"
+        )
+    (key,) = stated
+    value = float(condition[key])
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError(
+            f"FLIGHT_CONDITION {key} must be positive: a rotor speed is a magnitude, and its "
+            "hand is the rotor's rpm_sign"
+        )
+    if key == "RPM":
+        return value / 60.0, key
+    return velocity / (value * block.diameter_m), key
 
 
 def rotation_rate(block: RotorBlock, advance_ratio: float, velocity: float) -> tuple[Vector, float]:
@@ -189,9 +279,14 @@ def rotation_rate(block: RotorBlock, advance_ratio: float, velocity: float) -> t
         ``rpm_sign 2 pi n axis_hat`` and ``n = V / (J D)``.
     """
     n = velocity / (advance_ratio * block.diameter_m)
-    rate = 2.0 * math.pi * n * block.rpm_sign
+    return rotation_vector(block, n), n
+
+
+def rotation_vector(block: RotorBlock, rps: float) -> Vector:
+    """Return ``rpm_sign 2 pi n axis_hat`` in rad/s for a speed ``n`` in rev/s."""
+    rate = 2.0 * math.pi * rps * block.rpm_sign
     x, y, z = (rate * c + 0.0 for c in block.axis)
-    return (x, y, z), n
+    return (x, y, z)
 
 
 def _cross(a: Sequence[float], b: Sequence[float]) -> Vector:
@@ -252,98 +347,142 @@ def periodic_sum(
 NOT_APPLICABLE = "NA"
 
 
-def rotor_quantities(
-    block: RotorBlock,
-    *,
-    rotation: Sequence[float],
-    velocity: float,
-    density: float | None,
-    dynamic_pressure: float | None,
-    area: float,
-    length: float,
-    moment_origin: Sequence[float],
-    force_coefficients: Sequence[float],
-    moment_coefficients: Sequence[float],
-    copies: int = 1,
-) -> dict[str, float | None]:
-    """Return the quantities of the whole rotor from the sector's coefficients.
+@dataclass(frozen=True)
+class RotorLoads:
+    """What an adapter supplies for one rotor of one point.
+
+    Attributes
+    ----------
+    force_n : tuple of float
+        The monitored force in N, in the mesh frame.
+    moment_nm : tuple of float
+        The monitored moment in N m about ``about_m``, in the mesh frame.
+    about_m : tuple of float
+        The point the moment is about, in the mesh frame.
+    speed_m_s : float
+        The free-stream speed of the point as the solver ran it.
+    density_kg_m3 : float or None
+        The free-stream density as the solver ran it; None when unknown.
+    """
+
+    force_n: Vector
+    moment_nm: Vector
+    about_m: Vector
+    speed_m_s: float
+    density_kg_m3: float | None
+
+    def to_dict(self) -> dict[str, object]:
+        """Return the loads as a record stores them."""
+        return {
+            "force_n": list(self.force_n),
+            "moment_nm": list(self.moment_nm),
+            "about_m": list(self.about_m),
+            "speed_m_s": self.speed_m_s,
+            "density_kg_m3": self.density_kg_m3,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, object]) -> RotorLoads:
+        """Read the loads back from a record."""
+
+        def vector(key: str) -> Vector:
+            x, y, z = (float(v) for v in data[key])  # type: ignore[attr-defined]
+            return (x, y, z)
+
+        density = data.get("density_kg_m3")
+        return cls(
+            vector("force_n"),
+            vector("moment_nm"),
+            vector("about_m"),
+            float(data["speed_m_s"]),  # type: ignore[arg-type]
+            None if density is None else float(density),  # type: ignore[arg-type]
+        )
+
+
+def in_plane_axes(shaft: Sequence[float]) -> tuple[Vector, Vector] | None:
+    """Return the rotor's normal ``N`` and side ``S`` unit vectors, or None for a shaft along up.
+
+    ``N`` is the part of :data:`REFERENCE_UP` square to the shaft, normalised; ``S = N x a``.
+    """
+    along = _dot(REFERENCE_UP, shaft)
+    square = tuple(u - along * a for u, a in zip(REFERENCE_UP, shaft, strict=True))
+    reach = math.sqrt(_dot(square, square))
+    if reach <= ROTOR_NORMAL_FLOOR:
+        return None
+    nx, ny, nz = (c / reach for c in square)
+    normal = (nx, ny, nz)
+    return normal, _cross(normal, shaft)
+
+
+#: The rotor row's coefficient columns, before the alias suffix, in the table's order.
+ROTOR_ROW_COLUMNS = ("RPM", "DIAMETER", "J", "CT", "CQ", "CP", "ETA", "CN", "CS", "CMN", "CMS")
+
+
+def rotor_row(
+    block: RotorBlock, loads: RotorLoads, *, rps: float, copies: int = 1
+) -> dict[str, float | str]:
+    """Return the rotor-table quantities of one rotor from the loads an adapter supplies.
 
     Parameters
     ----------
     block : RotorBlock
         The rotor.
-    rotation : sequence of float
-        The rotation vector the solver ran with, rad/s.
-    velocity : float
-        The free-stream speed V of the advance ratio, m/s.
-    density, dynamic_pressure : float or None
-        The free-stream density and the dynamic pressure SU2 divides by; None when unknown.
-    area, length : float
-        The reference area and length of the coefficients.
-    moment_origin : sequence of float
-        The point the moments are about.
-    force_coefficients, moment_coefficients : sequence of float
-        CFx, CFy, CFz and CMx, CMy, CMz of the monitored surface.
+    loads : RotorLoads
+        The monitored force and moment, the speed and the density.
+    rps : float
+        The speed in rev/s, a magnitude; its hand is ``block.rpm_sign``.
     copies : int, optional
-        The periodic copies summed (1: the monitored surface is the whole rotor, or the
-        loads are reported for the sector as computed).
+        The periodic copies the monitored surface stands for, summed as vectors (1: the
+        monitored surface is the reported rotor).
 
     Returns
     -------
     dict
-        n_rps, rpm, advance_ratio, thrust_n, torque_nm, ct, cq, cp, efficiency, and the
-        magnitudes of the summed force and moment normal to the axis, ``in_plane_force_n``
-        and ``in_plane_moment_nm``. A value that needs the density or the dynamic pressure
-        is None when either is unknown, and the efficiency is None when CP is zero.
+        :data:`ROTOR_ROW_COLUMNS`, then ``T`` and ``Q`` in N and N m; NA where a value does
+        not exist (no density, a static point for ``ETA``, a shaft along up for the in-plane
+        four).
     """
-    omega = math.sqrt(_dot(rotation, rotation))
-    n = omega / (2.0 * math.pi)
-    out: dict[str, float | None] = {
-        "n_rps": n,
-        "rpm": 60.0 * n,
-        "advance_ratio": velocity / (n * block.diameter_m) if n > 0.0 else None,
-        "thrust_n": None,
-        "torque_nm": None,
-        "in_plane_force_n": None,
-        "in_plane_moment_nm": None,
-        "ct": None,
-        "cq": None,
-        "cp": None,
-        "efficiency": None,
+    signed = block.rpm_sign * rps
+    arm = tuple(r - o for r, o in zip(loads.about_m, block.origin, strict=True))
+    about_hub = tuple(
+        m + c for m, c in zip(loads.moment_nm, _cross(arm, loads.force_n), strict=True)
+    )
+    force, moment = periodic_sum(loads.force_n, about_hub, block.axis, copies)
+    thrust = _dot(force, block.axis) + 0.0
+    torque = _dot(moment, block.axis) + 0.0
+    row: dict[str, float | str] = {
+        "RPM": 60.0 * signed,
+        "DIAMETER": block.diameter_m,
+        "J": advance_ratio(loads.speed_m_s, signed, block.diameter_m) if rps else NOT_APPLICABLE,
     }
-    if dynamic_pressure is None or dynamic_pressure <= 0.0 or omega == 0.0:
-        return out
-    force = tuple(dynamic_pressure * area * c for c in force_coefficients)
-    moment = tuple(dynamic_pressure * area * length * c for c in moment_coefficients)
-    arm = tuple(r - o for r, o in zip(moment_origin, block.origin, strict=True))
-    about_origin = tuple(m + c for m, c in zip(moment, _cross(arm, force), strict=True))
-    whole_force, whole_moment = periodic_sum(force, about_origin, block.axis, copies)
-    thrust = _dot(whole_force, block.thrust_direction)
-    torque = -_dot(whole_moment, block.axis)
-    out["thrust_n"], out["torque_nm"] = thrust, torque
-    for key, vector in (("in_plane_force_n", whole_force), ("in_plane_moment_nm", whole_moment)):
-        along = _dot(vector, block.axis)
-        out[key] = math.sqrt(
-            sum((v - along * a) ** 2 for v, a in zip(vector, block.axis, strict=True))
+    density = loads.density_kg_m3
+    if density is None or not density > 0.0 or not rps:
+        row.update(dict.fromkeys(ROTOR_ROW_COLUMNS[3:], NOT_APPLICABLE))
+    else:
+        row.update(
+            rotor_coefficients(
+                thrust_n=thrust,
+                torque_nm=torque,
+                rps=signed,
+                diameter_m=block.diameter_m,
+                density_kg_m3=density,
+                speed_m_s=loads.speed_m_s,
+            )
         )
-    if density is None or density <= 0.0:
-        return out
-    got = rotor_coefficients(
-        thrust_n=thrust,
-        torque_nm=torque,
-        rps=block.rpm_sign * n,
-        diameter_m=block.diameter_m,
-        density_kg_m3=density,
-        speed_m_s=velocity,
-    )
-    efficiency = got["ETA"]
-    out.update(
-        ct=cast(float, got["CT"]),
-        cq=cast(float, got["CQ"]),
-        cp=cast(float, got["CP"]),
-        efficiency=None if isinstance(efficiency, str) else efficiency,
-    )
-    return out
+        row["CP"] = power_from_torque(float(row["CQ"]), signed)
+        axes = in_plane_axes(block.axis)
+        if axes is None:
+            row.update(dict.fromkeys(("CN", "CS", "CMN", "CMS"), NOT_APPLICABLE))
+        else:
+            normal, side = axes
+            forces = force_scale(signed, density, block.diameter_m)
+            moments = moment_scale(signed, density, block.diameter_m)
+            row["CN"] = _dot(force, normal) / forces + 0.0
+            row["CS"] = _dot(force, side) / forces + 0.0
+            row["CMN"] = _dot(moment, normal) / moments + 0.0
+            row["CMS"] = _dot(moment, side) / moments + 0.0
+    row["T"], row["Q"] = thrust, torque
+    return row
 
 
 #: The row controls of the symmetry and the time-accurate run types: never solver keys.

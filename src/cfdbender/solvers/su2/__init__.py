@@ -65,7 +65,6 @@ from cfdbender.solvers.su2._config import (
     options,
     reads_key,
     render,
-    rotor_point,
     staged_mesh,
 )
 from cfdbender.solvers.su2._execute import run
@@ -73,6 +72,7 @@ from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import dimensions, force_groups, read, residual_field
 from cfdbender.solvers.su2._restart import restart_files as restart_files
 from cfdbender.solvers.su2._restart import restart_values
+from cfdbender.solvers.su2._rotor import rotor_point
 
 SOLVER_NAME = "su2"
 CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
@@ -288,6 +288,7 @@ def _rotor(
         point.reference,
         {k: c.value for k, c in coefficients.items()},
         periodic_state(point.setup),
+        point.point.condition,
     )
 
 

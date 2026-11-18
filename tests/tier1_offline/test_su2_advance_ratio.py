@@ -74,11 +74,12 @@ def test_a_rotor_declaration_of_the_flightstream_reference_file_is_read(tmp_path
                 "rpm_sign": -1,
                 "diameter_m": 0.5,
                 "families_blades": ["Blade1", "Blade2", "Blade3"],
+                "blade1": {"azimuth_deg": 0.0, "zero": "Z"},
             },
         }
     )
     assert (block.blades, block.rpm_sign, block.origin) == (3, -1, (1.0, 2.0, 3.0))
-    assert block.axis == (1.0, 0.0, 0.0) and block.thrust_direction == (-1.0, 0.0, 0.0)
+    assert block.axis == (1.0, 0.0, 0.0)
     assert rotor_block({"area": 1.0}) is None
 
 
