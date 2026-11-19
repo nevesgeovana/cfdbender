@@ -212,6 +212,11 @@ the batch folder numbers moved, and the new batch gets a new folder), and
 without a command line of its own (`job_command`) is grouped only for rows that state
 `hpc.application_id`.
 
+A row whose `RESTART` names a point of the same job, earlier in it, is not refused although the
+source has not run: the script stages the source's restart file after the source ends with
+status 0, before the dependent's command (or its `hpc.application_id` wrapper) is called; see
+[restart](records.md#a-source-that-runs-earlier-in-the-same-job).
+
 ## See what would be submitted
 
 With a profile in `inputs/hpc/`, `plan` adds the job description of each point

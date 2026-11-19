@@ -123,7 +123,55 @@ def _command(
     return list(cast(list[str], hook(context)))
 
 
-def _block(point: Point, relative: str, command: Sequence[str]) -> str:
+#: Exit status a dependent run records when the RESTART source of its job did not end with 0.
+SOURCE_FAILED = 97
+#: Exit status a dependent run records when the source's restart file could not be staged.
+STAGING_FAILED = 98
+STAGER = "cfdbender.matrix.stage_restart"
+
+
+def _dependent_block(
+    point: Point, relative: str, command: Sequence[str], source_relative: str
+) -> str:
+    """Return the block of a run whose RESTART source ran earlier in the same script.
+
+    The source's exit status is read from its job.exit; only when it is 0 is the solution
+    staged (by the library entry ``cfdbender.matrix.stage_restart``) and the run started.
+    Otherwise the run is not started, its job.exit records 97 (source failed) or 98 (staging
+    failed) and one line in its stderr.log says why; the script goes on to the next run.
+    """
+    quoted = shlex.quote(relative)
+    ended = shlex.quote(f"{source_relative}/{STATUS_FILE}")
+    status = shlex.quote(f"{relative}/{STATUS_FILE}")
+    temporary = shlex.quote(f"{relative}/{STATUS_FILE}.tmp")
+    line = " ".join(shlex.quote(part) for part in command)
+    note = (
+        f"RESTART {point.restart_from}: the source ended with status %s; this run was not started"
+    )
+    return chr(10).join(
+        [
+            f"# {point.point_id}: RESTART from {point.restart_from}, staged when it ends",
+            f"src=$(cat {ended} 2>/dev/null || echo missing)",
+            'if [ "$src" != 0 ]; then',
+            f"  printf '{note}\\n' \"$src\" > {quoted}/stderr.log",
+            f"  rc={SOURCE_FAILED}",
+            f'elif ! "${{CFDBENDER_PYTHON:-python3}}" -m {STAGER} {quoted}; then',
+            f"  rc={STAGING_FAILED}",
+            "else",
+            f"  ( cd {quoted} && {line} > stdout.log 2> stderr.log )",
+            "  rc=$?",
+            "fi",
+            f"printf '%s\\n' \"$rc\" > {temporary} && mv {temporary} {status}",
+            '[ "$rc" -eq 0 ] || failed=1',
+        ]
+    )
+
+
+def _block(
+    point: Point, relative: str, command: Sequence[str], source_relative: str | None = None
+) -> str:
+    if source_relative is not None:
+        return _dependent_block(point, relative, command, source_relative)
     quoted = shlex.quote(relative)
     status = shlex.quote(f"{relative}/{STATUS_FILE}")
     temporary = shlex.quote(f"{relative}/{STATUS_FILE}.tmp")
@@ -139,7 +187,7 @@ def _block(point: Point, relative: str, command: Sequence[str]) -> str:
     )
 
 
-def script_text(label: str, requested: int, blocks: Sequence[str]) -> str:
+def script_text(label: str, requested: int, blocks: Sequence[str], restarts: bool = False) -> str:
     """Return the shell script of a batch: LF line endings, one block per run in order."""
     head = [
         "#!/bin/sh",
@@ -147,6 +195,14 @@ def script_text(label: str, requested: int, blocks: Sequence[str]) -> str:
         "# One block per run, in matrix order, each in its own point folder. No warm start: no",
         "# restart or solution file passes from one run to the next. A failed run does not stop",
         "# the next; the script exits non-zero when any run failed.",
+        *(
+            [
+                "# A run whose RESTART names an earlier run of this script is staged from it when",
+                "# that run ends with status 0, and is not started otherwise (status 97 or 98).",
+            ]
+            if restarts
+            else []
+        ),
         "set -u",
         'cd "$(dirname "$0")" || exit 2',
         "failed=0",
@@ -187,6 +243,8 @@ def batch_plans(
     plan: RunPlan,
     profiles: tuple[HpcProfile, ...],
     n: int,
+    *,
+    completed: frozenset[str] = frozenset(),
 ) -> tuple[tuple[BatchPlan, ...], tuple[str, ...]]:
     """Group the plan's rows into batches and render each batch's script and descriptor.
 
@@ -245,6 +303,8 @@ def batch_plans(
         cluster = overridden.get("cluster", agreed.get("cluster"))
         if uses_cluster and cluster is None:
             raise ValueError(f"row {members[0][0].pol}: state cluster: <name> in VAR_NAMES_VALUES")
+        members = in_job_order(members, completed)
+        by_id = {p.point_id: p for p, _ in members}
         for point, _ in members:
             overrides = row_overrides(point.variables)
             resolved, _ignored = apply_overrides(base, overrides, root=plan.root, row=point.pol)
@@ -260,7 +320,13 @@ def batch_plans(
                 config_name,
                 resolved.application_id,
             )
-            blocks.append(_block(point, _relative(point_folder, folder), command))
+            source = by_id.get(point.restart_from or "") if point.restart_in_job else None
+            source_relative = (
+                _relative(workspace_path(plan.root, source.directory), folder)
+                if source is not None
+                else None
+            )
+            blocks.append(_block(point, _relative(point_folder, folder), command, source_relative))
             values = point_values(
                 plan,
                 point,
@@ -290,7 +356,7 @@ def batch_plans(
                 f"{BATCH_DIR}/{label}/{script_name}",
                 sims,
                 tuple(p for p, _ in members),
-                script_text(label, n, blocks),
+                script_text(label, n, blocks, any(p.restart_in_job for p, _ in members)),
                 submission,
                 base,
                 applications,
@@ -298,6 +364,60 @@ def batch_plans(
             )
         )
     return tuple(batches), tuple(warnings)
+
+
+def in_job_order(
+    members: Sequence[tuple[Point, HpcProfile]], completed: frozenset[str]
+) -> list[tuple[Point, HpcProfile]]:
+    """Put each RESTART source of a job before the points it feeds, and mark those points.
+
+    A point whose ``restart_from`` names another point of the same job, not already in
+    ``completed``, is fed from it at run time: it is marked ``restart_in_job`` with the
+    source's folder as ``restart_directory``. Runs of one job share no state, so moving a
+    source ahead of its dependents cannot change a result; the order inside the job is
+    otherwise the matrix order.
+
+    Raises
+    ------
+    ValueError
+        Points that feed each other.
+    """
+    ids = {p.point_id: p for p, _ in members}
+
+    def feeds(point: Point) -> Point | None:
+        source = ids.get(point.restart_from or "")
+        return None if source is None or source.point_id in completed else source
+
+    marked = [
+        (
+            replace(p, restart_in_job=True, restart_directory=src.directory)
+            if (src := feeds(p)) is not None
+            else p,
+            prof,
+        )
+        for p, prof in members
+    ]
+    placed: list[tuple[Point, HpcProfile]] = []
+    waiting = list(marked)
+    while waiting:
+        done = {p.point_id for p, _ in placed}
+        ready = next(
+            (
+                item
+                for item in waiting
+                if not item[0].restart_in_job or item[0].restart_from in done
+            ),
+            None,
+        )
+        if ready is None:
+            first = waiting[0][0]
+            raise ValueError(
+                f"RESTART of {first.point_id} names {first.restart_from}, which waits on it "
+                "in the same job; points that feed each other cannot run in sequence"
+            )
+        waiting.remove(ready)
+        placed.append(ready)
+    return placed
 
 
 def grouping_receipt(batches: Sequence[BatchPlan], n: int) -> dict[str, object]:
@@ -357,6 +477,13 @@ def batch_status(root: Path, record: RunRecord) -> int | None:
         return 1
 
 
+def _source_cfg(point: Point, translated: Mapping[str, bytes]) -> str | None:
+    """Return the rendering of the earlier run that feeds ``point`` in its job, or None."""
+    if not point.restart_in_job or point.restart_from is None:
+        return None
+    return translated[point.restart_from].decode("ascii")
+
+
 def submit_batches(
     plan: RunPlan, batches: Sequence[BatchPlan], adapter: SolverAdapter
 ) -> tuple[RunRecord, ...]:
@@ -387,7 +514,13 @@ def submit_batches(
         for name in (point.directory, *point.outputs):
             if workspace_path(plan.root, name).exists():
                 raise RegistryError(f"{name}: existing output; refusing overwrite")
-        context = load_point(plan.root, point, solver=plan.solver, session=session)
+        context = load_point(
+            plan.root,
+            point,
+            solver=plan.solver,
+            session=session,
+            restart_source_cfg=_source_cfg(point, translated),
+        )
         check_restart(context, adapter)
         translated[point.point_id] = adapter.translate(context).encode("ascii")
     missing = tuple(p for batch in batches for p in batch.points if p.point_id not in previous)
@@ -410,7 +543,15 @@ def submit_batches(
                 ascii_input[point.point_id] = translated[point.point_id]
             else:
                 try:
-                    stage(load_point(plan.root, point, solver=plan.solver, session=session))
+                    stage(
+                        load_point(
+                            plan.root,
+                            point,
+                            solver=plan.solver,
+                            session=session,
+                            restart_source_cfg=_source_cfg(point, translated),
+                        )
+                    )
                     ascii_input[point.point_id] = config.read_bytes()
                 except (OSError, ValueError) as failure:
                     records.append(

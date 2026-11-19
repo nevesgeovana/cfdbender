@@ -101,6 +101,8 @@ from cfdbender.solvers.su2._rotor import (
 SOLVER_NAME = "su2"
 #: ``unsteady`` is not declared: SU2 time-accurate run types are selected by the matrix WORKFLOW.
 CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
+#: A RESTART source of the same batch job is staged by the job script after it ends.
+RESTART_IN_JOB = True
 #: The run types the adapter offers (pyflightstream's names), all four.
 OFFERED_RUN_TYPES = RUN_TYPES
 SOLVER_TYPE = "SU2"

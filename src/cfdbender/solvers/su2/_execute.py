@@ -16,7 +16,7 @@ from typing import cast
 
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
-from cfdbender.core.restart import copy_solution
+from cfdbender.core.restart import copy_solution, write_pending
 from cfdbender.core.settings import read_init
 from cfdbender.solvers._host import _ram
 from cfdbender.solvers._host._exe import check_host_free, resolve_executable
@@ -80,7 +80,11 @@ def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path)
     solution = restart_files(point) if point.point.restart_from is not None else {}
     values = restart_values(point, dict(values))
     folder.mkdir(parents=True, exist_ok=False)
-    copy_solution(folder, staged_solution(dict(solution), values))
+    if point.point.restart_in_job:
+        # The source has not run: the job script stages the solution after it ends.
+        write_pending(folder, point, staged_solution(dict(solution), values))
+    else:
+        copy_solution(folder, staged_solution(dict(solution), values))
     (folder / "su2.cfg").write_bytes(render(values).encode("ascii"))
     for name, text in extra_files(values).items():
         (folder / name).write_bytes(text.encode("ascii"))

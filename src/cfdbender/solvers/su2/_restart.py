@@ -8,9 +8,57 @@ from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.restart import require_solution, source_folder
 
 
+def _cfg_value(text: str, key: str) -> str | None:
+    """Return the last value a configuration states for ``key``, or None."""
+    found = None
+    for line in text.splitlines():
+        name, _, value = line.partition("=")
+        if name.strip() == key:
+            found = value
+    return None if found is None else found.split("%")[0].strip().strip('"')
+
+
+def predicted_restart_name(point: AdapterPoint) -> str:
+    """Name the restart file a source of the same batch job will write, from its rendering.
+
+    The name and format follow from the source's rendered configuration alone when it is a
+    steady point, ``OUTPUT_FILES`` (when stated) holds ``RESTART``, and ``RESTART_FILENAME``
+    (default ``restart_flow.dat``) ends in ``.dat`` or has no suffix. Anything that leaves
+    the format to run time is refused naming the key to set.
+    """
+    text = point.restart_source_cfg
+    source = point.point.restart_from
+    if text is None:
+        raise ValueError(f"RESTART {source}: the rendered source configuration is missing")
+    if (_cfg_value(text, "TIME_DOMAIN") or "NO").upper() == "YES":
+        raise ValueError(
+            f"RESTART {source}: a source in the same job must be a steady point; run a "
+            "time-accurate source first and name it once completed"
+        )
+    outputs = _cfg_value(text, "OUTPUT_FILES")
+    if outputs is not None and "RESTART" not in [
+        word.strip() for word in outputs.strip("()").split(",")
+    ]:
+        raise ValueError(
+            f"RESTART {source}: its restart format is left to run time; "
+            "add RESTART to the OUTPUT_FILES of its setup"
+        )
+    name = _cfg_value(text, "RESTART_FILENAME") or "restart_flow.dat"
+    if not Path(name).suffix:
+        name += ".dat"
+    if Path(name).suffix != ".dat" or Path(name).name != name:
+        raise ValueError(
+            f"RESTART {source}: its restart format is left to run time; set "
+            "RESTART_FILENAME in its setup to a plain file name ending in .dat"
+        )
+    return name
+
+
 def restart_files(point: AdapterPoint) -> dict[str, Path]:
     """Select the configured RESTART_FILENAME, defaulting to restart_flow.dat."""
     folder = source_folder(point)
+    if point.point.restart_in_job:
+        return {"restart-input.dat": folder / predicted_restart_name(point)}
     name = "restart_flow.dat"
     config = folder / "su2.cfg"
     if config.is_file():
@@ -62,7 +110,11 @@ def restart_values(point: AdapterPoint, values: dict[str, object]) -> dict[str, 
     """Set the SU2 restart keys to the copied solution, overriding a cold-start setting."""
     if point.point.restart_from is not None:
         solution = next(iter(restart_files(point)))
-        saved = (source_folder(point) / "su2.cfg").read_text(encoding="ascii")
+        saved = (
+            point.restart_source_cfg
+            if point.restart_source_cfg is not None
+            else (source_folder(point) / "su2.cfg").read_text(encoding="ascii")
+        )
         binary = (
             not solution.endswith(".csv")
             and re.search(r"^\s*WRT_BINARY_RESTART\s*=\s*NO\b", saved, re.MULTILINE | re.IGNORECASE)

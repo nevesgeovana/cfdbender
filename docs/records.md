@@ -54,6 +54,27 @@ folders. Existing evidence is preserved. This option cannot be combined with
 `--resume` or the force-rerun options. `--resume` selects points to run and does
 not request saved solution state.
 
+### A source that runs earlier in the same job
+
+With `--batch N`, a source that is not completed yet is accepted when it is in the same job as the
+point it feeds: the job runs the rows in sequence, so the solution exists when the dependent
+starts. `cfd-matrix plan --batch N` lists each such pair. The job script reads the source's
+`job.exit` and, only when it is 0, stages the solution into the dependent's folder with
+`python -m cfdbender.matrix.stage_restart` (the compute node needs `cfdbender` importable;
+set `CFDBENDER_PYTHON` to the interpreter). The staging needs the solver's restart file to
+exist and not be empty, not collected products. It records the SHA-256 of each staged file in
+`restart-staged.json` in the dependent's folder, and `su2.cfg` is never edited: it was written
+at submission from the source's rendered configuration. If the source failed, the dependent
+is not run, its `job.exit` is 97 and one line of its `stderr.log` says why; if the restart file
+is missing the status is 98. The job goes on with the next run. A source later in the job is
+moved ahead of its dependents (runs of a job share no state, so no result changes). Points
+that feed each other are refused. This holds for SU2 with a steady source whose rendering
+fixes the restart file: `OUTPUT_FILES`, when stated, holds `RESTART`, and `RESTART_FILENAME`
+is a plain name ending in `.dat` (default `restart_flow.dat`); otherwise the run is refused
+naming the key. A source that is neither completed nor in the same job (no `--batch`, another
+job, or left out by `--points` or `--sims`) is refused as before. With `--force-rerun-all` both rows
+run again in the job, fed from each other's new attempt.
+
 SU2 copies its configured `RESTART_FILENAME` (default `restart_flow.dat` or
 `restart_flow.csv`) to `restart-input.dat` or `.csv` and sets `RESTART_SOL` and
 `SOLUTION_FILENAME`. `READ_BINARY_RESTART` matches the saved binary or ASCII

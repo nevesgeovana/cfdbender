@@ -16,7 +16,7 @@ def prepare(plan: RunPlan, adapter: object, *, own: bool, local: bool = True) ->
     session = InputSession(plan.root)
     for point in plan.points:
         source = point.point_id if own else point.restart_from
-        if source is None:
+        if source is None or point.restart_in_job:
             points.append(point)
             continue
         if source not in records:

@@ -83,6 +83,9 @@ class AdapterPoint:
     reference: Mapping[str, object]
     post: Mapping[str, object]
     session: InputSession | None = field(default=None, compare=False, repr=False)
+    #: The rendered configuration of a RESTART source that runs earlier in the same batch job;
+    #: set only for such a point, so its restart keys follow from the source's rendering.
+    restart_source_cfg: str | None = field(default=None, compare=False, repr=False)
 
     @property
     def geometry(self) -> str | None:
@@ -118,6 +121,7 @@ def load_point(
     *,
     solver: str,
     session: InputSession | None = None,
+    restart_source_cfg: str | None = None,
 ) -> AdapterPoint:
     """Read planned s/r/p snapshots, verifying all digests and the solver binding.
 
@@ -133,6 +137,9 @@ def load_point(
         The reads of one command. Passing the same session for every point makes the
         command read and hash each large input once; every point is still checked against
         its planned digests. Without it each call reads its inputs afresh.
+    restart_source_cfg : str, optional
+        The rendered configuration of a RESTART source that runs earlier in the same batch
+        job, for a point whose ``restart_in_job`` is set.
 
     Returns
     -------
@@ -162,6 +169,7 @@ def load_point(
         files.read_toml(f"inputs/references/{point.reference_id}.toml"),
         files.read_toml(f"inputs/pproc/{point.post_id}.toml"),
         shared,
+        restart_source_cfg,
     )
     result.verify()
     for name in files.digests():

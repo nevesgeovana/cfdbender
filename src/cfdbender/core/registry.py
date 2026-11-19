@@ -294,7 +294,7 @@ def _extras(row: Mapping[str, object]) -> dict[str, Any]:
             valid = value is None or (isinstance(value, str) and bool(value))
         elif key == "ncpus":
             valid = value is None or (type(value) is int and value > 0)
-        elif key == "hidden":
+        elif key in {"hidden", "restart_in_job"}:
             valid = isinstance(value, bool)
         elif key == "numerics_id":
             valid = (

@@ -17,7 +17,7 @@ from cfdbender.core.executables import check_builds, check_local_executables
 from cfdbender.core.plan import large_input_check, rehash_inputs
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.refusals import warn_or_refuse, warning_refusals
-from cfdbender.core.registry import RunRecord
+from cfdbender.core.registry import RunRecord, RunRegistry
 from cfdbender.core.run import execute_plan, judge_environment
 from cfdbender.core.settings import WorkspaceError, read_init, require_workspace
 from cfdbender.hpc import HpcProfile
@@ -590,7 +590,18 @@ def _execute_inner(
                 refusal = "--batch submits rows as scheduler jobs, and no HPC profile is selected"
             if refusal is not None:
                 raise WorkspaceError(refusal)
-            batches, split_warnings = batch_plans(plan, profiles, batch)
+            # A source already COMPLETED, and not run again, feeds its dependents as before;
+            # any other source that shares the job feeds them from the job script.
+            done = (
+                frozenset()
+                if getattr(args, "force_rerun_all", False)
+                else frozenset(
+                    r.point_id for r in RunRegistry(plan.root).read() if r.status == "COMPLETED"
+                )
+            )
+            batches, split_warnings = batch_plans(plan, profiles, batch, completed=done)
+            fed = {p.point_id: p for group in batches for p in group.points if p.restart_in_job}
+            plan = replace(plan, points=tuple(fed.get(p.point_id, p) for p in plan.points))
             for text in split_warnings:
                 warn_or_refuse(text, UserWarning, stacklevel=1)
             grouping = grouping_receipt(batches, batch)
@@ -651,7 +662,9 @@ def _execute_inner(
                             .relative_to(plan.root)
                             .as_posix(),
                         )
-                        if p.restart_directory and (decision.archive / p.restart_directory).is_dir()
+                        if p.restart_directory
+                        and not p.restart_in_job
+                        and (decision.archive / p.restart_directory).is_dir()
                         else p
                         for p in plan.points
                     ),
@@ -770,6 +783,12 @@ def _execute_inner(
             f"batch {group.batch_id}: {group.label} holds row(s) {', '.join(group.sims)}, "
             f"{len(group.points)} point(s); script {group.script}"
         )
+        for point in group.points:
+            if point.restart_in_job:
+                console.say(
+                    f"  {point.point_id} RESTART {point.restart_from}: fed inside the job, "
+                    "staged by the script when the source ends with status 0"
+                )
         for warning in group.submission.warnings:
             console.error(f"warning: {warning}")
         console.say(f"descriptor: {group.submission.descriptor_path.as_posix()}")

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import cast
@@ -10,6 +12,9 @@ from typing import cast
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.plan import workspace_path
 from cfdbender.core.registry import RunRegistry
+
+PENDING_FILE = "restart-pending.json"
+STAGED_FILE = "restart-staged.json"
 
 
 def source_folder(point: AdapterPoint) -> Path:
@@ -56,8 +61,69 @@ def copy_solution(folder: Path, files: Mapping[str, Path]) -> None:
             stream.write(source.read_bytes())
 
 
+def write_pending(folder: Path, point: AdapterPoint, staged: Mapping[str, Path]) -> None:
+    """Write the sidecar a job script reads to stage a RESTART solution after its source ends.
+
+    ``staged`` maps each file name the solver reads to the source file it is copied from. The
+    sidecar holds the names and the paths relative to the point folder; su2.cfg is not touched.
+    """
+    document = {
+        "source": point.point.restart_from,
+        "stage": {
+            name: os.path.relpath(path, folder).replace(os.sep, "/")
+            for name, path in staged.items()
+        },
+    }
+    (folder / PENDING_FILE).write_text(
+        json.dumps(document, indent=2, sort_keys=True) + chr(10), encoding="ascii"
+    )
+
+
+def stage_pending(folder: Path) -> None:
+    """Stage the solution a finished source wrote into this point folder, from its sidecar.
+
+    Each source file must exist and be non-empty. The copies are exclusive, and their SHA-256
+    digests go to ``restart-staged.json`` beside the sidecar, the record collect can read.
+
+    Raises
+    ------
+    ValueError
+        A missing sidecar, a missing or empty source file, or a file that exists.
+    """
+    folder = folder.resolve()
+    try:
+        document = json.loads((folder / PENDING_FILE).read_text(encoding="ascii"))
+        stage = dict(document["stage"])
+        source = str(document["source"])
+    except (OSError, ValueError, KeyError, TypeError) as failure:
+        raise ValueError(f"{PENDING_FILE} is missing or unreadable: {failure}") from failure
+    files = {name: (folder / relative).resolve() for name, relative in stage.items()}
+    for path in files.values():
+        if not path.is_file() or path.stat().st_size == 0:
+            raise ValueError(
+                f"RESTART {source}: the source wrote no restart file {path.name}; "
+                "the dependent point was not run"
+            )
+    copy_solution(folder, files)
+    digests = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in files.items()}
+    (folder / STAGED_FILE).write_text(
+        json.dumps({"source": source, "sha256": digests}, indent=2, sort_keys=True) + chr(10),
+        encoding="ascii",
+    )
+
+
 def check_restart(point: AdapterPoint, adapter: object) -> Mapping[str, Path]:
     """Check an adapter's selected solution before any record or archive is written."""
+    if point.point.restart_in_job:
+        if not getattr(adapter, "RESTART_IN_JOB", False):
+            raise ValueError(
+                f"{point.solver} cannot take the RESTART source {point.point.restart_from} "
+                "from the same batch job; run the source first and name it once completed"
+            )
+        predictor = getattr(adapter, "restart_files", None)
+        if predictor is not None:
+            predictor(point)  # refuses a source whose restart format is left to run time
+        return {}
     if point.point.restart_from is not None:
         reader = getattr(adapter, "restart_files", None)
         if reader is None:

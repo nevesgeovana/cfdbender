@@ -1456,6 +1456,9 @@ class Point:
     restart_from: str | None = None
     restart_directory: str | None = None
     restart_sha256: Mapping[str, str] = field(default_factory=dict)
+    #: The source of RESTART runs earlier in the same batch job: the solution is staged by the
+    #: job script after the source ends, so no digest is recorded at planning.
+    restart_in_job: bool = False
     defaults_omitted: tuple[str, ...] = ()
     numerics_id: str = ""
     #: The run type the row selects in its WORKFLOW cell; a steady record omits it.
@@ -1480,6 +1483,7 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "restart_from": None,
         "restart_directory": None,
         "restart_sha256": {},
+        "restart_in_job": False,
         "defaults_omitted": (),
         "numerics_id": "",
         "run_type": "steady",
