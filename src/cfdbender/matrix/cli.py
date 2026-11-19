@@ -734,6 +734,13 @@ def _execute_inner(
             f"PPROC={point.post_id} WALLTIME={point.walltime or 'NA'}"
             f"  {condition or 'no condition stated'}"
         )
+        stage = point.provenance.get("precursor")
+        if point.precursor and isinstance(stage, Mapping):
+            stop = stage.get("converge_to")
+            console.say(
+                f"    precursor: steady frozen-rotor stage first, {stage['iterations']} "
+                "iterations" + ("" if stop is None else f" at most, stopping at residual {stop:g}")
+            )
         labels = [
             f"{name}={value}"
             for name, value in (

@@ -108,14 +108,23 @@ def _command(
     config_name: str,
     resolved_application: str,
 ) -> list[str]:
-    """Return one run's command line: the row's own, as the single job would run it."""
+    """Return one run's command line: the row's own, as the single job would run it.
+
+    A point that runs in stages (the adapter's ``job_wrapper``, a script of its folder) runs
+    the row's command under it, without the configuration file: the script appends the file of
+    each stage, so a wrapper reads it as its last argument, as it does today.
+    """
     if "application_id" in overrides:
         raw = str(overrides["application_id"]).strip()
         if is_script_path(raw):
             relative = _relative(Path(resolved_application), folder)
             interpreter = INTERPRETERS.get(Path(raw).suffix.lower())
-            return [*([interpreter] if interpreter else []), relative, config_name]
-        return [raw, config_name]
+            command = [*([interpreter] if interpreter else []), relative, config_name]
+        else:
+            command = [raw, config_name]
+        wrapper = getattr(adapter, "job_wrapper", None)
+        prefix = list(cast(list[str], wrapper(context))) if wrapper is not None else []
+        return [*prefix, *command[:-1]] if prefix else command
     hook = getattr(adapter, "job_command", None)
     if hook is None:
         raise ValueError(

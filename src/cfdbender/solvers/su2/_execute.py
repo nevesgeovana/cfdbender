@@ -32,6 +32,17 @@ from cfdbender.solvers.su2._config import (
     render,
     staged_mesh,
 )
+from cfdbender.solvers.su2._precursor import (
+    CAP_WARNING,
+    EXIT_FAILED,
+    PRECURSOR_CFG,
+    PRECURSOR_LOG,
+    PRECURSOR_SCRIPT,
+    after_precursor,
+    capped,
+    failure,
+    stages,
+)
 from cfdbender.solvers.su2._restart import restart_files, restart_values, staged_solution
 from cfdbender.solvers.su2._run_types import SEGMENT_TWO, SEGMENTS_SCRIPT
 from cfdbender.solvers.su2.routes import select_route
@@ -52,7 +63,8 @@ def job_command(point: AdapterPoint) -> list[str]:
     The executable is named as stated (never resolved on this machine, because the job runs
     elsewhere): the launcher, ``SU2_CFD`` or the stated executable, then ``su2.cfg``.
     For an export window with two segments, the generated script runs this command with
-    each configuration in order.
+    each configuration in order; for a point with a frozen-rotor precursor, ``run_mrf.sh`` runs
+    this command once per stage, the stage's configuration file as its last argument.
     """
     declaration = read_init(point.root, available_solvers=("su2",))
     opts = options(point.setup, declaration.solver_options)
@@ -66,10 +78,23 @@ def job_command(point: AdapterPoint) -> list[str]:
         geometry=point.geometry,
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
     )
+    if point.point.precursor:
+        return [*job_wrapper(point), *command]
     if SEGMENT_TWO in extra_files(values):
         return ["sh", SEGMENTS_SCRIPT, *command]
     return [*command, "su2.cfg"]
+
+
+def job_wrapper(point: AdapterPoint) -> list[str]:
+    """Return the script a point's command runs under: ``run_mrf.sh`` for a precursor point.
+
+    A batch script puts it in front of a row's own command (an application wrapper script
+    included), without that command's last argument: the script appends the configuration
+    file of each stage. A point without a precursor has none.
+    """
+    return ["sh", PRECURSOR_SCRIPT] if point.point.precursor else []
 
 
 def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path) -> None:
@@ -108,6 +133,7 @@ def stage(point: AdapterPoint) -> None:
         geometry=point.geometry,
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
     )
     folder = workspace_path(point.root, point.point.directory)
     if folder.exists():
@@ -127,6 +153,7 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
         geometry=point.geometry,
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
     )
     raw_path = opts.get("pysu2_path") or os.environ.get("CFDBENDER_PYSU2_PATH")
     wrapper_path = None
@@ -201,6 +228,13 @@ def _run_owned(
     # A point with an export window runs its two segments in order, as run_segments.sh does
     # in a job: the second starts only when the first ended with status zero.
     segments = ["su2.cfg", *((SEGMENT_TWO,) if (folder / SEGMENT_TWO).is_file() else ())]
+    # A point with a precursor runs its steady stage first and stages its solution, as
+    # run_mrf.sh does in a job; stage 1 writes its own log.
+    spec = stages(values)
+    log = None
+    if spec is not None:
+        segments = [PRECURSOR_CFG, *spec.segments]
+        log = (folder / PRECURSOR_LOG).open("xb")
     try:
         with (
             (folder / "stdout.log").open("xb") as stdout,
@@ -213,12 +247,13 @@ def _run_owned(
                 code = 1
                 check_ram()
                 _ram.require_ram(number(opts["ram_estimate_gib"], "ram_estimate_gib"), solver="SU2")
+                first = log is not None and segment == PRECURSOR_CFG
                 process = subprocess.Popen(
                     [*argv[:-1], segment],
                     cwd=folder,
                     env=env,
-                    stdout=stdout,
-                    stderr=stderr,
+                    stdout=log if first else stdout,
+                    stderr=log if first else stderr,
                     stdin=subprocess.DEVNULL,
                     shell=False,
                     creationflags=_NO_WINDOW,
@@ -241,9 +276,22 @@ def _run_owned(
                         break
                     except subprocess.TimeoutExpired:
                         continue
+                if first and code != 0 and not timed_out:
+                    ended = f"the steady stage ended with status {code} (see {PRECURSOR_LOG})"
+                    note = failure(ended)
+                    stderr.write((note + chr(10)).encode("ascii"))
+                    code = EXIT_FAILED
+                elif first and code == 0 and spec is not None:
+                    if (verdict := after_precursor(folder, spec)) is not None:
+                        stderr.write((verdict[1] + chr(10)).encode("ascii"))
+                        code = verdict[0]
+                    elif spec.converge and capped(folder):
+                        stdout.write((CAP_WARNING + chr(10)).encode("ascii"))
                 if code != 0:
                     break
     finally:
+        if log is not None:
+            log.close()
         if process is not None and process.poll() is None:
             _kill_tree(process)
         (folder / "execution.json").write_text(

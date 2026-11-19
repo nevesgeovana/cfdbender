@@ -50,9 +50,10 @@ from cfdbender.core.run_types import (
 )
 from cfdbender.core.unsteady_clock import TimeStepping, rotor_time_stepping, unsteady_time_stepping
 from cfdbender.core.unsteady_window import LAST_ITERS_AVG, LAST_REVS_AVG, averaging_span, stated_key
+from cfdbender.solvers.su2._precursor import SOLUTION_NAME
 
 #: The setup keys of this module that are not SU2's own (PROVISIONAL names).
-SETUP_KEYS = ("periodic_markers", "sliding")
+SETUP_KEYS = ("periodic_markers", "sliding", "precursor")
 #: The neutral turbulence model names SU2 offers through cfdbender, and their keys.
 TURBULENCE_MODELS: Mapping[str, Mapping[str, object]] = {
     "SA": {"KIND_TURB_MODEL": "SA"},
@@ -274,6 +275,7 @@ def apply_run_type(
     periodic: PeriodicState,
     motion: Mapping[str, float],
     restarted: bool = False,
+    precursor: bool = False,
 ) -> dict[str, object]:
     """Write the SU2 keys run type ``run_type`` carries; return what the point records.
 
@@ -284,14 +286,20 @@ def apply_run_type(
     for second-order dual time stepping), and the solution is staged as the iterations before
     it. Its step ``s`` is SU2's time iteration ``s - 1 + offset`` and ``TIME_ITER``,
     ``WINDOW_START_ITER`` and the segment hand-over are shifted by the offset, so the point
-    still marches every step the row asks for.
+    still marches every step the row asks for. ``precursor`` (the row's ``RESTART`` is ``MRF``)
+    starts the point from a steady frozen-rotor solution of its own mesh, staged as the same
+    iterations before ``RESTART_ITER`` (:mod:`cfdbender.solvers.su2._precursor`): the point is
+    ``restarted`` in every other respect. Stage 1's files are written by ``config`` once every
+    key of the point is final, so both stages share one flow model.
     """
     record: dict[str, object] = {"run_type": run_type}
     if run_type == STEADY:
         return record
     before = set(values)
     try:
-        return _carried(values, run_type, record, setup, rotor, periodic, motion, restarted)
+        return _carried(
+            values, run_type, record, setup, rotor, periodic, motion, restarted, precursor
+        )
     finally:
         # The keys the run type wrote that no file or row stated: their origin is the run type.
         record["carried"] = sorted(key for key in values if key not in before)
@@ -306,6 +314,7 @@ def _carried(
     periodic: PeriodicState,
     motion: Mapping[str, float],
     restarted: bool = False,
+    precursor: bool = False,
 ) -> dict[str, object]:
     needs_rotor = run_type in (QSTEADY_ROTOR, UNSTEADY_ROTOR)
     rps: float | None = None
@@ -332,6 +341,12 @@ def _carried(
         write_rotation(values, rotor, rps)
         _periodic_marker(values, setup, rotor, periodic)
         return record
+    if precursor and (run_type != UNSTEADY_ROTOR or setup.get("sliding") is None):
+        raise ValueError(
+            "RESTART MRF needs a time-accurate sliding-mesh rotor row (WORKFLOW unsteady_rotor "
+            "and a [sliding] table in the setup file): there is no frozen-rotor solution of a "
+            "single zone to start from, and a cold start is the RESTART cell -"
+        )
     clock = _clock(run_type, setup, rotor, rps)
     window = averaging_window(run_type, setup, clock)
     exports = export_window(
@@ -340,7 +355,7 @@ def _carried(
         time_iterations=clock.time_iterations,
         steps_per_revolution=clock.steps_per_revolution,
     )
-    offset = _time_keys(values, clock, window, restarted=restarted)
+    offset = _time_keys(values, clock, window, restarted=restarted or precursor)
     if run_type == UNSTEADY_ROTOR:
         assert rotor is not None and rps is not None
         sliding = setup.get("sliding")
@@ -353,6 +368,8 @@ def _carried(
         export_segments(values, exports, offset)
     else:
         last_step_outputs(values)
+    if precursor:
+        values["SOLUTION_FILENAME"] = SOLUTION_NAME
     record.update(
         clock=clock.record(),
         averaging_window=list(window),

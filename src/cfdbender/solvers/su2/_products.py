@@ -201,6 +201,7 @@ def product_inputs(point: AdapterPoint) -> ProductInputs:
         geometry=point.geometry,
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
         record=record,
     )
     folder = workspace_path(point.root, point.point.directory)

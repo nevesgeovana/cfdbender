@@ -79,6 +79,7 @@ from cfdbender.solvers.su2._config import (
     staged_mesh,
 )
 from cfdbender.solvers.su2._execute import job_command as job_command
+from cfdbender.solvers.su2._execute import job_wrapper as job_wrapper
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import (
@@ -88,6 +89,7 @@ from cfdbender.solvers.su2._history import (
     read,
     residual_field,
 )
+from cfdbender.solvers.su2._precursor import settings as precursor_settings
 from cfdbender.solvers.su2._products import PRODUCTS as PRODUCTS
 from cfdbender.solvers.su2._products import product_inputs as product_inputs
 from cfdbender.solvers.su2._restart import restart_files as restart_files
@@ -103,6 +105,8 @@ SOLVER_NAME = "su2"
 CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
 #: A RESTART source of the same batch job is staged by the job script after it ends.
 RESTART_IN_JOB = True
+#: A time-accurate sliding rotor row may start from its own steady frozen-rotor stage (``MRF``).
+PRECURSOR = True
 #: The run types the adapter offers (pyflightstream's names), all four.
 OFFERED_RUN_TYPES = RUN_TYPES
 SOLVER_TYPE = "SU2"
@@ -211,6 +215,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             run_type=kind,
             record=record,
             restarted=row.restart_from is not None,
+            precursor=row.precursor and kind in TIME_ACCURATE,
         )
         validate_tracked_groups(workspace.setup, workspace, mesh_name(values))
     extra = tuple(extra_files(values))
@@ -228,17 +233,20 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
                 *extra,
             )
         ),
-        _provenance(kind, workspace, values),
+        _provenance(kind, workspace, values, row.precursor and kind in TIME_ACCURATE),
         {key: f"run type {kind}" for key in cast(list[str], record.get("carried", []))},
     )
 
 
-def _provenance(kind: str, workspace: RowInputs, values: Mapping[str, object]) -> dict[str, object]:
+def _provenance(
+    kind: str, workspace: RowInputs, values: Mapping[str, object], precursor: bool = False
+) -> dict[str, object]:
     """Return what the record states about the run type and the turbulence model.
 
     The run type, the identity of its declaration set (``su2/<run type>``), the numerics id
     and the turbulence model with the file or row that chose it. A steady row that names no
-    model states nothing new, so its record keeps its earlier bytes.
+    model states nothing new, so its record keeps its earlier bytes. A row with a frozen-rotor
+    precursor adds its iterations and stop level.
     """
     stated = workspace.setup.get(TURBULENCE_MODEL)
     if kind == STEADY and stated is None:
@@ -250,13 +258,17 @@ def _provenance(kind: str, workspace: RowInputs, values: Mapping[str, object]) -
         origin = workspace.origins.get(TURBULENCE_MODEL, "row")
     else:
         origin = workspace.origins.get("KIND_TURB_MODEL", "setup")
-    return {
+    found: dict[str, object] = {
         "run_type": kind,
         "declarations": f"su2/{kind}",
         "numerics_id": workspace.numerics_id or None,
         "turbulence_model": None if model is None else str(model),
         "turbulence_model_from": origin,
     }
+    if precursor:
+        chosen = precursor_settings(workspace.setup)
+        found["precursor"] = {"iterations": chosen.iterations, "converge_to": chosen.converge_to}
+    return found
 
 
 _FLOW_SETUP_KEYS = {
@@ -304,6 +316,7 @@ def translate(point: AdapterPoint) -> str:
             geometry=point.geometry,
             run_type=point.point.run_type,
             restarted=point.point.restart_from is not None,
+            precursor=point.point.precursor,
         )
         point_markers(point, mesh_name(values))
     return render(
@@ -317,6 +330,7 @@ def translate(point: AdapterPoint) -> str:
                 geometry=point.geometry,
                 run_type=point.point.run_type,
                 restarted=point.point.restart_from is not None,
+                precursor=point.point.precursor,
             ),
         )
     )
@@ -447,6 +461,7 @@ def _rotor(
         geometry=point.geometry,
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
     )
     if averaged is not None and "skipped" in averaged:
         return {"rotor": rotor.alias, "skipped": averaged["skipped"]}
@@ -492,6 +507,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
                     geometry=point.geometry,
                     run_type=point.point.run_type,
                     restarted=point.point.restart_from is not None,
+                    precursor=point.point.precursor,
                 )
             )
             files.warn(
@@ -513,6 +529,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
             geometry=point.geometry,
             run_type=point.point.run_type,
             restarted=point.point.restart_from is not None,
+            precursor=point.point.precursor,
             record=record,
         )
         averaged = _time_average(point, folder, record, tuple(coefficients))

@@ -54,6 +54,19 @@ folders. Existing evidence is preserved. This option cannot be combined with
 `--resume` or the force-rerun options. `--resume` selects points to run and does
 not request saved solution state.
 
+### Starting a sliding-mesh row from its own frozen-rotor solution
+
+`RESTART` = `MRF` is not a source point. It runs a steady stage on the row's own two-zone mesh in
+the same point folder and job, and starts the time-accurate stage from its solution; the folder
+holds `precursor.cfg`, `pre_zone_<i>.cfg`, `run_mrf.sh`, `precursor.log`, `precursor.csv` and the
+staged `solution_<zone>_<level>.dat` files beside `su2.cfg`. The record of the point states
+`precursor` (true) and, in its provenance, the iterations and the stop level. A row with `-`
+records nothing new. The point is judged on the time-accurate stage as before (`su2.csv`); the
+steady stage's history is evidence only. A failed steady stage ends the job with status 91 to 94
+and a `PRECURSOR_FAILED` line in the point's `stderr.log`; the point is then recorded failed.
+`--force-rerun-all` writes the stage files again with the new batch. See
+[SU2 workspaces](su2-workspaces.md#run-types).
+
 ### A source that runs earlier in the same job
 
 With `--batch N`, a source that is not completed yet is accepted when it is in the same job as the
