@@ -65,6 +65,7 @@ versions follow SemVer and are independent of solver versions.
 ### Fixed
 
 - A `RESTART` that meets a two-zone (sliding-mesh) point, as its source or as the dependent, is refused at planning and submission with `RESTART <source>: a two-zone (sliding-mesh) restart is not supported; run the sliding point cold`, in the same batch job or from a completed point, instead of failing when the run starts.
+- A grouped (`--batch`) run whose script reported a non-zero exit status and left no solver output is recorded as failed with that status and the first line of its error log, instead of staying outstanding.
 - A sliding-mesh point's history is read from `su2.csv`, the name SU2 gives a multizone run's history after its master configuration whatever `CONV_FILENAME` states, with the loads of the turning zone and the residual of every zone, so a successful sliding point is no longer recorded as failed for want of `history.csv`.
 - A sliding-mesh `unsteady_rotor` point writes `KIND_INTERPOLATION= NEAREST_NEIGHBOR`, SU2's own default, unless the setup states the key, whose value is kept. `WEIGHTED_AVERAGE`, the value written before, was seen to diverge at the first step on SU2 8.3.0 and 8.6.0.
 - A Windows drive path in a multi-field executable entry is refused on a POSIX host with a sentence naming the field, instead of being resolved as a folder name under the workspace. The workspace layout page states that input digests describe raw bytes, so the same text with LF and CRLF line endings has different digests.
