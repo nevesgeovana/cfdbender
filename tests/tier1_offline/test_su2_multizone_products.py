@@ -194,3 +194,35 @@ def test_the_zone_of_each_marker_is_read_from_the_mesh(tmp_path):
     assert zone_markers(path) == {"wing": 0, "X_OUT": 0, "B1": 1, "X_IN": 1}
     path.write_text("NDIME= 3\nMARKER_TAG= a\n  MARKER_TAG = b % note\n", encoding="ascii")
     assert zone_markers(path) == {"a": 0, "b": 0}
+
+
+def _samplers(tmp_path, shift_second):
+    from cfdbender.post.volume import VolumeSampler
+    from cfdbender.post.vtu import read_vtu
+
+    block_volume(tmp_path / "a.vtu", 1000.0)
+    block_volume(tmp_path / "b.vtu", 5000.0, shift_x=shift_second)
+    return [VolumeSampler(read_vtu(tmp_path / name)) for name in ("a.vtu", "b.vtu")]
+
+
+def test_a_point_in_two_zones_takes_the_value_of_the_first_zone_in_order(tmp_path):
+    from cfdbender.post.volume import ZonedSampler
+
+    first, second = _samplers(tmp_path, 0.0)
+    point = [[0.5, 0.5, 0.5]]
+    a = first.sample(point, ["Pressure"]).values["Pressure"][0]
+    b = second.sample(point, ["Pressure"]).values["Pressure"][0]
+    assert a != b
+    forward = ZonedSampler([first, second]).sample(point, ["Pressure"])
+    backward = ZonedSampler([second, first]).sample(point, ["Pressure"])
+    assert forward.values["Pressure"][0] == a
+    assert backward.values["Pressure"][0] == b
+
+
+def test_a_point_on_a_face_is_found_in_the_zone_that_has_the_face(tmp_path):
+    from cfdbender.post.volume import ZonedSampler
+
+    first, second = _samplers(tmp_path, 4.0)
+    # x -1 face of the first block, y -1 face of the second (x 3 to 6), and the gap between
+    result = ZonedSampler([first, second]).sample([[-1.0, 0.0, 0.0], [5.0, -1.0, 0.0], [2.5, 0, 0]])
+    assert list(result.found) == [True, True, False]
