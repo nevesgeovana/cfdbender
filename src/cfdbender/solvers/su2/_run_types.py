@@ -446,7 +446,7 @@ def _zones(
     values["CONFIG_LIST"] = [f"zone_{i}.cfg" for i in range(zones)]
     values.setdefault("MARKER_ZONE_INTERFACE", list(pair))
     values.setdefault("MARKER_FLUID_INTERFACE", list(pair))
-    values.setdefault("KIND_INTERPOLATION", "WEIGHTED_AVERAGE")
+    values.setdefault("KIND_INTERPOLATION", "NEAREST_NEIGHBOR")
     # A multizone time step iterates the zones OUTER_ITER times, each zone once per pass.
     if "INNER_ITER" in values and "OUTER_ITER" not in values:
         values["OUTER_ITER"] = values.pop("INNER_ITER")

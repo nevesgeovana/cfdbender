@@ -62,6 +62,7 @@ versions follow SemVer and are independent of solver versions.
 
 ### Fixed
 
+- A sliding-mesh `unsteady_rotor` point writes `KIND_INTERPOLATION= NEAREST_NEIGHBOR`, SU2's own default, unless the setup states the key, whose value is kept. `WEIGHTED_AVERAGE`, the value written before, was seen to diverge at the first step on SU2 8.3.0 and 8.6.0.
 - A Windows drive path in a multi-field executable entry is refused on a POSIX host with a sentence naming the field, instead of being resolved as a folder name under the workspace. The workspace layout page states that input digests describe raw bytes, so the same text with LF and CRLF line endings has different digests.
 - Planning with large meshes is fast: `cfd-matrix plan` reads and hashes each input file once per plan instead of once per point, streams files above 8 MiB in blocks instead of holding them in memory, and checks SU2 marker groups in the same pass. The recorded input digests keep their values, keys and order.
 - `run` and `collect` no longer read a large input once per point. A large input is read and hashed once, when it is first seen, and later commands reuse its digest while the file's size, timestamps and inode are unchanged. Scheduler submission goes through the same reader. Registry digests are streamed, so a large mesh is no longer held in memory.
