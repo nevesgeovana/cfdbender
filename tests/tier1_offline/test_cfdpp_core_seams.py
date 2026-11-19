@@ -73,7 +73,8 @@ def test_cfdpp_seam_the_local_file_replaces_fields(tmp_path):
 
 
 def test_cfdpp_seam_an_undeclared_build_is_refused_at_plan_for_a_fields_adapter(tmp_path):
-    root = registry(tmp_path, ENTRY)
+    vendor = (tmp_path / "vendor").as_posix()  # absolute on every platform
+    root = registry(tmp_path, ENTRY.replace("C:/vendor", vendor))
     adapter = SimpleNamespace(EXECUTABLE_FIELDS=FIELDS)
     check_builds(root, "cfdpp", adapter, ["22.5.U3"])
     with pytest.raises(WorkspaceError, match="SOLVER_BUILD '23.1' is not declared under"):
