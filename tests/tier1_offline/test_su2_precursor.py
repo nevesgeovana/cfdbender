@@ -744,8 +744,11 @@ def local(root, **kwargs):
     point = load_point(root, plan.points[0], solver="su2")
     try:
         run(point, lambda: None)
-    except Exception as error:  # noqa: BLE001 - the host RAM guard may refuse on a busy machine
-        pytest.skip(f"the local route is not available here: {error}")
+    except ValueError as error:
+        # Only the host's own memory refusal skips; any other failure of the local path is a defect.
+        if "would breach the 0.5 GiB floor" not in str(error):
+            raise
+        pytest.skip(f"the host is short of memory: {error}")
     folder = root / plan.points[0].directory
     return folder, json.loads((folder / "execution.json").read_text())["exit_code"]
 
