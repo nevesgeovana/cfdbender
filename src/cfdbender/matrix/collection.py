@@ -31,7 +31,7 @@ from cfdbender.core.settings import read_init
 from cfdbender.matrix._declared import matrix_products
 from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix._tree_migration import warn_retired
-from cfdbender.matrix._unsteady_polar import left_out
+from cfdbender.matrix._unsteady_polar import airframe_absent, left_out
 from cfdbender.matrix.batch import batch_exit_written, batch_status
 from cfdbender.matrix.exports import _write as _write_product
 from cfdbender.matrix.exports import write_polar_files
@@ -449,7 +449,11 @@ def collect_workspace(
                 polar,
                 migrated,
                 details=details,
-                declared_skips=(*declared_skips, *left_out(rows, Path(name).stem)),
+                declared_skips=(
+                    *declared_skips,
+                    *left_out(rows, Path(name).stem),
+                    *airframe_absent(rows, Path(name).stem),
+                ),
             )
         )
     if archive:

@@ -273,6 +273,21 @@ def _zone_headers(folder: Path, headers: list[str]) -> list[str]:
     keys = _segment_configs(folder, required=False)[0]
     if not _yes(keys, "MULTIZONE"):
         return headers
+    zone, _ = _zones(folder, keys)
+    pattern = re.compile(rf"([A-Za-z]+)\[{zone}\](.*)")
+    renamed: list[str] = []
+    for key in headers:
+        found = pattern.fullmatch(key)
+        renamed.append(found[1] + found[2] if found and found[1] in _AXES else key)
+    return renamed
+
+
+def _zones(folder: Path, keys: Mapping[str, str]) -> tuple[int, int]:
+    """Return the turning zone of a multizone point and the number of its zones.
+
+    The turning zone is the one whose zone file states a grid motion; anything but exactly one
+    is refused, naming the zone files.
+    """
     names = re.findall(r"zone_\d+[.]cfg", keys.get("CONFIG_LIST", ""))
     moving = [
         index
@@ -290,13 +305,83 @@ def _zone_headers(folder: Path, headers: list[str]) -> list[str]:
             f"{len(moving)} of the zone files {', '.join(names)} state a grid motion"
             + (f" ({', '.join(f'zone_{i}.cfg' for i in moving)})" if moving else "")
         )
-    zone = moving[0]
-    pattern = re.compile(rf"([A-Za-z]+)\[{zone}\](.*)")
-    renamed: list[str] = []
-    for key in headers:
-        found = pattern.fullmatch(key)
-        renamed.append(found[1] + found[2] if found and found[1] in _AXES else key)
-    return renamed
+    return moving[0], len(names)
+
+
+#: Appended to a load's single-zone name for the same load of the stationary zone (the airframe)
+#: in a table that also holds the turning zone's: ``CL`` is the rotor's, ``CL_AIRFRAME`` the
+#: airframe's.
+AIRFRAME_SUFFIX = "_AIRFRAME"
+
+
+@dataclass(frozen=True)
+class Airframe:
+    """The stationary zone's loads of a multizone point, or why they are absent.
+
+    Attributes
+    ----------
+    zone : int or None
+        The stationary zone; None when the point has no single one.
+    coefficients : mapping of str to Coefficient
+        The last row's loads under the names of a single-zone point (``CL``, ``CMy``), in
+        order; empty when they are absent.
+    absent : str or None
+        The reason the loads are absent; None when they are present.
+    """
+
+    zone: int | None
+    coefficients: Mapping[str, Coefficient]
+    absent: str | None = None
+
+
+def airframe(folder: Path) -> Airframe | None:
+    """Return the stationary zone's loads of a multizone point; None for a single-zone one.
+
+    SU2 writes the loads of zone ``z`` as ``CD[z]``. The airframe is the one zone that does not
+    turn. Its loads are absent, with the reason, when the point has no single stationary zone,
+    when the history holds no load column of it, or when every one of them is exactly zero in
+    every row, which is what a zone with no monitored wall writes.
+    """
+    keys = _segment_configs(folder, required=False)[0]
+    if not _yes(keys, "MULTIZONE"):
+        return None
+    try:
+        turning, count = _zones(folder, keys)
+    except ValueError as error:
+        return Airframe(None, {}, str(error))
+    if count != 2:
+        return Airframe(None, {}, f"the point has {count} zones; one stationary zone is expected")
+    zone = 1 - turning
+    try:
+        headers, rows = history_table(folder)
+    except (OSError, ValueError) as error:
+        return Airframe(zone, {}, str(error))
+    columns = {name: f"{name}[{zone}]" for name in _AXES if f"{name}[{zone}]" in headers}
+    if not columns:
+        return Airframe(
+            zone, {}, f"the history holds no load column of zone {zone}: it monitors no wall"
+        )
+    index = {name: headers.index(column) for name, column in columns.items()}
+    try:
+        table = [{name: float(cells[at]) for name, at in index.items()} for cells in rows]
+    except (ValueError, IndexError) as error:
+        return Airframe(zone, {}, f"the loads of zone {zone} cannot be read: {error}")
+    if not table or not all(math.isfinite(v) for row in table for v in row.values()):
+        return Airframe(zone, {}, f"the loads of zone {zone} are not finite")
+    if all(v == 0.0 for row in table for v in row.values()):
+        return Airframe(
+            zone, {}, f"every load of zone {zone} is zero in every row: it monitors no wall"
+        )
+    coefficients: dict[str, Coefficient] = {
+        name: _FramedCoefficient(
+            table[-1][name],
+            _AXES[name][0],
+            _AXES[name][1],
+            "wind" if name in ("CL", "CD", "CSF") else "body",
+        )
+        for name in columns
+    }
+    return Airframe(zone, coefficients)
 
 
 #: The counters of a history row the adapter reads.

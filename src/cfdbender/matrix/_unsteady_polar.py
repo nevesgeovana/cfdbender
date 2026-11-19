@@ -49,6 +49,33 @@ def left_out(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str
     return tuple(found)
 
 
+def airframe_absent(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str, str], ...]:
+    """Name each point of the unsteady polar whose stationary zone's columns are absent, with why.
+
+    A multizone point whose stationary zone monitors no wall (or whose loads cannot be read)
+    has no airframe column in ``polars/P<pol>_<name>_uns_avg.csv``; the entry is
+    ``(<file>#airframe,point=<id>, <reason>)``. A point with its airframe columns, and a
+    single-zone point, names nothing.
+    """
+    found: list[tuple[str, str]] = []
+    for row in rows:
+        result = cast(Mapping[str, object], row.get("result") or {})
+        averaged = result.get("time_average")
+        block = result.get("airframe")
+        if (
+            isinstance(averaged, dict)
+            and isinstance(averaged.get("means"), dict)
+            and isinstance(block, dict)
+            and "absent" in block
+        ):
+            product = (
+                f"polars/{unsteady_polar_name(str(row['pol']), name)}"
+                f"#airframe,point={row['point_id']}"
+            )
+            found.append((product, f"airframe columns absent: {block['absent']}"))
+    return tuple(found)
+
+
 def unsteady_polars(
     folder: Path,
     rows: Sequence[Mapping[str, object]],
