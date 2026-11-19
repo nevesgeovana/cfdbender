@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from test_restart_in_job import CLOCK, batch, build, row, source_id_for, write_matrix
+import pytest
+from test_restart_in_job import CLOCK, batch, build, cli_m, row, source_id_for, write_matrix
 
 SLIDING = '[sliding]\nzones = 2\nrotating_zone = 0\ninterface = ["X_OUT", "X_IN"]\n'
 MESSAGE = "a two-zone (sliding-mesh) restart is not supported; run the sliding point cold"
@@ -29,11 +30,27 @@ def test_a_steady_source_with_a_sliding_dependent_in_one_batch_is_refused(tmp_pa
     )
     assert batch(tmp_path, command="plan") == 0
     assert batch(tmp_path) == 2
-    assert "two-zone" in capsys.readouterr().err
+    assert f"RESTART {source}: {MESSAGE}" in capsys.readouterr().err
 
 
-def test_a_completed_two_zone_source_is_refused_from_its_saved_configuration(tmp_path, capsys):
-    from test_restart_in_job import cli_m, point_of, run_script
+def test_the_refusal_stands_under_a_forced_rerun_of_the_batch(tmp_path, capsys):
+    build(tmp_path, [row(7001, "unsteady_rotor", CLOCK)], setup=SLIDING)
+    source = source_id_for(tmp_path)
+    write_matrix(
+        tmp_path,
+        [row(7001, "unsteady_rotor", CLOCK), row(7002, "qsteady_rotor", "-", source)],
+    )
+    assert batch(tmp_path, command="plan") == 0
+    capsys.readouterr()
+    assert batch(tmp_path, "--force-rerun-all") == 2
+    assert f"RESTART {source}: {MESSAGE}" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("options", [(), ("--resume",)])
+def test_a_completed_two_zone_source_is_refused_from_its_saved_configuration(
+    tmp_path, capsys, options
+):
+    from test_restart_in_job import point_of, run_script
 
     build(tmp_path, [row(7001, "qsteady_rotor")])
     source = source_id_for(tmp_path)
@@ -48,5 +65,5 @@ def test_a_completed_two_zone_source_is_refused_from_its_saved_configuration(tmp
     )
     assert cli_m(tmp_path, "plan") in (0, 2)
     capsys.readouterr()
-    assert cli_m(tmp_path, "run") == 2
-    assert "two-zone" in capsys.readouterr().err
+    assert cli_m(tmp_path, "run", *options) == 2
+    assert f"RESTART {source}: {MESSAGE}" in capsys.readouterr().err
