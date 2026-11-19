@@ -819,3 +819,23 @@ def test_a_local_cap_hit_with_a_stop_level_warns_in_the_point_log(tmp_path):
     folder, code = local(root)
     assert code == 0
     assert "PRECURSOR_WARNING" in (folder / "stdout.log").read_text()
+
+
+# ---- the two histories ----------------------------------------------------------------------
+
+
+def test_the_two_stages_name_their_histories_after_their_master_files(tmp_path):
+    from cfdbender.solvers.su2._history import MULTIZONE_HISTORY_STEM
+
+    mrf_workspace(tmp_path)
+    _, _, _, files = deck(tmp_path)
+    assert keys(files["precursor.cfg"])["MULTIZONE"] == "YES"
+    # SU2 8.6.0 names a multizone history after its master file: precursor.csv and su2.csv
+    assert Path(pre.PRECURSOR_CFG).stem + ".csv" == pre.PRECURSOR_HISTORY
+    assert MULTIZONE_HISTORY_STEM + ".csv" != pre.PRECURSOR_HISTORY
+
+
+def test_a_setup_cannot_name_a_history_that_would_make_the_stages_share_one(tmp_path):
+    mrf_workspace(tmp_path, setup='CONV_FILENAME = "precursor"\n')
+    with pytest.raises(Exception, match="CONV_FILENAME must be history"):
+        plan_workspace(tmp_path, "m")
