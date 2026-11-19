@@ -162,8 +162,10 @@ line: a job of the earlier submission may still be running, and cancelling it is
 action, because the library does not talk to the scheduler. The option works with
 `--points`, `--sims` and `--batch` (plan the batch again first: it gets a new folder,
 and the folder of the earlier batch stays where it is).
-Only the validity of the inputs and of the row still refuses a point, for example a
-missing mesh or an input changed after planning. The option cannot be combined with
+Only two things still refuse. The validity of the inputs and of the row refuses a point, for
+example a missing mesh or an input changed after planning. A point folder or output that
+exists with no record is data the registry does not know, so it refuses with
+`existing output; refusing overwrite`; move or delete it yourself and run again. The option cannot be combined with
 `--resume`, and cannot be combined with `--force-rerun`.
 
 ## Reading the records

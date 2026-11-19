@@ -209,7 +209,9 @@ def build_parser() -> tuple[
         help="run every selected point again whatever its recorded state, a SUBMITTED or "
         "RUNNING one included; recorded points are archived as --force-rerun archives, "
         "and a job of an earlier submission is not canceled (a warning says so), "
-        "cancel it in the scheduler",
+        "cancel it in the scheduler. Still refused: invalid inputs or rows, a point folder "
+        "or output with no record, and under --batch a grouping that differs from the plan "
+        "in more than the batch folder numbers",
     )
     collect_parser = commands.add_parser(
         "collect",

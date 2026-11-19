@@ -206,7 +206,8 @@ Rows of one job whose `hpc.<name>` entries (or `cluster`) disagree are refused,
 naming both rows: a job has one value of each. `hpc.application_id` may differ
 between rows, because each run has its own command. `--batch` needs an HPC profile,
 cannot be combined with `--local`, `--resume`, `--restart` or `--force-rerun` (it takes
-`--force-rerun-all`), and
+`--force-rerun-all`: a forced rerun of a grouped submission needs no new plan when only
+the batch folder numbers moved, and the new batch gets a new folder), and
 `run --batch N` needs a `plan --batch N` made for the same N. A solver adapter
 without a command line of its own (`job_command`) is grouped only for rows that state
 `hpc.application_id`.
