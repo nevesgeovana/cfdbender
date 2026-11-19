@@ -616,6 +616,22 @@ def test_a_wrapper_that_ignores_the_stage_file_is_caught(tmp_path):
 
 
 @needs_sh
+def test_a_wrapper_that_ignores_the_stage_file_and_exits_zero_is_caught(tmp_path):
+    mrf_workspace(tmp_path, extra=WRAPPER_ROW)
+    (tmp_path / "tools/su2.sh").write_text(
+        "#!/bin/sh\necho su2.cfg >> calls.txt\nexit 0\n", newline="\n"
+    )
+    run_batch(tmp_path)
+    folder = folder_of(tmp_path)
+    assert (folder / "job.exit").read_text().strip() == "93"
+    assert (folder / "calls.txt").read_text().split() == ["su2.cfg"]
+    assert not list(folder.glob("solution_*"))
+    line = (folder / "stderr.log").read_text().strip()
+    assert "wrote no precursor_restart_0.dat" in line
+    assert "must run the configuration file it is given as its last argument" in line
+
+
+@needs_sh
 def test_stage_two_failing_returns_its_own_status(tmp_path):
     mrf_workspace(tmp_path)
     (tmp_path / "tools/su2.sh").write_text(

@@ -245,6 +245,7 @@ def failure(what: str) -> str:
 
 
 #: What each failure says (the script and the local run use the same words).
+LAST_ARGUMENT = "; the command must run the configuration file it is given as its last argument"
 NAN_FOUND = f"{PRECURSOR_HISTORY} holds NaN"
 CAP_WARNING = (
     "PRECURSOR_WARNING: the steady stage reached its iteration cap "
@@ -269,7 +270,6 @@ def script_text(spec: Stages) -> str:
     script's.
     """
     ran = f"the steady stage ended with status $rc (see {PRECURSOR_LOG})"
-    hint = "; the command must run the configuration file it is given as its last argument"
     lines = [
         "#!/bin/sh",
         "# Run a point that starts from a steady frozen-rotor solution of its own mesh.",
@@ -283,7 +283,7 @@ def script_text(spec: Stages) -> str:
         f'"$@" {PRECURSOR_CFG} > {PRECURSOR_LOG} 2>&1',
         "rc=$?",
         'if [ "$rc" -ne 0 ]; then',
-        f"  {_say(failure(ran + hint))}",
+        f"  {_say(failure(ran + LAST_ARGUMENT))}",
         f"  exit {EXIT_FAILED}",
         "fi",
         f"if grep -qiE {_sh(NAN)} {PRECURSOR_HISTORY} 2> /dev/null; then",
@@ -294,7 +294,7 @@ def script_text(spec: Stages) -> str:
     for source, _ in staged_names(spec.zones, 1):
         lines += [
             f"if [ ! -s {source} ]; then",
-            f"  {_say(failure(f'the steady stage wrote no {source}'))}",
+            f"  {_say(failure(f'the steady stage wrote no {source}' + LAST_ARGUMENT))}",
             f"  exit {EXIT_NO_RESTART}",
             "fi",
         ]
@@ -331,7 +331,7 @@ def after_precursor(folder: Path, spec: Stages) -> tuple[int, str] | None:
     for source, _ in staged_names(spec.zones, 1):
         path = folder / source
         if not path.is_file() or path.stat().st_size == 0:
-            return EXIT_NO_RESTART, failure(f"the steady stage wrote no {source}")
+            return EXIT_NO_RESTART, failure(f"the steady stage wrote no {source}" + LAST_ARGUMENT)
     for source, name in staged_names(spec.zones, spec.levels):
         try:
             shutil.copyfile(folder / source, folder / name)
