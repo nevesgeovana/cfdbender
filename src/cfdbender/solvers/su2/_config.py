@@ -26,6 +26,7 @@ from cfdbender.core.rotor import (
     periodic_state,
     rotation_rate,
     rotor_block,
+    shaft_axis,
 )
 from cfdbender.solvers._host._config import number as number
 from cfdbender.solvers._host._config import unknown_keys
@@ -258,11 +259,14 @@ def config(
     geometry: str | None = None,
     run_type: str = "steady",
     record: dict[str, object] | None = None,
+    restarted: bool = False,
 ) -> dict[str, object]:
     """Return the SU2 keys of one point: the s/r/p files, the row and its run type's keys.
 
     ``record``, when given, receives what the run type resolved (its clock and windows).
+    ``restarted`` states that the point starts from a saved solution (the row's RESTART).
     """
+    from cfdbender.solvers.su2._products import product_outputs
     from cfdbender.solvers.su2._run_types import SETUP_KEYS, apply_run_type, turbulence
 
     options(setup)
@@ -281,6 +285,20 @@ def config(
     if rpm is not None and run_type == "steady":
         raise ValueError("the SU2 adapter does not read FLIGHT_CONDITION key RPM")
     rotor = rotor_block(reference)
+    if rotor is not None:
+        block = cast(Mapping[str, object], reference[rotor.name])
+        shaft, _ = shaft_axis(block["axis"], rotor.name)
+        if shaft != "X":
+            raise ValueError(
+                f"REF file {rotor.name}.axis names shaft {shaft}: the SU2 adapter runs the "
+                'rotor in an axial flow along +x, so it reads the shaft "X" only'
+            )
+    symmetry = str(setup.get("SYMMETRY", "NONE")).strip().upper()
+    if symmetry not in {"NONE", "PERIODIC"}:
+        raise ValueError(
+            f"SYMMETRY {symmetry} is not read by the SU2 adapter: it reads NONE or PERIODIC "
+            "(a mirror plane is a marker of the setup)"
+        )
     periodic = periodic_state(setup)
     if geometry is not None:
         derived["MESH_FILENAME"] = geometry
@@ -398,6 +416,7 @@ def config(
     _history_output(values)
     _cfl_ramp(values, ramp)
     _fluid_model(values)
+    product_outputs(values, post)
     turbulence(values, setup)
     if run_type == "steady":
         if advance is not None:
@@ -411,7 +430,13 @@ def config(
             if value is not None
         }
         resolved = apply_run_type(
-            values, run_type, setup=setup, rotor=rotor, periodic=periodic, motion=motion
+            values,
+            run_type,
+            setup=setup,
+            rotor=rotor,
+            periodic=periodic,
+            motion=motion,
+            restarted=restarted,
         )
         if record is not None:
             record.update(resolved)
@@ -707,6 +732,24 @@ def free_stream(values: Mapping[str, object]) -> FreeStream | None:
     motion = number(values.get("MACH_MOTION", mach), "MACH_MOTION") * sonic
     pressure_q = None if density is None else 0.5 * density * motion * motion
     return FreeStream(mach, sonic, velocity, density, pressure_q)
+
+
+def gas_state(values: Mapping[str, object]) -> tuple[float, float] | None:
+    """Return the deck's gas constant and free-stream temperature, None for a non-ideal gas.
+
+    The same constants :func:`free_stream` reads: STANDARD_AIR is SU2's own air.
+    """
+    model = _upper(values, "FLUID_MODEL")
+    if model == "STANDARD_AIR":
+        gas = SU2_AIR["GAS_CONSTANT"]
+    elif model in {"", "IDEAL_GAS"}:
+        gas = number(values.get("GAS_CONSTANT", SU2_AIR["GAS_CONSTANT"]), "GAS_CONSTANT")
+    else:
+        return None
+    temperature = number(
+        values.get("FREESTREAM_TEMPERATURE", SU2_DEFAULT_TEMPERATURE), "FREESTREAM_TEMPERATURE"
+    )
+    return gas, temperature
 
 
 def _vector_text(vector: Sequence[float]) -> str:

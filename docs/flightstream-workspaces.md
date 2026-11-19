@@ -15,7 +15,9 @@ every `pyfs-matrix` command and flag through `cfd-matrix`, and every
 that act on what the workspace holds (`space-in-use`, `free-space`,
 `delete-sims`, `sync`, `restore`, `rebuild`, `mark-failed`, `mark-converged`,
 `show`, `log`, `trace`, `history` and `diff`) are typed on `cfd-workspace` for
-every solver; `cfd-workspace` hands them to `pyfs-matrix`, which owns them. In a
+every solver; `cfd-workspace` hands them to `pyfs-matrix`, which owns them. The one other typed verb, `setups`, is cfdbender's
+own: `cfd-workspace` answers it itself in every workspace, a FlightStream one
+included, because pyflightstream has no such verb. In a
 FlightStream workspace `cfd-matrix` still hands the old form to `pyfs-matrix` as it
 hands every other command. Arguments and help
 are provided by pyflightstream. See the

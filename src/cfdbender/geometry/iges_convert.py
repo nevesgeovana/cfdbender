@@ -120,8 +120,8 @@ def _convert(sources: Sequence[str | Path], out: str | Path, name_encoding: str)
         after = _types(gmsh, model.faces)
         centres = _centres(gmsh, model.faces)
         size = _diagonal(gmsh)
-        # The import is in millimetres; the model now holds the first file's unit, which the
-        # writer labels as millimetres, so the unit flag is set back on the named copy below.
+        # The import is in millimeters; the model now holds the first file's unit, which the
+        # writer labels as millimeters, so the unit flag is set back on the named copy below.
         with tempfile.TemporaryDirectory() as folder:
             raw = Path(folder) / "faces.igs"
             gmsh.write(str(raw))
@@ -146,7 +146,7 @@ def _convert(sources: Sequence[str | Path], out: str | Path, name_encoding: str)
             if distance > tolerance:
                 raise InputArtifactError(
                     f"{target}: the written faces do not read back in the order they were "
-                    f"written (largest centre distance {distance:g} {model.unit}), so no face "
+                    f"written (largest center distance {distance:g} {model.unit}), so no face "
                     "can carry its name. Nothing was written.",
                     kind="geometry",
                 )
@@ -271,7 +271,7 @@ def _diagonal(gmsh: Any) -> float:
 
 
 def _read_back(gmsh: Any, path: Path, expected: int) -> list[tuple[float, ...]]:
-    """Import a written IGES into an empty model and return the centre of each face."""
+    """Import a written IGES into an empty model and return the center of each face."""
     faces = import_iges(gmsh, path)
     gmsh.model.occ.synchronize()
     centres = _centres(gmsh, faces) if len(faces) == expected else []

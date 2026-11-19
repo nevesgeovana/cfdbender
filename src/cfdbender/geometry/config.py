@@ -1,7 +1,7 @@
 """One TOML input boundary for the parametric geometry.
 
 Pipeline role: pure configuration stage of the geometry package. Values use
-metres, degrees and unitless fractions. A configuration is read from TOML,
+meters, degrees and unitless fractions. A configuration is read from TOML,
 validated, completed with documented defaults and returned with a unit and a
 source (``given`` or ``default``) on every value. The resolved form can be
 written back and read again without change.
@@ -713,7 +713,7 @@ def _check_data_files(name, component, base, warnings):
 
 
 def _warn_metre_files(components, unit, warnings):
-    """Warn that a blister's sections file is read in metres whatever ``[units]`` declares.
+    """Warn that a blister's sections file is read in meters whatever ``[units]`` declares.
 
     The keys of the file are converted from the declared unit; the file's own ``y`` and ``z``
     are not, so a file written in that unit would build a blister that many times too large.
@@ -721,7 +721,7 @@ def _warn_metre_files(components, unit, warnings):
     for name, component in components.items():
         if component.get("sections_file"):
             warnings.append(
-                f"{name}.sections_file: its y and z are read in metres; units.length = "
+                f"{name}.sections_file: its y and z are read in meters; units.length = "
                 f"{unit!r} applies to the keys of this file, not to the sections file"
             )
 

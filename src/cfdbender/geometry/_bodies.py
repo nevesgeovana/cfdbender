@@ -1,7 +1,7 @@
 """Bodies of revolution and superellipse bodies as a quadrilateral curve network.
 
 Pipeline role: pure numerical stage of the geometry package. A resolved body component (plain
-values, metres) becomes bicubic patches: a pole or flat-base cap at each closed end, built from
+values, meters) becomes bicubic patches: a pole or flat-base cap at each closed end, built from
 three true quadrilaterals per azimuth sector, and one skinned band between the first and the last
 station, cut at the stations and junctions by knot insertion. An end may also be open, so a
 parent and a child can share its rim; a boat-tail rear closes on a flat base by a law limited in
@@ -53,7 +53,7 @@ def is_full(component) -> bool:
 
 
 def body_station_table(component):
-    """Return the shape values (width, height, centre, two exponents) at the control stations."""
+    """Return the shape values (width, height, center, two exponents) at the control stations."""
     controls = np.asarray(component["stations"], float)
     rows = []
     for section in component["sections"]:
@@ -181,7 +181,7 @@ def check_body_symmetry(raw, component) -> None:
 
 
 def _hermite(form, table):
-    """Return the boat-tail law of width, height and centre height along the axial fraction.
+    """Return the boat-tail law of width, height and center height along the axial fraction.
 
     Each of the three runs on its own cubic from its value and its own slope at the last station,
     so the profile is tangent to the run in every direction, to the base: the value at the last
@@ -234,7 +234,7 @@ def check_boat_tail(component) -> None:
     form = component["rear"]["boat_tail"]
     law = _hermite(form, body_station_table(component))
     _, derivative = law(np.linspace(float(component["stations"][-1]), form["x_cut"], 401))
-    # the side runs with the width; the crown and the keel with the centre plus or minus height
+    # the side runs with the width; the crown and the keel with the center plus or minus height
     width, height, centre = np.moveaxis(derivative, -1, 0)
     lines = np.stack([width, centre + height, centre - height])
     steepest = np.max(np.abs(lines)) / component["length"]
@@ -410,7 +410,7 @@ def body(component, junctions=()) -> list[Patch]:
     Parameters
     ----------
     component : dict
-        Resolved body component (plain values, metres and degrees).
+        Resolved body component (plain values, meters and degrees).
     junctions : sequence of float, optional
         Axial fractions at which extra station breaks are inserted; default empty.
 
@@ -638,7 +638,7 @@ def _polar_points(component, table, axial, psi):
     ``|sin|`` to the power ``2 / n``: for an exponent above 2 the derivative is infinite on the
     symmetry plane and the side line, which no polynomial face follows. The region faces are
     parametrized instead by the polar angle of the point in the section scaled to a unit square,
-    ``(y / width, (z - centre) / height) = rho (sin psi, cos psi)``, whose point is smooth in
+    ``(y / width, (z - center) / height) = rho (sin psi, cos psi)``, whose point is smooth in
     ``psi`` for an even exponent and C2 or better for any exponent of at least 3. ``psi`` and the
     superellipse angle agree at 0, a half and a whole turn, so the face edges stay where they were.
     """
@@ -829,7 +829,7 @@ def body_regions(component, layout="fuselage", tolerance=None, cap_fraction=0.00
     layout : {"fuselage", "nacelle"}
         The layout rule, see :func:`region_plan`.
     tolerance : float, optional
-        Largest distance in metres from the law at the samples; default 1e-4 of the body length.
+        Largest distance in meters from the law at the samples; default 1e-4 of the body length.
     cap_fraction : float, optional
         Radius of a closing cap as a fraction of the largest half width.
     regions : sequence of float, optional

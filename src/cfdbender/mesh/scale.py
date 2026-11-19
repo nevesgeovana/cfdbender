@@ -1,14 +1,14 @@
 """Scale an OBJ mesh uniformly about a point into a new output folder.
 
 Pipeline role: the mesh operation behind ``cfd-mesh scale``. Every
-vertex ``p`` of the OBJ becomes ``c + factor * (p - c)`` for the scale centre ``c`` (the origin
+vertex ``p`` of the OBJ becomes ``c + factor * (p - c)`` for the scale center ``c`` (the origin
 unless ``about`` is given), a homothety: lengths grow by the factor, angles and the face
 topology do not change. The file is rewritten line by line as bytes and only the three
 coordinates of each ``v`` line change; face order, group and component names, normals, texture
 coordinates, comments and line endings stay byte for byte, because a solver's results depend on
 the face order. The scaled OBJ is written under the input's own name into an output folder the
 verb creates (``<stem>_scaled<factor>`` beside the input by default), with a JSON record beside
-it: the input digest, the factor, the centre, the vertex and face counts and the bounding boxes
+it: the input digest, the factor, the center, the vertex and face counts and the bounding boxes
 before and after. The input is never overwritten, and an output folder that already holds a file
 of that name is refused unless ``overwrite`` is given.
 """
@@ -49,7 +49,7 @@ def parse_factor(factor: object) -> float:
 
 
 def parse_about(about: object) -> tuple[float, float, float]:
-    """Return the scale centre as three finite floats from ``x,y,z`` text or a sequence."""
+    """Return the scale center as three finite floats from ``x,y,z`` text or a sequence."""
     parts = about.split(",") if isinstance(about, str) else list(about)  # type: ignore[call-overload]
     try:
         point = tuple(float(p) for p in parts)
@@ -57,7 +57,7 @@ def parse_about(about: object) -> tuple[float, float, float]:
         point = ()
     if len(point) != 3 or not all(math.isfinite(c) for c in point):
         raise InputValueError(
-            f"scale: the scale centre {about!r} is not three finite numbers. Give it as "
+            f"scale: the scale center {about!r} is not three finite numbers. Give it as "
             "x,y,z, for example 0,0,1.5. No file was written."
         )
     return point[0], point[1], point[2]
@@ -166,7 +166,7 @@ def scale_mesh(
         file name, with ``<name>.scale.json`` beside it. Default: ``<stem>_scaled<factor>``
         beside the input.
     about : str or tuple of float, optional
-        The scale centre ``x,y,z``; default the origin.
+        The scale center ``x,y,z``; default the origin.
     overwrite : bool, default False
         Replace a same-name file already in the output folder instead of refusing.
     name : str, optional
@@ -175,13 +175,13 @@ def scale_mesh(
     Returns
     -------
     dict
-        The record also written to JSON: input name and sha256, factor, centre, output paths,
+        The record also written to JSON: input name and sha256, factor, center, output paths,
         vertex and face counts and the bounding boxes before and after.
 
     Raises
     ------
     InputValueError
-        The factor or centre is unusable, the OBJ holds no usable vertex, or the output would
+        The factor or center is unusable, the OBJ holds no usable vertex, or the output would
         overwrite a file without ``overwrite``; nothing is written.
     InputArtifactError
         The mesh file does not exist.

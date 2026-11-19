@@ -828,7 +828,7 @@ def test_geom_kernel_blend_a_sections_file_under_other_length_units_is_warned_re
     resolved, components = _plain(config)
     assert components["pod"]["stations"]["x"] == [2.4, 3.0, 3.6, 4.4, 5.0]
     (warning,) = [w for w in resolved["warnings"] if "pod.sections_file" in w]
-    assert "read in metres" in warning and "'mm'" in warning
+    assert "read in meters" in warning and "'mm'" in warning
     model = blister_model(components["pod"], components["hull"])  # the file is in metres
     assert {r["status"] for r in model.records} == {"passed"}
 

@@ -2,7 +2,7 @@
 
 The user states only the extremities of a rectangle or the radii of a circle, or the points, lines,
 rectangles and circles of a probe entry; the points are laid here, in the frame the entry names,
-in metres, with the arithmetic of the layouts they are recorded against (see
+in meters, with the arithmetic of the layouts they are recorded against (see
 ``tools/record_pyfs_volume_layouts.py``). Nothing here reads a file or a solver.
 
 A volume cut is laid by :func:`volume_section_points`:
@@ -64,7 +64,7 @@ def volume_section_points(
     refinement_layers: int = 1,
     offset_m: float = 0.0,
 ) -> NDArray[np.float64]:
-    """Lay the points of a volume cut, in the declared frame, in metres.
+    """Lay the points of a volume cut, in the declared frame, in meters.
 
     Parameters
     ----------
@@ -169,7 +169,7 @@ def line_points(
     points : int
         The count, at least 2.
     scale : float, default 1
-        The factor from the entry's unit to metres.
+        The factor from the entry's unit to meters.
 
     Returns
     -------
@@ -243,9 +243,9 @@ def circle_points(
     points_azimuth: int,
     scale: float = 1.0,
 ) -> NDArray[np.float64]:
-    """Lay the polar grid of a probe circle; the centre appears once.
+    """Lay the polar grid of a probe circle; the center appears once.
 
-    ``points_radial`` stations run from the centre to the rim, both included, and
+    ``points_radial`` stations run from the center to the rim, both included, and
     ``points_azimuth`` around each ring. The two in-plane axes come from the normal and the
     world axis least aligned with it. Rounded to five decimals.
     """

@@ -4,7 +4,7 @@ Pipeline role: private helper of :mod:`cfdbender.geometry.config`. A fresh confi
 written with the key names of the published geometry input form (``[surface]``, ``[planform]``
 with ``sref_m2``, ``aspect_ratio`` and ``taper`` or ``semispan_mm`` and the two chords,
 ``[[stations]]``, ``[cap]``, ``[[control]]``, ``[[engine]]``). This module reads those names and
-hands the resolver the quantities it works with, in metres and degrees. The names the first
+hands the resolver the quantities it works with, in meters and degrees. The names the first
 drafts used were never released: each is refused with a message naming its replacement, never
 read as an alias. A resolved configuration is not translated; it already holds resolved names.
 
@@ -131,7 +131,7 @@ def _planform_set(name, planform):
 
 
 def _translate_planform(name, raw, vertical):
-    """Replace the planform names by the quantities the resolver reads, in metres and degrees."""
+    """Replace the planform names by the quantities the resolver reads, in meters and degrees."""
     planform = raw.get("planform")
     if not isinstance(planform, dict):
         return

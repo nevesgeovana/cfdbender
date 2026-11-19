@@ -307,10 +307,10 @@ def repitch_mesh(mesh: str | Path, morphing: str | Path, out: str | Path) -> dic
     unit = mesh_unit(path)
     if unit is None:
         warn(
-            "repitch: mesh unit is unstated; surface distances assume metres", NotApplicableWarning
+            "repitch: mesh unit is unstated; surface distances assume meters", NotApplicableWarning
         )
         unit = "METER"
-    _need(unit in METRES_PER_UNIT, f"mesh unit {unit!r} has no metre scale; state a known unit")
+    _need(unit in METRES_PER_UNIT, f"mesh unit {unit!r} has no meter scale; state a known unit")
     scale = float(METRES_PER_UNIT[unit])
     new, report, made = _deform(source, cfg, rotor, (blades, hubs), scale=scale)
     report["distance_unit"] = "m"
@@ -547,7 +547,7 @@ def _periodic_set(cfg: dict, rotor: Any, blades: list, hubs: list, frame: Any) -
 
     A reference that declares several blades turns it on, about its own axis, over every blade
     it declares; without one, several named blades turn it on, about ``rotor_axis`` through the
-    hub centre. Only the blades and the hub are read, so another body in the file (a wing, a
+    hub center. Only the blades and the hub are read, so another body in the file (a wing, a
     fuselage) does not take part.
     """
     if rotor is not None and len(rotor["families_blades"]) > 1:

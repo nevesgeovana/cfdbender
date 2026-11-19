@@ -72,7 +72,7 @@ def parse_obj(text: str) -> tuple[list[Vec], list[tuple[int, int, int]]]:
 
 
 def station_radii(r_min: float, r_max: float, count: int, spacing: str) -> list[float]:
-    """Return ``count`` cell-centred radii between the extremes, never on the ends.
+    """Return ``count`` cell-centered radii between the extremes, never on the ends.
 
     Parameters
     ----------

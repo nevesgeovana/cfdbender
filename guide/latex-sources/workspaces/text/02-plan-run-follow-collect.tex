@@ -94,7 +94,7 @@ exclude other guarded local runs. Executable and memory checks always apply.
   \item Archived means: \code{runs.json} is copied to
         \code{archive/<stamp>/}, the point folder moves there, and the old
         record joins the history of the point. Nothing is deleted.
-  \item A submitted cluster job is not cancelled by a rerun: cancel it in
+  \item A submitted cluster job is not canceled by a rerun: cancel it in
         the scheduler first.
 \end{itemize}
 \end{frame}
@@ -176,6 +176,12 @@ cfd-matrix collect polar
 \code{polars/FAM-DIM-P<POL>.csv} & dimensional loads per point and family \\
 \code{polars/P<POL>-TOTAL-ACOEF.csv} & total coefficients per point \\
 \code{polars/P<POL>.txt} & a 2D SU2 or OpenFOAM ALPHA sweep, XFOIL layout \\
+\code{polars/P<POL>-<alias>_rotor.csv} & the rotor table, one row per point
+  that turns the rotor \\
+\code{polars/P<POL>_<matrix>_uns_avg.csv} & the unsteady polar: the mean over
+  the averaging window of each time-accurate point \\
+\code{sections/}, \code{fields/}, \code{probes/} & the products the post file
+  declares, each in a folder \code{P<POL>/} \\
 \code{products.json}, \code{post.log} & every product written, and every one
   skipped with the reason \\
 \bottomrule
@@ -195,7 +201,12 @@ cfd-matrix collect polar
   \item Every polar has family files and family-based group files for
         \code{TOTAL}, \code{AIRFRAME} and each rotor that has members.
         Rotor solvers also write \code{FAM-RCOEF}; sectional distributions
-        go under \code{sections/P<POL>/}.
+        go under \code{sections/P<POL>/}, a volume cut under
+        \code{fields/P<POL>/} and probes under \code{probes/P<POL>/}.
+  \item The thrust and torque of the rotor table are counted along the
+        declared shaft, so the sign of \code{CT} follows the axis. Where the
+        solver supplies wall shear, the sectional loads are totals, pressure
+        plus friction.
   \item Tables start with the canonical run block: conditions, air state,
         references, rotor data and averaging window. A value that does not
         apply is \code{NA}. Verdicts and histories live in the campaign summary.

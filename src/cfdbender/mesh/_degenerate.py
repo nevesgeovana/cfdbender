@@ -11,8 +11,8 @@ WHAT IS COMPUTED, in the mesh's own frame and length unit:
 
 1. THE SPAN. The span direction is the principal axis of the blade's
    vertices (the direction of their largest spread), snapped to a global
-   axis when it lies within :data:`SNAP_DEGREES` of one, so a blade modelled
-   along an axis is cut in its own modelling planes. Its sense goes from the
+   axis when it lies within :data:`SNAP_DEGREES` of one, so a blade modeled
+   along an axis is cut in its own modeling planes. Its sense goes from the
    root to the tip, the ROOT being the end nearer the origin of the mesh's
    coordinates, where a rotor's blade meets its spinner; a blade whose two
    ends lie equally far from the origin is refused, because which end is the
@@ -66,8 +66,8 @@ bodies is read with ``boundary`` naming the blade's boundary: only
 its faces are taken, so the other bodies take no part in the span, the stations
 or the sections, and the output's stem carries the boundary's name.
 
-WHAT IT IS NOT. The derived geometry is a modelling choice of the user; this
-module makes no claim about the solver's behaviour on it, which a run
+WHAT IT IS NOT. The derived geometry is a modeling choice of the user; this
+module makes no claim about the solver's behavior on it, which a run
 confirms. No trailing edge is marked on the sheet: the sidecar's
 ``[trailing_edges]`` table is the user's to write, as for any raw mesh.
 """

@@ -25,7 +25,7 @@ executable = "/opt/su2/bin/SU2_CFD"
 \begin{column}{0.46\textwidth}
 \begin{itemize}\small
   \item The mesh is \code{.su2} or \code{.cgns}, named by the
-        \code{GEOMETRY} cell. A CGNS mesh needs an SU2 built with CGNS.
+        \code{MESH} cell. A CGNS mesh needs an SU2 built with CGNS.
   \item A key in capitals is an SU2 option and goes to \code{su2.cfg} as
         written.
   \item The marker names are yours to state: they are not read from the
@@ -52,7 +52,7 @@ resolved temperature, pressure, density & \code{FREESTREAM_TEMPERATURE},
 \code{REmi} and the r file's \code{length} & \code{REYNOLDS_NUMBER},
   \code{REYNOLDS_LENGTH} \\
 \code{MUPas} & a constant viscosity, \code{MU_CONSTANT} \\
-\code{GEOMETRY} & \code{MESH_FILENAME} \\
+\code{MESH} & \code{MESH_FILENAME} \\
 \bottomrule
 \end{tabularx}}
 \vspace{2mm}
@@ -99,6 +99,70 @@ threads = 1
 \end{block}
 \end{column}
 \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{SU2: run types and a rotor}
+\begin{lstlisting}
+POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION            | MESH     | WORKFLOW
+-----|-----|-------|-----|-------|-----------------------------|----------|--------------
+1001 | 1   | 001   | 001 | 001   | MACH:0.05, ADVANCE_RATIO:0.4 | prop.su2 | qsteady_rotor
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{WORKFLOW} is \code{steady}, \code{qsteady_rotor},
+        \code{unsteady} or \code{unsteady_rotor}. Each run type writes the SU2
+        keys that follow from it. Explicit setup keys override carried
+        defaults; the row's clock and restart accounting determine its time keys.
+  \item The r file declares the rotor with \code{kind = "rotor"}:
+        \code{axis}, \code{rpm_sign}, \code{diameter_m}, the hub,
+        \code{families_blades} and \code{blade1}.
+  \item \code{ADVANCE_RATIO} (or \code{RPM}) becomes \code{ROTATION_RATE}
+        along the shaft. \code{SYMMETRY} \code{PERIODIC} with
+        \code{PERIODIC_COPIES} solves one sector; the whole-rotor loads are
+        the vector sum of the copies.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{SU2: time-accurate rows}
+\begin{lstlisting}
+VAR_NAMES_VALUES
+DELTA_THETA: 1.5 / REVOLUTIONS: 5 / LAST_REVS_AVG: 2.5
+\end{lstlisting}
+\begin{itemize}\small
+  \item The clock is \code{DELTA_THETA} with \code{REVOLUTIONS}, or
+        \code{DELTA_TIME} with \code{TIME_ITERATIONS}; the steps are a whole
+        number or the row is refused.
+  \item The averaging window is \code{LAST_REVS_AVG} or
+        \code{LAST_ITERS_AVG}, never both, and has no default. The reported
+        result is the mean over it; \code{polars/P<POL>_<matrix>_uns_avg.csv}
+        holds one row per point.
+  \item The export window writes the surface and volume files at every step
+        of the window. SU2 writes at one frequency, so the point runs in two
+        segments of one job (\code{su2.cfg}, \code{su2_segment2.cfg},
+        \code{run_segments.sh}).
+  \item \code{unsteady_rotor} turns the whole mesh, or a sliding-mesh layout
+        declared by a \code{[sliding]} table. \code{TURBULENCE_MODEL} is
+        \code{SA} or \code{SST}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{SU2: the rotor table and the declared products}
+\begin{itemize}\small
+  \item The rotor table is \code{polars/P<POL>-<alias>_rotor.csv}. Thrust and
+        torque are counted along the declared shaft: with \code{axis = "X"}
+        and the flow along $+x$, a pulling propeller has a negative
+        \code{CT}.
+  \item The post file declares \code{[sections]}, \code{[volume_section]} and
+        \code{[[probes]]}. SU2 supplies all three from its surface and volume
+        files, asked for in \code{OUTPUT_FILES} only when a product needs
+        them.
+  \item The sectional loads are totals, pressure plus friction, because SU2
+        supplies a wall shear field; \code{Fx_pres}, \code{Fx_fric} and the
+        other parts follow.
+  \item Columns SU2 cannot fill, such as the boundary-layer ones, are absent
+        and named in \code{products.json}.
+  \item \code{NUMERICS} names \code{inputs/numerics/n<id>.toml}, so the setup
+        holds the physics and the numerics are shared.
+\end{itemize}
 \end{frame}
 
 \section{OpenFOAM}

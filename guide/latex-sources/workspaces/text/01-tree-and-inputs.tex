@@ -15,12 +15,14 @@ campaign/
   inputs/                yours: everything a run reads
     matrices/<name>.fs
     setups/s<id>.toml
+    numerics/n<id>.toml  optional
     references/r<id>.toml
     pproc/p<id>.toml
     mesh/
   sims/                  one folder per simulation
     sim_<POL>/datapoints/DP-<point name>/
-  post/<matrix>/         plan receipt, tables
+  post/<matrix>/         plan receipt, polars/,
+                         sections/, fields/, probes/
   archive/<stamp>/       earlier evidence
   runs.json              the record of every point
 \end{lstlisting}
@@ -69,7 +71,7 @@ cfd-workspace init campaign --solver openfoam
         \code{sims/}, \code{post/} and \code{archive/}, and ends with the next
         step.
   \item \code{--solver} is required; a name in capitals is read as lower
-        case. The names are \code{su2},
+        case. The names are \code{cfdpp}, \code{su2},
         \code{openfoam}, \code{pyfr}, \code{xfoil}, \code{qprop},
         \code{mock}, \code{flightstream}.
   \item A folder that already is a workspace is refused: a workspace keeps
@@ -95,25 +97,28 @@ matrix. The columns mean the same in both.
   Unique per matrix \\
 \code{RUN} (required) & \code{1} plans and runs the row, \code{0} keeps it
   without running it \\
-\code{SET}, \code{REF}, \code{PPROC} (required) & the setup, reference and
+\code{SETUP}, \code{REF}, \code{PPROC} (required) & the setup, reference and
   post file of the row \\
+\code{NUMERICS} & optional \code{inputs/numerics/n<id>.toml}, shared by
+  setups \\
 \code{FLIGHT_CONDITION}, \code{SWEEP_VALUES} & the flow state and attitude;
   the values of the one key written \code{sweep} \\
-\code{GEOMETRY} & the mesh or geometry file in \code{inputs/mesh/} \\
+\code{MESH} & the mesh or geometry file in \code{inputs/mesh/} \\
 \code{AIRCRAFT}, \code{CONFIGURATION}, \code{DESCRIPTION} & your labels; they
   reach the plan listing and the summary \\
 \code{NCPUS}, \code{WALLTIME} & what a cluster job asks for; \code{WALLTIME}
   carries its unit: \code{90s}, \code{240m}, \code{4h}, \code{1d} \\
 \code{SOLVER_BUILD} & the solver version the row runs \\
 \code{VAR_NAMES_VALUES} & per-row overrides of setup keys \\
-\code{HIDDEN}, \code{SYMMETRY}, \code{SYMMETRY_LOADS}, \code{WORKFLOW} &
-  kept so one layout serves every solver; the library solvers carry them or
-  accept \code{-} only \\
+\code{WORKFLOW} & the run type: \code{steady}, \code{qsteady_rotor},
+  \code{unsteady}, \code{unsteady_rotor} (SU2) \\
+\code{HIDDEN}, \code{SYMMETRY}, \code{SYMMETRY_LOADS} & \code{SYMMETRY}:
+  \code{NONE} or \code{PERIODIC}; SU2 reads both columns \\
 \bottomrule
 \end{tabularx}}
 \vspace{1mm}
-{\small An optional column may be left out of the header. A column the layout
-does not know is refused before anything is planned.\par}
+{\small An unknown column is refused. A header that still says \code{SET} or
+\code{GEOMETRY} is read as \code{SETUP} or \code{MESH}, with one notice.\par}
 \end{frame}
 
 \begin{frame}{The flight condition: the air}
@@ -193,9 +198,52 @@ iterations: 4000 / solver.threads: 4
 than ten setup files that differ in one line.\end{takeaway}
 \end{frame}
 
+\begin{frame}{Setup and numerics}
+\begin{itemize}
+  \item \code{SETUP} says what is simulated; \code{NUMERICS} says how the
+        solver solves it, so one recipe serves many setups.
+  \item The setup the solver reads is merged in this order, each layer
+        replacing the earlier ones: the \code{[defaults]} of
+        \code{init.toml}, the numerics file, the setup file, the row's
+        \code{VAR_NAMES_VALUES}.
+  \item A key in both files takes the setup file's value, with one warning. A
+        numerics file may hold no \code{[solver]} table and no mesh.
+  \item An absent column, \code{-} or an empty cell: the setup carries the
+        numerics, as before. A solver without the column warns and ignores
+        a filled cell.
+\end{itemize}
+\begin{takeaway}\code{python -m cfdbender.migrate_setup_numerics WORKSPACE}
+moves an existing workspace; without \code{--apply} it only previews.\end{takeaway}
+\end{frame}
+
+\begin{frame}[fragile]{Row variables of the run types}
+\relax{\cfdbtablesize
+\begin{tabularx}{\linewidth}{@{}P{0.34\linewidth}R@{}}
+\toprule
+\textbf{Row variable} & \textbf{Meaning} \\
+\midrule
+\code{DELTA_THETA}, \code{REVOLUTIONS} & the clock in degrees per step and
+  revolutions \\
+\code{DELTA_TIME}, \code{TIME_ITERATIONS} & the clock in seconds per step and
+  steps \\
+\code{LAST_REVS_AVG}, \code{LAST_ITERS_AVG} & the averaging window; exactly one
+  \\
+\code{EXPORT_UNSTEADY_LAST_REV}, \code{_LAST_ITER}, \code{_AFTER_REV},
+  \code{_AFTER_ITER} & the export window: the steps whose files are written \\
+\code{PERIODIC_COPIES} & copies of the sector with \code{SYMMETRY}
+  \code{PERIODIC} \\
+\code{TURBULENCE_MODEL} & \code{SA} or \code{SST} \\
+\code{hpc.<name>} & one value of the HPC profile, for this row \\
+\bottomrule
+\end{tabularx}}
+\vspace{1mm}
+{\small They go in \code{VAR_NAMES_VALUES}. A variable of another run type is
+warned and skipped.\par}
+\end{frame}
+
 \begin{frame}{The mesh is stored once}
 \begin{itemize}
-  \item The \code{GEOMETRY} cell names a file in \code{inputs/mesh/}: a file
+  \item The \code{MESH} cell names a file in \code{inputs/mesh/}: a file
         name, or a stem that names exactly one file there.
   \item A mesh is \textbf{never copied} into a point folder. Each point
         folder holds a link to the file in \code{inputs/mesh/}.

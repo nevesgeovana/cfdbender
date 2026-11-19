@@ -2,7 +2,7 @@
 
 SU2 writes force and moment coefficients over ``q A`` and ``q A L``, ``q`` being the dynamic
 pressure of the speed it scales by (``MACH_MOTION`` times the speed of sound when the deck
-states ``MACH_MOTION``). The adapter turns them back into newtons and newton metres here, so
+states ``MACH_MOTION``). The adapter turns them back into newtons and newton meters here, so
 the agnostic layer receives vectors (:class:`cfdbender.core.rotor.RotorLoads`) and forms every
 rotor coefficient itself (:func:`cfdbender.core.rotor.rotor_row`).
 """
@@ -134,7 +134,7 @@ def rotor_point(
         [coefficients[key] for key in FORCE_KEYS],
         [coefficients[key] for key in MOMENT_KEYS],
     )
-    if loads is None or loads.speed_m_s <= 0.0:
+    if loads is None:
         return None
     stated = dict(condition or {})
     if "ADVANCE_RATIO" in stated or "RPM" in stated:

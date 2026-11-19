@@ -6,6 +6,7 @@ from types import ModuleType
 from cfdbender.core.adapter import capabilities
 
 _SOLVERS = {
+    "cfdpp": "cfdbender.solvers.cfdpp",
     "flightstream": "cfdbender.solvers.flightstream",
     "mock": "cfdbender.solvers.mock",
     "openfoam": "cfdbender.solvers.openfoam",

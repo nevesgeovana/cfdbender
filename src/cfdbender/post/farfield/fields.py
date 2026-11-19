@@ -104,12 +104,12 @@ class LatticeFields:
         ``tip_radius`` squared times a dimensionless weight, so a ledger comes
         out in the field's units times that length unit squared (N for a
         momentum flux, W for an energy flux, kg/s for a mass flux, when the
-        fields are in SI) and is SI only when R is given in metres. The post
-        product path gives metres: it builds the lattice from the metre radius
-        the artifact states and turns the exported coordinates into metres by
+        fields are in SI) and is SI only when R is given in meters. The post
+        product path gives meters: it builds the lattice from the meter radius
+        the artifact states and turns the exported coordinates into meters by
         the saved simulation's unit before it reads them. A caller of this
-        library holding R in the simulation's unit (millimetres, say) owns the
-        conversion: pass ``tip_radius`` in metres, with the fields in SI.
+        library holding R in the simulation's unit (millimeters, say) owns the
+        conversion: pass ``tip_radius`` in meters, with the fields in SI.
     values : mapping of str to numpy.ndarray
         Sampled fields, each shaped ``(n_stations, n_r, n_psi)``.
     lateral_radius : float or None
@@ -197,7 +197,7 @@ class LatticeFields:
         -------
         tuple
             ``(points, fields)``: positions ``(n, 3)`` in the length unit of
-            ``tip_radius`` (metres on the post product path) and the
+            ``tip_radius`` (meters on the post product path) and the
             flattened scalar fields.
         """
         tip = float(self.tip_radius)
@@ -235,7 +235,7 @@ def lattice_fields(
     lattice : ProbeLattice
         Lattice that placed the probes; supplies stations, ring centers, ring
         edges, azimuths, the tip radius and the lateral cylinder. Supply the
-        tip radius in metres for SI balances; this function copies it
+        tip radius in meters for SI balances; this function copies it
         without converting simulation length units.
     fields : mapping of str to numpy.ndarray
         Sampled fields of the annular planes, each shaped

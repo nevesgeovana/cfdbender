@@ -15,10 +15,12 @@ out of the file.
 
 from __future__ import annotations
 
+import io
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
+from cfdbender._textio import csv_writer
 from cfdbender.matrix._rotor_table import CONDITION_COLUMNS
 
 WINDOW_COLUMNS = ("FIRST_STEP", "LAST_STEP", "STEPS")
@@ -29,6 +31,22 @@ SUFFIX = "_uns_avg.csv"
 def unsteady_polar_name(pol: str, name: str) -> str:
     """Return ``P<pol>_<name>_uns_avg.csv``."""
     return f"P{pol}_{name}{SUFFIX}"
+
+
+def left_out(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str, str], ...]:
+    """Name each time-accurate point the unsteady polar leaves out, with the reason.
+
+    A point whose result says its time average was skipped (its history does not cover its
+    window, or cannot be read) is ``(polars/P<pol>_<name>_uns_avg.csv#point=<id>, reason)``.
+    """
+    found: list[tuple[str, str]] = []
+    for row in rows:
+        result = cast(Mapping[str, object], row.get("result") or {})
+        averaged = result.get("time_average")
+        if isinstance(averaged, dict) and "skipped" in averaged:
+            product = f"polars/{unsteady_polar_name(str(row['pol']), name)}#point={row['point_id']}"
+            found.append((product, f"left out: {averaged['skipped']}"))
+    return tuple(found)
 
 
 def unsteady_polars(
@@ -90,7 +108,10 @@ def unsteady_polars(
             *plots[pol],
             *rotors.get(pol, {}),
         ]
-        text = [",".join(header), *(",".join(cell(line.get(h)) for h in header) for line in lines)]
+        buffer = io.StringIO(newline="")
+        writer = csv_writer(buffer)
+        writer.writerow(header)
+        writer.writerows([cell(line.get(h)) for h in header] for line in lines)
         name = unsteady_polar_name(pol, folder.name)
-        written.append(write(folder / "polars" / name, chr(10).join(text) + chr(10)))
+        written.append(write(folder / "polars" / name, buffer.getvalue()))
     return tuple(written)

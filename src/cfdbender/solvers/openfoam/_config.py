@@ -51,7 +51,7 @@ DEFAULT_RELAXATION = "fields { p 0.3; } equations { U 0.7; nuTilda 0.7; }"
 #: ceiling of the local Courant number; rDeltaTDampingCoeff bounds how fast the local
 #: step may grow, 1 / (1 - 0.2) = 1.25 per iteration, which is the ramp from the first
 #: small step up to that ceiling; rDeltaTSmoothingCoeff smooths the step field between
-#: neighbouring cells.
+#: neighboring cells.
 LTS_DEFAULTS = {
     "lts_max_co": 5.0,
     "lts_smoothing": 0.1,

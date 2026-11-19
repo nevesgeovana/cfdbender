@@ -15,7 +15,7 @@ channel is then attributed to numerics, an assumption nothing measures.
 Units: the ledgers are in the units of the field samples times
 ``tip_radius`` squared (forces and moments gain one further factor), with no
 unit conversion in the balances. They are SI only when ``tip_radius`` is given
-in metres and the fields are in SI; a radius held in the simulation's length
+in meters and the fields are in SI; a radius held in the simulation's length
 unit must be converted by the caller first, which is the same unit discipline
 as the length unit of the survey's sample positions.
 """

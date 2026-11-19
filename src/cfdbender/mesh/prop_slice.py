@@ -32,7 +32,7 @@ from cfdbender.geometry.blade_sections import parse_obj
 
 __all__ = ["OBJ_UNITS", "TABLE_COLUMNS", "slice_propeller"]
 
-#: Millimetres per unit of an OBJ, which states no unit of its own.
+#: Millimeters per unit of an OBJ, which states no unit of its own.
 OBJ_UNITS = {"mm": 1.0, "cm": 10.0, "m": 1000.0, "in": 25.4}
 #: The unit words the other geometry verbs take, read as the short names above.
 _UNIT_WORDS = {"millimeter": "mm", "centimeter": "cm", "meter": "m", "inch": "in"}

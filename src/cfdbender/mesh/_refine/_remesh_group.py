@@ -159,7 +159,7 @@ def triangulate_polygon(verts: Points, f: list[int]) -> Faces:
 
 
 def _ear(rest: list[int], i: int) -> list[int]:
-    """Return the triangle of the corner i of a polygon and its two neighbours."""
+    """Return the triangle of the corner i of a polygon and its two neighbors."""
     return [rest[i - 1], rest[i], rest[(i + 1) % len(rest)]]
 
 

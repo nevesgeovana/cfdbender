@@ -5,7 +5,7 @@ Initialize with ``cfd-workspace init --solver qprop``. The s file names the blad
 ``spacing`` cosine or uniform, ``cut`` cylinder (default) or plane) or
 ``blade = "inputs/polars-2D/<set>"`` (a ``blade.csv`` with columns r, chord, beta and
 optional airfoil and polar file names inside the set). Also ``n_blades`` (required),
-``radius`` (default: the blade tip), ``scale`` (model units to metres),
+``radius`` (default: the blade tip), ``scale`` (model units to meters),
 ``solver_2d = "xfoil"`` (the only accepted value), ``axis``, ``hub_center`` and
 ``rotation`` for the slicing convention, and the XFOIL ``alpha_start``, ``alpha_end``,
 ``alpha_step``, ``ncrit`` and ``iterations``. Stations without a polar are produced

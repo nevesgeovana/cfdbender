@@ -23,7 +23,7 @@ QPROP takes a blade, not a mesh. The setup key `blade` names either one OBJ in `
 campaign/
   init.toml                  the solver and its section settings
   inputs/
-    mesh/blade.obj           a 3D blade, in metres (or set scale)
+    mesh/blade.obj           a 3D blade, in meters (or set scale)
     polars-2D/<set>/         an existing set of section cuts and polars
     setups/s001.toml
     matrices/study.fs
@@ -37,7 +37,7 @@ campaign/
 | `hub_center` | `[0, 0, 0]` | a point on the axis, in model units |
 | `rotation` | `"ccw_from_front"` | counter-clockwise seen from +axis looking aft; or `"cw_from_front"`. Used by `cut = "cylinder"`; a `cut = "plane"` does not read it: the plane cut measures the motion from the blade itself |
 | `cut` | `"cylinder"` | the cylinder r = const, unrolled; or `"plane"`, the plane normal to the blade's radial direction, following its skew |
-| `scale` | `1` | model length unit in metres |
+| `scale` | `1` | model length unit in meters |
 | `radius` | blade tip | tip radius in m |
 | `mesh_frame` | `["aft", "right", "up"]` | directions of the OBJ's +x, +y and +z before conversion |
 
@@ -57,7 +57,7 @@ kept. `axis` and `hub_center` refer to that expected frame. `sections.json` reco
 declaration, conversion matrix and both byte digests, and `products.json` lists these
 under `frames.mesh.points` by full point id. A polars-2D set accepts no mesh declaration.
 
-The blade is the largest connected mesh component, so an OBJ may hold one blade or a full rotor. The radial direction runs from the axis to the blade centroid. The leading edge is the section point farthest ahead along the rotation direction; the trailing edge is the section point farthest from it; the chord is that distance. Beta is the angle in degrees between the chord line and the rotation plane, positive when the leading edge lies ahead along the thrust axis (nose up into the oncoming relative flow). The section shape is normalised to unit chord for XFOIL.
+The blade is the largest connected mesh component, so an OBJ may hold one blade or a full rotor. The radial direction runs from the axis to the blade centroid. The leading edge is the section point farthest ahead along the rotation direction; the trailing edge is the section point farthest from it; the chord is that distance. Beta is the angle in degrees between the chord line and the rotation plane, positive when the leading edge lies ahead along the thrust axis (nose up into the oncoming relative flow). The section shape is normalized to unit chord for XFOIL.
 
 **Polars-2D set.** A set holds `blade.csv` with the columns `r`, `chord` and `beta` (m, m, degrees, strictly ascending radius) and optional `airfoil` and `polar` columns naming files inside the set. A station with a `polar` file uses it directly (an XFOIL polar with columns named alpha, CL and CD; the polar of an SU2 or OpenFOAM alpha sweep is such a file, see [2D polars](polars-2d.md)). A station with only an `airfoil` file gets its polar from XFOIL. Each station needs one of the two. `n_sections` may be omitted; if given it must equal the number of stations.
 
@@ -133,13 +133,13 @@ For a scheduler job, see [Cluster jobs](cluster-jobs.md).
 
 cfdbender reads QPROP's printed operating table from `stdout.log` by header names, so column order does not matter. A point is `converged` when the exit code is 0, the table holds a numeric operating row, and the output does not report that the solution did not converge. Otherwise it is `failed`. QPROP has no `iteration_limit` here. The history has one entry, iteration 1 and residual 0, which marks that the row was accepted; it is not a measured iteration.
 
-The axis of each value is the rotation axis. The references are the disk area (pi R^2), the length 2 R and the hub centre.
+The axis of each value is the rotation axis. The references are the disk area (pi R^2), the length 2 R and the hub center.
 
 | Name | Meaning |
 |---|---|
 | `J` | V / (n D) |
 | `CT`, `CP` | T / (rho n^2 D^4) and P / (rho n^3 D^5) |
-| `CT_QPROP`, `CP_QPROP` | as QPROP prints them, normalised by the dynamic pressure at the tip speed and the disk area |
+| `CT_QPROP`, `CP_QPROP` | as QPROP prints them, normalized by the dynamic pressure at the tip speed and the disk area |
 | `EFFICIENCY` | propeller efficiency as QPROP prints it (`effprop`) |
 | `EFFICIENCY_OVERALL` | overall efficiency including the motor, as QPROP prints it (`eff`) |
 | `T`, `Q`, `P` | thrust (N), shaft torque (N m), shaft power (W) |
@@ -148,7 +148,7 @@ Here `n` is the rotation rate in revolutions per second and `D = 2 R`. In the po
 
 ## Worked example
 
-A three-blade propeller at 20 m/s, with advance ratios 0.6, 0.8 and 1.0, and a pitch of 30 degrees at 0.7 R. You supply your own blade as `inputs/mesh/blade.obj`, in metres, rotating about x.
+A three-blade propeller at 20 m/s, with advance ratios 0.6, 0.8 and 1.0, and a pitch of 30 degrees at 0.7 R. You supply your own blade as `inputs/mesh/blade.obj`, in meters, rotating about x.
 
 ```console
 cfd-workspace init campaign --solver qprop

@@ -23,7 +23,7 @@ END = "<!-- END GENERATED COMMAND REFERENCE -->"
 #: Workflow stage of every command. A command the parsers hold and this table
 #: lacks stops the build, so a new command cannot stay off the page.
 STAGES: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
-    ("Create", (("cfd-workspace", "init"),)),
+    ("Create", (("cfd-workspace", "init"), ("cfd-workspace", "setups"))),
     ("Plan", (("cfd-matrix", "plan"),)),
     ("Run", (("cfd-matrix", "run"),)),
     (

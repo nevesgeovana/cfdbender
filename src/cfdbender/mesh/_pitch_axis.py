@@ -3,14 +3,14 @@
 ``[repitch] rotor_axis`` is the direction of the rotor's rotation and ``reference_point`` places
 the pitch axes. A scalar is a coordinate along the rotor axis: it locates the plane perpendicular
 to the rotor axis, and every blade's pitch axis lies in that plane, along the blade's span
-direction projected on it, through the hub centre. The hub centre is the centroid of the named
-hub's cut by the plane when the cut closes (a full wheel), or the centre of the circle fitted to
+direction projected on it, through the hub center. The hub center is the centroid of the named
+hub's cut by the plane when the cut closes (a full wheel), or the center of the circle fitted to
 the cut when it is an arc (a sector); the cut crosses each blade root, so its two crossings of a
 root loop are joined by a chord. A three-vector is one point for every blade.
 
 The span direction is the principal axis of the blade's nodes, the eigenvector of their spread,
 with no snap to a global axis: a snap would catch a blade lying near an axis and not its
-neighbours, so the blades of a wheel would turn about lines that do not map onto each other. Its
+neighbors, so the blades of a wheel would turn about lines that do not map onto each other. Its
 sense is towards the tip.
 """
 
@@ -141,7 +141,7 @@ def _chains(cut: _Cut) -> list[tuple[list[Edge], bool]]:
 
 
 def _circle(xy: Array) -> tuple[Array, float, float]:
-    """Return the centre, the radius and the largest radial residual of a least-squares circle."""
+    """Return the center, the radius and the largest radial residual of a least-squares circle."""
     a = np.c_[xy, np.ones(len(xy))]
     rhs = -(xy**2).sum(axis=1)
     (d, e, f), *_ = np.linalg.lstsq(a, rhs, rcond=None)
@@ -164,7 +164,7 @@ def _centroid(xy: Array) -> Array:
 def hub_centre(
     verts: Array, hub: list[list[int]], roots: dict[str, set[Edge]], axis: Array, station: float
 ) -> dict[str, Any]:
-    """Return the hub centre in the plane ``x . axis = station`` and how it was found."""
+    """Return the hub center in the plane ``x . axis = station`` and how it was found."""
     side = verts @ axis - station
     cut = _Cut()
     for face in hub:
@@ -285,7 +285,7 @@ def frame_basis_for_shaft(
 
     ``x_axis`` is the blade datum projected into the disk plane, which makes an azimuth well
     defined on a tilted rotor; ``y_axis`` completes the right-handed basis. A shaft that is
-    not a unit vector is normalised first, so a scaled shaft gives the same frame.
+    not a unit vector is normalized first, so a scaled shaft gives the same frame.
 
     Raises
     ------

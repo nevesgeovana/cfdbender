@@ -20,12 +20,19 @@
 \opt{--workspace DIR}{the same folder as \texttt{[root]}}
 \end{cmdblock}
 
+\begin{cmdblock}{cfd-workspace setups}{}{Writes a ready setup file \file{inputs/setups/s<id>.toml} from a template the workspace's solver ships, and overwrites nothing. Alone, it lists the templates.}
+\opt{--template NAME}{the template to write}
+\opt{--id ID}{the setup id (default: the next free one)}
+\opt{--list}{the templates and their descriptions}
+\end{cmdblock}
+
 \hd{The tree}
 \texttt{campaign/}\\
 \texttt{\ \ init.toml}\quad the solver\\
 \texttt{\ \ inputs/}\quad yours\\
 \texttt{\ \ \ \ matrices/<name>.fs}\\
 \texttt{\ \ \ \ setups/s<id>.toml}\\
+\texttt{\ \ \ \ numerics/n<id>.toml}\\
 \texttt{\ \ \ \ references/r<id>.toml}\\
 \texttt{\ \ \ \ pproc/p<id>.toml}\\
 \texttt{\ \ \ \ mesh/}\\
@@ -46,11 +53,13 @@
 \hd{The matrix, \texttt{inputs/matrices/<name>.fs}}
 Text, columns separated by \texttt{|}. A line starting with \texttt{\#} is a comment; a cell holding \texttt{-} states nothing.\par\vspace{2pt}
 {\ttfamily\fontsize{6.6}{7.8}\selectfont
-POL\ \ | RUN | FLIGHT\_CONDITION\ \ \ \ \ \ | SWEEP\_VALUES | REF | SET | PPROC\\
-1001 | 1\ \ \ | MACH:0.2, ALPHA:sweep | 0,2,4\ \ \ \ \ \ \ \ | 001 | 001 | 001\par}
+POL\ \ | RUN | FLIGHT\_CONDITION\ \ \ \ \ \ | SWEEP\_VALUES | REF | SETUP | PPROC\\
+1001 | 1\ \ \ | MACH:0.2, ALPHA:sweep | 0,2,4\ \ \ \ \ \ \ \ | 001 | 001\ \ \ | 001\par}
 \vspace{2pt}
-\textbf{Required:} \texttt{POL}, \texttt{RUN}, \texttt{SET}, \texttt{REF}, \texttt{PPROC}.\\
-\textbf{Optional:} \texttt{FLIGHT\_CONDITION}, \texttt{SWEEP\_VALUES}, \texttt{MESH}, \texttt{AIRCRAFT}, \texttt{CONFIGURATION}, \texttt{DESCRIPTION}, \texttt{NCPUS}, \texttt{WALLTIME}, \texttt{SOLVER\_BUILD}, \texttt{VAR\_NAMES\_VALUES}, \texttt{HIDDEN}, \texttt{SYMMETRY}, \texttt{SYMMETRY\_LOADS}, \texttt{WORKFLOW}.
+\textbf{Required:} \texttt{POL}, \texttt{RUN}, \texttt{SETUP}, \texttt{REF}, \texttt{PPROC}.\\
+\textbf{Optional:} \texttt{NUMERICS}, \texttt{FLIGHT\_CONDITION}, \texttt{SWEEP\_VALUES}, \texttt{MESH}, \texttt{AIRCRAFT}, \texttt{CONFIGURATION}, \texttt{DESCRIPTION}, \texttt{NCPUS}, \texttt{WALLTIME}, \texttt{SOLVER\_BUILD}, \texttt{VAR\_NAMES\_VALUES}, \texttt{HIDDEN}, \texttt{SYMMETRY}, \texttt{SYMMETRY\_LOADS}, \texttt{WORKFLOW}, \texttt{RESTART}.\\
+\textbf{Retired names:} \texttt{SET} and \texttt{GEOMETRY} are still read, as \texttt{SETUP} and \texttt{MESH}, with one notice.\\
+\textbf{\texttt{WORKFLOW} run types:} \texttt{steady} (or \texttt{-}), \texttt{qsteady\_rotor}, \texttt{unsteady}, \texttt{unsteady\_rotor}; SU2 offers all four.
 
 \hd{FLIGHT\_CONDITION keys}
 \texttt{KEY:value} pairs, comma separated; one key may say \texttt{sweep}.\par\vspace{1pt}
@@ -69,7 +78,8 @@ ALPHA, BETA & deg & attitude\\
 
 \hd{VAR\_NAMES\_VALUES}
 \texttt{iterations: 4000 / solver.threads: 4}\\
-Each setup key replaces its value for that row. \texttt{hpc: alpha / cluster: west} selects submission settings instead; \texttt{hpc:} overrides \texttt{--hpc}; \texttt{--local} ignores both.
+Each setup key replaces its value for that row. \texttt{hpc: alpha / cluster: west} selects submission settings instead; \texttt{hpc:} overrides \texttt{--hpc}; \texttt{--local} ignores both. \texttt{hpc.<name>: <value>} replaces one value of the profile for the row.\par\vspace{2pt}
+\textbf{Row variables of the run types:} \texttt{DELTA\_THETA} with \texttt{REVOLUTIONS}, or \texttt{DELTA\_TIME} with \texttt{TIME\_ITERATIONS} (the clock); \texttt{LAST\_REVS\_AVG} or \texttt{LAST\_ITERS\_AVG} (the averaging window); \texttt{EXPORT\_UNSTEADY\_LAST\_REV}, \texttt{\_LAST\_ITER}, \texttt{\_AFTER\_REV}, \texttt{\_AFTER\_ITER} (the export window); \texttt{PERIODIC\_COPIES}; \texttt{TURBULENCE\_MODEL} (\texttt{SA} or \texttt{SST}).
 
 \columnbreak
 \hd{What each solver needs}
@@ -87,7 +97,7 @@ The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_orig
 \hd{Common mistakes}
 \err{The solver name is not one of the listed names.}{The refusal lists them; capitals are accepted: \texttt{--solver SU2} is \texttt{su2}.}
 \err{The columns are separated by commas or tabs.}{Separate them with \texttt{|}.}
-\err{A \texttt{SET} cell names a file that is not there.}{\texttt{001} and \texttt{s001} both mean \file{inputs/setups/s001.toml}.}
+\err{A \texttt{SETUP} cell names a file that is not there.}{\texttt{001} and \texttt{s001} both mean \file{inputs/setups/s001.toml}.}
 \err{The mesh is somewhere else on the disk.}{Put it in \file{inputs/mesh/} and write its file name in \texttt{MESH}.}
 \err{Both \texttt{MACH} and \texttt{TASmps} are stated, or \texttt{REmi} beside \texttt{RHOkgm3}.}{State one of each pair.}
 \end{multicols}
@@ -102,6 +112,7 @@ The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_orig
 \opt{--points NAME [NAME ...]}{only these points, \texttt{DP-name} or \texttt{POL/DP-name}}
 \opt{--local}{plan for this machine, not for a submission; stops when the solver is not found here}
 \opt{--hpc NAME}{the profile \file{inputs/hpc/<NAME>.toml}, when there are several; \texttt{--warning-refusals} refuses unused cluster values}
+\opt{--batch N}{the rows as N scheduler jobs, each with a generated shell script}
 \opt{--verbose}{details too, such as the path of the receipt}
 \opt{--log-level LEVEL}{\texttt{quiet}, \texttt{normal} or \texttt{verbose}}
 \opt{--workspace DIR}{another folder than the current one}
@@ -116,7 +127,8 @@ The reference file gives \texttt{area}, \texttt{length} and \texttt{moment\_orig
 \hd{Files}
 \rd{init.toml}{which solver checks the inputs}
 \rd{inputs/matrices/<matrix>.fs}{the rows with \texttt{RUN} 1}
-\rd{inputs/setups/s<id>.toml}{named by \texttt{SET}}
+\rd{inputs/setups/s<id>.toml}{named by \texttt{SETUP}}
+\rd{inputs/numerics/n<id>.toml}{named by \texttt{NUMERICS}, optional}
 \rd{inputs/references/r<id>.toml}{named by \texttt{REF}}
 \rd{inputs/pproc/p<id>.toml}{named by \texttt{PPROC}}
 \rd{inputs/mesh/}{the file named by \texttt{MESH}, hashed}
@@ -156,6 +168,7 @@ A value the row and a file both state must agree.
 \opt{--local}{keep the work on this machine}
 \opt{--no-local}{submit when a profile exists (the default)}
 \opt{--hpc NAME}{the profile to submit with; \texttt{--warning-refusals} refuses unused cluster values}
+\opt{--batch N}{submit the rows as N scheduler jobs; plan again with the same N first}
 \opt{--verbose}{details too}
 \opt{--log-level LEVEL}{\texttt{quiet}, \texttt{normal} or \texttt{verbose}}
 \opt{--workspace DIR}{another folder than the current one}
@@ -289,6 +302,9 @@ PLANNED, SUBMITTED, RUNNING, COMPLETED. A completed point carries a verdict: \te
 \wf{post/<matrix>/polars/FAM-DIM-P<POL>.csv}{dimensional family loads}
 \wf{post/<matrix>/polars/P<POL>-TOTAL-ACOEF.csv}{total coefficients per point}
 \wf{post/<matrix>/polars/P<POL>.txt}{2D SU2 or OpenFOAM ALPHA polar, XFOIL layout}
+\wf{post/<matrix>/polars/P<POL>-<alias>\_rotor.csv}{rotor table}
+\wf{post/<matrix>/polars/P<POL>\_<matrix>\_uns\_avg.csv}{unsteady polar}
+\wf{post/<matrix>/sections/, fields/, probes/}{declared products, per \texttt{P<POL>/}}
 \wf{post/<matrix>/products.json}{each product written or skipped, with the reason}
 \wf{post/<matrix>/post.log}{the same, as text}
 

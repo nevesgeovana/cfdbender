@@ -19,7 +19,9 @@ cfd-matrix collect polar
 `NAME` is one of the solvers that `cfd-workspace init --help` lists. `polar` is
 the matrix `inputs/matrices/polar.fs`. Every command works on the current
 folder; `--workspace PATH` names another one. [The workflow](workflow.md)
-explains what each stage reads and writes.
+explains what each stage reads and writes. `cfd-workspace setups` lists the
+ready setup files a solver ships and writes one into `inputs/setups/` for you
+to edit; a solver that ships none says so.
 
 ## Rules that hold for every command
 
@@ -91,7 +93,24 @@ cfd-workspace init [ROOT] [options]
 |---|---|
 | `[ROOT]` | Campaign root to create or complete (default: the current directory) |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory); the positional root names the same folder |
-| `--solver NAME` | Solver for this workspace, one of: flightstream, mock, openfoam, pyfr, qprop, su2, xfoil |
+| `--solver NAME` | Solver for this workspace, one of: cfdpp, flightstream, mock, openfoam, pyfr, qprop, su2, xfoil |
+| `--verbose` | Print details too; the same as --log-level verbose |
+| `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
+
+### `cfd-workspace setups`
+
+Writes the next free inputs/setups/s&lt;id&gt;.toml from a named template of the workspace's solver and overwrites nothing. Without --template, or with --list, it lists the templates.
+
+```text
+cfd-workspace setups [options]
+```
+
+| Argument or option | Meaning |
+|---|---|
+| `--template NAME` | Write inputs/setups/s&lt;ID&gt;.toml from this template of the workspace's solver |
+| `--list` | Print the templates of the workspace's solver with their descriptions (the same as no option) |
+| `--id ID` | The setup id to write, three digits (default: the next free one); an existing file is refused |
+| `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
@@ -140,7 +159,7 @@ cfd-matrix run MATRIX [options]
 | `--one-run-at-a-time` | Reserve this machine for one guarded local run at a time |
 | `--resume` | Skip points already recorded COMPLETED or SUBMITTED and run the rest, so a grown matrix runs only its new points; a RUNNING point is skipped because its process may still be alive. Without it a recorded point refuses the run |
 | `--force-rerun POINT` | Redo this recorded point, named POL/DP-name or DP-name; repeat for several. runs.json is copied to archive/&lt;stamp&gt;/runs.json, the point folder moves to archive/&lt;stamp&gt;/ and its record joins the runs.json history; nothing is deleted |
-| `--force-rerun-all` | Redo every recorded point of the matrix, archived as --force-rerun archives; a SUBMITTED job is not cancelled, cancel it in the scheduler first |
+| `--force-rerun-all` | Redo every recorded point of the matrix, archived as --force-rerun archives; a SUBMITTED job is not canceled, cancel it in the scheduler first |
 | `--warning-refusals` | Refuse warnings, including unused cluster values |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |

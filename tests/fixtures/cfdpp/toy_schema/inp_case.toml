@@ -1,0 +1,337 @@
+# Invented entries the toy case builder needs: run-control keywords, information sets,
+# turbulence models, boundary codes, a rule and a combination (the stop tool is in
+# tools.toml). Nothing
+# here describes a real solver: keywords, codes and tags are made up. No entry holds a
+# default value.
+
+[[keywords]]
+name = "tdrop"
+section = "control"
+order = 10
+arity = 1
+types = ["real"]
+range = { min = 0 }
+meaning = "orders of residual drop that end the run"
+locator = "TOY :: control, tdrop"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tramp"
+section = "control"
+order = 11
+arity = 2
+types = ["int", "int"]
+range = { min = 0 }
+meaning = "first and last step of the step-size ramp"
+locator = "TOY :: control, tramp"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tturb"
+section = "control"
+order = 12
+arity = 2
+types = ["int", "int"]
+meaning = "equation family and model code"
+locator = "TOY :: control, tturb"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tmeth"
+section = "control"
+order = 13
+arity = 1
+types = ["choice"]
+choices = [0, 1]
+meaning = "method code"
+locator = "TOY :: control, tmeth"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tprev"
+section = "control"
+order = 14
+arity = 1
+types = ["real"]
+range = { min = 0 }
+meaning = "velocity bound of the second method"
+locator = "TOY :: control, tprev"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "trgas"
+section = "control"
+order = 15
+arity = 1
+types = ["real"]
+meaning = "gas constant"
+locator = "TOY :: fluid, trgas"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tgam"
+section = "control"
+order = 16
+arity = 1
+types = ["real"]
+meaning = "ratio of specific heats"
+locator = "TOY :: fluid, tgam"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tvisc"
+section = "control"
+order = 17
+arity = 1
+types = ["choice"]
+choices = [1]
+meaning = "viscosity law code"
+locator = "TOY :: fluid, tvisc"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tmu0"
+section = "control"
+order = 18
+arity = 1
+types = ["real"]
+meaning = "reference viscosity of the law"
+locator = "TOY :: fluid, tmu0"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tt0"
+section = "control"
+order = 19
+arity = 1
+types = ["real"]
+meaning = "reference temperature of the law"
+locator = "TOY :: fluid, tt0"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tsuth"
+section = "control"
+order = 20
+arity = 1
+types = ["real"]
+meaning = "constant of the law"
+locator = "TOY :: fluid, tsuth"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tmg"
+section = "control"
+order = 21
+arity = 1
+types = ["int"]
+range = { min = 1 }
+meaning = "multigrid levels"
+locator = "TOY :: numerics, tmg"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tsmooth"
+section = "control"
+order = 22
+arity = 1
+types = ["real"]
+meaning = "smoothing factor"
+locator = "TOY :: numerics, tsmooth"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tlim"
+section = "control"
+order = 23
+arity = 1
+types = ["choice"]
+choices = [0, 1]
+meaning = "limiter code"
+locator = "TOY :: numerics, tlim"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tblend"
+section = "control"
+order = 24
+arity = 2
+types = ["real", "real"]
+meaning = "first-order blending at the start and end of its ramp"
+locator = "TOY :: numerics, tblend"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tbsteps"
+section = "control"
+order = 25
+arity = 2
+types = ["int", "int"]
+meaning = "first and last step of the blending ramp"
+locator = "TOY :: numerics, tbsteps"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tturbstart"
+section = "control"
+order = 26
+arity = 1
+types = ["int"]
+meaning = "step at which the turbulence equations start"
+locator = "TOY :: numerics, tturbstart"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tout"
+section = "control"
+order = 27
+arity = 1
+types = ["int"]
+range = { min = 1 }
+meaning = "steps between solution outputs"
+locator = "TOY :: control, tout"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "trst"
+section = "control"
+order = 28
+arity = 1
+types = ["int"]
+range = { min = 1 }
+meaning = "steps between restart saves"
+locator = "TOY :: control, trst"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "trestart"
+section = "control"
+order = 29
+arity = 1
+types = ["choice"]
+choices = [0, 1]
+meaning = "start from a saved solution"
+locator = "TOY :: control, trestart"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[infosets]]
+tag = "prim3"
+variables = ["p", "t", "u", "v", "w"]
+meaning = "primitive state in three dimensions"
+locator = "TOY :: sets, prim3"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[infosets]]
+tag = "primn"
+variables = ["p", "t", "u", "v", "nut"]
+meaning = "primitive state with an eddy viscosity"
+locator = "TOY :: sets, primn"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[infosets]]
+tag = "primn3"
+variables = ["p", "t", "u", "v", "w", "nut"]
+meaning = "primitive state with an eddy viscosity, three dimensions"
+locator = "TOY :: sets, primn3"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[infosets]]
+tag = "primko"
+variables = ["p", "t", "u", "v", "k", "omega"]
+meaning = "primitive state with two turbulence values"
+locator = "TOY :: sets, primko"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[turbulence]]
+name = "SpalartAllmaras"
+codes = [9, 1]
+variables = ["nut"]
+meaning = "the toy entry of a one-equation model"
+locator = "TOY :: turbulence, sa"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[turbulence]]
+name = "SST"
+codes = [9, 2]
+variables = ["k", "omega"]
+meaning = "the toy entry of a two-equation model"
+locator = "TOY :: turbulence, sst"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[turbulence]]
+name = "RealizableKE"
+codes = [9, 3]
+variables = ["k", "epsilon"]
+meaning = "the toy entry of a model only the toy help mentions"
+locator = "TOY :: turbulence, rke"
+status = { "1.0" = { status = "documented" }, "2.0" = { status = "documented" } }
+
+[[boundary_codes]]
+code = 12
+params = []
+neutral = { type = "wall", treatment = "solve-to-wall", thermal = "adiabatic" }
+meaning = "a resolved adiabatic wall"
+locator = "TOY :: bcs, 12"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[boundary_codes]]
+code = 13
+params = [{ name = "temperature", type = "real" }]
+neutral = { type = "wall", treatment = "solve-to-wall", thermal = "isothermal" }
+meaning = "a resolved wall at a stated temperature"
+locator = "TOY :: bcs, 13"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[boundary_codes]]
+code = 14
+params = []
+neutral = { type = "wall", treatment = "wall-function", thermal = "adiabatic" }
+meaning = "a modelled adiabatic wall"
+locator = "TOY :: bcs, 14"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[boundary_codes]]
+code = 15
+params = []
+neutral = { type = "wall", slip = "true" }
+meaning = "a slip wall"
+locator = "TOY :: bcs, 15"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[boundary_codes]]
+code = 16
+params = [{ name = "temperature", type = "real" }]
+neutral = { type = "wall", treatment = "wall-function", thermal = "isothermal" }
+meaning = "a modelled wall at a stated temperature, only in the toy help"
+locator = "TOY :: bcs, 16"
+status = { "1.0" = { status = "documented" }, "2.0" = { status = "documented" } }
+
+[[boundary_codes]]
+code = 30
+params = []
+neutral = { type = "symmetry" }
+meaning = "a mirror plane"
+locator = "TOY :: bcs, 30"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[rules]]
+id = "ramp-steps-order"
+kind = "not_greater"
+level = "hard"
+keyword = "tramp"
+index = 0
+other = "tramp"
+other_index = 1
+message = "the ramp must not end before it starts"
+locator = "TOY :: rules, ramp steps"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[combinations]]
+name = "toy-sa-2d"
+method = "preconditioned"
+turbulence = "SpalartAllmaras"
+treatment = "solve-to-wall"
+dimension = 2
+meaning = "the toy case that ran: second method, one-equation model, resolved wall, 2D"
+locator = "TOY :: combinations, sa 2d"
+status = { "1.0" = { status = "verified", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }

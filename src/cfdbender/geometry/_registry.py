@@ -26,7 +26,7 @@ def sidecar_identity(name, layout):
     name : str
         Component name.
     layout : dict
-        Sidecar with ordered bases in metres and original source trims.
+        Sidecar with ordered bases in meters and original source trims.
 
     Returns
     -------
@@ -68,7 +68,7 @@ def manifest_record(state, *, configuration, identities, dominance, coverage) ->
     dominance : list
         Resolved dominance operations.
     coverage : dict
-        Measured coverage ledger per component, in square metres.
+        Measured coverage ledger per component, in square meters.
 
     Returns
     -------

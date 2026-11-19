@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cfdbender"
-version = "0.6.1"
+version = "0.7.0"
 description = "Solver-agnostic Python workspace for CFD studies (SU2 first)"
 readme = "README.md"
 authors = [{name = "Geovana Neves"}]
@@ -42,6 +42,10 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "cfdbender.geometry" = ["schemas/*.json"]
+# Every solver that ships setup templates carries them; the database of the CFD++
+# adapter is data too.
+"*" = ["setup_templates/*.toml"]
+"cfdbender.solvers.cfdpp._schema" = ["data/*.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

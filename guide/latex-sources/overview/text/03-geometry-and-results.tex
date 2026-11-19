@@ -17,6 +17,40 @@ cfd-mesh airfoil-2d --naca 0012 --reynolds 6000000
 \end{itemize}
 \end{frame}
 
+\begin{frame}{Run types, rotors and time-accurate points}
+\begin{itemize}\small
+  \item The \code{WORKFLOW} column selects a run type with pyflightstream's
+        names: \code{steady}, \code{qsteady\_rotor}, \code{unsteady} and
+        \code{unsteady\_rotor}. SU2 offers all four; the other solvers offer
+        \code{steady}.
+  \item A rotor is declared in the reference file. \code{ADVANCE\_RATIO} or
+        \code{RPM} in \code{FLIGHT\_CONDITION} sets its speed;
+        \code{SYMMETRY} \code{PERIODIC} with \code{PERIODIC\_COPIES} solves one
+        sector.
+  \item A time-accurate row states its clock, its averaging window and,
+        optionally, its export window. Its result is the mean over the window.
+  \item The rotor table is \code{polars/P<POL>-<alias>\_rotor.csv}; the
+        unsteady polar is \code{polars/P<POL>\_<matrix>\_uns\_avg.csv}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Products declared in the post file}
+\begin{itemize}\small
+  \item \code{inputs/pproc/p<id>.toml} may declare \code{[sections]}
+        (Cp and sectional loads), one \code{[volume\_section]} and
+        \code{[[probes]]}, with pyflightstream's tables and keys.
+  \item \code{collect} and \code{post} write them under
+        \code{post/<matrix>/sections/}, \code{fields/} and \code{probes/}; a
+        product a solver cannot supply is skipped with its reason in
+        \code{products.json}.
+  \item When the solver supplies wall shear, the sectional loads are totals,
+        pressure plus friction, and the parts follow in their own columns.
+  \item The solver-agnostic arithmetic is the package \code{cfdbender.post}:
+        time averages, per-revolution means, sections, volume sampling, a
+        reader of \code{.vtu} files and the far-field numerics.
+\end{itemize}
+\end{frame}
+
 \begin{frame}{From a saved solution to a recorded result}
 \begin{itemize}\small
   \item \code{RESTART} in a row names a recorded source solution;
@@ -28,6 +62,8 @@ cfd-mesh airfoil-2d --naca 0012 --reynolds 6000000
   \item In \code{VAR_NAMES_VALUES}, \code{hpc: alpha / cluster: west}
         selects a profile and cluster per row. \code{hpc:} overrides
         \code{--hpc}; \code{--local} ignores both row selections.
+        \code{hpc.<name>: <value>} replaces one value of the profile for the
+        row, and \code{--batch N} submits the rows as N grouped jobs.
   \item \code{collect} writes \code{campaign_summary.json}, family tables such as
         \code{FAM-ACOEF-P<POL>.csv}, group tables and \code{products.json}.
         Setup \code{[groups]} boundary forces stay in the summary, separately

@@ -325,7 +325,7 @@ def _add_prepare(verbs: Any) -> None:
         "--visual-inspect",
         action="store_true",
         help="also write <stem>_patches.inspect.pdf: one page per original family, each patch "
-        "colored and named, the governing patches labelled GOVERNING",
+        "colored and named, the governing patches labeled GOVERNING",
     )
     prepare.add_argument(
         "--keep-within-component",
@@ -581,7 +581,7 @@ def _add_degenerate(verbs: Any) -> None:
             "as <stem>_thin_blade.obj with its boundary inventory "
             "<stem>_thin_blade.boundaries.toml. The root is the end of the blade nearer the "
             "origin of the mesh's own coordinates. The source is read only; a file holding "
-            "more than one boundary needs --boundary. The derived geometry is a modelling "
+            "more than one boundary needs --boundary. The derived geometry is a modeling "
             "choice: a solver run confirms what it makes of it."
         ),
         allow_abbrev=False,

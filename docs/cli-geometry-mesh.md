@@ -66,7 +66,7 @@ requires the full source and read-back uncertainty intervals to fit inside
 exports to create these certificates before running their read-back checks.
 Each retained face also carries an eight-character IGES directory label. The
 manifest records that label, its position in each file, and the source centroid
-and bounding box in metres. S11.R validates the labels and directory order,
+and bounding box in meters. S11.R validates the labels and directory order,
 then verifies a unique centroid or bounding-box match within `1e-7` m before
 comparing each face's corresponding intervals. Bounding boxes provide an independent
 check when the kernel's approximate centroid shifts on reimport. This fallback
@@ -231,7 +231,7 @@ cfd-geom check REBUILT ORIGINAL [options]
 | `--forward-count N` | Samples per side on each original face (default: 45) |
 | `--reverse-count N` | Samples per side on each rebuilt face (default: 31) |
 | `--edge-count N` | Samples on each trim edge (default: 101) |
-| `--fold-y` | The original is a half body: fold the rebuilt mirror half onto the modelled side |
+| `--fold-y` | The original is a half body: fold the rebuilt mirror half onto the modeled side |
 | `--profile PROFILE` | Named deviation profile (default: study_default, 0.5 mm or 0.1 percent of chord) |
 | `--out JSON` | Also write the record to this file |
 
@@ -368,7 +368,7 @@ cfd-mesh prepare-to-refine MESH [options]
 | `--out DIR` | Output folder (default: inputs/mesh/ of the workspace) |
 | `--unit UNIT` | A NASTRAN mesh's length unit (default MILLIMETER); an OBJ is written as read |
 | `--obj-unit OBJ_UNIT` | The unit a NASTRAN mesh is written in to the patches OBJ (default METER) |
-| `--visual-inspect` | Also write &lt;stem&gt;_patches.inspect.pdf: one page per original family, each patch colored and named, the governing patches labelled GOVERNING |
+| `--visual-inspect` | Also write &lt;stem&gt;_patches.inspect.pdf: one page per original family, each patch colored and named, the governing patches labeled GOVERNING |
 | `--keep-within-component` | Share directional governors across each original family's grid patches |
 
 ### `cfd-mesh audit`
@@ -400,7 +400,7 @@ cfd-mesh inventory GEOMETRY [options]
 
 ### `cfd-mesh degenerate`
 
-Derives the thin blade of a blade mesh, the sheet midway between its two sides from the root to the tip, with the root moved outward along the span by --root-offset so it does not cross the spinner, and writes into inputs/mesh/ of the workspace, or --out, as &lt;stem&gt;_thin_blade.obj with its boundary inventory &lt;stem&gt;_thin_blade.boundaries.toml. The root is the end of the blade nearer the origin of the mesh's own coordinates. The source is read only; a file holding more than one boundary needs --boundary. The derived geometry is a modelling choice: a solver run confirms what it makes of it.
+Derives the thin blade of a blade mesh, the sheet midway between its two sides from the root to the tip, with the root moved outward along the span by --root-offset so it does not cross the spinner, and writes into inputs/mesh/ of the workspace, or --out, as &lt;stem&gt;_thin_blade.obj with its boundary inventory &lt;stem&gt;_thin_blade.boundaries.toml. The root is the end of the blade nearer the origin of the mesh's own coordinates. The source is read only; a file holding more than one boundary needs --boundary. The derived geometry is a modeling choice: a solver run confirms what it makes of it.
 
 ```text
 cfd-mesh degenerate GEOMETRY [options]
@@ -455,7 +455,7 @@ cfd-mesh trailing-edge [MESH] [OUTPUT] [options]
 
 ### `cfd-mesh convert2midnodes`
 
-Reads the node list a mesh-preparation tool saves from a node set (Id, Name, X, Y, Z), puts the nodes in order along their lines (a long jump starts a new line, so one list may hold every trailing edge) and writes one mid-point per neighbouring pair.
+Reads the node list a mesh-preparation tool saves from a node set (Id, Name, X, Y, Z), puts the nodes in order along their lines (a long jump starts a new line, so one list may hold every trailing edge) and writes one mid-point per neighboring pair.
 
 ```text
 cfd-mesh convert2midnodes NODES OUTPUT [options]
@@ -508,7 +508,7 @@ cfd-mesh collapse-te MESH [options]
 
 ### `cfd-mesh scale`
 
-FACTOR is a positive number (0.5 halves every length). Every vertex of the OBJ given by --mesh is scaled about the origin, or about --about x,y,z; face order, groups, normals and comments stay byte for byte. --out names the scaled OBJ (default &lt;stem&gt;_scaled&lt;factor&gt;.obj in the workspace's inputs/mesh); &lt;name&gt;.scale.json beside it holds the input digest, factor, centre, counts and the bounding boxes before and after. The input is never overwritten; an existing output is refused unless --overwrite.
+FACTOR is a positive number (0.5 halves every length). Every vertex of the OBJ given by --mesh is scaled about the origin, or about --about x,y,z; face order, groups, normals and comments stay byte for byte. --out names the scaled OBJ (default &lt;stem&gt;_scaled&lt;factor&gt;.obj in the workspace's inputs/mesh); &lt;name&gt;.scale.json beside it holds the input digest, factor, center, counts and the bounding boxes before and after. The input is never overwritten; an existing output is refused unless --overwrite.
 
 ```text
 cfd-mesh scale FACTOR [options]
@@ -519,7 +519,7 @@ cfd-mesh scale FACTOR [options]
 | `FACTOR` | Positive uniform scale factor, for example 0.5 |
 | `--mesh MESH` | Source OBJ, read only |
 | `--out OUT` | The scaled OBJ; default &lt;stem&gt;_scaled&lt;factor&gt;.obj |
-| `--about ABOUT` | Scale centre x,y,z (default 0,0,0) |
+| `--about ABOUT` | Scale center x,y,z (default 0,0,0) |
 | `--overwrite` | Replace the output if it exists |
 
 ### `cfd-mesh sector-to-wheel`
@@ -537,7 +537,7 @@ cfd-mesh sector-to-wheel SECTOR [options]
 | `--blades FAMILY [FAMILY ...]` | The OBJ group(s) that are the blade |
 | `--axis AXIS` | X, y, z, a signed one of them written --axis=-x, or three comma-separated numbers (default x) |
 | `--center X Y Z` | A point of the axis, in the mesh's unit (default the origin) |
-| `--tolerance METRES` | Nodes within this distance, in metres, are one node (default 1e-4) |
+| `--tolerance Meters` | Nodes within this distance, in meters, are one node (default 1e-4) |
 | `--out PATH` | The wheel (default &lt;sector stem&gt;_wheel.obj) |
 | `--overwrite` | Replace an existing wheel |
 

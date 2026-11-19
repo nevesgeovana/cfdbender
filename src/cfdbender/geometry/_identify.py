@@ -91,7 +91,7 @@ __all__ = [
 
 @dataclass(frozen=True)
 class LiftingIdentification:
-    """The identified planform, sections and evidence of one lifting surface (metres, degrees).
+    """The identified planform, sections and evidence of one lifting surface (meters, degrees).
 
     ``planform`` is the result of :func:`cfdbender.geometry.stages.reference_planform`;
     ``sections`` are the root and tip CST fits and ``midspan`` the extra measured section.
@@ -231,7 +231,7 @@ def identify_lifting_surface(
     section_degree, section_max_degree : int
         The CST degree a section fit starts at and the highest it may rise to.
     host_tolerance : float
-        The largest gap, in metres, at which the extended leading edge counts as meeting a host.
+        The largest gap, in meters, at which the extended leading edge counts as meeting a host.
     converge : bool
         Run a coarse pass as well and require the planforms to agree for ``accepted``.
 

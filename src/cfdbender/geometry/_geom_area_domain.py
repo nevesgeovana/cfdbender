@@ -36,7 +36,7 @@ def _beziers(knots: Array, degree: int, points: Array, axis: int = 0) -> tuple[A
 
 def _curves(document: dict[str, Any]) -> tuple[_Surface, list[list[Array]], float]:
     if int(document["global"][13]) != 6:
-        raise _refuse("serialized measurement is not in metres")
+        raise _refuse("serialized measurement is not in meters")
     by_id = {e["id"]: e for e in document["entities"]}
     faces = [e for e in by_id.values() if e["type"] == 144]
     if len(faces) != 1:

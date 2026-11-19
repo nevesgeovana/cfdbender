@@ -1,0 +1,42 @@
+# Evidence report of the CFD++ interface database: what was compared, on which version, and
+# the result. It holds identities and the entries judged. No file the vendor's tools wrote and
+# no line of one is quoted here.
+report: CMP-22.5.U3_2026-11-18_harvest-grammar
+solver: CFD++
+version: 22.5.U3
+date: 2026-11-18
+platform: windows
+identity:
+  printed: "CFD++: Version 22.5, Update 3"
+  executables_sha256:
+    solver_serial: ed95105db6591cbe179e25d7220a233dd9cf154f667766865425858ffecd27dd
+    converter: 2034053266608d806ed7980731f939332fe43f7c9f26c5daea94c2a5db40d4df
+    template_tool: b14c32b24a8ae4752c224c275e2f78aed7c39b9f5b4b6c794abc53328f4f5b71
+    force_processor: e84834aff49f52d06e0dc2f10dd4e741507c5192b51803af5b0f78a9b884fff1
+    extractor: 127e20a6d4b9513cac63b10ad52aad9c482a012508505c30f7714d1696a42f66
+    residual_tool: 77727e5e38b810a6b8d512cecec6e32a086bab9ee61efaf80e1db017e66a5cea
+    stop_tool: ecc1a458f09fc168b9aecf05c3079443070878a9cee51246dfa8e330dddcbf5a
+evidence:
+  sources:
+    - the baseline input the solver's GUI saved and 31 saved variations of one setting each
+    - the output of the solver's template tool
+    - the solver's parse of the baseline and of the template output
+  not_available: no run output
+acceptance:
+  round_trip: every saved text input and the template output (36) render back byte for byte
+  equivalence: the input cfdbender writes for the baseline condition and for each of the 21
+    variations a setup key reaches moves exactly the entries the GUI moved
+judged:
+  harvested:
+    sections: 14
+    keywords: 293
+    infosets: 4
+    boundary_codes: 7
+    turbulence: 3
+    setup_bindings: 27
+    files: 4
+    tools: 1
+  verified: 0
+  broken: 0
+  removed: 0
+  why_no_verified: no generated input has run

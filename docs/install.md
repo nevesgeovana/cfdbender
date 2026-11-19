@@ -18,7 +18,7 @@ The help text ends with the list of solvers. When it prints, the four programs
 `cfd-workspace`, `cfd-matrix`, `cfd-geom` and `cfd-mesh` are installed. You can
 now follow [First campaign](getting-started.md), which needs no solver.
 
-### The geometry kernel and its licence
+### The geometry kernel and its license
 
 `cfd-geom` and `cfd-mesh` build and mesh surfaces with gmsh and its
 OpenCASCADE kernel. gmsh is distributed under the GNU General Public License,
@@ -26,18 +26,18 @@ version 2 or later, with an exception that permits linking it with other
 programs. It is installed from its own distribution, as a separate package, and
 cfdbender imports it from one module only, `cfdbender/mesh/_gmsh.py`, when a
 command that needs the kernel runs. cfdbender itself stays under the MIT
-licence. Measured with gmsh 4.15.2.
+license. Measured with gmsh 4.15.2.
 
 On Linux the gmsh library also needs the system packages `libglu1-mesa
 libxcursor1 libxft2 libxinerama1`. Without them a command that needs the kernel
 stops and names the library that did not load; the geometry stages that need no
 kernel still run.
 
-### Runtime dependency licences
+### Runtime dependency licenses
 
-The [dependency licence table](dependency-licences.md) lists every direct runtime
+The [dependency license table](dependency-licences.md) lists every direct runtime
 dependency, including gmsh's GPL and linking exception. The offline kit retains
-the published wheels with their licence files and bundled notices.
+the published wheels with their license files and bundled notices.
 
 FlightStream support is an optional extra:
 
@@ -54,6 +54,7 @@ of the setup file, the environment variable, the program name on the `PATH`.
 
 | Solver | Needs on the machine | Key in the setup `[solver]` table | Environment variable | Name looked for on `PATH` |
 |---|---|---|---|---|
+| [CFD++](cfdpp-workspaces.md) | CFD++ 22.5.U3 and its tools | none; the build entry of `inputs/executables.toml` | none | none |
 | [SU2](su2-workspaces.md) | SU2, as the program `SU2_CFD` or as its Python wrapper | `executable`; `pysu2_path` for the wrapper | `CFDBENDER_SU2_EXE`; `CFDBENDER_PYSU2_PATH` | `SU2_CFD` |
 | [OpenFOAM](openfoam-workspaces.md) | OpenFOAM and its environment file | `foam_bashrc` | `CFDBENDER_OPENFOAM_BASHRC` | none |
 | [PyFR](pyfr-workspaces.md) | PyFR | `executable` | none | `pyfr` |

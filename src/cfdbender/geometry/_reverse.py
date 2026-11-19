@@ -43,7 +43,7 @@ __all__ = [
     "refine_tip",
 ]
 
-#: Closing tolerance of a cut in metres: a chain of cut segments whose end points are further
+#: Closing tolerance of a cut in meters: a chain of cut segments whose end points are further
 #: apart than this is an open or multiple contour, not one section.
 CLOSURE_TOLERANCE_M = 5e-5
 
@@ -83,7 +83,7 @@ def closed_contour(segments, tolerance=CLOSURE_TOLERANCE_M):
     segments : iterable of array_like
         Polyline segments of one cut, each ``(n, 3)``.
     tolerance : float, optional
-        Largest endpoint or closure gap, metres; default ``CLOSURE_TOLERANCE_M``.
+        Largest endpoint or closure gap, meters; default ``CLOSURE_TOLERANCE_M``.
 
     Returns
     -------
@@ -271,7 +271,7 @@ def clean_band(stations, features, trend_tolerance=0.0001):
         0.1 * np.median(abs(slopes[inside])),
         1e-5 * np.nanmedian(thickness) / np.ptp(s),
     )
-    # The incoming neighbour interval is checked, so a cap does not cause the preceding
+    # The incoming neighbor interval is checked, so a cap does not cause the preceding
     # intact section to be discarded.
     bad = np.isfinite(slopes) & (abs(slopes - trend(mid)) > allowance)
     mask[1:] &= ~bad
@@ -514,7 +514,7 @@ def reference_planform(
             "twist_deg": (incidence[::25] - incidence[0]).tolist(),
         },
         "classifier_limit": (
-            "Interior cubic chord trend and neighbouring dimensional-thickness slope; "
+            "Interior cubic chord trend and neighboring dimensional-thickness slope; "
             "complex distributions require review."
         ),
     }
@@ -574,7 +574,7 @@ def fit_section(contour, span, seed, *, degree=5, max_degree=20, tolerance_m=Non
     max_degree : int, optional
         Highest CST degree tried; default 20.
     tolerance_m : float, optional
-        Residual tolerance, metres; default as described above.
+        Residual tolerance, meters; default as described above.
 
     Returns
     -------

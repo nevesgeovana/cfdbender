@@ -28,6 +28,7 @@ only place that transforms a native axis into the standard one.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 
 from cfdbender.core.axes import frame_rotations
@@ -43,6 +44,9 @@ NATIVE_NAMES: Mapping[str, Mapping[str, str]] = {
     "mock": {"CL": "CZ", "CD": "CX", "CM": "Cm"},
     "flightstream": {"CL": "CLB", "CD": "CDB", "CM": "CMB25"},
     "qprop": {},
+    # CFD++ prints forces, not coefficients: cfdbender normalizes them along the geometry
+    # axes (CFx ... CMz) and _geometry_axes turns them into the wind axes.
+    "cfdpp": {},
 }
 
 #: The names that differ when the solver states a two-dimensional problem. SU2 solves a
@@ -126,6 +130,37 @@ def neutral_values(
         drag, lift = wind_directions(_angle(condition, "ALPHA"), _angle(condition, "BETA"))
         values["CD"] = sum(f * d for f, d in zip(force, drag, strict=True))
         values["CL"] = sum(f * d for f, d in zip(force, lift, strict=True))
+    if solver == "cfdpp" and all(k in native for k in ("CFx", "CFy", "CFz")):
+        values.update(_geometry_axes(native, dimensions, condition))
+    return values
+
+
+def _geometry_axes(
+    native: Mapping[str, float], dimensions: object, condition: Mapping[str, object] | None
+) -> dict[str, float]:
+    """Project force coefficients along the geometry axes onto the wind axes.
+
+    CFD++ forces are normalized by cfdbender along the axes of the mesh, which is the
+    standard frame. Three dimensions: CD and CL along the wind directions, CM = CMy.
+    Two dimensions (flow in the x-y plane, y up): CD = CFx cos a + CFy sin a,
+    CL = -CFx sin a + CFy cos a, and CM = -CMz, since a moment about +z of that plane
+    is nose-down positive.
+    """
+    force = (native["CFx"], native["CFy"], native["CFz"])
+    alpha = _angle(condition, "ALPHA")
+    values: dict[str, float] = {}
+    if dimensions == 2:
+        a = math.radians(alpha)
+        values["CD"] = force[0] * math.cos(a) + force[1] * math.sin(a)
+        values["CL"] = -force[0] * math.sin(a) + force[1] * math.cos(a)
+        if "CMz" in native:
+            values["CM"] = -native["CMz"]
+        return values
+    drag, lift = wind_directions(alpha, _angle(condition, "BETA"))
+    values["CD"] = sum(f * d for f, d in zip(force, drag, strict=True))
+    values["CL"] = sum(f * d for f, d in zip(force, lift, strict=True))
+    if "CMy" in native:
+        values["CM"] = native["CMy"]
     return values
 
 

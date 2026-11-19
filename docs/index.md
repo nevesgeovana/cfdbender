@@ -20,7 +20,8 @@ learn the commands before a real solver is involved.
 
 | Solver | Computes |
 |---|---|
-| [SU2](su2-workspaces.md) | Compressible flow on a volume mesh. |
+| [CFD++](cfdpp-workspaces.md) | Steady compressible flow from a native grid folder; incomplete and not yet verified against the solver. |
+| [SU2](su2-workspaces.md) | Compressible flow on a volume mesh, steady or time accurate, with rotors and declared post-processing products. |
 | [OpenFOAM](openfoam-workspaces.md) | Steady incompressible flow on a volume mesh. |
 | [PyFR](pyfr-workspaces.md) | High-order flow simulation with flux reconstruction. |
 | [XFOIL](xfoil-workspaces.md) | Polars of a two-dimensional airfoil. |
@@ -32,6 +33,8 @@ learn the commands before a real solver is involved.
 - **New to cfdbender.** [Install](install.md) it, then follow
   [First campaign](getting-started.md): one complete campaign with every
   command and every file shown.
+- **Coming from 0.6.** [Upgrading from 0.6](upgrading.md) says what changed
+  for an existing workspace; nothing has to be done.
 - **How a campaign works.** [The workflow](workflow.md) explains the stages in
   order, and the pages beside it cover the workspace, the matrix, the records,
   the tables, cluster jobs and storage.

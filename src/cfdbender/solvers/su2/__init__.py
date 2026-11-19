@@ -60,7 +60,9 @@ from cfdbender.core.results import Classification, Coefficient, ExecutionResult,
 from cfdbender.core.rotor import periodic_state, rotor_block
 from cfdbender.core.run_types import (
     RUN_TYPES,
+    STEADY,
     TIME_ACCURATE,
+    TURBULENCE_MODEL,
     run_type,
     skip_unread_variables,
 )
@@ -79,7 +81,15 @@ from cfdbender.solvers.su2._config import (
 from cfdbender.solvers.su2._execute import job_command as job_command
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
-from cfdbender.solvers.su2._history import dimensions, force_groups, read, residual_field
+from cfdbender.solvers.su2._history import (
+    dimensions,
+    force_groups,
+    history_outputs,
+    read,
+    residual_field,
+)
+from cfdbender.solvers.su2._products import PRODUCTS as PRODUCTS
+from cfdbender.solvers.su2._products import product_inputs as product_inputs
 from cfdbender.solvers.su2._restart import restart_files as restart_files
 from cfdbender.solvers.su2._restart import restart_values
 from cfdbender.solvers.su2._rotor import (
@@ -89,6 +99,7 @@ from cfdbender.solvers.su2._rotor import (
 )
 
 SOLVER_NAME = "su2"
+#: ``unsteady`` is not declared: SU2 time-accurate run types are selected by the matrix WORKFLOW.
 CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
 #: The run types the adapter offers (pyflightstream's names), all four.
 OFFERED_RUN_TYPES = RUN_TYPES
@@ -99,6 +110,21 @@ NATIVE_PASSTHROUGH = "upper-case native option names"
 EXECUTABLE_KEYS = {"path": "executable", "launcher": "mpi_launcher"}
 BUILD_OPTIONS = {"route": "executable"}
 JOB_OUTPUTS = ("history.csv", "stdout.log")
+
+
+def job_output_files(point: object) -> tuple[str, ...]:
+    """Name the files a cluster job writes: the solver log and every history the point declares.
+
+    A restarted time-accurate run writes ``history_<RESTART_ITER>.csv`` instead of
+    ``history.csv``, and a point with an export window one history per segment.
+    """
+    directory = str(getattr(point, "directory", "")).rstrip("/") + "/"
+    names = (name.removeprefix(directory) for name in getattr(point, "outputs", ()))
+    return tuple(
+        name
+        for name in names
+        if name == "stdout.log" or (name.startswith("history") and name.endswith(".csv"))
+    )
 
 
 @dataclass(frozen=True)
@@ -140,7 +166,20 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     RowRequirements
         Actions and claimed point outputs.
     """
+    from cfdbender.solvers.su2._run_types import carried_keys
+
     kind = run_type(row.workflow, pol=row.pol, offered=RUN_TYPES)
+    overridden = {
+        key
+        for key in carried_keys(kind, sliding="sliding" in workspace.setup)
+        if workspace.origins.get(key) == "defaults"
+    }
+    if overridden:
+        workspace.setup = {
+            key: value for key, value in workspace.setup.items() if key not in overridden
+        }
+        workspace.defaults_omitted = tuple(sorted(set(workspace.defaults_omitted) | overridden))
+        workspace.origins = {**workspace.origins, **dict.fromkeys(overridden, f"run type {kind}")}
     skip_unread_variables(kind, row.variables, pol=row.pol)
     declaration = _validate(
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("su2",)
@@ -150,13 +189,17 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         "SU2",
         reference=tuple(key for key in workspace.reference if reads_key(key)),
         post=tuple(
-            key for key in workspace.post if key in ("history", "per_revolution") or reads_key(key)
+            key
+            for key in workspace.post
+            if key in ("history", "per_revolution", *PRODUCTS) or reads_key(key)
         ),
     )
     conditions = [dict(row.condition)]
     if row.sweep_key:
         conditions = [dict(row.condition, **{row.sweep_key: value}) for value in row.sweep_values]
+    record: dict[str, object] = {}
     for condition in conditions:
+        record = {}
         values = config(
             workspace.setup,
             workspace.reference,
@@ -164,6 +207,8 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             condition,
             geometry=workspace.geometry,
             run_type=kind,
+            record=record,
+            restarted=row.restart_from is not None,
         )
         validate_tracked_groups(workspace.setup, workspace, mesh_name(values))
     extra = tuple(extra_files(values))
@@ -177,11 +222,39 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
                 "stdout.log",
                 "stderr.log",
                 "execution.json",
-                "history.csv",
+                *history_outputs(values),
                 *extra,
             )
         ),
+        _provenance(kind, workspace, values),
+        {key: f"run type {kind}" for key in cast(list[str], record.get("carried", []))},
     )
+
+
+def _provenance(kind: str, workspace: RowInputs, values: Mapping[str, object]) -> dict[str, object]:
+    """Return what the record states about the run type and the turbulence model.
+
+    The run type, the identity of its declaration set (``su2/<run type>``), the numerics id
+    and the turbulence model with the file or row that chose it. A steady row that names no
+    model states nothing new, so its record keeps its earlier bytes.
+    """
+    stated = workspace.setup.get(TURBULENCE_MODEL)
+    if kind == STEADY and stated is None:
+        return {}
+    model = values.get("KIND_TURB_MODEL")
+    if model is None:
+        origin = None
+    elif stated is not None and str(stated).strip().upper() == str(model).strip().upper():
+        origin = workspace.origins.get(TURBULENCE_MODEL, "row")
+    else:
+        origin = workspace.origins.get("KIND_TURB_MODEL", "setup")
+    return {
+        "run_type": kind,
+        "declarations": f"su2/{kind}",
+        "numerics_id": workspace.numerics_id or None,
+        "turbulence_model": None if model is None else str(model),
+        "turbulence_model_from": origin,
+    }
 
 
 _FLOW_SETUP_KEYS = {
@@ -193,6 +266,8 @@ _FLOW_SETUP_KEYS = {
     "REYNOLDS_LENGTH",
 }
 validate_row.reads_symmetry = True  # type: ignore[attr-defined]
+#: The p-file product tables planning keeps for this adapter (contract C-61, C-77).
+validate_row.post_products = frozenset(PRODUCTS)  # type: ignore[attr-defined]
 validate_row.default_setup_overrides = {  # type: ignore[attr-defined]
     **{
         key: tuple(
@@ -226,6 +301,7 @@ def translate(point: AdapterPoint) -> str:
             point.point.condition,
             geometry=point.geometry,
             run_type=point.point.run_type,
+            restarted=point.point.restart_from is not None,
         )
         point_markers(point, mesh_name(values))
     return render(
@@ -238,6 +314,7 @@ def translate(point: AdapterPoint) -> str:
                 point.point.condition,
                 geometry=point.geometry,
                 run_type=point.point.run_type,
+                restarted=point.point.restart_from is not None,
             ),
         )
     )
@@ -314,7 +391,7 @@ def _kind(name: str) -> tuple[str, str] | None:
 
 
 def _time_average(
-    point: AdapterPoint, folder: Path, record: Mapping[str, object]
+    point: AdapterPoint, folder: Path, record: Mapping[str, object], columns: tuple[str, ...]
 ) -> dict[str, object]:
     """Reduce a time-accurate point's history over its averaging window.
 
@@ -322,21 +399,21 @@ def _time_average(
     """
     # numpy is imported here only: the serial pysu2 worker imports this package without it.
     from cfdbender.post.unsteady_point import reduce_point
-    from cfdbender.solvers.su2._time_history import LOAD_COLUMNS, time_history
+    from cfdbender.solvers.su2._time_history import time_history
 
     sliding = point.setup.get("sliding")
     zone = sliding.get("rotating_zone") if isinstance(sliding, Mapping) else None
     clock = cast(Mapping[str, object], record["clock"])
     first, last = cast(list[int], record["averaging_window"])
     try:
-        history = time_history(folder, zone=cast(int | None, zone))
+        history = time_history(folder, zone=cast(int | None, zone), columns=columns)
     except (OSError, ValueError, StopIteration) as error:
         return {"FIRST_STEP": first, "LAST_STEP": last, "skipped": str(error)}
     declared = point.post.get("per_revolution", {})
     limit = declared.get("drift_limit_pct", 1.0) if isinstance(declared, Mapping) else 1.0
     reduced = reduce_point(
         history,
-        LOAD_COLUMNS,
+        columns,
         window=(first, last),
         steps_per_revolution=cast(float | None, clock.get("steps_per_revolution")),
         kind_of=_kind,
@@ -367,6 +444,7 @@ def _rotor(
         point.point.condition,
         geometry=point.geometry,
         run_type=point.point.run_type,
+        restarted=point.point.restart_from is not None,
     )
     if averaged is not None and "skipped" in averaged:
         return {"rotor": rotor.alias, "skipped": averaged["skipped"]}
@@ -411,6 +489,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
                     point.point.condition,
                     geometry=point.geometry,
                     run_type=point.point.run_type,
+                    restarted=point.point.restart_from is not None,
                 )
             )
             files.warn(
@@ -431,9 +510,10 @@ def collect(point: AdapterPoint) -> NeutralResult:
             point.point.condition,
             geometry=point.geometry,
             run_type=point.point.run_type,
+            restarted=point.point.restart_from is not None,
             record=record,
         )
-        averaged = _time_average(point, folder, record)
+        averaged = _time_average(point, folder, record, tuple(coefficients))
         averaged["condition"] = condition_cells(values)
         averaged["absent"] = list(ABSENT_CONDITION_COLUMNS)
         means = cast(Mapping[str, float], averaged.get("means", {}))

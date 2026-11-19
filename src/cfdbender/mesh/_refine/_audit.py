@@ -854,7 +854,7 @@ def _neighbour_ratios(m: _Mesh) -> tuple[Array, Array]:
     The size growth is the larger area over the smaller across an edge whose
     dihedral is below the growth limit, NaN elsewhere; the face quality ratio
     is the largest ratio of inscribed radii (twice the area over the
-    perimeter) between a face and its neighbours, 1 for a face with none.
+    perimeter) between a face and its neighbors, 1 for a face with none.
     """
     area = m.shape["area"]
     a, b = m.pair[:, 0], m.pair[:, 1]
@@ -1033,7 +1033,7 @@ def _inward_shells(obj: ObjMesh) -> int:
 
 
 def _g2(m: _Mesh) -> Iterator[AuditItem]:
-    """G2: no two neighbours of opposite orientation; a closed family encloses a positive volume."""
+    """G2: no two neighbors of opposite orientation; a closed family encloses a positive volume."""
     inward = _inward_shells(m.obj)
     yield _item(
         "gate",

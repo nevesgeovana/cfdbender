@@ -112,12 +112,12 @@ def import_iges(gmsh: Any, path: str | Path) -> list[int]:
 
     OpenCASCADE keeps the target unit of its last import in a process-wide static that an empty
     gmsh option leaves alone and ``gmsh.finalize`` does not reset, so a session that once asked
-    for metres would change every later read in the process. The unit is named on every read and
+    for meters would change every later read in the process. The unit is named on every read and
     the option the caller's session held is put back.
 
     The static does not exist before the first import or export of the process, and gmsh refuses
     to set it then. That refusal proves no earlier read left a unit, so the read runs on the
-    default, which is millimetres.
+    default, which is millimeters.
     """
 
     def read(unit: str) -> list[tuple[int, int]]:
@@ -584,7 +584,7 @@ class GmshKernel:
         return tuple(sorted(mine - upper) + sorted(mine & upper))
 
     def minimum_distance(self, a: Sequence[Face], b: Sequence[Face]) -> float:
-        """Return the native minimum distance of trimmed face sets in metres, zero on contact."""
+        """Return the native minimum distance of trimmed face sets in meters, zero on contact."""
         if not a or not b:
             raise InputValueError("minimum distance: empty face set; give two nonempty sets")
         self._model()
@@ -615,7 +615,7 @@ class GmshKernel:
         return tuple(Face(int(t)) for t in up)
 
     def area(self, face: Face) -> float:
-        """Return the exact area of ``face``, in square metres."""
+        """Return the exact area of ``face``, in square meters."""
         self._model()
         return float(self._g.model.occ.getMass(2, face.tag))
 
@@ -724,7 +724,7 @@ class GmshKernel:
         return float(low[0]), float(high[0])
 
     def edge_length(self, edge: int) -> float:
-        """Return the native arc length of a signed boundary edge, in metres."""
+        """Return the native arc length of a signed boundary edge, in meters."""
         from scipy.integrate import quad
 
         model = self._model()
@@ -795,9 +795,9 @@ class GmshKernel:
 
     # IO
     def import_iges(self, path: str | Path) -> NamedFaces:
-        """Read one IGES file into the model, in metres, with the names the file gives.
+        """Read one IGES file into the model, in meters, with the names the file gives.
 
-        Every file arrives in metres, like every face the kernel builds, so faces of two files
+        Every file arrives in meters, like every face the kernel builds, so faces of two files
         agree whatever unit each one states; the file's unit is returned as ``unit``. A file whose
         unit has no scale, or whose size does not match what it states, is refused.
         """

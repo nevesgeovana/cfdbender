@@ -1,0 +1,47 @@
+# Invented information-set tags, boundary codes and turbulence codes of the toy input.
+
+[[infosets]]
+tag = "prim"
+variables = ["p", "t", "u", "v"]
+meaning = "primitive state without turbulence"
+locator = "TOY :: sets, prim"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[infosets]]
+tag = "primt"
+variables = ["p", "t", "u", "v", "k"]
+meaning = "primitive state with one turbulence value"
+locator = "TOY :: sets, primt"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[boundary_codes]]
+code = 10
+params = []
+neutral = { type = "wall", thermal = "adiabatic" }
+meaning = "an adiabatic wall"
+locator = "TOY :: bcs, 10"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[boundary_codes]]
+code = 11
+params = [{ name = "temperature", type = "real" }]
+neutral = { type = "wall", thermal = "isothermal" }
+meaning = "a wall at a stated temperature"
+locator = "TOY :: bcs, 11"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[boundary_codes]]
+code = 20
+params = [{ name = "set", type = "int" }]
+neutral = { type = "farfield" }
+meaning = "an open boundary on an information set"
+locator = "TOY :: bcs, 20"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[turbulence]]
+name = "ToyOne"
+codes = [1, 4]
+variables = ["nut"]
+meaning = "a one-equation toy model"
+locator = "TOY :: turbulence, one"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }

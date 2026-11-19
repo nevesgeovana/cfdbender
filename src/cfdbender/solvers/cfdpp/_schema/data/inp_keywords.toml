@@ -1,0 +1,2581 @@
+# Keywords of mcfd.inp seen in the inputs the GUI of 22.5.U3 saved: each with its section, order,
+# arity and value types. Every status cites the committed report under reports/cfdpp/. No entry
+# holds a default or a value: fixed marks a constant of the first supported scope (steady,
+# dimensional, one equation set, one force record per step), not a default.
+
+[[keywords]]
+name = "ifinbc"
+section = "iofiles"
+order = 1
+arity = 1
+types = ["int"]
+meaning = "a keyword of the iofiles section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "invoke_script"
+section = "iofiles"
+order = 2
+arity = 1
+types = ["int"]
+meaning = "a keyword of the iofiles section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "celltypes"
+section = "celltypes"
+order = 1
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "celltype"
+section = "celltypes"
+order = 2
+arity = 3
+types = ["int", "word", "int..."]
+repeat = true
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "istart"
+section = "tsteps"
+order = 1
+arity = 1
+types = ["choice"]
+choices = [0, 1]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntstep"
+section = "tsteps"
+order = 2
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntstop"
+section = "tsteps"
+order = 3
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntsmin"
+section = "tsteps"
+order = 4
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntrmin"
+section = "tsteps"
+order = 5
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "dtsmoo"
+section = "tsteps"
+order = 6
+arity = 1
+types = ["int"]
+meaning = "a keyword of the tsteps section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "dtsmoo_iters"
+section = "tsteps"
+order = 7
+arity = 1
+types = ["int"]
+meaning = "a keyword of the tsteps section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "dtsmoo_param"
+section = "tsteps"
+order = 8
+arity = 1
+types = ["real"]
+meaning = "a keyword of the tsteps section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "runmod"
+section = "tsteps"
+order = 9
+arity = 1
+types = ["int"]
+meaning = "a keyword of the tsteps section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "dtauin"
+section = "tsteps"
+order = 10
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cflbot"
+section = "tsteps"
+order = 11
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cfller"
+section = "tsteps"
+order = 12
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "rstcfl"
+section = "tsteps"
+order = 13
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntbclr"
+section = "tsteps"
+order = 14
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "nteclr"
+section = "tsteps"
+order = 15
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cfllbg"
+section = "tsteps"
+order = 16
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cfllen"
+section = "tsteps"
+order = 17
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cflglo"
+section = "tsteps"
+order = 18
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntbmdr"
+section = "tsteps"
+order = 19
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntemdr"
+section = "tsteps"
+order = 20
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mdisbg"
+section = "tsteps"
+order = 21
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mdisen"
+section = "tsteps"
+order = 22
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntbbfr"
+section = "tsteps"
+order = 23
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntebfr"
+section = "tsteps"
+order = 24
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "blfnbg"
+section = "tsteps"
+order = 25
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "blfnen"
+section = "tsteps"
+order = 26
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cdepsave_compute"
+section = "tsteps"
+order = 27
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cdepsave_restart"
+section = "tsteps"
+order = 28
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cdepsave_ntsave"
+section = "tsteps"
+order = 29
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntdsko"
+section = "options"
+order = 1
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntdsks"
+section = "options"
+order = 2
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntplto"
+section = "options"
+order = 3
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntplts"
+section = "options"
+order = 4
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntpltt"
+section = "options"
+order = 5
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "dtpltt"
+section = "options"
+order = 6
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntdskc"
+section = "options"
+order = 7
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntdskr"
+section = "options"
+order = 8
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntacou"
+section = "options"
+order = 9
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntout1"
+section = "options"
+order = 10
+arity = 1
+types = ["int"]
+fixed = 1  # one force record per step, for the Cauchy test
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "nt6dof1"
+section = "options"
+order = 11
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mpidri"
+section = "options"
+order = 12
+arity = 1
+types = ["choice"]
+choices = [0, 4]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mcpuse"
+section = "options"
+order = 13
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mcgrps"
+section = "options"
+order = 14
+arity = 1
+types = ["int"]
+fixed = 0  # no cell-group file; the single-group grid of the baseline is written with 0
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "autozb"
+section = "options"
+order = 15
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetyp"
+section = "options"
+order = 16
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ordrnk"
+section = "options"
+order = 17
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ordcut"
+section = "options"
+order = 18
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ordcub"
+section = "options"
+order = 19
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetdb"
+section = "options"
+order = 20
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetbr"
+section = "options"
+order = 21
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetbc"
+section = "options"
+order = 22
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetbz"
+section = "options"
+order = 23
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetll"
+section = "options"
+order = 24
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetzo"
+section = "options"
+order = 25
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetsl"
+section = "options"
+order = 26
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osetir"
+section = "options"
+order = 27
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osnocn"
+section = "options"
+order = 28
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "osnosg"
+section = "options"
+order = 29
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "zobcty"
+section = "options"
+order = 30
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iregrd"
+section = "options"
+order = 31
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iregrq"
+section = "options"
+order = 32
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "irezon"
+section = "options"
+order = 33
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "reblnk"
+section = "options"
+order = 34
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifmdis"
+section = "options"
+order = 35
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "disson"
+section = "options"
+order = 36
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifmdps"
+section = "options"
+order = 37
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mdisps"
+section = "options"
+order = 38
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mdtype"
+section = "options"
+order = 39
+arity = 1
+types = ["choice"]
+choices = [1, 2, 3]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mdpscf"
+section = "options"
+order = 40
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mdpsmx"
+section = "options"
+order = 41
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifmdcb"
+section = "options"
+order = 42
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mdcbfr"
+section = "options"
+order = 43
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "xyzpol"
+section = "options"
+order = 44
+arity = 1
+types = ["word"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ispcac"
+section = "options"
+order = 45
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iblend"
+section = "options"
+order = 46
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iblenz"
+section = "options"
+order = 47
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "blenzf"
+section = "options"
+order = 48
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "bzonac"
+section = "options"
+order = 49
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "bzoncd"
+section = "options"
+order = 50
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "sewzon"
+section = "options"
+order = 51
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "celpol"
+section = "options"
+order = 52
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cenpol"
+section = "options"
+order = 53
+arity = 1
+types = ["choice"]
+choices = [1, 2]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "nodnei"
+section = "options"
+order = 54
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "viscrs"
+section = "options"
+order = 55
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "visofp"
+section = "options"
+order = 56
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "rhsink"
+section = "options"
+order = 57
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "tolpol"
+section = "options"
+order = 58
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "limtvd"
+section = "options"
+order = 59
+arity = 1
+types = ["choice"]
+choices = [1, 3]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "chkvol"
+section = "options"
+order = 60
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "tolvol"
+section = "options"
+order = 61
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "rtcord"
+section = "options"
+order = 62
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "simstr"
+section = "options"
+order = 63
+arity = 1
+types = ["choice"]
+choices = [0, 1]
+fixed = 1  # steady runs only
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "dultim"
+section = "options"
+order = 64
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "glitrc"
+section = "options"
+order = 65
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "gloits"
+section = "options"
+order = 66
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "geomopt1"
+section = "options"
+order = 67
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "method"
+section = "options"
+order = 68
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "itimac"
+section = "options"
+order = 69
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifunlx"
+section = "options"
+order = 70
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "undrlx"
+section = "options"
+order = 71
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "implic"
+section = "options"
+order = 72
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "impits"
+section = "options"
+order = 73
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_itns"
+section = "options"
+order = 74
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_lint"
+section = "options"
+order = 75
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_levs"
+section = "options"
+order = 76
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_mxcg"
+section = "options"
+order = 77
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_cycl"
+section = "options"
+order = 78
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_meth"
+section = "options"
+order = 79
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_type"
+section = "options"
+order = 80
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_vers"
+section = "options"
+order = 81
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_aggl"
+section = "options"
+order = 82
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_step"
+section = "options"
+order = 83
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_alow"
+section = "options"
+order = 84
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_stag"
+section = "options"
+order = 85
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mg_cvis"
+section = "options"
+order = 86
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "subdomain_mode"
+section = "options"
+order = 87
+arity = 1
+types = ["int"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "pbufac"
+section = "options"
+order = 88
+arity = 1
+types = ["real"]
+meaning = "a keyword of the options section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "eqslct"
+section = "eqslct"
+order = 1
+arity = 1
+types = ["int"]
+fixed = 101  # the one equation set cfdbender defines, numbered as the GUI numbers it
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "icslct"
+section = "eqslct"
+order = 2
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "toldup"
+section = "octree"
+order = 1
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "tolins"
+section = "octree"
+order = 2
+arity = 1
+types = ["real"]
+meaning = "a keyword of the octree section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "toldfn"
+section = "octree"
+order = 3
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "tolzco"
+section = "octree"
+order = 4
+arity = 1
+types = ["real"]
+meaning = "a keyword of the octree section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "typzco"
+section = "octree"
+order = 5
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "trxdir"
+section = "octree"
+order = 6
+arity = 1
+types = ["int"]
+meaning = "a keyword of the octree section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "trydir"
+section = "octree"
+order = 7
+arity = 1
+types = ["int"]
+meaning = "a keyword of the octree section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "trzdir"
+section = "octree"
+order = 8
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "dfcmax"
+section = "octree"
+order = 9
+arity = 1
+types = ["real"]
+meaning = "a keyword of the octree section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "preacc_opt"
+section = "physics"
+order = 1
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "preacc_dti"
+section = "physics"
+order = 2
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "pretyp"
+section = "physics"
+order = 3
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ipreof"
+section = "physics"
+order = 4
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "prebet"
+section = "physics"
+order = 5
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "previs"
+section = "physics"
+order = 6
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "prevel"
+section = "physics"
+order = 7
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "prevlo"
+section = "physics"
+order = 8
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "pfloor"
+section = "physics"
+order = 9
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "gasnam"
+section = "physics"
+order = 10
+arity = 1
+types = ["word"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "gasgam"
+section = "physics"
+order = 11
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "gasmwt"
+section = "physics"
+order = 12
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iunits"
+section = "physics"
+order = 13
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "lenuni"
+section = "physics"
+order = 14
+arity = 1
+types = ["word"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "masuni"
+section = "physics"
+order = 15
+arity = 1
+types = ["word"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "temuni"
+section = "physics"
+order = 16
+arity = 1
+types = ["word"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "timuni"
+section = "physics"
+order = 17
+arity = 1
+types = ["word"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "grduni"
+section = "physics"
+order = 18
+arity = 1
+types = ["word"]
+fixed = "m"  # grids in metres, the unit of the reference file
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "inityp"
+section = "physics"
+order = 19
+arity = 1
+types = ["choice"]
+choices = [0, 1, 2, 3]
+fixed = 0  # whole-domain initialisation
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "qcvrti"
+section = "physics"
+order = 20
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "qcvrto"
+section = "physics"
+order = 21
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifrpow"
+section = "physics"
+order = 22
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifreac"
+section = "physics"
+order = 23
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifrebx"
+section = "physics"
+order = 24
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "frctin"
+section = "physics"
+order = 25
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftmlx"
+section = "physics"
+order = 26
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "temulx"
+section = "physics"
+order = 27
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "frcint"
+section = "physics"
+order = 28
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "frclim"
+section = "physics"
+order = 29
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifscon"
+section = "physics"
+order = 30
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftrds"
+section = "physics"
+order = 31
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "frsrcu"
+section = "physics"
+order = 32
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "edp_yesno"
+section = "physics"
+order = 33
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "edp_model"
+section = "physics"
+order = 34
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "mix_compthrsh"
+section = "physics"
+order = 35
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "eul_compthrsh"
+section = "physics"
+order = 36
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifaxix"
+section = "physics"
+order = 37
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifwzro"
+section = "physics"
+order = 38
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifaxst"
+section = "physics"
+order = 39
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifaxsw"
+section = "physics"
+order = 40
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "swreta"
+section = "physics"
+order = 41
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ipbulk"
+section = "physics"
+order = 42
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "bulkpr"
+section = "physics"
+order = 43
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "irbulk"
+section = "physics"
+order = 44
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "bulkro"
+section = "physics"
+order = 45
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "bulktm"
+section = "physics"
+order = 46
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "univgc"
+section = "physics"
+order = 47
+arity = 1
+types = ["real"]
+fixed = 8314.0  # the universal gas constant in J/(kmol K); the molar mass is written from it
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "refmwt"
+section = "physics"
+order = 48
+arity = 1
+types = ["real"]
+fixed = 1.0  # dimensional case: reference molar mass scale 1
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "reflen"
+section = "physics"
+order = 49
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "reftem"
+section = "physics"
+order = 50
+arity = 1
+types = ["real"]
+fixed = 1.0  # dimensional case: reference temperature scale 1
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "refden"
+section = "physics"
+order = 51
+arity = 1
+types = ["real"]
+fixed = 1.0  # dimensional case: reference density scale 1
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "refvel"
+section = "physics"
+order = 52
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "refpre"
+section = "physics"
+order = 53
+arity = 1
+types = ["real"]
+fixed = 1.0  # dimensional case: reference pressure scale 1
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "refpgf"
+section = "physics"
+order = 54
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "grvbet"
+section = "physics"
+order = 55
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "liqgas"
+section = "physics"
+order = 56
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "vislaw"
+section = "physics"
+order = 57
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "refmuu"
+section = "physics"
+order = 58
+arity = 1
+types = ["real"]
+fixed = 1.0  # dimensional case: reference viscosity scale 1
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "refkap"
+section = "physics"
+order = 59
+arity = 1
+types = ["real"]
+fixed = 1.0  # dimensional case: reference conductivity scale 1
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "prlatu"
+section = "physics"
+order = 60
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "schmla"
+section = "physics"
+order = 61
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "schmtu"
+section = "physics"
+order = 62
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "rmuusl"
+section = "physics"
+order = 63
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "tmuusl"
+section = "physics"
+order = 64
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "smuusl"
+section = "physics"
+order = 65
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "rkapsl"
+section = "physics"
+order = 66
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "tkapsl"
+section = "physics"
+order = 67
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "skapsl"
+section = "physics"
+order = 68
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "liqtlo"
+section = "physics"
+order = 69
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "liqtup"
+section = "physics"
+order = 70
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ntrbst"
+section = "physics"
+order = 71
+arity = 1
+types = ["int"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftold"
+section = "physics"
+order = 72
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifvspt"
+section = "physics"
+order = 73
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifmuon"
+section = "physics"
+order = 74
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifdpds"
+section = "physics"
+order = 75
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifwfne"
+section = "physics"
+order = 76
+arity = 1
+types = ["choice"]
+choices = [0, 1]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifwfol"
+section = "physics"
+order = 77
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifwfbc"
+section = "physics"
+order = 78
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifwfja"
+section = "physics"
+order = 79
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifcomp"
+section = "physics"
+order = 80
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifmccw"
+section = "physics"
+order = 81
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifskar"
+section = "physics"
+order = 82
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifpope"
+section = "physics"
+order = 83
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifbrad"
+section = "physics"
+order = 84
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftran"
+section = "physics"
+order = 85
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftrat"
+section = "physics"
+order = 86
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftrfs"
+section = "physics"
+order = 87
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "ifmbsl"
+section = "physics"
+order = 88
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftcon"
+section = "physics"
+order = 89
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "iftrbf"
+section = "physics"
+order = 90
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbf1"
+section = "physics"
+order = 91
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbf2"
+section = "physics"
+order = 92
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbf3"
+section = "physics"
+order = 93
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbf4"
+section = "physics"
+order = 94
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbf5"
+section = "physics"
+order = 95
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbf6"
+section = "physics"
+order = 96
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbf7"
+section = "physics"
+order = 97
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "trurlx"
+section = "physics"
+order = 98
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "kmxval"
+section = "physics"
+order = 99
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "tmnval"
+section = "physics"
+order = 100
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "maxmut"
+section = "physics"
+order = 101
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turlim"
+section = "physics"
+order = 102
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turxyz"
+section = "physics"
+order = 103
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cgtsof"
+section = "physics"
+order = 104
+arity = 1
+types = ["int"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turxmn"
+section = "physics"
+order = 105
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turxmx"
+section = "physics"
+order = 106
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turymn"
+section = "physics"
+order = 107
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turymx"
+section = "physics"
+order = 108
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turzmn"
+section = "physics"
+order = 109
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turzmx"
+section = "physics"
+order = 110
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "cpinc"
+section = "physics"
+order = 111
+arity = 1
+types = ["real"]
+meaning = "a keyword of the physics section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_lev"
+section = "guiopts"
+order = 1
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_len"
+section = "guiopts"
+order = 2
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_mutmu"
+section = "guiopts"
+order = 3
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_jet"
+section = "guiopts"
+order = 4
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_int"
+section = "guiopts"
+order = 5
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_tlev"
+section = "guiopts"
+order = 6
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_tlen"
+section = "guiopts"
+order = 7
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_tfrs"
+section = "guiopts"
+order = 8
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_yp"
+section = "guiopts"
+order = 9
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "turbi_replen"
+section = "guiopts"
+order = 10
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_pres"
+section = "guiopts"
+order = 11
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_temp"
+section = "guiopts"
+order = 12
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_u"
+section = "guiopts"
+order = 13
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_v"
+section = "guiopts"
+order = 14
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_w"
+section = "guiopts"
+order = 15
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_tlvl"
+section = "guiopts"
+order = 16
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_tlnl"
+section = "guiopts"
+order = 17
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_tl"
+section = "guiopts"
+order = 18
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_lt"
+section = "guiopts"
+order = 19
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_eqinf"
+section = "guiopts"
+order = 20
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_ininf"
+section = "guiopts"
+order = 21
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_bpinf"
+section = "guiopts"
+order = 22
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "auto_mutmu"
+section = "guiopts"
+order = 23
+arity = 1
+types = ["real"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_intyp"
+section = "guiopts"
+order = 24
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_unit"
+section = "guiopts"
+order = 25
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_pres"
+section = "guiopts"
+order = 26
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_temp"
+section = "guiopts"
+order = 27
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_deltat"
+section = "guiopts"
+order = 28
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_u"
+section = "guiopts"
+order = 29
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_v"
+section = "guiopts"
+order = 30
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_w"
+section = "guiopts"
+order = 31
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_tlvl"
+section = "guiopts"
+order = 32
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_tlnl"
+section = "guiopts"
+order = 33
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_tl"
+section = "guiopts"
+order = 34
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_lt"
+section = "guiopts"
+order = 35
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_eqinf"
+section = "guiopts"
+order = 36
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_ininf"
+section = "guiopts"
+order = 37
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_bcinf"
+section = "guiopts"
+order = 38
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_altid"
+section = "guiopts"
+order = 39
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_ma"
+section = "guiopts"
+order = 40
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_alpha"
+section = "guiopts"
+order = 41
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_beta"
+section = "guiopts"
+order = 42
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_plane"
+section = "guiopts"
+order = 43
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_re"
+section = "guiopts"
+order = 44
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "aero_mutmu"
+section = "guiopts"
+order = 45
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "incomp_tlvl"
+section = "guiopts"
+order = 46
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "incomp_tlnl"
+section = "guiopts"
+order = 47
+arity = 1
+types = ["real"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "incomp_eqinf"
+section = "guiopts"
+order = 48
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "incomp_ininf"
+section = "guiopts"
+order = 49
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[keywords]]
+name = "incomp_bpinf"
+section = "guiopts"
+order = 50
+arity = 1
+types = ["int"]
+meaning = "a keyword of the guiopts section; its meaning is not established"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+

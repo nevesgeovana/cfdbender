@@ -47,7 +47,7 @@ from cfdbender.mesh._refine._obj import KIND
 #: The methods a family may state.
 METHODS = ("auto", "grid", "remesh", "grid_auto", "keep")
 #: A grid family that takes its factors from the governing family (``governing = true``)
-#: and its shared curves' counts from its neighbours. Undeclared families are kept
+#: and its shared curves' counts from its neighbors. Undeclared families are kept
 #: unless continuity requires a change.
 GRID_AUTO = "grid_auto"
 #: The element mode of a remeshed family that states none (today's triangles).
@@ -664,7 +664,7 @@ def read_refine_file(
     *,
     accept_unknown: bool = False,
 ) -> dict[str, Any]:
-    """Read a refinement file against the mesh's family names, refusing what it cannot honour.
+    """Read a refinement file against the mesh's family names, refusing what it cannot honor.
 
     ``read`` names the families whose factors are read: the other tables are
     not validated beyond their name and ``elements`` (F-1516). ``mesh`` is

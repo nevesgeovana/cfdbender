@@ -45,7 +45,7 @@ _KIND = "trailing_edges"
 MIDNODE_GAP = 5.0
 
 #: A listed node is joined to each other node closer than this many times its distance
-#: to its nearest node: along a line the two neighbours are about one spacing away, and a
+#: to its nearest node: along a line the two neighbors are about one spacing away, and a
 #: corner where two lines of different spacing meet still joins both.
 NEIGHBOUR_REACH = 2.5
 
@@ -102,7 +102,7 @@ def write_trailing_edge_points_from_nodes(
     Returns
     -------
     pathlib.Path
-        The written points file, with one midpoint per neighbouring pair in listed order.
+        The written points file, with one midpoint per neighboring pair in listed order.
 
     Raises
     ------
@@ -139,7 +139,7 @@ def write_trailing_edge_midnodes(
     The nodes are put in order along their lines: from an end, each step goes to the nearest
     node left, and a step longer than :data:`MIDNODE_GAP` times the node's distance to its
     nearest node starts a new line, so one list may hold the trailing edges of every
-    component. Each neighbouring pair gives one mid-point. No mesh is needed. A closed line
+    component. Each neighboring pair gives one mid-point. No mesh is needed. A closed line
     loses the mid-point of its closing edge. Nodes at one position (two ids) are read once,
     with a warning.
 
@@ -314,7 +314,7 @@ def write_trailing_edges_identified(
     of (``aft`` the direction from the nose to the tail), taken among
 
     - with ``source``, the lines of its listed nodes (a node-window export, any order, every
-      perimeter in one file), each node joined to its near neighbours
+      perimeter in one file), each node joined to its near neighbors
       (:data:`NEIGHBOUR_REACH`): an edge whose two ends lie on those segments is on a line, so
       the OBJ may be a refined level whose nodes are not the listed ones;
     - without it, the boundaries of the family cut along its sharp edges, an edge kept when

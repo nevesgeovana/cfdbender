@@ -24,7 +24,8 @@ shows what each one prints.
 | matrix | A table you write, `inputs/matrices/<name>.fs`, with one row per sim. |
 | sim | One row of a matrix, numbered by its `POL` cell. |
 | point | One flow condition of a sim. A row with a sweep has one point per sweep value; a row without a sweep has one point. A point is named `POL/DP-<name>`, for example `1001/DP-M200AL+020`. |
-| setup | The file that says how the solver runs: `inputs/setups/s<id>.toml`. |
+| setup | The file that says what is simulated and how the solver runs: `inputs/setups/s<id>.toml`. |
+| numerics | The optional file of numerical keys that several setups share: `inputs/numerics/n<id>.toml`. |
 | reference | The file with the reference area, length and moment origin: `inputs/references/r<id>.toml`. |
 | pproc | The file that says what to keep from each run: `inputs/pproc/p<id>.toml`. |
 | run | One execution of one point. |
@@ -64,6 +65,8 @@ You write four kinds of file, all under `inputs/`:
 - the matrix, described in [Matrix columns](matrix-columns.md);
 - the setup, reference and pproc files that the rows name, whose keys are on
   the page of your solver (see [Solvers, side by side](solvers.md));
+- optionally a numerics file, named by the `NUMERICS` column, that several setups
+  share (see [Setup and numerics](matrix-columns.md#setup-and-numerics));
 - the mesh or geometry file, in `inputs/mesh/`, in the format your solver reads.
 
 One setup file can serve many rows, and one matrix can name several setups.
@@ -98,12 +101,15 @@ the solver, and records the outcome in `runs.json`.
 
 On your machine the points run one after the other, and a line says when
 each starts and when it ends. Before the first point is recorded, `run` checks
-that the solver program exists, that no other solver run holds the machine and
-that the memory is enough; when one fails the run is refused and nothing is
-written. Three rules protect the machine and the results:
+that the solver program exists and that the memory is enough; with
+`--one-run-at-a-time` it also checks that no other guarded run holds the
+machine. When one check fails the run is refused and nothing is written. Three
+rules protect the machine and the results:
 
-- One solver process runs at a time on a machine, also across workspaces. A
-  second `run` started while the first is going does not start its solver.
+- The host guard is off by default. With `--one-run-at-a-time` (or
+  `one_run_at_a_time = true` under `[solver]` in `init.toml`), one guarded solver
+  process runs at a time on a machine, also across workspaces, and a second
+  `run` started while the first is going does not start its solver.
 - A point does not start when the free memory of the machine would fall under
   0.5 GiB.
 - A point that fails is recorded as failed, shown as `FAILED_EXECUTION` or
@@ -111,7 +117,8 @@ written. Three rules protect the machine and the results:
   then ends with exit code 2.
 
 With a cluster profile in `inputs/hpc/`, `run` submits one job per point
-instead; `--local` keeps the work on your machine. See
+instead, or N jobs of grouped rows with `--batch N`; `--local` keeps the work on
+your machine. See
 [Cluster jobs](cluster-jobs.md).
 
 A point that is already recorded refuses a second run, so finished work is

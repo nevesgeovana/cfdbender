@@ -16,9 +16,9 @@ A point that lies in no cell (outside the domain, or inside a body the grid leav
 value: its entries are ``nan`` and it is counted as missing. Nothing is extrapolated and no value
 is taken from the nearest node.
 
-The search takes the mean of the nodes of each cell as the cell's centre and the farthest node
-from it as the cell's radius. A point is tried against the nearest centres first; a point that
-is not found there is tried, exactly, against every cell whose centre is within its radius,
+The search takes the mean of the nodes of each cell as the cell's center and the farthest node
+from it as the cell's radius. A point is tried against the nearest centers first; a point that
+is not found there is tried, exactly, against every cell whose center is within its radius,
 grouping the cells by radius so a grid of widely different cell sizes costs no more per point.
 """
 
@@ -173,8 +173,8 @@ class VolumeSampler:
     ----------
     grid : UnstructuredGrid
         The grid. Its point data is what :meth:`sample` interpolates.
-    neighbours : int, default 12
-        How many nearest cell centres are tried before the exact search.
+    neighbors : int, default 12
+        How many nearest cell centers are tried before the exact search.
 
     Attributes
     ----------
@@ -201,7 +201,7 @@ class VolumeSampler:
 
     def __init__(self, grid: UnstructuredGrid, *, neighbours: int = 12) -> None:
         if neighbours < 1:
-            raise VolumeError(f"neighbours is {neighbours}; it is at least 1")
+            raise VolumeError(f"neighbors is {neighbours}; it is at least 1")
         self._grid = grid
         self._neighbours = neighbours
         starts = np.concatenate(([0], grid.offsets[:-1])).astype(np.int64)
@@ -387,7 +387,7 @@ class VolumeSampler:
         nodes: NDArray[np.int64],
         weights: NDArray[np.float64],
     ) -> None:
-        """Test every cell whose centre is within its own radius of each pending point."""
+        """Test every cell whose center is within its own radius of each pending point."""
         if not self._class_members:
             exponent = np.floor(np.log2(np.maximum(self._radius, 1e-300))).astype(np.int64)
             for value in np.unique(exponent):

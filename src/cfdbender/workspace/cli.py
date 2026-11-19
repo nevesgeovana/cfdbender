@@ -11,7 +11,7 @@ from cfdbender.core import WorkspaceError, init_workspace, input_kinds
 from cfdbender.core.refusals import warning_refusals
 from cfdbender.core.registry import RegistryError, RunRegistry
 from cfdbender.core.settings import require_workspace
-from cfdbender.matrix import queries, records, storage
+from cfdbender.matrix import queries, records, setups, storage
 from cfdbender.matrix._console import (
     WORKSPACE_HELP,
     Console,
@@ -92,7 +92,7 @@ def _build() -> tuple[argparse.ArgumentParser, dict[str, Callable[[argparse.Name
     for command in (init, archive):
         add_console_options(command)
     verbs: dict[str, Callable[[argparse.Namespace], int]] = {}
-    for module in (queries, records, storage):
+    for module in (queries, records, storage, setups):
         verbs.update(module.register_workspace(subparsers))
     for name in verbs:
         add_console_options(subparsers.choices[name])
@@ -129,7 +129,11 @@ def main(argv: list[str] | None = None) -> int:
     """
     argv = sys.argv[1:] if argv is None else argv
     parser, verbs = _build()
-    if (forwarded := dispatch(argv, workspace=True, matrix_verbs=frozenset(verbs))) is not None:
+    # setups is answered here in every workspace, FlightStream included: pyflightstream has none.
+    verb = next((word for word in argv if not word.startswith("-")), None)
+    if verb != "setups" and (
+        (forwarded := dispatch(argv, workspace=True, matrix_verbs=frozenset(verbs))) is not None
+    ):
         return forwarded
     args = parser.parse_args(argv)
     try:

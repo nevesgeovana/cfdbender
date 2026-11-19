@@ -11,8 +11,8 @@ The order, from the source to the level folder:
    share nodes are resampled as one layout, so both hold the same nodes on
    every curve they share, and a grid that cannot join one is remeshed when
    it shares nodes with a grid refined before it (:mod:`._blocks`);
-4. hand each neighbour the grid's new nodes on their shared curve: a remeshed
-   neighbour is rebuilt on them, an unchanged one is remeshed at
+4. hand each neighbor the grid's new nodes on their shared curve: a remeshed
+   neighbor is rebuilt on them, an unchanged one is remeshed at
    factor 1 in a band of two face layers, or whole when the band
    would hold every face of it; a family remeshed at factor 1 takes,
    along and near that curve, the length of the new shared edges;
@@ -131,7 +131,7 @@ class _Work:
     conform: dict[str, list[tuple[set[int], Points]]] = field(default_factory=dict)
     # the entries of conform whose grid is a refined side
     shared: dict[str, list[tuple[set[int], Points]]] = field(default_factory=dict)
-    # the unchanged neighbours a band would have covered whole, and their record
+    # the unchanged neighbors a band would have covered whole, and their record
     rebuilt: dict[str, dict[str, Any]] = field(default_factory=dict)
     # the layout of each multiblock family and of each grid resampled with others
     layouts: dict[str, _blocks.Layout] = field(default_factory=dict)
@@ -433,7 +433,7 @@ def _remesh_or_keep(work: _Work, name: str, reason: str) -> None:
 
 
 def _refine_grids(work: _Work) -> None:
-    """Refine every grid family and record what its neighbours must take."""
+    """Refine every grid family and record what its neighbors must take."""
     levels: dict[str, _grid.GridLevel] = {}
     for i, (name, grid) in enumerate(work.grids.items(), 1):
         if name not in work.specs:
@@ -536,7 +536,7 @@ def _grid_info(
 def _interface_points(
     work: _Work, name: str, old: set[int], level: _grid.GridLevel
 ) -> Points | None:
-    """Return the grid's new boundary nodes on the curve it shares with a neighbour.
+    """Return the grid's new boundary nodes on the curve it shares with a neighbor.
 
     The curve is the grid's source boundary edges whose two ends are shared
     (``old``). A new boundary node is on it when it lies within
@@ -589,7 +589,7 @@ def _unchanged_curve(work: _Work, old: set[int], new: Points) -> bool:
 
 
 def _bands(work: _Work) -> None:
-    """Cut a band of face layers out of each unchanged neighbour whose curve changed.
+    """Cut a band of face layers out of each unchanged neighbor whose curve changed.
 
     A band that would hold every face of the family leaves no remainder: the
     family is rebuilt whole at factor 1 instead, as if stated ``factor = 1``,
@@ -631,7 +631,7 @@ def _bands(work: _Work) -> None:
 
 
 def _rebuild_whole(work: _Work, name: str, band: int) -> None:
-    """Remesh a neighbour the band covers whole at factor 1, warn and record it."""
+    """Remesh a neighbor the band covers whole at factor 1, warn and record it."""
     work.specs[name] = FamilySpec(factor=1.0, method="remesh")
     work.remesh.append(name)
     work.remesh.sort(key=work.names.index)

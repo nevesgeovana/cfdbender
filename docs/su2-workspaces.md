@@ -42,7 +42,7 @@ Marker names come from the setup file, never from the mesh. Match the names and 
 The `SETUP` column (named `SET` before) names the physical setup
 `inputs/setups/s<id>.toml`; the optional `NUMERICS` column names the numerical
 keys in `inputs/numerics/n<id>.toml`: the schemes, limiters, gradient method,
-time discretisation, CFL, linear solver, multigrid, iteration counts and
+time discretization, CFL, linear solver, multigrid, iteration counts and
 convergence criteria. The merge order and the rules are in
 [Setup and numerics](matrix-columns.md#setup-and-numerics). A matrix without the
 column plans exactly as before.
@@ -154,7 +154,7 @@ To keep the ramp and move only its ceiling or its speed, state `cfl_max` or `cfl
 | `route` | `"pysu2"` or `"executable"` | - | pysu2 if available |
 | `executable` | path to `SU2_CFD` | - | see Install |
 | `pysu2_path` | directory holding the Python wrapper | - | see Install |
-| `threads` | OpenMP threads, passed as `OMP_NUM_THREADS` | - | 1 |
+| `threads` | OpenMP threads, passed as `OMP_NUM_THREADS` and recorded in `execution.json`; behind a launcher script executable (`.cmd`, `.bat`, `.sh`, `.ps1`), which sets its own, `execution.json` records `"unknown"` | - | 1 |
 | `timeout_s` | time after which cfdbender stops the run | s | 600 |
 | `ram_estimate_gib` | memory the run is expected to need | GiB | 0.25 |
 | `mpi_launcher` | tokens that start MPI, see below | - | `[]` (serial) |
@@ -226,7 +226,7 @@ families_blades = ["Blade1", "Blade6", "Blade5", "Blade4", "Blade3", "Blade2"]
 blade1 = { azimuth_deg = 0.0, zero = "Z" }
 ```
 
-`axis` is a letter or, for a shaft installed at an angle, `axis = { shaft = "X", vector_wrt_global = [0.996, 0, 0.087] }`: the vector is normalised and must lie within 45 degrees of the positive axis the letter names, as pyflightstream requires. `blade1` places blade one at step zero, `azimuth_deg` measured from the axis `zero` (one of the two axes that are not the shaft, with an optional sign) right-handed about the shaft; blade `k` of `B` sits `(k - 1) 360 / B` further on. Without `blade1` the datum is `zero = "X"`, which a shaft `X` refuses, as in pyflightstream. `alias`, when stated, equals the table name. The blade count is the length of `families_blades`. One rotor only, and the SU2 adapter reads the shaft `X` only (the free stream runs along +x).
+`axis` is a letter or, for a shaft installed at an angle, `axis = { shaft = "X", vector_wrt_global = [0.996, 0, 0.087] }`: the vector is normalized and must lie within 45 degrees of the positive axis the letter names, as pyflightstream requires. `blade1` places blade one at step zero, `azimuth_deg` measured from the axis `zero` (one of the two axes that are not the shaft, with an optional sign) right-handed about the shaft; blade `k` of `B` sits `(k - 1) 360 / B` further on. Without `blade1` the datum is `zero = "X"`, which a shaft `X` refuses, as in pyflightstream. `alias`, when stated, equals the table name. The blade count is the length of `families_blades`. One rotor only, and the SU2 adapter reads the shaft `X` only (the free stream runs along +x).
 
 What differs from the pyflightstream reference file: the reference lengths are `area`, `length` and `moment_origin`, not `area_m2`, `chord_m` and `moment_point`.
 
@@ -271,7 +271,21 @@ POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION         | MESH       | WORKF
 2001 | 1   | 002   | 002 | 001   | MACH:0.1, ALPHA:5, RPM:972 | wllk.su2 | unsteady_rotor | DELTA_THETA: 1.5 / REVOLUTIONS: 5 / LAST_REVS_AVG: 2.5
 ```
 
-That row writes `TIME_STEP= 0.000257201646090535`, `TIME_ITER= 1200` and `WINDOW_START_ITER= 600`. SU2's time iteration `k` (0-based) is cfdbender's step `k + 1`; `INNER_ITER` is the setup's `iterations`. `TIME_MARCHING` is `DUAL_TIME_STEPPING-2ND_ORDER` unless the setup states another.
+That row writes `TIME_STEP= 0.000257201646090535`, `TIME_ITER= 1200` and `WINDOW_START_ITER= 600`.
+
+An `unsteady` row, nothing turning, states the clock in seconds and the window in steps:
+
+```text
+POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION  | MESH     | WORKFLOW | VAR_NAMES_VALUES
+-----|-----|-------|-----|-------|-------------------|----------|----------|-----------------
+3001 | 1   | 003   | 001 | 001   | MACH:0.1, ALPHA:4 | wing.su2 | unsteady | DELTA_TIME: 0.00025 / TIME_ITERATIONS: 480 / LAST_ITERS_AVG: 100
+```
+
+It writes `TIME_STEP= 0.00025`, `TIME_ITER= 480` and `WINDOW_START_ITER= 380`: the window is steps 381 to 480. SU2's time iteration `k` (0-based) is cfdbender's step `k + 1`; `INNER_ITER` is the setup's `iterations`. `TIME_MARCHING` is `DUAL_TIME_STEPPING-2ND_ORDER` unless the setup states another.
+
+SU2 8.6.0 refuses `WRT_RESTART_OVERWRITE`, `WRT_SURFACE_OVERWRITE` and `WRT_VOLUME_OVERWRITE` set to `NO` for a time-accurate run (it numbers each time step's files itself), so a time-accurate row whose setup states one of them `NO` is refused at `plan` naming the key, as other native values SU2 cannot run are; `YES`, SU2's default, passes, and cfdbender writes none of them.
+
+A time-accurate row whose `RESTART` names a steady point starts from that point's solution. SU2 8.6.0 starts a dual-time run from a solution only as a restart at a time iteration `RESTART_ITER`, reading the files of the iterations before it (`<SOLUTION_FILENAME stem>_<k>`, five digits: `RESTART_ITER - 2` and `RESTART_ITER - 1` under second-order dual time stepping, `RESTART_ITER - 1` otherwise), and it refuses `RESTART_ITER= 0`: a second-order run cannot start from a single steady file without that offset. cfdbender therefore stages the steady solution under those names (`restart-input_00000.dat` and `restart-input_00001.dat`, one state repeated) and writes `RESTART_SOL= YES`, `SOLUTION_FILENAME= restart-input.dat` and `RESTART_ITER= 2` (1 under first-order marching) itself, and counts every step in the row's own numbers: step `s` is SU2's time iteration `s - 1 + RESTART_ITER`, `TIME_ITER` is the row's steps plus `RESTART_ITER`, and `WINDOW_START_ITER` and the export window are shifted the same way. So the point marches every step the row asks for: `DELTA_THETA: 5 / REVOLUTIONS: 1` writes `TIME_ITER= 74`, SU2 marches time iterations 2 to 73, and the history carries steps 1 to 72, a complete revolution. The surface and volume files keep SU2's numbering (`surface_flow_00073.vtu` is step 72); the products and the tables are in steps. On a rigid motion, SU2 turns the mesh by one time step from the steady solution's position before step 1, so step `s` is at `s DELTA_THETA` from it (inferred from SU2's source, `CVolumetricMovement::Rigid_Rotation`). SU2 prints `WARNING: The restart file does not contain grid velocities, these will be set to zero.` at this start, because a steady solution holds none.
 
 An `unsteady_rotor` setup turns the whole mesh (`GRID_MOVEMENT= RIGID_MOTION`) unless it states a sliding interface (provisional names):
 
@@ -284,11 +298,13 @@ interface = ["X_BOXD1", "X_BOX1"] # [stationary side, rotating side]
 
 cfdbender then writes `MULTIZONE= YES`, `CONFIG_LIST= ( zone_0.cfg, zone_1.cfg )`, the interface pair as `MARKER_ZONE_INTERFACE` and `MARKER_FLUID_INTERFACE`, `KIND_INTERPOLATION= WEIGHTED_AVERAGE`, `OUTER_ITER` from `iterations` with `INNER_ITER= 1`, per-zone history groups, and one file per zone beside `su2.cfg`: the turning zone's states `GRID_MOVEMENT= RIGID_MOTION`, `MOTION_ORIGIN`, `ROTATION_RATE` and `MACH_MOTION`, the others `GRID_MOVEMENT= NONE`.
 
-The reported result of a time-accurate point is the mean over the window of each history column (equal weights, one row per time step, the last row of each step), and its rotor row is formed from the mean force and moment. A history that does not hold every step of the window leaves the point out with the reason. `post/<matrix>/polars/P<sim>_<matrix>_uns_avg.csv` holds one row per point: `POL`, `FIRST_STEP`, `LAST_STEP`, `STEPS`, the condition block, `XMOM`, `YMOM`, `ZMOM`, the averaged history columns, then `RPM_<alias>` and `DIAMETER_<alias>`. The point's result also holds one row per complete revolution with each column's mean and its drift from the previous revolution, and a drift of the last revolution above `[per_revolution] drift_limit_pct` of the PPROC file (default 1 per cent) warns, never blocks. To verify on a real time-accurate run: the column names SU2 gives a time-accurate and a multizone history (`solvers/su2/_time_history.py` keeps them in one table).
+The reported result of a time-accurate point is the mean over the window of each history column (equal weights, one row per time step, the last row of each step), and its rotor row is formed from the mean force and moment. A history that does not hold every step of the window leaves the point out with the reason. `post/<matrix>/polars/P<sim>_<matrix>_uns_avg.csv` holds one row per point: `POL`, `FIRST_STEP`, `LAST_STEP`, `STEPS`, the condition block, `XMOM`, `YMOM`, `ZMOM`, the averaged history columns, then `RPM_<alias>` and `DIAMETER_<alias>`. The point's result also holds one row per complete revolution with each column's mean and its drift from the previous revolution, and a drift of the last revolution above `[per_revolution] drift_limit_pct` of the PPROC file (default 1 per cent) warns, never blocks. The column names are those of a real SU2 8.6.0 time-accurate history: `Time_Iter` counts the time steps and the loads are `CFx` to `CMz`; with `AERO_COEFF_SURF` in `HISTORY_OUTPUT` the loads of one marker are `CFx(blade)`, the marker in round brackets. A multizone history appends the zone index in square brackets, `CFx[1]` and `CFx[1](blade)`, as SU2 forms them in its multizone output; no multizone time-accurate history has been run. `solvers/su2/_time_history.py` keeps these names in one table.
 
 #### Export window
 
-A time-accurate row may state one of pyflightstream's `EXPORT_UNSTEADY_LAST_REV`, `EXPORT_UNSTEADY_LAST_ITER`, `EXPORT_UNSTEADY_AFTER_REV` or `EXPORT_UNSTEADY_AFTER_ITER`: the surface and volume files are written at every step from the window's first step to the last. SU2 writes its files at one frequency for a whole run, so such a point runs in two segments of one job: `su2.cfg` marches to the step before the window writing restart files only, `su2_segment2.cfg` restarts there (`RESTART_SOL= YES`, `RESTART_ITER`) and writes every step to the end, and `run_segments.sh` runs the two in order (`sh run_segments.sh mpirun -np 64 SU2_CFD`). That an SU2 time-accurate restart continues cleanly is to be verified on a real run. Two keys, a value that is not positive, a window longer than the run, a threshold beyond the run, and a window that begins after the averaging window are refused; a revolutions form on a row with no rotor clock warns and is skipped.
+A time-accurate row may state one of pyflightstream's `EXPORT_UNSTEADY_LAST_REV`, `EXPORT_UNSTEADY_LAST_ITER`, `EXPORT_UNSTEADY_AFTER_REV` or `EXPORT_UNSTEADY_AFTER_ITER`: the surface and volume files are written at every step from the window's first step to the last. SU2 writes its files at one frequency for a whole run, so such a point runs in two segments of one job: `su2.cfg` marches to the step before the window writing restart files only, `su2_segment2.cfg` restarts there (`RESTART_SOL= YES`, `RESTART_ITER`) and writes every step to the end, and `run_segments.sh` runs the two in order (`sh run_segments.sh mpirun -np 64 SU2_CFD`). Verified on a real SU2 8.6.0 run: segment two at `RESTART_ITER= R` reads `<SOLUTION_FILENAME stem>_<R-2>` and `_<R-1>` (`restart_flow_00058.dat` and `restart_flow_00059.dat` for `R = 60`), which segment one wrote under its `RESTART_FILENAME`, so `su2_segment2.cfg` states `SOLUTION_FILENAME` as segment one's `RESTART_FILENAME` (SU2's default `restart` when the setup states none) and `READ_BINARY_RESTART= YES`; the two segments write `history_<first time iteration>.csv` each (or `history.csv` for a cold first segment), and the history across the hand-over agrees with an uninterrupted run to the run-to-run noise of the solver (about 1e-5 in `CFx` at the first step after it). `RESTART_ITER` of segment two is the window's first step minus 1 plus the start offset of a point started from a steady solution. A window that begins so early that segment one would march fewer steps than the restart reads (two under second-order dual time, so a window from step 2) runs as one segment writing every step.
+
+What a time-accurate point writes to disk. SU2 8.6.0 writes each file of `OUTPUT_FILES` at every time iteration that is a multiple of its `OUTPUT_WRT_FREQ` (one frequency per file, in the same order) and always at its last time iteration, and under second-order dual time stepping it also writes a restart file one iteration before each multiple and before the last, so a continuation has its two previous states (measured); without `OUTPUT_WRT_FREQ` a transient run writes every file at every step. Following pyflightstream, whose unsteady point with no `EXPORT_UNSTEADY_*` key exports its end-of-run files only, a row with no export window gets `OUTPUT_WRT_FREQ` equal to `TIME_ITER` for every file, so the volume and surface files are written at the last step and the restart file at the last two (and, on a cold start, at step 1 too, because every frequency divides time iteration 0); a setup that states `OUTPUT_WRT_FREQ`, or the PPROC `output_frequency`, keeps its own. With an export window, segment one writes restart files only, with its frequency equal to its `TIME_ITER`, which leaves exactly the two segment two reads, and segment two writes the volume and surface files at every step of the window and its restart files at its last two steps. SU2 also refuses a restart whose `WINDOW_START_ITER` is below `RESTART_ITER` (`WINDOW_START_ITER must be larger than or equal to: RESTART_ITER!`, measured), so when the averaging window begins before the export window segment two states `WINDOW_START_ITER` equal to its `RESTART_ITER`: SU2's own `tavg[...]` columns then average segment two only, while cfdbender's average reads the joined history over the whole averaging window. SU2 has no key that keeps fewer files than that, and pyflightstream has no key to keep or remove superseded restart files, so cfdbender deletes nothing. Measured sizes per written step on a 476,445-point mesh (8,626 blade points): `flow_<k>.vtu` 88.1 MiB, `surface_flow_<k>.vtu` 1.1 MiB, `restart_<k>.dat` 43.6 MiB; a row with an export window of `n` steps writes about `n` times 89 MiB plus four restart files, where a run writing every file at every step wrote about 133 MiB per step (about 9.8 GB for 70 steps). The export window and the averaging window are independent: either may begin first. Two keys, a value that is not positive, a window longer than the run and a threshold beyond the run are refused; a revolutions form on a row with no rotor clock warns and is skipped.
 
 #### Turbulence model
 
@@ -311,13 +327,71 @@ CT   = T / (rho n^2 D^4)    CQ = Q / (rho n^2 D^5)    CP = 2 pi CQ sign(n)    ET
 CN, CS = F_w . N, F_w . S over rho n^2 D^4    CMN, CMS = M_w . N, M_w . S over rho n^2 D^5
 ```
 
-`N` is the part of the mesh frame's up (`+z`) square to the shaft and `S = N x a`; the four in-plane coefficients are `NA` for a shaft along up. With `SYMMETRY = PERIODIC` and `SYMMETRY_LOADS` true the whole-rotor loads are the vector sum over `m = PERIODIC_COPIES` copies, never a multiplication; with `SYMMETRY_LOADS` false they are the sector's. Thrust is counted along the declared shaft, so with `axis = "X"` and the flow along +x a pulling propeller has a negative `CT`, as in pyflightstream; `ETA` is `NA` where `CP` is zero or the free stream is. The density `rho` is `FREESTREAM_DENSITY` under `FREESTREAM_OPTION = "DENSITY_FS"`; for a viscous deck that SU2 initialises from `REYNOLDS_NUMBER` it is `Re mu / (V L)`; otherwise `p / (R T)`.
+`N` is the part of the mesh frame's up (`+z`) square to the shaft and `S = N x a`; the four in-plane coefficients are `NA` for a shaft along up. With `SYMMETRY = PERIODIC` and `SYMMETRY_LOADS` true the whole-rotor loads are the vector sum over `m = PERIODIC_COPIES` copies, never a multiplication; with `SYMMETRY_LOADS` false they are the sector's. Thrust is counted along the declared shaft, so with `axis = "X"` and the flow along +x a pulling propeller has a negative `CT`, as in pyflightstream; `ETA` is `NA` where `CP` is zero or the free stream is. The density `rho` is `FREESTREAM_DENSITY` under `FREESTREAM_OPTION = "DENSITY_FS"`; for a viscous deck that SU2 initializes from `REYNOLDS_NUMBER` it is `Re mu / (V L)`; otherwise `p / (R T)`.
 
 The same quantities hold for a `steady` point whose rotation you typed by hand (`GRID_MOVEMENT` and `ROTATION_RATE` in the setup), as long as the reference file declares the rotor.
+
+### Post-processing products
+
+The PPROC file declares sections, a volume cut and probes with pyflightstream's tables, keys, defaults and refusals: `[sections]` with `[[sections.distributions]]`, one `[volume_section]`, and `[[probes]]` entries. A malformed table is refused at `plan` with pyflightstream's message. When the PPROC file declares one, SU2 is asked for the file it is read from, and only then: `OUTPUT_FILES` gains `SURFACE_PARAVIEW` for sections and `PARAVIEW` for a volume cut or probes (a list the setup states keeps its entries). `collect` and `post` then write, under `post/<matrix>/`:
+
+| File | From | Holds |
+|---|---|---|
+| `sections/P<POL>/<point>_cp_<name>.csv` | `surface_flow.vtu` | One row per section and chordwise station: `POL, STEP, time_s, FAMILY, PLANE, ROTOR, AZIMUTH`, the condition block, `SECTION` and the Cp columns. |
+| `sections/P<POL>/<point>_sloads_<name>.csv` | `surface_flow.vtu` | One row per section: the same leading columns, `Offset, Chord, X_QC, Z_QC, Fx, Fz, Moment`, and with `integrate = true` `Strip_length, Fx_int, Fz_int, My_int`; then the pressure and friction parts (below). |
+| `fields/P<POL>/<point>_vsec.vtk` or `.dat` | `flow.vtu` | The velocity interpolated at the laid points of the cut, with its `.provenance.json`. |
+| `probes/P<POL>/<point>_probes.csv` | `flow.vtu` | `POL, PROBE, X, Y, Z, FRAME, STEP`, the condition block, then the sampled parameters; a sampled `MACH` is `MACH_LOCAL`. |
+
+`<name>` is the entry's `families` word, as pyflightstream names it. A section is cut by cfdbender from the surface file and its loads integrated there, the same way for every solver; a volume cut and probes are interpolated inside the cells of the volume file at the exact declared positions. A probe point that lies in no cell keeps its row, and its value cells hold `NA`; a volume cut drops such a point. The frames a declaration may name are built from the reference file: `REFERENCE`, `MRP` (at the moment origin), and for the declared rotor `<ALIAS>_SMRP` (the hub frame: the shaft letter along the installed shaft, the `blade1.zero` letter toward that direction projected onto the disc), `<ALIAS>_BMRP`, `<ALIAS>_RMRP`, `<ALIAS>_RMRP<k>`, `SMRP` and `RMRP`. A probe entry with no `frame` is in the rotor's hub frame.
+
+```toml
+history = true
+
+[sections]
+count = 20
+
+[[sections.distributions]]
+families = "blade"
+frame = "REFERENCE"
+planes = ["XZ"]       # the offset runs along y, the blade span
+integrate = true
+
+[volume_section]
+shape = "circle"
+frame = "REFERENCE"
+plane = "YZ"
+offset_m = 0.05       # downstream of the blade
+radii_m = [0.03, 0.2]
+points = [8, 36]
+
+[[probes]]
+frame = "REFERENCE"
+points = 3
+parameters = ["VX", "VY", "VZ", "MACH", "CP_FREE"]
+
+[[probes.lines]]
+start = [0.05, 0.08, 0.0]
+end = [0.05, 0.16, 0.0]
+```
+
+On a `steady` or `qsteady_rotor` point each product is one instant, and `STEP` of a sections file is the solver iteration of the files. On a time-accurate point with an export window, the sections files and a probes entry of `kind = "instantaneous"` hold every exported step in order (`products.json` says `"kind": "history"`), and the volume cut is one file per step, `_step_<STEP>` before the extension; an entry of `kind = "default"` samples the last step. Without an export window a time-accurate point writes its last step, one instant. A turning frame (`<ALIAS>_RMRP`, `<ALIAS>_RMRP<k>`) follows blade one's azimuth at each step, and `AZIMUTH` states where the block's blade is.
+
+What differs from pyflightstream, and why:
+
+- Each product file of a point is in a folder of its polar, `P<POL>/`, because a cfdbender point name does not carry its polar.
+- Columns SU2 cannot fill are absent, never empty, and `products.json` names each with its reason: the boundary-layer columns `Theta`, `Delta*`, `Delta`, `H` of the Cp file and the `BL_*` probe parameters.
+- SU2's surface file does not say which cell is of which marker, so a distribution cuts all of `MARKER_PLOTTING` or none of it; plot only the markers you cut.
+- A field solver with a wall shear field offers more than a panel solver: in its sectional-loads file `Fx`, `Fz` and `Moment` (and with `integrate = true` `Fx_int`, `Fz_int`, `My_int`) are the totals, pressure plus friction, and the two parts follow them as extra columns, `Fx_pres, Fz_pres, Moment_pres, Fx_fric, Fz_fric, Moment_fric` and with `integrate = true` `Fx_pres_int, Fz_pres_int, My_pres_int, Fx_fric_int, Fz_fric_int, My_fric_int`, with the same axes, moment point, signs and strip rule. SU2's wall shear is `Skin_Friction_Coefficient` times the dynamic pressure of the Cp reference. Without a shear field the load columns are the pressure loads, as pyflightstream writes them, and the part columns are absent and named in `products.json`.
+- Provisional readings: the Cp columns refer to the free stream (`p_inf` and `0.5 rho V^2` of the deck), also in a rotating frame; `Cp_ref` and `CP_REF` are SU2's own `Pressure_Coefficient`; `CF` is the magnitude of `Skin_Friction_Coefficient`; the winding normal of a surface cell is taken to point into the fluid; the velocity is absolute.
+- Not offered, warned and skipped: `include_symmetry = true` (no symmetry copy of a section is made), `attach = "body"`, a probe entry's `field_formats`, `reusable_inflow`, `lattices`, `grids` and `points_file`, `families = "each"`, and the frames `LOCAL_AXIS`, `BLADE_AXIS` and those of a `[[frames]]` table. The periodic copies of a sector are not sectioned. A sliding-mesh multizone point's per-zone files are not read yet.
+
+A product whose file, field, family or frame is missing is left out with the reason in `products.json` and `post.log`, and never stops another product or the polar.
 
 ## What converged means
 
 cfdbender reads `history.csv` and the SU2 log (`stdout.log` and `stderr.log`). The history gives the residuals and coefficients. The log gives the verdict, because a clean exit says nothing about numerics.
+
+A time-accurate point reads the history of every configuration it ran, under the name SU2 8.6.0 gives it: `history.csv` for a cold start and `history_<RESTART_ITER>.csv`, five digits, for a restarted run (`history_00002.csv`, `history_00060.csv`), which writes no `history.csv`. The two segments of an export window are joined in step order into one history; a gap or an overlap between them is refused naming both files, and a missing history names every file looked for. Its iterations are the row's steps counted from 1, and the limit is the row's last step.
 
 | Result | Rule |
 |---|---|
@@ -327,7 +401,7 @@ cfdbender reads `history.csv` and the SU2 log (`stdout.log` and `stderr.log`). T
 
 A history is unreadable when it lacks `Inner_Iter`, a residual column or a coefficient column, holds a non-finite value, or its iterations do not increase. The residual of an iteration is the residual SU2 converges on: the `rms[...]` column of `CONV_FIELD` (`rms[Rho]` for SU2's default `RMS_DENSITY`, `rms[RhoE]` for `RMS_ENERGY`, `rms[nu]` for `RMS_NU_TILDE`), or the largest of them when `CONV_FIELD` names several, converted from log10 to a linear value. The result records the column under `residual_field`, for example `"residual_field": "rms[Rho]"`, and the `residual` column of the `collect` tables is that value at the last iteration. A `CONV_FIELD` that names no residual column, such as a Cauchy criterion on `DRAG`, records the largest `rms[...]` column, named `largest rms`. Iteration numbers start at 1.
 
-cfdbender reports the coefficients SU2 wrote, with the axis system SU2 uses. SU2 normalises them with the reference area, length and moment origin of the reference file.
+cfdbender reports the coefficients SU2 wrote, with the axis system SU2 uses. SU2 normalizes them with the reference area, length and moment origin of the reference file.
 
 | Name | Meaning | Axes |
 |---|---|---|

@@ -400,3 +400,13 @@ def test_p0000_item4_network_build_bundles_windows_and_linux_wheels(tmp_path):
         assert found, name
     numpy = [w for w in wheels if w.startswith("wheels/numpy-")]
     assert any("win_amd64" in w for w in numpy) and any("manylinux" in w for w in numpy)
+
+
+def test_cfdpp_job_script_source_passes_kit_privacy_guard():
+    """Shell quoting in shipped Python source must not resemble a private path."""
+    spec = importlib.util.spec_from_file_location("item4_guard", ROOT / "tools/build_kit.py")
+    assert spec is not None and spec.loader is not None
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    source = ROOT / "src/cfdbender/solvers/cfdpp/_execute.py"
+    builder.check_public(source.name, source.read_bytes())

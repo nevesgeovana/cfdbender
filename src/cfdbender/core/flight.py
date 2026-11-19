@@ -250,7 +250,7 @@ def resolve_flow(
     condition : mapping of str to float
         One point's condition with canonical keys; attitude and other keys are ignored.
     reference_length : float or None
-        The REF file's length in metres, required when REmi is stated.
+        The REF file's length in meters, required when REmi is stated.
     label : str
         Names the row in every refusal.
 
@@ -293,7 +293,7 @@ def resolve_flow(
         floor_ft = math.ceil(FLOOR_ALTITUDE / METRES_PER_FOOT)
         ceiling_ft = math.floor(CEILING_ALTITUDE / METRES_PER_FOOT)
         raise FlightConditionError(
-            f"{label}: ALTFT:{altitude_ft:g} is outside the modelled atmosphere, "
+            f"{label}: ALTFT:{altitude_ft:g} is outside the modeled atmosphere, "
             f"{floor_ft} ft to {ceiling_ft} ft"
         )
     standard_temperature, standard_pressure = standard_atmosphere(altitude_m)

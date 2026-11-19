@@ -89,7 +89,7 @@ __all__ = [
 
 #: Chordwise sections cut along the span by default. A blade's trailing
 #: edge is a curve and this is how finely it is sampled, so the number is
-#: a modelling choice rather than a tuning constant: twenty nodes
+#: a modeling choice rather than a tuning constant: twenty nodes
 #: describe the edge of an ordinary rotor blade without asking the mesh
 #: for more resolution than a coarse one has. Raise it for a highly
 #: swept edge, lower it for a coarse mesh.
@@ -136,7 +136,7 @@ class TrailingEdge:
         units: the distance from the rotor axis, measured perpendicular
         to it. Increasing, by construction.
     axis : numpy.ndarray
-        The rotor axis the extraction used, shape (3,), normalised to
+        The rotor axis the extraction used, shape (3,), normalized to
         unit length. Its SENSE carries the rotation sense by the
         right-hand rule; see the module docstring.
     hub : numpy.ndarray
@@ -182,7 +182,7 @@ def _three_vector(value: Any, name: str) -> numpy.ndarray:
 
 
 def _unit_axis(value: Any) -> numpy.ndarray:
-    """Read the rotor axis and normalise it, or refuse."""
+    """Read the rotor axis and normalize it, or refuse."""
     array = _three_vector(value, "rotor axis")
     # Scaled by the largest component first, so a finite axis of extreme magnitude
     # neither overflows nor underflows its own length (F-348).
@@ -355,7 +355,7 @@ def extract_trailing_edge(
         rotor turns the other way.
 
         Rotor axis of rotation, three components in the mesh's reference
-        frame. Normalised internally, so only the direction matters, but
+        frame. Normalized internally, so only the direction matters, but
         the SENSE matters: the rotor is taken to turn the right-handed
         way about it, and that is what decides which end of the chord is
         aft. It is a second vocabulary for which way a rotor turns,
@@ -421,7 +421,7 @@ def extract_trailing_edge(
 
 
 def _rotor_frame(axis: Any, hub: Any) -> tuple[numpy.ndarray, numpy.ndarray]:
-    """Read the rotor axis (normalised) and the hub, or refuse naming both."""
+    """Read the rotor axis (normalized) and the hub, or refuse naming both."""
     if axis is None or hub is None:
         missing = ", ".join(name for name, value in (("axis", axis), ("hub", hub)) if value is None)
         raise InputArtifactError(
@@ -832,9 +832,9 @@ def _orient(
     Two steps, and the order is the point. Each section's extent gives a
     LINE, so the signs arrive independent of one another; they are first
     made CONSISTENT by walking the span and flipping any section that
-    disagrees with its inboard neighbour, which is a comparison between
+    disagrees with its inboard neighbor, which is a comparison between
     two nearby chords and survives any amount of twist so long as the
-    twist between neighbouring sections is under a right angle. Only
+    twist between neighboring sections is under a right angle. Only
     then is the single remaining global sign decided, on the section
     whose chord is most nearly tangential, where the answer is least
     ambiguous. Deciding per section against the tangential direction

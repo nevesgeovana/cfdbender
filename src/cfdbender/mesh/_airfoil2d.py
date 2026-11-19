@@ -1,6 +1,6 @@
 """The 2D airfoil volume mesh of ``cfd-mesh airfoil-2d``: a structured C-mesh made with gmsh.
 
-A section (a NACA 4 or 5 digit designation, or a coordinates file in Selig order) is normalised
+A section (a NACA 4 or 5 digit designation, or a coordinates file in Selig order) is normalized
 to a unit chord and meshed as four transfinite gmsh blocks (lower wake, lower surface, upper
 surface, upper wake) that share the wake cut, recombined to quadrilaterals. A blunt trailing
 edge keeps its base, which becomes a fifth block between the two wake blocks with its own cells,
@@ -312,7 +312,7 @@ def two_sided(length: float, cells: int, start: float, end: float) -> list[float
 
 @dataclass(frozen=True)
 class Section:
-    """A section normalised to a unit chord along +x, leading edge at the origin.
+    """A section normalized to a unit chord along +x, leading edge at the origin.
 
     Attributes
     ----------
@@ -321,7 +321,7 @@ class Section:
     source : dict
         ``{"naca": digits}`` or ``{"coordinates": path}``.
     transform : dict
-        How the input was normalised (``nose``, ``chord``, ``rotation``).
+        How the input was normalized (``nose``, ``chord``, ``rotation``).
     gap_removed : float
         The trailing-edge gap a sharp trailing edge collapsed, in chords.
     """
@@ -339,7 +339,7 @@ class Section:
 
 
 def naca_section(designation: str) -> Section:
-    """Return the NACA 4 or 5 digit section ``designation``, normalised, its gap as published.
+    """Return the NACA 4 or 5 digit section ``designation``, normalized, its gap as published.
 
     The published thickness formula keeps the coefficient -0.1015, so the trailing edge is blunt
     (0.00252 chord for a NACA 0012); :func:`shape_trailing_edge` collapses it for a sharp edge.
@@ -455,7 +455,7 @@ def _crossing(contour: Array) -> Array | None:
 
 
 def read_coordinates(path: str | Path) -> Section:
-    """Return the section of a coordinates file in Selig order, normalised to a unit chord.
+    """Return the section of a coordinates file in Selig order, normalized to a unit chord.
 
     The file holds an optional title line, then one ``x y`` pair per line, from the trailing
     edge over the upper surface to the leading edge and back under the lower surface (the
@@ -625,7 +625,7 @@ class _Builder:
     def arc(
         self, ends: tuple[int, int], centre: int, inner: Sequence[Sequence[float]]
     ) -> list[int]:
-        """Return one circle arc per cell through the given inner points about ``centre``."""
+        """Return one circle arc per cell through the given inner points about ``center``."""
         tags = [ends[0], *(self.point(p) for p in inner), ends[1]]
         curves = [
             int(self.geo.addCircleArc(a, centre, b)) for a, b in zip(tags, tags[1:], strict=False)

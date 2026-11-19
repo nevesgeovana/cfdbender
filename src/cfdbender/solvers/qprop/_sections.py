@@ -16,7 +16,7 @@ from cfdbender.solvers.qprop._polar import polar_script
 
 @dataclass(frozen=True)
 class Spec:
-    """One station in metres and degrees; shape and polar are file text when given."""
+    """One station in meters and degrees; shape and polar are file text when given."""
 
     radius: float
     chord: float
@@ -27,7 +27,7 @@ class Spec:
 
 @dataclass(frozen=True)
 class Blade:
-    """The resolved stations in ascending radius and the tip radius in metres."""
+    """The resolved stations in ascending radius and the tip radius in meters."""
 
     specs: tuple[Spec, ...]
     radius: float

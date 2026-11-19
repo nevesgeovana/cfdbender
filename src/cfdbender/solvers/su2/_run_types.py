@@ -24,8 +24,8 @@ SU2's time iteration ``k`` (0-based) is cfdbender's step ``k + 1``.
 
 The export window (:mod:`cfdbender.core.export_window`) is realised in two segments of one
 point (:func:`export_segments`): the first runs to the step before the window writing restart
-files only, the second restarts there and writes every step to the end. That an SU2
-time-accurate restart continues cleanly is to be verified on a real run.
+files only, the second restarts there and writes every step to the end; verified on a real
+SU2 8.6.0 run, the restart continues to the solver's run-to-run noise.
 
 Names of this module that pyflightstream has no equivalent for are PROVISIONAL:
 ``periodic_markers`` and the ``[sliding]`` table (``zones``, ``rotating_zone``,
@@ -66,6 +66,34 @@ SEGMENTS_SCRIPT = "run_segments.sh"
 TIME_MARCHING = "DUAL_TIME_STEPPING-2ND_ORDER"
 #: SU2's own output files when OUTPUT_FILES is not stated.
 SU2_OUTPUT_FILES = ["RESTART", "PARAVIEW", "SURFACE_PARAVIEW"]
+#: SU2 8.6.0's own RESTART_FILENAME when the setup states none.
+SU2_RESTART_FILENAME = "restart"
+#: The keys SU2 8.6.0 refuses set to NO for a transient run (CConfig: "Appending iterations
+#: to the filename ... is incompatible with transient problems").
+OVERWRITE_KEYS = ("WRT_RESTART_OVERWRITE", "WRT_SURFACE_OVERWRITE", "WRT_VOLUME_OVERWRITE")
+
+
+def carried_keys(run_type: str, *, sliding: bool = False) -> tuple[str, ...]:
+    """Return native keys a run type supplies above workspace defaults."""
+    rotation = ("GRID_MOVEMENT", "ROTATION_RATE", "MOTION_ORIGIN", "MACH_MOTION")
+    clock = (
+        "TIME_DOMAIN",
+        "TIME_MARCHING",
+        "TIME_STEP",
+        "TIME_ITER",
+        "INNER_ITER",
+        "WINDOW_START_ITER",
+    )
+    if run_type == QSTEADY_ROTOR:
+        return rotation
+    if run_type == UNSTEADY_ROTOR:
+        interface = (
+            ("MARKER_ZONE_INTERFACE", "MARKER_FLUID_INTERFACE", "KIND_INTERPOLATION")
+            if sliding
+            else ()
+        )
+        return (*clock, *rotation, *interface)
+    return clock if run_type == UNSTEADY else ()
 
 
 def turbulence(values: MutableMapping[str, object], setup: Mapping[str, object]) -> str | None:
@@ -245,15 +273,40 @@ def apply_run_type(
     rotor: RotorBlock | None,
     periodic: PeriodicState,
     motion: Mapping[str, float],
+    restarted: bool = False,
 ) -> dict[str, object]:
     """Write the SU2 keys run type ``run_type`` carries; return what the point records.
 
     ``motion`` holds the row's ``ADVANCE_RATIO`` or ``RPM``. The record holds the clock, the
-    averaging window and the export window of a time-accurate point.
+    averaging window and the export window of a time-accurate point, and ``step_offset`` when
+    ``restarted``: a time-accurate point that starts from a saved solution (the row's
+    ``RESTART``) begins at SU2's time iteration ``RESTART_ITER``, :func:`restart_order` (two
+    for second-order dual time stepping), and the solution is staged as the iterations before
+    it. Its step ``s`` is SU2's time iteration ``s - 1 + offset`` and ``TIME_ITER``,
+    ``WINDOW_START_ITER`` and the segment hand-over are shifted by the offset, so the point
+    still marches every step the row asks for.
     """
     record: dict[str, object] = {"run_type": run_type}
     if run_type == STEADY:
         return record
+    before = set(values)
+    try:
+        return _carried(values, run_type, record, setup, rotor, periodic, motion, restarted)
+    finally:
+        # The keys the run type wrote that no file or row stated: their origin is the run type.
+        record["carried"] = sorted(key for key in values if key not in before)
+
+
+def _carried(
+    values: MutableMapping[str, object],
+    run_type: str,
+    record: dict[str, object],
+    setup: Mapping[str, object],
+    rotor: RotorBlock | None,
+    periodic: PeriodicState,
+    motion: Mapping[str, float],
+    restarted: bool = False,
+) -> dict[str, object]:
     needs_rotor = run_type in (QSTEADY_ROTOR, UNSTEADY_ROTOR)
     rps: float | None = None
     if needs_rotor:
@@ -286,9 +339,8 @@ def apply_run_type(
         pol="",
         time_iterations=clock.time_iterations,
         steps_per_revolution=clock.steps_per_revolution,
-        averaging_first_step=window[0],
     )
-    _time_keys(values, clock, window)
+    offset = _time_keys(values, clock, window, restarted=restarted)
     if run_type == UNSTEADY_ROTOR:
         assert rotor is not None and rps is not None
         sliding = setup.get("sliding")
@@ -298,29 +350,69 @@ def apply_run_type(
         else:
             _zones(values, sliding, rotor, rps)
     if exports is not None:
-        export_segments(values, exports)
+        export_segments(values, exports, offset)
+    else:
+        last_step_outputs(values)
     record.update(
         clock=clock.record(),
         averaging_window=list(window),
         export_window=None if exports is None else exports.record(),
     )
+    if offset:
+        record["step_offset"] = offset
     return record
 
 
+def _refuse_appending(values: Mapping[str, object]) -> None:
+    """Refuse an overwrite key set to NO, which SU2 8.6.0 refuses for a transient run."""
+    for key in OVERWRITE_KEYS:
+        value = values.get(key)
+        if value is False or str(value).strip().upper() in ("NO", "FALSE"):
+            raise ValueError(
+                f"the setup states {key}= NO, which appends the iteration to every file name, "
+                "and SU2 refuses it for a time-accurate run (it numbers each time step's files "
+                f"itself): remove {key} or state it YES"
+            )
+
+
+def restart_order(values: Mapping[str, object]) -> int:
+    """Return how many previous time iterations an SU2 time-accurate restart reads.
+
+    SU2 8.6.0 reads ``<SOLUTION_FILENAME stem>_<k>`` for ``k = RESTART_ITER - 2`` and
+    ``RESTART_ITER - 1`` under second-order dual time stepping, and ``RESTART_ITER - 1``
+    otherwise; it refuses a negative ``k``, so a second-order run cannot restart at 0 or 1.
+    """
+    marching = str(values.get("TIME_MARCHING", TIME_MARCHING)).strip().upper()
+    return 2 if marching == TIME_MARCHING else 1
+
+
 def _time_keys(
-    values: MutableMapping[str, object], clock: TimeStepping, window: tuple[int, int]
-) -> None:
+    values: MutableMapping[str, object],
+    clock: TimeStepping,
+    window: tuple[int, int],
+    *,
+    restarted: bool = False,
+) -> int:
+    """Write the clock keys; return the step offset (``RESTART_ITER`` of a restarted point)."""
     values["TIME_DOMAIN"] = True
     values.setdefault("TIME_MARCHING", TIME_MARCHING)
+    _refuse_appending(values)
+    offset = restart_order(values) if restarted else 0
     values["TIME_STEP"] = clock.delta_time_s
-    values["TIME_ITER"] = clock.time_iterations
+    values["TIME_ITER"] = clock.time_iterations + offset
     if "ITER" in values:
         values.setdefault("INNER_ITER", values.pop("ITER"))
     # SU2 averages from its time iteration WINDOW_START_ITER, which is step window[0].
-    values.setdefault("WINDOW_START_ITER", window[0] - 1)
+    values.setdefault("WINDOW_START_ITER", window[0] - 1 + offset)
+    if offset:
+        # The saved solution is staged as SU2's time iterations 0 .. offset - 1 (one
+        # steady state repeated), so the run starts at iteration `offset`, the row's step 1.
+        values["RESTART_SOL"] = True
+        values["RESTART_ITER"] = offset
     groups = [str(group) for group in values.get("HISTORY_OUTPUT", [])]  # type: ignore[attr-defined]
     if "TAVG_AERO_COEFF" not in groups:
         values["HISTORY_OUTPUT"] = [*groups, "TAVG_AERO_COEFF"]
+    return offset
 
 
 def _zones(
@@ -359,8 +451,9 @@ def _zones(
     if "INNER_ITER" in values and "OUTER_ITER" not in values:
         values["OUTER_ITER"] = values.pop("INNER_ITER")
         values["INNER_ITER"] = 1
-    # Each zone's residuals and coefficients are their own history group (to verify on a
-    # real time-accurate run: the column names SU2 gives them).
+    # Each zone's residuals and coefficients are their own history group: SU2 8.6.0's
+    # multizone output names the group <GROUP>[<zone>] and its columns <field>[<zone>]
+    # (CMultizoneOutput, read in SU2's source; no multizone time-accurate run yet).
     groups = [str(group) for group in values.get("HISTORY_OUTPUT", [])]  # type: ignore[attr-defined]
     zoned = [
         f"{group}[{index}]"
@@ -380,28 +473,83 @@ def _zones(
     write_rotation(values, rotor, rps, target=target)
 
 
-def export_segments(values: MutableMapping[str, object], exports: ExportWindow) -> None:
+def export_segments(
+    values: MutableMapping[str, object], exports: ExportWindow, offset: int = 0
+) -> None:
     """Realise the export window: the ONE function a different mechanism replaces.
 
     SU2 writes its files at a constant frequency for a whole run, so the point runs in two
     segments: ``su2.cfg`` marches to the step before the window and writes restart files
-    only; ``su2_segment2.cfg`` restarts there and writes every step to the end. A window
-    that begins at step one is one segment writing every step. To verify on a real run: that
-    the restart of a dual-time run continues cleanly.
+    only; ``su2_segment2.cfg`` restarts there and writes every step to the end. Verified on a
+    real SU2 8.6.0 run: segment two at ``RESTART_ITER= R`` (step ``R - offset + 1`` is the
+    window's first) reads ``<SOLUTION_FILENAME stem>_<R-2>`` and ``_<R-1>`` (second order),
+    which segment one wrote as ``<RESTART_FILENAME stem>_<k>``, so segment two's
+    ``SOLUTION_FILENAME`` is segment one's ``RESTART_FILENAME`` (SU2's default ``restart``)
+    and it reads them as binary, the format ``RESTART`` writes. The hand-over continues to the
+    run-to-run noise of the solver. A window whose first step leaves segment one fewer marched
+    steps than the restart reads (``restart_order``) is one segment writing every step.
+    ``offset`` is the step offset of a point started from a saved solution.
     """
-    outputs = values.get("OUTPUT_FILES", list(SU2_OUTPUT_FILES))
-    if exports.first_step <= 1:
-        values["OUTPUT_WRT_FREQ"] = 1
+    outputs = _outputs(values)
+    total = int(str(values["TIME_ITER"]))
+    if exports.first_step - 1 < restart_order(values):
+        values["OUTPUT_FILES"] = outputs
+        values["OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=total, other=1)
         return
-    total = values["TIME_ITER"]
-    values["TIME_ITER"] = exports.first_step - 1
+    handover = exports.first_step - 1 + offset
+    values["TIME_ITER"] = handover
     values["OUTPUT_FILES"] = ["RESTART"]
+    # Only the restart files segment two reads. SU2 8.6.0 writes a file at every multiple of
+    # its frequency and at its last time iteration, and under second-order dual time a restart
+    # file also before each multiple and before the last (CFlowOutput, measured): with the
+    # frequency equal to TIME_ITER that is handover - 2 and handover - 1 (handover - 1 alone
+    # under first order), plus time iteration 0 of a cold start.
+    values["OUTPUT_WRT_FREQ"] = handover
     target = f"{SEGMENT_TWO}/"
     values[f"{target}TIME_ITER"] = total
     values[f"{target}RESTART_SOL"] = True
-    values[f"{target}RESTART_ITER"] = exports.first_step - 1
+    values[f"{target}RESTART_ITER"] = handover
+    # SU2 refuses a restart whose WINDOW_START_ITER is below RESTART_ITER (measured), so its
+    # own time average, a cross-check, starts at segment two; cfdbender's reads the history.
+    start = values.get("WINDOW_START_ITER")
+    if isinstance(start, int) and start < handover:
+        values[f"{target}WINDOW_START_ITER"] = handover
+    values[f"{target}SOLUTION_FILENAME"] = values.get("RESTART_FILENAME", SU2_RESTART_FILENAME)
+    values[f"{target}READ_BINARY_RESTART"] = True
     values[f"{target}OUTPUT_FILES"] = outputs
-    values[f"{target}OUTPUT_WRT_FREQ"] = 1
+    values[f"{target}OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=total, other=1)
+
+
+def _outputs(values: Mapping[str, object]) -> list[str]:
+    stated = values.get("OUTPUT_FILES", list(SU2_OUTPUT_FILES))
+    if isinstance(stated, list):
+        return [str(item) for item in stated]
+    return [item.strip() for item in str(stated).strip("() ").split(",") if item.strip()]
+
+
+def _frequencies(outputs: list[str], *, restart: int, other: int) -> list[int]:
+    """Return OUTPUT_WRT_FREQ for ``outputs``, one frequency per file in their order."""
+    return [restart if item.upper().startswith("RESTART") else other for item in outputs]
+
+
+def last_step_outputs(values: MutableMapping[str, object]) -> None:
+    """Write a time-accurate row's files at its last step only, when it has no export window.
+
+    pyflightstream's meaning: an unsteady point with no ``EXPORT_UNSTEADY_*`` key exports its
+    end-of-run files only. SU2 8.6.0 writes every file of ``OUTPUT_FILES`` at each time
+    iteration that is a multiple of its ``OUTPUT_WRT_FREQ`` (1 by default for a transient run,
+    so every step) and always at its last, so each file gets the frequency ``TIME_ITER``: the
+    last step (and the step before it for a second-order restart file, which SU2 writes in
+    pairs), and on a cold start also time iteration 0 (step 1), which every frequency
+    divides. A setup that states ``OUTPUT_WRT_FREQ`` (or the PPROC ``output_frequency``) keeps
+    its own frequency.
+    """
+    if "OUTPUT_WRT_FREQ" in values:
+        return
+    outputs = _outputs(values)
+    total = int(str(values["TIME_ITER"]))
+    values["OUTPUT_FILES"] = outputs
+    values["OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=total, other=total)
 
 
 def time_accurate(run_type: str) -> bool:

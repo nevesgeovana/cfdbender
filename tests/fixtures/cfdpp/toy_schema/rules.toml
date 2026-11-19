@@ -1,0 +1,44 @@
+# Invented interdependency rules of the toy input, one of each kind.
+
+[[rules]]
+id = "ramp-order"
+kind = "not_greater"
+level = "hard"
+keyword = "tcfl"
+index = 0
+other = "tcfl"
+other_index = 1
+message = "the ramp must not end below its start"
+locator = "TOY :: rules, ramp"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[rules]]
+id = "set-needs-count"
+kind = "requires"
+level = "hard"
+keyword = "tset"
+other = "ninfo"
+message = "an initial set needs the count of sets"
+locator = "TOY :: rules, set"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[rules]]
+id = "set-count"
+kind = "count"
+level = "hard"
+keyword = "ninfo"
+index = 0
+section = "sets"
+message = "the count of sets must equal the sets written"
+locator = "TOY :: rules, count"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[rules]]
+id = "label-or-legacy"
+kind = "excludes"
+level = "advisory"
+keyword = "tname"
+other = "tlegacy"
+message = "a label and the legacy switch are not used together"
+locator = "TOY :: rules, legacy"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }

@@ -29,7 +29,7 @@ def _scale_parser(verbs: Any) -> None:
             "given by --mesh is scaled about the origin, or about --about x,y,z; face order, "
             "groups, normals and comments stay byte for byte. --out names the scaled OBJ "
             "(default <stem>_scaled<factor>.obj in the workspace's inputs/mesh); "
-            "<name>.scale.json beside it holds the input digest, factor, centre, counts and "
+            "<name>.scale.json beside it holds the input digest, factor, center, counts and "
             "the bounding boxes before and after. The input is never overwritten; an existing "
             "output is refused unless --overwrite."
         ),
@@ -38,7 +38,7 @@ def _scale_parser(verbs: Any) -> None:
     parser.add_argument("factor", help="positive uniform scale factor, for example 0.5")
     parser.add_argument("--mesh", required=True, help="source OBJ, read only")
     parser.add_argument("--out", help="the scaled OBJ; default <stem>_scaled<factor>.obj")
-    parser.add_argument("--about", help="scale centre x,y,z (default 0,0,0)")
+    parser.add_argument("--about", help="scale center x,y,z (default 0,0,0)")
     parser.add_argument("--overwrite", action="store_true", help="replace the output if it exists")
     parser.set_defaults(handler=_run_scale)
 
@@ -215,8 +215,8 @@ def _sector_to_wheel_parser(verbs: Any) -> None:
         "--tolerance",
         type=float,
         default=1e-4,
-        metavar="METRES",
-        help="nodes within this distance, in metres, are one node (default 1e-4)",
+        metavar="Meters",
+        help="nodes within this distance, in meters, are one node (default 1e-4)",
     )
     wheel.add_argument("--out", metavar="PATH", help="the wheel (default <sector stem>_wheel.obj)")
     wheel.add_argument("--overwrite", action="store_true", help="replace an existing wheel")

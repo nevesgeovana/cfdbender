@@ -15,13 +15,13 @@ Definitions used
   its offset runs along z, ``XZ`` holds x and z with the offset along y, ``YZ``
   holds y and z with the offset along x. Axes and offsets are those of the
   distribution's frame.
-* ``count`` planes lie at the centres of ``count`` equal bins across the extent
-  of the selected cells along the offset axis (the stations are strip centres).
+* ``count`` planes lie at the centers of ``count`` equal bins across the extent
+  of the selected cells along the offset axis (the stations are strip centers).
 * Forces are per unit offset (N/m) in the frame's axes, the first and the second
   axis of the plane as ``Fx`` and ``Fz``. ``Moment`` is per unit offset (N m/m),
   about the moment reference point, along the offset axis.
 * The pressure force of a station is ``-(p - p_inf) n dA`` integrated over the
-  strip of surface between two neighbouring planes, per unit offset. The
+  strip of surface between two neighboring planes, per unit offset. The
   normal ``n`` of a cell is that of its winding, times ``Surface.normal_sign``.
 * The integrated columns follow the strip rule: strip edges at midpoints between
   stations and half a spacing beyond each end station.
@@ -29,6 +29,8 @@ Definitions used
 
 from __future__ import annotations
 
+import csv
+import io
 import math
 import re
 from collections import Counter
@@ -38,6 +40,8 @@ from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
+
+from cfdbender.core.plan import _checked_file_name
 
 __all__ = [
     "CP_COLUMNS",
@@ -84,11 +88,32 @@ CP_COLUMNS: tuple[str, ...] = (
 SLOADS_COLUMNS: tuple[str, ...] = ("Offset", "Chord", "X_QC", "Z_QC", "Fx", "Fz", "Moment")
 #: The columns an ``integrate = true`` entry adds after ``Moment``.
 INTEGRATED_COLUMNS: tuple[str, ...] = ("Strip_length", "Fx_int", "Fz_int", "My_int")
+#: The two parts of the loads a surface with a wall shear field adds after the loads
+#: columns, which are then the totals (pressure plus friction).
+PARTS_COLUMNS: tuple[str, ...] = (
+    "Fx_pres",
+    "Fz_pres",
+    "Moment_pres",
+    "Fx_fric",
+    "Fz_fric",
+    "Moment_fric",
+)
+#: The integrated parts an ``integrate = true`` entry adds after them.
+PARTS_INTEGRATED_COLUMNS: tuple[str, ...] = (
+    "Fx_pres_int",
+    "Fz_pres_int",
+    "My_pres_int",
+    "Fx_fric_int",
+    "Fz_fric_int",
+    "My_fric_int",
+)
 
 #: Plane name to (first in-plane axis, second in-plane axis, offset axis).
 _PLANES: dict[str, tuple[int, int, int]] = {"XY": (0, 1, 2), "XZ": (0, 2, 1), "YZ": (1, 2, 0)}
 #: The solver fields a Cp row takes from the surface by column name.
 _FIELD_COLUMNS: tuple[str, ...] = ("Mach", "vx", "vy", "vz", "Theta", "CF", "Delta*", "Delta", "H")
+#: The interpolated wall shear components, by internal name (never a column).
+_SHEAR_X, _SHEAR_Y, _SHEAR_Z = "_shear_x", "_shear_y", "_shear_z"
 #: A facet whose normal is this close to the offset axis is parallel to the cut.
 _PARALLEL_FACET = 1e-12
 #: The quarter-chord station of the chord, from the leading edge.
@@ -135,7 +160,7 @@ class Surface:
     Attributes
     ----------
     points : numpy.ndarray
-        Point coordinates, ``(n, 3)``, reference coordinates, metres.
+        Point coordinates, ``(n, 3)``, reference coordinates, meters.
     triangles, quads : numpy.ndarray
         Point indices of the cells, ``(m, 3)`` and ``(k, 4)``.
     pressure : numpy.ndarray
@@ -151,6 +176,11 @@ class Surface:
     normal_sign : int
         ``+1`` when the winding normal of a cell points out of the body into the
         fluid, ``-1`` when it points into the body.
+    shear : numpy.ndarray, optional
+        The wall shear stress at the points, ``(n, 3)``, Pa: the force per unit area the
+        fluid exerts on the wall along it. With it, ``Fx``, ``Fz`` and ``Moment`` are the
+        totals, pressure plus friction, and the two parts are :data:`PARTS_COLUMNS`;
+        without it they are the pressure loads and no part column is written.
     """
 
     points: NDArray[np.float64]
@@ -162,6 +192,7 @@ class Surface:
     triangle_family: NDArray[np.int64] | None = None
     quad_family: NDArray[np.int64] | None = None
     normal_sign: int = 1
+    shear: NDArray[np.float64] | None = None
 
 
 @dataclass(frozen=True)
@@ -214,6 +245,12 @@ class Station:
     moment: float
     cp: dict[str, NDArray[np.float64]]
     strip_length: float | None = None
+    fx_pres: float | None = None
+    fz_pres: float | None = None
+    moment_pres: float | None = None
+    fx_fric: float | None = None
+    fz_fric: float | None = None
+    moment_fric: float | None = None
 
 
 @dataclass
@@ -365,7 +402,8 @@ def compute_sections(
     frame = frame_map[distribution.frame]
 
     all_cp = set(CP_COLUMNS)
-    all_loads = set(SLOADS_COLUMNS) | set(INTEGRATED_COLUMNS)
+    friction = set(PARTS_COLUMNS) | set(PARTS_INTEGRATED_COLUMNS)
+    all_loads = set(SLOADS_COLUMNS) | set(INTEGRATED_COLUMNS) | friction
     if fillable is None:
         have_v = "vtot" in surface.fields or all(c in surface.fields for c in ("vx", "vy", "vz"))
         wanted = {c for c in all_cp | all_loads if c not in _FIELD_COLUMNS or c in surface.fields}
@@ -373,10 +411,17 @@ def compute_sections(
             wanted.discard("vtot")
     else:
         wanted = set(fillable)
+    if surface.shear is None:
+        wanted -= friction
     cp_columns = tuple(c for c in CP_COLUMNS if c in wanted)
     sloads_columns = tuple(
         c
-        for c in (*SLOADS_COLUMNS, *(INTEGRATED_COLUMNS if distribution.integrate else ()))
+        for c in (
+            *SLOADS_COLUMNS,
+            *(INTEGRATED_COLUMNS if distribution.integrate else ()),
+            *PARTS_COLUMNS,
+            *(PARTS_INTEGRATED_COLUMNS if distribution.integrate else ()),
+        )
         if c in wanted
     )
     for column in cp_columns:
@@ -430,10 +475,14 @@ def compute_sections(
     for extra in ("vtot", "Cp_ref"):
         if extra in surface.fields:
             names.append(extra)
-    quantity = np.column_stack(
-        [np.asarray(surface.pressure, dtype=np.float64)]
-        + [np.asarray(surface.fields[n], dtype=np.float64) for n in names[1:]]
-    )
+    columns = [np.asarray(surface.pressure, dtype=np.float64)] + [
+        np.asarray(surface.fields[n], dtype=np.float64) for n in names[1:]
+    ]
+    if surface.shear is not None:
+        shear = np.asarray(surface.shear, dtype=np.float64).reshape(-1, 3)
+        names += [_SHEAR_X, _SHEAR_Y, _SHEAR_Z]
+        columns += [shear[:, 0], shear[:, 1], shear[:, 2]]
+    quantity = np.column_stack(columns)
 
     mp = np.asarray(moment_point, dtype=np.float64)
     result = SectionsResult(
@@ -481,7 +530,11 @@ def compute_sections(
                 result.skips.append(f"{plane} #integration: {exc}")
         result.blocks.append(block)
     if distribution.integrate and not all(b.integrated for b in result.blocks):
-        result.sloads_columns = tuple(c for c in sloads_columns if c not in INTEGRATED_COLUMNS)
+        result.sloads_columns = tuple(
+            c
+            for c in sloads_columns
+            if c not in INTEGRATED_COLUMNS and c not in PARTS_INTEGRATED_COLUMNS
+        )
     if not any(b.stations for b in result.blocks):
         result.skips.append("no stations: the planes of the distribution miss the surface")
     return result
@@ -568,6 +621,17 @@ def _station(
     mat = frame.matrix()
     fx = float(total @ mat[a1])
     fz = float(total @ mat[a2])
+    friction: tuple[float, float, float] | None = None
+    if _SHEAR_X in names:
+        at = names.index(_SHEAR_X)
+        t0, t1 = q0[:, at : at + 3], q1[:, at : at + 3]
+        # the shear is linear along a segment, as the pressure is: integrate it exactly
+        f_total = ((t0 + t1) / 2.0 * weight[:, None]).sum(axis=0)
+        torque = (
+            2 * np.cross(r0, t0) + np.cross(r0, t1) + np.cross(r1, t0) + 2 * np.cross(r1, t1)
+        ) / 6.0
+        m_total = (torque * weight[:, None]).sum(axis=0)
+        friction = (float(f_total @ mat[a1]), float(f_total @ mat[a2]), float(m_total @ axis_n))
 
     # chord from the cut: the farthest pair of cut points
     ends_f = frame.to_frame(np.concatenate([p0, p1]))[:, [a1, a2]]
@@ -597,7 +661,7 @@ def _station(
             )
         )
     cp = {c: np.concatenate([r[c] for r in rows]) for c in rows[0]}
-    return Station(
+    station = Station(
         section=section,
         offset=offset,
         chord=chord,
@@ -608,6 +672,13 @@ def _station(
         moment=moment,
         cp=cp,
     )
+    if friction is not None:
+        # With a wall shear field the loads are the totals; the parts are kept beside them.
+        station.fx_pres, station.fz_pres, station.moment_pres = fx, fz, moment
+        station.fx_fric, station.fz_fric, station.moment_fric = friction
+        station.fx, station.fz = fx + friction[0], fz + friction[1]
+        station.moment = moment + friction[2]
+    return station
 
 
 def _diameter(
@@ -729,10 +800,65 @@ def write_section_files(
         The Cp file and the sectional-loads file. The text is UTF-8 with line feed
         ends, the same input giving the same bytes.
     """
+    return write_section_series([(result, dict(leading or {}))], directory, point, name)
+
+
+def write_section_series(
+    steps: Sequence[tuple[SectionsResult, Mapping[str, str]]],
+    directory: str | Path,
+    point: str,
+    name: str,
+) -> tuple[Path, Path]:
+    """Write the Cp and sectional-loads files of one distribution over several steps.
+
+    Each step's rows follow the previous step's, under one header, as
+    :func:`write_section_files` writes one step. Every step has the same leading columns
+    (its own values, such as ``STEP``) and the columns of the first step; a step whose
+    columns differ is refused.
+
+    Raises
+    ------
+    SectionError
+        If there is no step, or two steps differ in their leading or table columns.
+    """
+    try:
+        _checked_file_name(f"{point}_cp_{name}.csv")
+        _checked_file_name(f"{point}_sloads_{name}.csv")
+    except ValueError as error:
+        raise SectionError(str(error)) from error
+    if not steps:
+        raise SectionError("a section series needs at least one step")
+    first, lead0 = steps[0]
+    for result, lead in steps[1:]:
+        if (
+            list(lead) != list(lead0)
+            or result.cp_columns != first.cp_columns
+            or result.sloads_columns != first.sloads_columns
+        ):
+            raise SectionError("the steps of a section series hold different columns")
     folder = Path(directory) / "sections"
     folder.mkdir(parents=True, exist_ok=True)
-    lead = dict(leading or {})
+    cp_lines = [_csv_row([*lead0, "SECTION", *first.cp_columns])]
+    sl_lines = [_csv_row([*lead0, *first.sloads_columns])]
+    for result, lead in steps:
+        _series_rows(result, dict(lead), cp_lines, sl_lines)
+    cp_path = folder / f"{point}_cp_{name}.csv"
+    sl_path = folder / f"{point}_sloads_{name}.csv"
+    cp_path.write_bytes(("\n".join(cp_lines) + "\n").encode("utf-8"))
+    sl_path.write_bytes(("\n".join(sl_lines) + "\n").encode("utf-8"))
+    return cp_path, sl_path
 
+
+def _csv_row(cells: Sequence[str]) -> str:
+    """Quote CSV cells, including both newline characters, without changing row endings."""
+    stream = io.StringIO(newline="")
+    csv.writer(stream, lineterminator="\r\n").writerow(cells)
+    return stream.getvalue().removesuffix("\r\n")
+
+
+def _series_rows(
+    result: SectionsResult, lead: dict[str, str], cp_lines: list[str], sl_lines: list[str]
+) -> None:
     def prefix(plane: str) -> list[str]:
         cells = dict(lead)
         if "FAMILY" in cells:
@@ -741,8 +867,6 @@ def write_section_files(
             cells["PLANE"] = plane
         return list(cells.values())
 
-    cp_lines = [",".join([*lead, "SECTION", *result.cp_columns])]
-    sl_lines = [",".join([*lead, *result.sloads_columns])]
     loads_of = {
         "Offset": lambda s: s.offset,
         "Chord": lambda s: s.chord,
@@ -755,6 +879,18 @@ def write_section_files(
         "Fx_int": lambda s: s.fx * s.strip_length,
         "Fz_int": lambda s: s.fz * s.strip_length,
         "My_int": lambda s: s.moment * s.strip_length,
+        "Fx_pres": lambda s: s.fx_pres,
+        "Fz_pres": lambda s: s.fz_pres,
+        "Moment_pres": lambda s: s.moment_pres,
+        "Fx_pres_int": lambda s: s.fx_pres * s.strip_length,
+        "Fz_pres_int": lambda s: s.fz_pres * s.strip_length,
+        "My_pres_int": lambda s: s.moment_pres * s.strip_length,
+        "Fx_fric": lambda s: s.fx_fric,
+        "Fz_fric": lambda s: s.fz_fric,
+        "Moment_fric": lambda s: s.moment_fric,
+        "Fx_fric_int": lambda s: s.fx_fric * s.strip_length,
+        "Fz_fric_int": lambda s: s.fz_fric * s.strip_length,
+        "My_fric_int": lambda s: s.moment_fric * s.strip_length,
     }
     for block in result.blocks:
         pre = prefix(block.plane)
@@ -762,12 +898,7 @@ def write_section_files(
             n_rows = len(st.cp["L"])
             for r in range(n_rows):
                 cells = [_fmt(st.cp[c][r]) for c in result.cp_columns]
-                cp_lines.append(",".join([*pre, str(st.section), *cells]))
+                cp_lines.append(_csv_row([*pre, str(st.section), *cells]))
             sl_lines.append(
-                ",".join([*pre, *(_fmt(loads_of[c](st)) for c in result.sloads_columns)])
+                _csv_row([*pre, *(_fmt(loads_of[c](st)) for c in result.sloads_columns)])
             )
-    cp_path = folder / f"{point}_cp_{name}.csv"
-    sl_path = folder / f"{point}_sloads_{name}.csv"
-    cp_path.write_bytes(("\n".join(cp_lines) + "\n").encode("utf-8"))
-    sl_path.write_bytes(("\n".join(sl_lines) + "\n").encode("utf-8"))
-    return cp_path, sl_path

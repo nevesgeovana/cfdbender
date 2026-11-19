@@ -1,0 +1,104 @@
+# Information-set tags, boundary-condition codes and turbulence models of mcfd.inp, as seen in the
+# inputs the GUI of 22.5.U3 saved, with their value counts and their places. Every status cites the
+# committed report under reports/cfdpp/. No entry holds a default value: fixed marks a constant of
+# the first supported scope.
+
+[[infosets]]
+tag = "eqnset_define"
+role = "equation_set"
+variables = [
+    "eqnset", "bastyp", "ifvisc", "modtur", "modtyp", "gastyp", "ifinvi", "iftdif", "ifcdif",
+    "ifgdif", "precon", "neqtot", "neqbas", "neqtur", "neqcol", "neqgas", "position_17",
+    "position_18", "position_19", "position_20", "position_21", "rieflx", "riejac", "visflx",
+    "visjac", "remapq", "poisso", "ifedif", "ifemlt", "levset", "position_31",
+]
+types = [
+    "int", "int", "int", "int", "int", "int", "int", "int", "int", "int", "int", "int", "int",
+    "int", "int", "int", "int", "int", "int", "int", "int", "int", "int", "int", "int", "int",
+    "int", "int", "int", "int", "int",
+]
+fixed = { eqnset = 101, bastyp = 1, ifvisc = 1, gastyp = 0, ifinvi = 0, iftdif = 1, ifcdif = 1, ifgdif = 1, neqbas = 5, neqcol = 0, neqgas = 0, position_17 = 0, position_18 = 0, position_19 = 0, position_20 = 0, position_21 = 0, rieflx = 11, riejac = 12, visflx = 1, visjac = 5, remapq = 3, poisso = 0, ifedif = 0, ifemlt = 0, levset = 0, position_31 = 0 }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[infosets]]
+tag = "primitive_variables_2"
+role = "freestream"
+variables = ["p", "t", "u", "v", "w"]
+turbulence = true
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[infosets]]
+tag = "primitive_variables_1"
+variables = ["p", "rho", "u", "v", "w"]
+turbulence = true
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[infosets]]
+tag = "temperature"
+role = "wall_temperature"
+variables = ["t"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[boundary_codes]]
+code = 7
+params = [{ name = "modifier", type = "int", fixed = 0 }, { name = "set", type = "int", fixed = 0 }]
+neutral = { type = "wall", treatment = "solve-to-wall", thermal = "adiabatic" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[boundary_codes]]
+code = 13
+params = [{ name = "modifier", type = "int", fixed = 0 }, { name = "temperature_set", type = "int" }]
+neutral = { type = "wall", treatment = "solve-to-wall", thermal = "isothermal" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[boundary_codes]]
+code = 55
+params = [{ name = "modifier", type = "int", fixed = 0 }, { name = "set", type = "int", fixed = 0 }]
+neutral = { type = "wall", treatment = "wall-function", thermal = "adiabatic" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[boundary_codes]]
+code = 16
+params = [{ name = "modifier", type = "int", fixed = 0 }, { name = "set", type = "int" }]
+neutral = { type = "farfield" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[boundary_codes]]
+code = 59
+params = [{ name = "modifier", type = "int", fixed = 0 }, { name = "set", type = "int" }]
+neutral = { type = "farfield", inflow = "temperature-velocity", outflow = "pressure" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[boundary_codes]]
+code = 17
+params = [{ name = "modifier", type = "int", fixed = 0 }, { name = "set", type = "int" }]
+neutral = { type = "farfield", inflow = "density-velocity", outflow = "pressure" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[boundary_codes]]
+code = 3
+params = [{ name = "modifier", type = "int", fixed = 0 }, { name = "set", type = "int", fixed = 0 }]
+neutral = { type = "unassigned" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[turbulence]]
+name = "SpalartAllmaras"
+codes = [1, 4]
+variables = ["nut"]
+equation_set = { modtur = 1, modtyp = 4, neqtur = 1, neqtot = 6 }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[turbulence]]
+name = "SST"
+codes = [2, 3]
+variables = ["k", "omega"]
+equation_set = { modtur = 2, modtyp = 3, neqtur = 2, neqtot = 7 }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[turbulence]]
+name = "RealizableKE"
+codes = [2, 2]
+variables = ["k", "epsilon"]
+equation_set = { modtur = 2, modtyp = 2, neqtur = 2, neqtot = 7 }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+

@@ -11,13 +11,12 @@ from cfdbender.core.export_window import export_window
 from cfdbender.core.plan import PlanError
 
 
-def window(variables, n=108, spr=36.0, start=None):
+def window(variables, n=108, spr=36.0):
     return export_window(
         variables,
         pol="7001",
         time_iterations=n,
         steps_per_revolution=spr,
-        averaging_first_step=start,
     )
 
 
@@ -55,9 +54,19 @@ def test_the_refusals(variables, message):
         window(variables)
 
 
-def test_a_window_beginning_after_the_averaging_window_is_refused():
-    with pytest.raises(ValueError, match="the averaging window begins at step 50"):
-        window({"EXPORT_UNSTEADY_LAST_ITER": 10}, start=50)
+def test_the_export_and_averaging_windows_are_independent(tmp_path):
+    # pyflightstream refuses an export window beginning after the average only for a surface
+    # time average ([time_averaging] of the pproc), which cfdbender does not read.
+    workspace(
+        tmp_path,
+        workflow="unsteady_rotor",
+        condition="MACH:0.0529, ALPHA:0, RPM:1000",
+        var="DELTA_THETA: 5 / REVOLUTIONS: 1 / LAST_REVS_AVG: 0.5 / EXPORT_UNSTEADY_LAST_ITER: 12",
+    )
+    _, lines, files = deck(tmp_path)
+    assert lines["WINDOW_START_ITER"] == "36" and lines["TIME_ITER"] == "60"
+    second = dict(line.split("= ", 1) for line in files["su2_segment2.cfg"].splitlines())
+    assert second["RESTART_ITER"] == "60"
 
 
 def test_a_revolutions_form_without_a_rotor_clock_is_warned_and_skipped():
@@ -82,13 +91,19 @@ def test_su2_runs_the_point_in_two_segments_of_one_job(tmp_path):
         "YES",
         "240",
     )
-    assert second["OUTPUT_WRT_FREQ"] == "1"
+    # Segment one writes only the two restart files segment two reads (238 and 239): its
+    # frequency is its TIME_ITER, and SU2 writes the last two of a second-order run.
+    assert lines["OUTPUT_WRT_FREQ"] == "240"
+    assert second["OUTPUT_WRT_FREQ"] == "( 600, 1, 1 )"
     assert second["OUTPUT_FILES"] == "( RESTART, PARAVIEW, SURFACE_PARAVIEW )"
     assert {k for k in second if k not in lines} == {
         "RESTART_SOL",
         "RESTART_ITER",
-        "OUTPUT_WRT_FREQ",
+        "SOLUTION_FILENAME",
+        "READ_BINARY_RESTART",
     }
+    # Segment two reads the restart files segment one writes under SU2's default name.
+    assert (second["SOLUTION_FILENAME"], second["READ_BINARY_RESTART"]) == ("restart", "YES")
     script = files["run_segments.sh"]
     assert script.index("su2.cfg") < script.index("su2_segment2.cfg")
     for name in ("su2_segment2.cfg", "run_segments.sh"):
@@ -105,7 +120,7 @@ def test_an_export_window_from_the_first_step_is_one_segment(tmp_path):
         "EXPORT_UNSTEADY_AFTER_ITER: 1",
     )
     _, lines, files = deck(tmp_path)
-    assert lines["OUTPUT_WRT_FREQ"] == "1" and files == {}
+    assert lines["OUTPUT_WRT_FREQ"] == "( 20, 1, 1 )" and files == {}
 
 
 def test_an_export_key_on_a_steady_row_is_warned_and_skipped(tmp_path):

@@ -171,7 +171,7 @@ rDeltaTDampingCoeff 0.2;
 }
 ```
 
-`maxCo` is the Courant number each cell may reach, and the ceiling of the ramp. `rDeltaTDampingCoeff` limits how fast the step may grow: with 0.2 a local step grows at most 1 / (1 - 0.2) = 1.25 times per iteration, which is the ramp from a small first step up to the ceiling (1 removes the limit). `rDeltaTSmoothingCoeff` smooths the step field between neighbouring cells. OpenFOAM has no schedule for `maxCo` itself, so the ramp is carried by the damping. State `lts_max_co`, `lts_damping`, `lts_smoothing` or `lts_max_delta_t` to change a value. State `PIMPLE` to replace the whole generated dictionary body with your own; its text wins entirely and the `lts_*` keys are then not written. No `relaxationFactors` is written on this route unless you state it. The `lts_*` keys and `PIMPLE` are refused with `time_integration = "steady"`, because they would do nothing.
+`maxCo` is the Courant number each cell may reach, and the ceiling of the ramp. `rDeltaTDampingCoeff` limits how fast the step may grow: with 0.2 a local step grows at most 1 / (1 - 0.2) = 1.25 times per iteration, which is the ramp from a small first step up to the ceiling (1 removes the limit). `rDeltaTSmoothingCoeff` smooths the step field between neighboring cells. OpenFOAM has no schedule for `maxCo` itself, so the ramp is carried by the damping. State `lts_max_co`, `lts_damping`, `lts_smoothing` or `lts_max_delta_t` to change a value. State `PIMPLE` to replace the whole generated dictionary body with your own; its text wins entirely and the `lts_*` keys are then not written. No `relaxationFactors` is written on this route unless you state it. The `lts_*` keys and `PIMPLE` are refused with `time_integration = "steady"`, because they would do nothing.
 
 The solver log is named after the application that ran, `log.pimpleFoam`, and the run writes the same `forceCoeffs` file. The LTS route has no `SIMPLE solution converged` line, and cfdbender judges convergence by the same residual rule as the steady route: the run is `converged` when the initial residuals of the last iteration are all below `residual_target`; otherwise it is `iteration_limit` at `iterations`. The run always goes to `iterations`, so set it with that in mind.
 
@@ -195,7 +195,7 @@ A clean exit alone is not enough. The residual of an iteration is the largest in
 | `Cl` | lift coefficient, along `(-sin(alpha), cos(alpha), 0)` | y |
 | `CmPitch` | pitching moment coefficient | z |
 
-cfdbender reports the last row of the force file. `forceCoeffs` normalises with the free stream speed, `area` and `length`, and a density of 1. ESI derives the pitch axis as lift cross drag, which is body minus z. `CmPitch` keeps the solver's value and sign, so do not read it as a body plus z moment without changing its sign.
+cfdbender reports the last row of the force file. `forceCoeffs` normalizes with the free stream speed, `area` and `length`, and a density of 1. ESI derives the pitch axis as lift cross drag, which is body minus z. `CmPitch` keeps the solver's value and sign, so do not read it as a body plus z moment without changing its sign.
 
 ## Worked example
 

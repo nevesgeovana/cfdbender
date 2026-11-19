@@ -351,7 +351,7 @@ class Scene:
         self.box = box
         self.highlight: set[str] = set()  # names whose label is drawn bold in a red frame
         self.highlight_labels: dict[str, str] = {}
-        self.labelled: set[str] | None = None  # names labelled when labels are drawn (None: all)
+        self.labelled: set[str] | None = None  # names labeled when labels are drawn (None: all)
         self.perimeter_color: tuple[float, ...] = (0.05, 0.05, 0.05, 1.0)
         self.direction_arcs: list[tuple[np.ndarray, str, str, bool]] = []
         self.perimeter, self.perimeter_faces = self._perimeters()
@@ -708,7 +708,7 @@ def marked_points(scene: Scene, points: list[Points]) -> Marked:
 
 
 def _readable(color) -> dict:
-    """Text in a patch's color, outlined in grey when the color is too light to read on white."""
+    """Text in a patch's color, outlined in gray when the color is too light to read on white."""
     from matplotlib import patheffects
 
     r, g, b = color[:3]
@@ -1047,7 +1047,7 @@ def visual_inspect(
     iso_from : three floats
         The direction the isometric view is seen from (default (1, -1, 1), from +x, -y, +z).
     labels, edges : bool
-        Write each patch's name at its centre; draw the face edges.
+        Write each patch's name at its center; draw the face edges.
     perimeter_width : float
         Width of the patch perimeters in points (0 draws none).
     dpi : int

@@ -1,0 +1,219 @@
+# Binding of the setup and post-processing keys to mcfd.inp for 22.5.U3. The key names are
+# cfdbender's own; each binding names where its value is written: a keyword, a list of keywords one
+# value each, or a variable of the equation set. A dotted name is a key of a table of the setup
+# file (physics.method is method in [physics]). No entry holds a default: a required key is stated
+# by the user, a source = "case" value is stated by cfdbender. A binding is harvested when the
+# saved inputs tie the key to its keyword; every such status cites the committed report.
+
+[[setup]]
+name = "iterations"
+type = "int"
+required = true
+above = 0
+keyword = "ntstep"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "convergence_orders"
+type = "real"
+required = true
+above = 0
+keyword = "rtcord"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "cfl"
+type = "real"
+required = true
+above = 0
+keyword = "cfllbg"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "cfl_max"
+type = "real"
+required = true
+above = 0
+keyword = "cfllen"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "cfl_ramp_steps"
+type = "ints"
+length = 2
+required = true
+min = 0
+keywords = ["ntbclr", "nteclr"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "turbulence"
+type = "word"
+required = true
+models = true
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "viscosity_ratio"
+type = "real"
+above = 0
+needed_by = ["nut", "omega", "epsilon"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "turbulence_intensity"
+type = "real"
+above = 0
+needed_by = ["k"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "physics.method"
+type = "word"
+required = true
+values = { preconditioned = 1 }
+variable = "precon"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "fluid.gas_constant"
+type = "real"
+required = true
+above = 0
+keyword = "gasmwt"
+divides = "univgc"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "fluid.gamma"
+type = "real"
+required = true
+above = 1
+keyword = "gasgam"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "fluid.viscosity"
+type = "word"
+required = true
+values = { sutherland = 0 }
+keyword = "vislaw"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "fluid.sutherland_viscosity"
+type = "real"
+above = 0
+when = { "fluid.viscosity" = "sutherland" }
+keyword = "rmuusl"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "fluid.sutherland_temperature"
+type = "real"
+above = 0
+when = { "fluid.viscosity" = "sutherland" }
+keyword = "tmuusl"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "fluid.sutherland_constant"
+type = "real"
+above = 0
+when = { "fluid.viscosity" = "sutherland" }
+keyword = "smuusl"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "numerics.multigrid_levels"
+type = "int"
+required = true
+above = 0
+keyword = "mg_levs"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "numerics.temporal_smoothing"
+type = "real"
+required = true
+above = 0
+keyword = "undrlx"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "numerics.limiter"
+type = "word"
+required = true
+values = { minmod = 1, continuous = 3 }
+keyword = "limtvd"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "numerics.blend_first_order"
+type = "reals"
+length = 2
+required = true
+min = 0
+keywords = ["blfnbg", "blfnen"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "numerics.blend_steps"
+type = "ints"
+length = 2
+required = true
+min = 0
+keywords = ["ntbbfr", "ntebfr"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "numerics.turbulence_start_step"
+type = "int"
+required = true
+min = 0
+keyword = "ntrbst"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "output_frequency"
+file = "post"
+type = "int"
+required = true
+above = 0
+keyword = "ntplto"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "restart_frequency"
+file = "post"
+type = "int"
+required = true
+above = 0
+keyword = "ntdsko"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "restart"
+source = "case"
+keyword = "istart"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "initial_set"
+source = "case"
+keyword = "icslct"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "polynomial_plane"
+source = "case"
+keyword = "xyzpol"
+dimension = { "2" = "xy" }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[setup]]
+name = "octree_z_direction"
+source = "case"
+keyword = "trzdir"
+dimension = { "2" = 0 }
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }

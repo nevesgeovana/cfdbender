@@ -23,6 +23,7 @@ campaign/
     sync-workspaces.toml        # other workspaces to sync from (optional)
   sims/                         # cfd-matrix run: one folder per simulation
     sim_<POL>/datapoints/DP-<point name>/
+    batch/<matrix>_b<ID>/       # cfd-matrix run --batch N: one folder per grouped job
   post/                         # cfd-matrix plan, collect and post
     <matrix>/plan.json
     <matrix>/campaign_summary.json
@@ -30,6 +31,9 @@ campaign/
     <matrix>/polars/P<POL>-<GROUP>-<KIND>.csv
     <matrix>/polars/P<POL>-<ALIAS>_rotor.csv      # a rotor's table (SU2 rotor run types)
     <matrix>/polars/P<POL>_<matrix>_uns_avg.csv   # time-accurate points, window means
+    <matrix>/sections/P<POL>/     # Cp and sectional loads declared in the PPROC file
+    <matrix>/fields/P<POL>/       # the volume cut declared in the PPROC file
+    <matrix>/probes/P<POL>/       # the probes declared in the PPROC file
     <matrix>/products.json
     <matrix>/post.log
   archive/<stamp>/              # earlier evidence, moved here and never deleted
@@ -170,7 +174,7 @@ large_input_check = "digest"    # the default
   holds the SHA-256 of the unchanged file, that digest is recorded instead, without a read.
 
 The option `--no-read-large-inputs` of `plan`, `run` and `collect`, or the environment variable
-`CFDBENDER_NO_READ_LARGE_INPUTS=1`, gives one command the `"identity"` behaviour. The option
+`CFDBENDER_NO_READ_LARGE_INPUTS=1`, gives one command the `"identity"` behavior. The option
 cannot be combined with `--rehash-inputs`, which reads every input again and overrides the
 environment variable and workspace setting. An empty variable or `0` leaves the setting in
 charge; every other value, including `false` and whitespace, enables identity mode. Files of
@@ -209,6 +213,9 @@ Everything derived from a matrix is under `post/<matrix>/`:
 | `polars/P<POL>-<GROUP>-<KIND>.csv` | `collect`, `post` | One row per point for each group TOTAL, AIRFRAME and each rotor. |
 | `polars/P<POL>-<ALIAS>_rotor.csv` | `collect`, `post` | pyflightstream's rotor table: one row per point that turns the rotor `<ALIAS>`; see [SU2](su2-workspaces.md#rotor-coefficients). |
 | `polars/P<POL>_<matrix>_uns_avg.csv` | `collect`, `post` | pyflightstream's unsteady polar: one row per time-accurate point, the means over its averaging window. |
+| `sections/P<POL>/<point>_cp_<name>.csv`, `sections/P<POL>/<point>_sloads_<name>.csv` | `collect`, `post` | The Cp and the sectional loads of each `[[sections.distributions]]` entry of the PPROC file; see [SU2](su2-workspaces.md#post-processing-products). |
+| `fields/P<POL>/<point>_vsec.vtk` or `.dat` | `collect`, `post` | The `[volume_section]` of the PPROC file, one file per exported step of a time-accurate point (`_step_<STEP>`), each with its `.provenance.json`. |
+| `probes/P<POL>/<point>_probes.csv` | `collect`, `post` | The `[[probes]]` of the PPROC file; `_probes_history.csv` beside it on a time-accurate row that mixes the two kinds of entry. |
 | `products.json` | `collect`, `post` | Every product written, and every one skipped with the reason. |
 | `post.log` | `collect`, `post` | The same, as text. |
 

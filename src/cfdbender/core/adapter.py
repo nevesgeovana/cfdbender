@@ -31,13 +31,15 @@ from cfdbender.core.plan import (
 from cfdbender.core.results import Classification, ExecutionResult, NeutralResult
 from cfdbender.core.settings import read_init
 
+#: ``unsteady`` means the adapter reads time-window keys from the setup file; a run type selected
+#: in the matrix (SU2 time-accurate rows) is not this capability.
 CAPABILITIES = frozenset(
     {"restart", "unsteady", "boundary_groups", "cluster_staging", "numerics_file"}
 )
 
 
 def capabilities(adapter: object) -> frozenset[str]:
-    """Read optional behaviours, refusing an invalid adapter declaration.
+    """Read optional behaviors, refusing an invalid adapter declaration.
 
     Parameters
     ----------
@@ -171,7 +173,7 @@ def load_point(
 
 @runtime_checkable
 class SolverAdapter(Protocol):
-    """Structural module protocol shared by real and licence-free adapters."""
+    """Structural module protocol shared by real and license-free adapters."""
 
     def validate_row(self, row: MatrixRow, workspace: RowInputs) -> RowRequirements:
         """Validate s/r/p and describe actions and output claims, without writes.

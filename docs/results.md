@@ -66,7 +66,12 @@ Everything is under `post/<matrix>/`.
 | `polars/FAM-RCOEF-P<POL>.csv` | One row per point and rotor family: the rotor coefficients. Only for a solver that states a rotor (QPROP). |
 | `polars/P<POL>-<GROUP>-<KIND>.csv` | One row per point for each group (`TOTAL`, `AIRFRAME`, each rotor) and kind (`DIM`, `ACOEF`, `RCOEF`). |
 | `polars/P<POL>.txt` | A 2D SU2 or OpenFOAM ALPHA sweep in the XFOIL polar layout, one row per point converged by the polar rule; see [2D polars](polars-2d.md). |
+| `polars/P<POL>-<ALIAS>_rotor.csv` | pyflightstream's rotor table: one row per point that turns the rotor `<ALIAS>`, for a solver that computes it (SU2 rotor run types); see [SU2](su2-workspaces.md#rotor-coefficients). |
+| `polars/P<POL>_<matrix>_uns_avg.csv` | pyflightstream's unsteady polar: one row per time-accurate point, the mean over its averaging window; see [SU2](su2-workspaces.md#time-accurate-rows). |
 | `sections/P<POL>/<point>_sections.csv` | The sectional distribution of a point, for a solver that prints one (QPROP's radial table). |
+| `sections/P<POL>/<point>_cp_<name>.csv`, `sections/P<POL>/<point>_sloads_<name>.csv` | The Cp and the sectional loads of each `[[sections.distributions]]` entry of the PPROC file; see [SU2](su2-workspaces.md#post-processing-products). |
+| `fields/P<POL>/<point>_vsec.vtk` (or `.dat`) | The `[volume_section]` of the PPROC file, with its `.provenance.json`. |
+| `probes/P<POL>/<point>_probes.csv` | The `[[probes]]` of the PPROC file. |
 | `campaign_summary.json` | Every recorded point with its record and its full result: each coefficient with its axis, the reference values, and the iteration history. |
 | `products.json` | Every file written (with its kind, and its polar and group for a polar file) and every product skipped, with the reason; `complete` is true only when every point has a result. It also states the units, frames, quantities and signs of every column (`kinds`), the run block (`run_block`), the frames with the rotor angles used (`frames`), the families, the groups and their members, the run type of each polar, and any earlier-layout file left in place (`migrated`). |
 | `post.log` | The same as `products.json`, as text. |
@@ -198,7 +203,11 @@ keyed by `FAMILY` and `FAMILY_ID`. The polar folder keeps equal point names in d
 polars distinct. QPROP writes its radial table (one row per blade station,
 `PLANE` `radial`, `ROTOR_ID` 0; `radius` and `chord` in m, `beta` in degrees); a QPROP point
 whose output holds no radial row is named under `skipped`. A solver that prints no
-distribution writes no sections file, and no solver of this release writes a Cp file.
+distribution writes no `_sections.csv` file. The Cp and sectional-loads files of the
+sections a PPROC file declares are written, for every solver that supplies them, by
+`collect` and `post`; where the solver supplies a wall shear field their `Fx`, `Fz` and
+`Moment` columns are the totals, pressure plus friction, and the parts follow in their own
+columns.
 
 Three rules make the tables safe to read with any tool:
 
@@ -285,6 +294,10 @@ QPROP's propeller flies along its shaft, so its rotor frame R0 is the body frame
 columns (`CT_QPROP`, `CP_QPROP`, `EFFICIENCY`, `EFFICIENCY_OVERALL`, `T`, `Q`, `P` in W) follow
 in ACOEF; `CT`, `CQ` and `CP` of RCOEF equal QPROP's `CT`, `CQ` and `CP`, and its in-plane
 coefficients are `NA`, because QPROP prints no in-plane load.
+
+The rotor table of an SU2 rotor run type, `polars/P<POL>-<ALIAS>_rotor.csv`, counts thrust
+and torque along the shaft the reference file declares, so the sign of its `CT` and `CQ`
+follows that axis; see [SU2](su2-workspaces.md#rotor-coefficients).
 
 `RE` is in millions: a Reynolds number of 500000 is `0.5`.
 

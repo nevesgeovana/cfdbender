@@ -386,7 +386,7 @@ class Remesher:
     # ---- smoothing and projection
 
     def _tangent_move(self, v: int) -> Points:
-        """Return v moved halfway to its neighbours' centroid within its tangent plane."""
+        """Return v moved halfway to its neighbors' centroid within its tangent plane."""
         centroid = numpy.mean([self.V[u] for u in sorted(self.neighbours(v))], axis=0)
         normal = numpy.zeros(3)
         for i in sorted(self.VF[v]):
@@ -396,7 +396,7 @@ class Remesher:
         return self.V[v] + 0.5 * (d - numpy.dot(d, normal) * normal)
 
     def _curve_move(self, v: int) -> Points | None:
-        """Return v moved towards its two curve neighbours, or None at a curve's end."""
+        """Return v moved towards its two curve neighbors, or None at a curve's end."""
         ends = self._curve_neighbours(v)
         if len(ends) != 2:
             return None
@@ -566,7 +566,7 @@ class Remesher:
         """Repair the degenerate faces a remesh left; return the faces left degenerate.
 
         Each degenerate triangle has its longest edge flipped with its
-        neighbour of the same family when that makes the worse of the two
+        neighbor of the same family when that makes the worse of the two
         faces' least angle larger, else its shortest edge collapsed onto one
         end. A node on a curve (an open boundary, the trailing edge or a
         listed perimeter, a ridge, an interface), a node shared with a family
@@ -613,7 +613,7 @@ class Remesher:
         return 1
 
     def _drop(self, o: int, chain: set[Edge], keep: set[int]) -> bool:
-        """Collapse a chain node no new node keeps onto a chain neighbour; return success."""
+        """Collapse a chain node no new node keeps onto a chain neighbor; return success."""
         ends = [x for k in sorted(chain) if o in k for x in k if x != o]
         order = sorted(
             ends, key=lambda x: (x not in keep, float(numpy.linalg.norm(self.V[x] - self.V[o])), x)
@@ -918,8 +918,8 @@ def _take_shared(
     A family at factor 1 takes them on each conformed interface ``shared``
     names, the new shared edges of a refined side; a family at another
     factor takes them on each frozen interface no ``conform`` entry rebuilt,
-    the shared edges an unchanged neighbour keeps: an edge of a face of
-    the neighbour (``outside``, local numbering), so a diagonal the group's
+    the shared edges an unchanged neighbor keeps: an edge of a face of
+    the neighbor (``outside``, local numbering), so a diagonal the group's
     triangulation draws between two shared nodes is not one. A node of a
     face of the other kind keeps its own target.
     """
@@ -1000,7 +1000,7 @@ def refine_group(
         conformed, a family of the group at factor 1 takes, along and near
         it, the length of the new shared edges (:func:`shared_targets`), and
         ``info["shared_edge_target_mesh_units"]`` records it per family in the
-        mesh's coordinate units; the level writer converts declared units to metres.
+        mesh's coordinate units; the level writer converts declared units to meters.
     te_edges : set of tuple of int, optional
         Exact source trailing-edge edges, in mesh numbering. When supplied,
         only these edges and their splits are returned as shedding a wake (the

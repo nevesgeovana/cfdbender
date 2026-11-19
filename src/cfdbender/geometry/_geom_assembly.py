@@ -43,7 +43,7 @@ __all__ = ["BLUFF", "Assembly", "assemble", "sewn_free_edges"]
 #: ``Assembly._fragment_in_turn``). The faces of a lifting surface and its controls fuse in one
 #: call in a few seconds; a body of sixty faces did not return.
 _ONE_CALL_FACES = 24
-#: Boxes closer than this, in metres, are taken to touch.
+#: Boxes closer than this, in meters, are taken to touch.
 _BOX_GAP_M = 1e-6
 
 
@@ -290,7 +290,7 @@ class Assembly(RemovalSteps):
         return self._inherit(active, [*result.from_a, *result.from_b]) + inert
 
     def _fragment_in_turn(self, faces: Sequence[Face]) -> list[Face]:
-        """Fragment many faces by adding each to the set made so far, against its neighbours only.
+        """Fragment many faces by adding each to the set made so far, against its neighbors only.
 
         One call of the kernel's general fuse on every face of a body (about 60 B-spline faces
         that touch along their seams) did not return in twenty minutes, while the same faces fuse

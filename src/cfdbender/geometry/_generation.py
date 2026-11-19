@@ -117,18 +117,18 @@ def source_cells(patch: Patch, *, spacing: float, scale: float, trims=None) -> d
     Parameters
     ----------
     patch : Patch
-        Source base with control points in metres.
+        Source base with control points in meters.
     spacing : float
         Positive cell spacing as a fraction of the source extent.
     scale : float
-        Positive source extent in metres.
+        Positive source extent in meters.
     trims : sequence of Trim, optional
         Original included faces; omitted means the entire parameter domain.
 
     Returns
     -------
     dict
-        Cell centres, normals, areas in square metres and the inclusion mask.
+        Cell centers, normals, areas in square meters and the inclusion mask.
 
     Raises
     ------
@@ -241,7 +241,7 @@ def generate_pieces(config, *, variant="clean", selection=None) -> dict[str, Gen
     Returns
     -------
     dict of str to GeneratedPiece
-        Source bases in world coordinates, in metres, with their trims and layouts.
+        Source bases in world coordinates, in meters, with their trims and layouts.
 
     Raises
     ------
@@ -468,7 +468,7 @@ def generate_components(
 
 
 def propeller_patches(component):
-    """Build the selected blade set, converting the definition's mm to workspace metres."""
+    """Build the selected blade set, converting the definition's mm to workspace meters."""
     if "definition" not in component:
         raise InputValueError("propeller.definition: schema 1 definition required for generation")
     design = Propeller(component["definition"])

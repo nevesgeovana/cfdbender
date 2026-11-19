@@ -119,7 +119,7 @@ def _walk(
 ) -> tuple[list[int], int]:
     """Orient the connected piece of ``start`` like it, in place; return the piece and the flips.
 
-    A neighbour across an edge two faces share that runs the edge the same way is reversed.
+    A neighbor across an edge two faces share that runs the edge the same way is reversed.
     """
     piece, stack = [start], [start]
     seen[start] = True
@@ -145,10 +145,10 @@ def _walk(
 def orient(verts: NDArray[np.float64], faces: Faces) -> tuple[Faces, int]:
     """Orient the faces of one component consistently and outward; return them and the flips.
 
-    Faces are walked across every edge two of them share; a neighbour that runs the shared edge
+    Faces are walked across every edge two of them share; a neighbor that runs the shared edge
     the same way is reversed. Each connected piece is then turned so that its faces point away
-    from its centre on the whole (the sum of each face's area vector dotted with its offset from
-    the piece's centre is positive), which is outward for a closed body and for a wing.
+    from its center on the whole (the sum of each face's area vector dotted with its offset from
+    the piece's center is positive), which is outward for a closed body and for a wing.
     """
     owners: dict[tuple[int, int], list[int]] = {}
     for i, face in enumerate(faces):

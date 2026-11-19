@@ -893,7 +893,7 @@ def read_trailing_edges(path: Path, table: Mapping[str, Any]) -> TrailingEdgeMar
     if isinstance(tolerance, bool) or not isinstance(tolerance, (int, float)):
         raise InputArtifactError(
             f"{where} states tolerance = {tolerance!r}; write the distance, in "
-            "metres, within which an edge's mid-point counts as a point "
+            "meters, within which an edge's mid-point counts as a point "
             "of the file, as a number such as 0.0001."
         )
     tolerance = _as_float(where, "tolerance", tolerance)

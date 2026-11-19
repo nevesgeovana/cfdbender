@@ -186,7 +186,7 @@ def plan_strategy2(resolved: Mapping, source: Any, *, base: Path | None = None) 
     ------
     InputValueError
         For a schema error (E01 to E16, E07 for any triangle allowance) or a control this route
-        cannot honour.
+        cannot honor.
     """
     from cfdbender.geometry.stages import unpack
 

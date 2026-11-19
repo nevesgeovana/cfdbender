@@ -270,7 +270,7 @@ def add_check_parser(subparsers: Any) -> None:
     parser.add_argument(
         "--fold-y",
         action="store_true",
-        help="the original is a half body: fold the rebuilt mirror half onto the modelled side",
+        help="the original is a half body: fold the rebuilt mirror half onto the modeled side",
     )
     parser.add_argument("--profile", default="study_default", help=_PROFILES_HELP)
     parser.add_argument("--out", metavar="JSON", help="also write the record to this file")

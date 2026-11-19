@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 from post_volume_support import box_grid, write_vtu_ascii
 
+from cfdbender.core.axes import NOT_APPLICABLE
 from cfdbender.post.volume import VolumeError
 from cfdbender.post.volume_files import (
     ProbeEntry,
@@ -238,7 +239,7 @@ def test_probe_rows_values_and_columns(tmp_path: Path) -> None:
         pressure(np.array([[0.25, 0.5, 0.5]]))[0], rel=1e-12
     )
     assert float(rows[2]["VX"]) == pytest.approx(1.75, rel=1e-12)
-    assert rows[1]["P"] == rows[1]["VX"] == rows[1]["VY"] == ""
+    assert rows[1]["P"] == rows[1]["VX"] == rows[1]["VY"] == NOT_APPLICABLE
     assert float(rows[1]["X"]) == 3.0
     assert report.n_rows == 3 and report.steps[0].n_missing == 1
 
@@ -295,3 +296,13 @@ def test_a_vector_column_in_a_probe_table_and_a_bad_name_are_refused(tmp_path: P
         write_volume_section(tmp_path, "v", entry.points, REFERENCE, volumes, COLUMNS, format="csv")
     with pytest.raises(VolumeError, match="shape"):
         write_probe_table(tmp_path, "v", [entry], volumes, {"W": lambda f: f["p"][:0]})
+
+
+def test_a_probe_point_in_no_cell_keeps_its_row_and_writes_the_na_token(tmp_path: Path) -> None:
+    entry = ProbeEntry(np.array([[3.0, 3.0, 3.0]]), REFERENCE)
+    report = write_probe_table(
+        tmp_path, "na", [entry], [VolumeStep(None, None, make_grid())], {"P": "p"}
+    )
+    lines = report.file.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 2 and lines[1].endswith(",NA,NA")
+    assert read_table(report.file)[0]["P"] == "NA"

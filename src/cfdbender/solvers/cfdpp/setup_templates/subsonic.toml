@@ -1,0 +1,88 @@
+# Steady subsonic RANS, Spalart-Allmaras, preconditioned method, an adiabatic resolved wall and a far field
+# The numbers are those of the baseline case the solver's GUI saved for CFD++ 22.5.U3 (NACA 0012, Mach 0.15);
+# the fluid constants are cfdbender's own, so that a row stating REmi plans. Check each one against your case.
+#
+# Case settings are explicit; the [keywords] overrides below are optional. Edit [boundaries] so it
+# names every family of your grid (the names of its mcfd.bc file), then run cfd-matrix plan.
+
+iterations = 500                  # steps of the run
+convergence_orders = 6.0          # stop after this many orders of residual drop
+cfl = 1.0                         # local CFL number at the start of the ramp
+cfl_max = 50.0                    # and at its end
+cfl_ramp_steps = [1, 100]         # first and last step of the ramp
+turbulence = "SpalartAllmaras"
+viscosity_ratio = 198.433839      # freestream eddy to molecular viscosity, as the baseline's initialisation gave
+
+[physics]
+method = "preconditioned"         # suited to low Mach numbers
+
+[fluid]
+gas_constant = 287.05287          # J/(kg K); the values cfdbender resolves a row's REmi with
+gamma = 1.4
+viscosity = "sutherland"
+sutherland_viscosity = 1.716e-5   # Pa s
+sutherland_temperature = 273.15   # K
+sutherland_constant = 110.4       # K
+
+[numerics]
+multigrid_levels = 20
+temporal_smoothing = 0.75
+limiter = "minmod"
+blend_first_order = [0.0, 1.0]    # blending factor at the start and the end of its ramp
+blend_steps = [100, 200]          # first and last step of the blending ramp
+turbulence_start_step = 11
+
+[boundaries.airfoil]
+type = "wall"
+treatment = "solve-to-wall"
+thermal = "adiabatic"
+
+[boundaries.farfield]
+type = "farfield"
+
+# Solver keywords the baseline sets away from the solver's own default and that have no setup key.
+# They are written as given, each in its section; edit or remove any of them. A comment says what a
+# keyword is as far as the evidence tells, or that its meaning is not established.
+[keywords]
+dtsmoo_iters = { value = 4, section = "tsteps" }               # number of passes of the time-step smoothing; used only when that smoothing is on
+dtsmoo_param = { value = 0.666666666667, section = "tsteps" }  # strength of the time-step smoothing; used only when that smoothing is on
+cflbot = { value = 0.0001, section = "tsteps" }                # CFL number below which the automatic adjustment ends the run
+ntbmdr = { value = 1, section = "tsteps" }                     # step where the minimum dissipation ramp starts
+ntemdr = { value = 2, section = "tsteps" }                     # step where the minimum dissipation ramp ends
+iregrq = { value = 0, section = "options" }                    # rotates the velocity after a motion
+disson = { value = 0.1, section = "options" }                  # meaning not established
+mdisps = { value = 0.05, section = "options" }                 # meaning not established
+sewzon = { value = 1, section = "options" }                    # zonal control
+cenpol = { value = 1, section = "options" }                    # base polynomial code, 1 nodal and 2 centroidal
+visofp = { value = 1, section = "options" }                    # meaning not established
+itimac = { value = 1, section = "options" }                    # meaning not established
+mg_cycl = { value = 4, section = "options" }                   # number of multigrid cycles per step
+mg_meth = { value = 2, section = "options" }                   # meaning not established
+mg_type = { value = 2, section = "options" }                   # meaning not established
+mg_vers = { value = 1, section = "options" }                   # probably the older W-cycle variant, checked in the baseline
+mg_aggl = { value = 1, section = "options" }                   # meaning not established
+mg_stag = { value = 1, section = "options" }                   # probably where the multigrid coarsening stops
+mg_cvis = { value = 1.0, section = "options" }                 # meaning not established
+pbufac = { value = 1.0, section = "options" }                  # meaning not established
+preacc_opt = { value = 1, section = "physics" }                # probably the switch of the numerical assistance (preconditioning, time integration)
+pretyp = { value = 1, section = "physics" }                    # meaning not established
+ipreof = { value = 30, section = "physics" }                   # meaning not established
+prevlo = { value = 1e-06, section = "physics" }                # a preconditioning parameter
+gasnam = { value = "Air", section = "physics" }                # the name of the gas
+frctin = { value = 2, section = "physics" }                    # meaning not established
+frsrcu = { value = 1.0, section = "physics" }                  # meaning not established
+mix_compthrsh = { value = 1.0, section = "physics" }           # meaning not established
+eul_compthrsh = { value = 1.0, section = "physics" }           # meaning not established
+ifwzro = { value = 1, section = "physics" }                    # meaning not established
+swreta = { value = 0.5, section = "physics" }                  # meaning not established
+bulktm = { value = 288.0, section = "physics" }                # bulk temperature
+grvbet = { value = 0.003, section = "physics" }                # meaning not established
+prlatu = { value = 0.8, section = "physics" }                  # meaning not established
+schmla = { value = 0.7, section = "physics" }                  # meaning not established
+schmtu = { value = 0.7, section = "physics" }                  # meaning not established
+ifvspt = { value = 0, section = "physics" }                    # viscosity augmentation for a cubic equation of state; 0 is off
+ifwfne = { value = 0, section = "physics" }                    # wall function kind, 0 equilibrium and 1 non-equilibrium
+ifwfol = { value = 0, section = "physics" }                    # meaning not established
+ifwfja = { value = 1, section = "physics" }                    # meaning not established
+trurlx = { value = 0.75, section = "physics" }                 # relaxation of the turbulence equations; the GUI writes 0.75 for Spalart-Allmaras only
+cpinc = { value = 1000.0, section = "physics" }                # meaning not established

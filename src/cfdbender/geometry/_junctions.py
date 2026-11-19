@@ -518,7 +518,7 @@ def flood(
 ) -> set[Hashable]:
     """Return the faces reached from the seeds through shared edges that are not barriers.
 
-    ``neighbours[face]`` lists ``(edge, other face)``. The barriers are the junction curves, so a
+    ``neighbors[face]`` lists ``(edge, other face)``. The barriers are the junction curves, so a
     piece keeps what its own exposed side reaches and loses what a junction encloses.
     """
     kept = set(seeds)
@@ -551,7 +551,7 @@ def slivers(widths: Sequence[float]) -> list[int]:
 
 
 def min_junction(*extents: float) -> float:
-    """Return the shortest junction two pieces may have, from their largest extents in metres.
+    """Return the shortest junction two pieces may have, from their largest extents in meters.
 
     It is :data:`MIN_JUNCTION_FRACTION` of the smaller extent, so the limit scales with the
     pieces it judges.

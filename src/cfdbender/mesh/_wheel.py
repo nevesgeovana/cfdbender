@@ -29,9 +29,9 @@ THE METHOD, for an OBJ (:func:`sector_to_wheel`)
 Nothing in the method fixes a name: the surfaces that are blades are the ones
 ``blades`` names, and every other surface is shared by the copies.
 
-Tolerance is in metres. The mesh unit comes from the boundaries file's
+Tolerance is in meters. The mesh unit comes from the boundaries file's
 ``[import] units``; one that is not stated, or that names no scale, is warned
-and read as metres.
+and read as meters.
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ __all__ = [
     "sector_to_wheel",
 ]
 
-#: The default merge tolerance, in metres: a seam that sits 1e-5 m apart is merged by it and
+#: The default merge tolerance, in meters: a seam that sits 1e-5 m apart is merged by it and
 #: so is one that sits 1e-4 m apart, which a seam of a mesh saved in single precision can.
 DEFAULT_TOLERANCE_M = 1e-4
 
@@ -104,7 +104,7 @@ _CARRIED = frozenset(
         "trailing_edges",
     }
 )
-#: Pairs a neighbour search may compare: a node of a seam has one partner per copy and a cell a
+#: Pairs a neighbor search may compare: a node of a seam has one partner per copy and a cell a
 #: few nodes, so a real merge stays far under this, and the floor keeps a small mesh out of it.
 _PAIRS_FLOOR, _PAIRS_PER_POINT = 1_000_000, 64
 
@@ -208,7 +208,7 @@ def rotate(
 def azimuth_range(psi: NDArray[numpy.float64]) -> tuple[float, float]:
     """Return the middle azimuth and the angle of a set of azimuths, in radians.
 
-    The angle is the turn less the largest gap between neighbouring azimuths, so it does not
+    The angle is the turn less the largest gap between neighboring azimuths, so it does not
     depend on which azimuth comes first: a difference measured from one node of a seam reads
     half a turn as plus or minus half a turn according to the rounding of its last digit.
     """
@@ -262,7 +262,7 @@ def neighbour_pairs(
                 f"a distance of {tol:g}, in the mesh's unit, puts over {limit} pairs of its "
                 f"{len(a)} points in reach of each other, so the mesh would collapse and the "
                 "search does not fit in memory. Lower the distance; for the merge of a wheel "
-                f"it is tolerance (CLI: --tolerance), in metres. {_NOTHING}"
+                f"it is tolerance (CLI: --tolerance), in meters. {_NOTHING}"
             )
         i = numpy.repeat(numpy.arange(len(a)), count)
         start = numpy.repeat(low - (numpy.cumsum(count) - count), count)
@@ -496,13 +496,13 @@ def refuse_a_collapsed_wheel(faces_left: int, tolerance_m: float) -> None:
 
 
 def unit_of(declared: str | None, where: str) -> float:
-    """Return the metres per mesh unit, warning when the unit is not stated or is unknown."""
+    """Return the meters per mesh unit, warning when the unit is not stated or is unknown."""
     if declared is not None and declared in METRES_PER_UNIT:
         return float(METRES_PER_UNIT[declared])
     cause = "states no [import] units" if declared is None else f"states the unit {declared!r}"
     warn(
         f"{where} {cause}, which names no length scale the package knows; the tolerance, the "
-        "mesh and its points are read as metres.",
+        "mesh and its points are read as meters.",
         GeometryWarning,
         stacklevel=3,
     )
@@ -1052,7 +1052,7 @@ def sector_to_wheel(
     center : sequence of float, optional
         A point of the axis, in the mesh's unit (default the origin).
     tolerance : float
-        The distance, in metres, within which two nodes are one.
+        The distance, in meters, within which two nodes are one.
     out : str or Path, optional
         The wheel OBJ; default ``<sector stem>_wheel.obj`` beside the sector.
     overwrite : bool
@@ -1092,7 +1092,7 @@ def sector_to_wheel(
     if not (math.isfinite(tolerance) and tolerance > 0.0):
         raise InputValueError(
             f"tolerance (CLI: --tolerance) {tolerance!r} must be a positive length in "
-            f"metres. {_NOTHING}"
+            f"meters. {_NOTHING}"
         )
     point = _center_point(center)
     opts = Options(copies, list(blades), parse_axis(axis), point, tolerance, target, overwrite)

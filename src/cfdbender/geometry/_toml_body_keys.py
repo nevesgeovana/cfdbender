@@ -3,7 +3,7 @@
 Pipeline role: private helper of :mod:`cfdbender.geometry.config`. A body is written with
 ``length_mm``, ``nose``, ``tail``, ``parts`` and ``sections`` whose shapes carry ``half_width_mm``,
 ``half_height_mm`` and ``centre_z_mm`` (the high-level body form). This module reads those names
-and hands the resolver metres. The earlier names were never released and are refused with their
+and hands the resolver meters. The earlier names were never released and are refused with their
 replacement. :func:`user_names` rewrites a message of the resolver so that it names the key as
 the user wrote it, never the resolver's own table.
 """
@@ -106,7 +106,7 @@ def _translate_parts(name, raw, warnings):
 
 
 def _translate_sections(name, raw, warnings):
-    """Read the section shapes: lengths are half extents in millimetres."""
+    """Read the section shapes: lengths are half extents in millimeters."""
     sections = raw.get("sections")
     if sections is None:
         return

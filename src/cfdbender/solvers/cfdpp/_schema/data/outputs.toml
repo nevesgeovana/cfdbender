@@ -1,0 +1,3 @@
+# Layouts of the output files the adapter reads. No layout is committed yet: each waits for
+# a file returned from a solver run, and a status is promoted only by a committed report under
+# reports/cfdpp/, never by editing this file.

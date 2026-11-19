@@ -95,6 +95,28 @@ hpc: beta / cluster: east
 \end{itemize}
 \end{frame}
 
+\begin{frame}[fragile]{Overriding the profile and grouping rows}
+\begin{lstlisting}
+VAR_NAMES_VALUES
+hpc: alpha / hpc.application_id: compute_polars.py
+\end{lstlisting}
+\begin{itemize}\small
+  \item \code{hpc.<name>: <value>} replaces one value of the row's profile: a
+        descriptor field, \code{application_id} or \code{cluster}. The rest of
+        the profile is kept. A name the profile does not declare is refused.
+        Write a value that holds a \code{/} between double quotes.
+  \item \code{cfd-matrix plan polar --batch 2} and \code{run polar --batch 2}
+        submit the rows as 2 scheduler jobs of consecutive rows. A job holds
+        one profile, processor count and build.
+  \item cfdbender writes the shell script of each job in
+        \code{sims/batch/<matrix>\_b<ID>/}: one block per run, no warm start,
+        a failed run does not stop the next, its status in \code{job.exit}.
+        The profile receives it as \code{\{script\_path\}}.
+  \item \code{--batch} needs a profile and is refused with \code{--local},
+        \code{--resume}, \code{--restart} and \code{--force-rerun}.
+\end{itemize}
+\end{frame}
+
 \begin{frame}{A cluster run, step by step}
 \begin{enumerate}
   \item \code{cfd-matrix plan polar} prints each point, its job file and the

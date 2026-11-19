@@ -11,15 +11,15 @@ would change. With ``--apply`` the script
 
 1. copies every file it will change to ``archive/migration-setup-numerics-<n>/`` first,
    keeping the layout under the workspace (nothing is deleted);
-2. renames the header ``SET`` of every ``inputs/matrices/*.fs`` to ``SETUP`` and inserts a
-   ``NUMERICS`` column right after it (every other line stays byte-identical);
+2. renames the header ``SET`` of every root or ``inputs/matrices/*.fs`` matrix to ``SETUP``
+   and inserts a ``NUMERICS`` column right after it (every other line stays byte-identical);
 3. splits the top-level keys of every ``inputs/setups/s<id>.toml`` into numerical keys,
    moved to ``inputs/numerics/n<id>.toml`` with the comment lines directly above each key,
    and the other keys, which stay; tables such as ``[solver]`` are never touched;
 4. gives setups whose numerical keys and values are identical ONE numerics file (numbered
    in the order of the sorted setup names) and writes its id in the NUMERICS cell of every
    row that names such a setup; a setup without numerical keys gets an empty cell;
-5. renames the header ``GEOMETRY`` of every ``inputs/matrices/*.fs`` to ``MESH`` in the
+5. renames the header ``GEOMETRY`` of those matrices to ``MESH`` in the
    same pass (the column keeps its width, every cell stays as it is).
 
 Only SU2 has a list of numerical keys; for any other solver the script renames the column
@@ -368,13 +368,15 @@ def migrate(root: Path, solver: str | None = None) -> Result:
             Edit(f"inputs/setups/{path.name}", kept.encode("utf-8"), f"{len(names)} key(s) moved")
         )
         result.summary.append((path.name, f"n{number}.toml", names))
-    for path in sorted((root / "inputs" / "matrices").glob("*.fs")):
+    matrices = [*root.glob("*.fs"), *(root / "inputs" / "matrices").glob("*.fs")]
+    for path in sorted(matrices, key=lambda p: p.relative_to(root).as_posix()):
         text = path.read_bytes().decode("utf-8")
         new, note = migrate_matrix(text, numerics_of)
+        relative = path.relative_to(root).as_posix()
         if new != text:
-            result.edits.append(Edit(f"inputs/matrices/{path.name}", new.encode("utf-8"), note))
+            result.edits.append(Edit(relative, new.encode("utf-8"), note))
         else:
-            result.notes.append(f"inputs/matrices/{path.name}: {note}")
+            result.notes.append(f"{relative}: {note}")
     return result
 
 

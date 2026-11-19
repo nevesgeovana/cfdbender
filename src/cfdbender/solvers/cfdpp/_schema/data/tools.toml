@@ -1,0 +1,12 @@
+# Tool commands the adapter relies on, each seen in an input the solver's GUI saved, with their
+# arguments in order. platform is linux, windows or any. Every tool runs in the case folder.
+# A status is promoted only by a committed report under reports/cfdpp/, never by editing this
+# file. No entry holds a default value.
+
+[[tools]]
+name = "mc_filecopy"
+group = "system"
+platform = "any"
+section = "system"
+args = ["cdepsout.bin", "cdepsin.bin"]
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }

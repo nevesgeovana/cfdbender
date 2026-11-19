@@ -109,12 +109,12 @@ def read_rotor(
     unit = mesh_unit(mesh)
     if unit is None:
         warn(
-            f"{verb}: mesh unit is unstated; reference origin is interpreted in metres",
+            f"{verb}: mesh unit is unstated; reference origin is interpreted in meters",
             NotApplicableWarning,
         )
         unit = "METER"
     _need_rotor(
-        unit in METRES_PER_UNIT, f"mesh unit {unit!r} has no metre scale; state a known unit", verb
+        unit in METRES_PER_UNIT, f"mesh unit {unit!r} has no meter scale; state a known unit", verb
     )
     for key in ("x_m", "y_m", "z_m"):
         rotor[key] = float(rotor.get(key, 0)) / METRES_PER_UNIT[unit]

@@ -1,7 +1,7 @@
-"""The preview of a mesh: a legacy VTK file coloured by boundary.
+"""The preview of a mesh: a legacy VTK file colored by boundary.
 
 :func:`write_preview_vtk` writes the surface of an OBJ with one cell array ``boundary``
-(the family's position, counted from 1, so ParaView colours each surface) and a field
+(the family's position, counted from 1, so ParaView colors each surface) and a field
 ``names`` listing the families in order. :func:`write_sweep_vtk` overlays one control surface
 of several variants in one file, a cell array ``variant`` telling them apart.
 """

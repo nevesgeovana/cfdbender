@@ -237,7 +237,7 @@ def _closures(context: RunContext) -> StageOutcome:
                 CAP_EDGE_GAP,
                 unit="m",
                 where={"component": name},
-                note="BUG: a cap boundary leaves its neighbouring edge"
+                note="BUG: a cap boundary leaves its neighboring edge"
                 if failed
                 else "4001 samples on each shared cap boundary",
             )

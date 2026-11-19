@@ -95,11 +95,11 @@ def known_keys(table, known, path, warnings):
 
 
 def read_units(units, warnings):
-    """Return the scales to metres and degrees of a declared ``[units]`` table."""
+    """Return the scales to meters and degrees of a declared ``[units]`` table."""
     if not isinstance(units, dict):
         raise InputValueError("units: expected a table")
     for key in sorted(set(units) - {"length", "angle"}):
-        warnings.append(f"units.{key}: unknown key, skipped; metres and degrees stay in force")
+        warnings.append(f"units.{key}: unknown key, skipped; meters and degrees stay in force")
     length, angle = units.get("length", "m"), units.get("angle", "deg")
     if str(length) not in LENGTH_UNITS or str(angle) not in ANGLE_UNITS:
         raise InputValueError(
@@ -109,7 +109,7 @@ def read_units(units, warnings):
 
 
 def scale_units(node, path, length_scale, angle_scale):
-    """Return ``node`` converted to metres and degrees, by the unit each dotted path implies.
+    """Return ``node`` converted to meters and degrees, by the unit each dotted path implies.
 
     A table with ``of`` holds ratios of what it names and is left alone. A key whose name states
     its unit (``tolerance_m``, ``deflection_deg``) is already in that unit, whatever the file

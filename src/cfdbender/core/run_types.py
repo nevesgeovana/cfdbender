@@ -109,7 +109,7 @@ def run_type(workflow: str, *, pol: str, offered: Collection[str]) -> str:
         raise ValueError(
             f"WORKFLOW value {workflow!r} of POL {pol} names no known run type; the run "
             f"types are {', '.join(RUN_TYPES)}. The column names WHICH run type the row "
-            "solves, so an unrecognised value would run the wrong one silently"
+            "solves, so an unrecognized value would run the wrong one silently"
         )
     if workflow not in offered:
         raise ValueError(

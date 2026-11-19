@@ -119,7 +119,7 @@ def surface_id(
     Parameters
     ----------
     patches : Mapping
-        Ordered placed patches per component, with control points in metres.
+        Ordered placed patches per component, with control points in meters.
     trims : Mapping, optional
         Trim loops per component; omitted means only bases enter the digest.
 

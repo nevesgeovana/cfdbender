@@ -27,7 +27,7 @@ from cfdbender.geometry.stages import (
 
 
 def follower_edges(controls: Mapping[str, Any], edge_nodes: Mapping) -> dict:
-    """Copy neighbour boundary divisions in dependency and declared priority order.
+    """Copy neighbor boundary divisions in dependency and declared priority order.
 
     Node identities and their order are preserved. A follower may not prescribe
     its own edge distribution; flexible interiors are handled after boundaries.
@@ -418,10 +418,10 @@ def _on_symmetry(mesh: Mesh, edge) -> bool:
 
 
 def follower_checks(mesh: Mesh, controls: Mapping[str, Any]) -> list[dict]:
-    """Check each follower shares a curve, node to node, with every neighbour it follows.
+    """Check each follower shares a curve, node to node, with every neighbor it follows.
 
     The shared curves are discovered on the realized mesh (edges used by a cell of each
-    component); a neighbour with none is named. Hanging edges are the free-edge check's.
+    component); a neighbor with none is named. Hanging edges are the free-edge check's.
     """
     curves = shared_curves(mesh)
     checks = []
@@ -622,7 +622,7 @@ def acceptance_checks(
 #: Component types the generated route meshes as followers of their hosts when the controls
 #: give them no table (MESH_STRATEGY 2.3, followers by default).
 _DEFAULT_FOLLOWERS = {"wing_fuselage_fairing": "quad_dominant", "fillet": "full_quad"}
-#: Keys of a direction table the generated route cannot honour, refused by name.
+#: Keys of a direction table the generated route cannot honor, refused by name.
 _ROUTE_REFUSED = {
     "chordwise": ("first_cell", "root_cells"),
     "spanwise": ("first_cell", "root_cells"),

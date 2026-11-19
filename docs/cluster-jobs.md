@@ -140,12 +140,16 @@ record keep each override with its origin, `matrix row`.
 
 `cfd-matrix plan study --batch 2` and `cfd-matrix run study --batch 2` submit the
 rows as N scheduler jobs instead of one job per point. N is the number of jobs,
-as in pyflightstream. The rows (`POL`, with all their points) stay in matrix
-order and are cut into N runs of consecutive rows so that the longest run is as
-short as possible (a row's weight is its `WALLTIME` cells, else one per point);
-a row is never cut. A job holds one profile, one `NCPUS` and one `SOLVER_BUILD`:
-rows that differ in those never share a job, so a plan can hold more jobs than N,
-and a plan asking for more jobs than rows holds one per row; both warn. The
+as in pyflightstream. The rows (`POL`, with all their points) are grouped first
+by profile, processor count (`NCPUS`) and solver build (`SOLVER_BUILD`). Within
+each group, rows retain matrix order and are cut into contiguous jobs so that
+the longest job is as short as possible (a row's weight is its `WALLTIME` cells,
+else one per point); a row is never cut. For interleaved profiles A, B, A on
+rows 1, 2, 3, `--batch 2` produces jobs [1, 3] and [2], in the order of each
+job's first row. Contiguity is within each group, not across the original matrix.
+A job holds one profile, one processor count and one solver build. A request
+below the number of groups produces one job per group, and a request above the
+number of rows produces one job per row; both warn. The
 `WALLTIME` of a job is computed as for a grouped job, and `BEST` is accepted.
 
 Each job lives in `sims/batch/<matrix>_b<ID>/`, where `<ID>` is the next free

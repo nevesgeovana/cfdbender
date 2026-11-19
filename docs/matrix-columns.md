@@ -1,11 +1,5 @@
 # Matrix columns
 
-The optional `RESTART` column names a recorded point, for example
-`1001/DP-M300AL+020`. Each point of that row starts from a copy of the source
-point's saved solution. Write `-` for a cold start. SU2, OpenFOAM and PyFR
-support this entry; other adapters warn and skip it. A missing solution refuses
-the run and names its source. See [restart](records.md#restart-from-a-saved-solution).
-
 This page lists the columns of a run matrix and the keys of its
 `FLIGHT_CONDITION` cell. Every solver reads the same columns with the same
 meanings, so one layout serves every campaign.
@@ -40,7 +34,7 @@ with `columns are separated by |`.
 | `MESH` | The mesh or geometry file: a file name in `inputs/mesh/`, a stem naming exactly one file there, or a workspace-relative path. The older folder names `inputs/geometry/`, `inputs/geometries/` and `inputs/meshes/` are still read, after `inputs/mesh/`. The setup may then omit its mesh key; one it states must name the same file. A solver that does not read the column warns and skips it. The header was `GEOMETRY` before this column was renamed; a matrix that still says `GEOMETRY` is read as `MESH` with one warning per matrix file, and a header with both is refused. |
 | `REF` | Reference file `inputs/references/r<id>.toml`; `001` and `r001` are the same, and a name works too: `rwing` is `inputs/references/rwing.toml`. |
 | `SETUP` | The physical setup file `inputs/setups/s<id>.toml`, numbered or named (`sxbbase`). The header was `SET` before this column was renamed; a matrix that still says `SET` is read as `SETUP` with one warning per matrix file, and a header with both is refused. |
-| `NUMERICS` | The numerical setup file `inputs/numerics/n<id>.toml`, numbered or named, for the CFD solvers (SU2, OpenFOAM, PyFR); see [Setup and numerics](#setup-and-numerics). A column that is absent, or a cell holding `-` or nothing, means the setup file carries the numerics. A solver without the column warns once and ignores a filled cell. |
+| `NUMERICS` | The numerical setup file `inputs/numerics/n<id>.toml`, numbered or named, for the CFD solvers that read it (SU2, OpenFOAM, PyFR; CFD++ warns once and ignores a filled cell); see [Setup and numerics](#setup-and-numerics). A column that is absent, or a cell holding `-` or nothing, means the setup file carries the numerics. A solver without the column warns once and ignores a filled cell. |
 | `PPROC` | Post-processing file `inputs/pproc/p<id>.toml`, numbered or named. |
 | `SYMMETRY`, `SYMMETRY_LOADS` | What was meshed (`NONE` or `PERIODIC`) and whether the loads are the whole model's (`true`, `false`). SU2 reads `NONE` and `PERIODIC` (with the row variable `PERIODIC_COPIES`; see its page); the other solvers need `-`: symmetry comes from the mesh markers and the setup. |
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
@@ -48,7 +42,7 @@ with `columns are separated by |`.
 | `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [Executables](executables.md)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. The column may also be named `FS_BUILD`, with the same meaning; a header holding both names is refused. |
 | `WORKFLOW` | Run type, with pyflightstream's names: `steady` (also `-`), `qsteady_rotor`, `unsteady` or `unsteady_rotor`; SU2 offers all four, the other solvers `steady` ([SU2 run types](su2-workspaces.md#run-types)). |
 | `VAR_NAMES_VALUES` | Per-row overrides of setup keys and optional HPC profile and cluster selection; see below. |
-| `RESTART` | Recorded source point as `POL/DP-name`, whose saved solution is copied into every point of the row. `-` requests a cold start. |
+| `RESTART` | Recorded source point as `POL/DP-name`, whose saved solution is copied into every point of the row. `-` requests a cold start. SU2, OpenFOAM and PyFR support it; other adapters warn and skip it. A missing solution refuses the run and names its source; see [restart](records.md#restart-from-a-saved-solution). |
 
 ## FLIGHT_CONDITION
 
@@ -86,7 +80,7 @@ solver documents (for example `ORDER` for PyFR or `J` for QPROP) are kept in upp
 revolutions per second and `D` the rotor diameter. QPROP reads it as its `J`. SU2 reads it for a
 propeller in a steady rotating frame, with the rotor block of the REF file, as a value or as
 `ADVANCE_RATIO:sweep`, and writes the rotation of each point; see
-[Propeller in a steady rotating frame](su2-workspaces.md#propeller-in-a-steady-rotating-frame)
+[The rotor speed](su2-workspaces.md#the-rotor-speed)
 (for a one-sixth sector: `SYMMETRY` `PERIODIC` and, in `VAR_NAMES_VALUES`, `hpc: h004 / PERIODIC_COPIES: 6`).
 A point name carries it as `J` and the value times 100 with its sign (`J+030` for 0.3).
 
@@ -116,13 +110,14 @@ row's, except that a PyFR row stating only `MACH` and angles replaces the setup'
 
 `SETUP` names the physical setup of a row and `NUMERICS` names how the solver
 solves it, so one numerical recipe can be shared by many setups. The setup
-the solver reads is merged from four layers; each later layer replaces a key of
+the solver reads is merged in this order; each later layer replaces a key of
 the earlier ones:
 
 1. the `[defaults]` table of `init.toml`;
-2. the numerics file;
-3. the setup file;
-4. the row's `VAR_NAMES_VALUES`.
+2. the run type's carried declarations, where the adapter supplies them;
+3. the numerics file;
+4. the setup file;
+5. the row's `VAR_NAMES_VALUES`.
 
 A key stated in both the numerics file and the setup file takes the setup
 file's value, and one warning names the key and both files. A numerics file
@@ -166,13 +161,28 @@ keep their columns. A value is written between double quotes when it holds a `/`
 inside double quotes, and a cell without double quotes is split exactly as before. See
 [overriding the profile per row](cluster-jobs.md#overriding-the-profile-per-row).
 
-The row variables of the run types are pyflightstream's and are never sent to the
-solver as setup keys: the clock (`DELTA_THETA` and `REVOLUTIONS`, or `DELTA_TIME`
-and `TIME_ITERATIONS`), the averaging window (`LAST_REVS_AVG` or
-`LAST_ITERS_AVG`), the export window (`EXPORT_UNSTEADY_LAST_REV`, `_LAST_ITER`,
-`_AFTER_REV`, `_AFTER_ITER`), `PERIODIC_COPIES` and `TURBULENCE_MODEL` (`SA` or
-`SST`, a name of cfdbender). A variable of another run type than the row's is
-warned and skipped. See [SU2 run types](su2-workspaces.md#run-types).
+### Row variables of the run types
+
+These variables go in `VAR_NAMES_VALUES`. They are never sent to the solver as
+setup keys, and all but `TURBULENCE_MODEL` and `hpc.<name>` are pyflightstream's.
+A variable of another run type than the row's is warned and skipped. See
+[SU2 run types](su2-workspaces.md#run-types).
+
+| Variable | Meaning |
+|---|---|
+| `DELTA_THETA` | The clock: degrees of rotor turn per step, with `REVOLUTIONS`. |
+| `REVOLUTIONS` | The clock: revolutions to march, with `DELTA_THETA`. |
+| `DELTA_TIME` | The clock: seconds per step, with `TIME_ITERATIONS`. |
+| `TIME_ITERATIONS` | The clock: number of steps, with `DELTA_TIME`. |
+| `LAST_REVS_AVG` | The averaging window, in revolutions, counted back from the last step. |
+| `LAST_ITERS_AVG` | The averaging window, in steps, counted back from the last step. Exactly one of the two is stated. |
+| `EXPORT_UNSTEADY_LAST_REV` | The export window: the last revolutions, whose every step is written. |
+| `EXPORT_UNSTEADY_LAST_ITER` | The export window: the last steps. |
+| `EXPORT_UNSTEADY_AFTER_REV` | The export window: begins at the step that completes this many revolutions and runs to the last step. |
+| `EXPORT_UNSTEADY_AFTER_ITER` | The export window: begins at this step (counted from one) and runs to the last step. At most one export key is stated. |
+| `PERIODIC_COPIES` | Copies of the meshed sector that make the whole rotor; required with `SYMMETRY` `PERIODIC`. |
+| `TURBULENCE_MODEL` | `SA` or `SST`, always fully turbulent. |
+| `hpc.<name>` | One value of the HPC profile, replaced for this row (see above). |
 
 ## Where the values go
 
@@ -182,3 +192,5 @@ point. The run record keeps them with the point, and the campaign summary writte
 by `cfd-matrix collect` carries AIRCRAFT, CONFIGURATION and DESCRIPTION beside each
 result. A value the matrix states and the s/r/p files also state must agree, or
 the row is refused naming both.
+
+Retired `SET` and `GEOMETRY` headers remain deprecation notices under `--warning-refusals`; their values are read exactly as before.

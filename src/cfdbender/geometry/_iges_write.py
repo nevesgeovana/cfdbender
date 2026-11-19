@@ -463,7 +463,7 @@ def _reader_boundaries(document):
 
 
 def _write_millimetres(gmsh, groups, path, preference):
-    """Write scaled temporary copies and state mm without changing the live metre model."""
+    """Write scaled temporary copies and state mm without changing the live meter model."""
     write_iges(gmsh, groups, path, preference)
     original = read_iges(path)["global"]
     occ, copies = gmsh.model.occ, {}

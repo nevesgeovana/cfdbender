@@ -81,7 +81,7 @@ def edge_jumps(patches, tolerance: float | None = None, count: int = _SAMPLES) -
     patches : sequence of Patch
         The surface pieces; an edge belongs to a pair when its sampled points coincide.
     tolerance : float, optional
-        Largest distance in metres between the two curves of a shared edge; default
+        Largest distance in meters between the two curves of a shared edge; default
         1e-7 of the bounding diagonal of the set.
     count : int, optional
         Samples along each edge; at least 5.

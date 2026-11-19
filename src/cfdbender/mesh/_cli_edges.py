@@ -120,7 +120,7 @@ def _add_midnodes(verbs: Any) -> None:
         description=(
             "Reads the node list a mesh-preparation tool saves from a node set (Id, Name, X, Y, "
             "Z), puts the nodes in order along their lines (a long jump starts a new line, so "
-            "one list may hold every trailing edge) and writes one mid-point per neighbouring "
+            "one list may hold every trailing edge) and writes one mid-point per neighboring "
             "pair."
         ),
         allow_abbrev=False,

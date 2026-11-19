@@ -375,7 +375,7 @@ def _without_ridge(verts: Points, faces: Faces) -> bool:
 
 
 def _adjacency(edges: Iterable[Edge]) -> dict[int, set[int]]:
-    """Return each vertex's neighbours along the edges."""
+    """Return each vertex's neighbors along the edges."""
     adj: dict[int, set[int]] = defaultdict(set)
     for a, b in edges:
         adj[a].add(b)
@@ -677,7 +677,7 @@ def _align(
     k: int,
     te: frozenset[int] = frozenset(),
 ) -> list[int]:
-    """Order a station so each node neighbours the node of the previous station.
+    """Order a station so each node neighbors the node of the previous station.
 
     Of the alignments that hold, the one that puts a trailing-edge node under
     every trailing-edge node of the previous station wins, and the shortest
@@ -1205,7 +1205,7 @@ def _source_sweep(grid: Grid, faces: Faces) -> _Sweep | None:
         return None
     pos = {c: ps[0] for c, ps in cells.items()}
     # THE SWEEP IS READ FROM ITS START CELL, NOT FROM CELLS ZERO AND ONE (F-329): across the
-    # ordering seam of a sweep that starts inside a ring those two cells are not neighbours
+    # ordering seam of a sweep that starts inside a ring those two cells are not neighbors
     # in the file. The first cell in file order gives the start row and the start column,
     # and the direction of the sweep is the combination whose order the source reproduces.
     # ONE ROW OR ONE COLUMN OF CELLS STATES NO STEP ACROSS IT: such a source

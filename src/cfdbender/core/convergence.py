@@ -362,6 +362,72 @@ def judge_openfoam(
     )
 
 
+@dataclass(frozen=True)
+class StepRow:
+    """One CFD++ step: its number, its residual, and CL and CD from the force file."""
+
+    step: int
+    residual: float
+    lift: float
+    drag: float
+
+
+def judge_cfdpp(
+    rows: Sequence[StepRow],
+    *,
+    orders: float,
+    elems: int = CAUCHY_ELEMS,
+    eps: float = CAUCHY_EPS,
+    min_drop: float = MIN_DROP,
+) -> Verdict:
+    """Apply the rule to CFD++ steps, with R as a drop of ``orders`` below the run's maximum.
+
+    CFD++ stops on a residual drop relative to the largest residual of the run, so its
+    R holds on the first step whose residual lies ``orders`` (the setup's
+    ``convergence_orders``) below the largest residual so far. C is the rule's own: CL
+    and CD pass the Cauchy test on a step whose residual is ``min_drop`` orders below
+    the first one. The adapter reads the rows, since it owns the file layouts.
+    """
+    if not rows:
+        return Verdict(None)
+
+    def below(reference: float, value: float) -> float:
+        if not (math.isfinite(reference) and math.isfinite(value)):
+            return -math.inf
+        if value == 0:
+            return math.inf
+        if reference <= 0 or value < 0:
+            return -math.inf
+        return math.log10(reference) - math.log10(value)
+
+    peak = -math.inf
+    from_peak = []
+    for row in rows:
+        peak = max(peak, row.residual)
+        from_peak.append(below(peak, row.residual))
+    from_first = [below(rows[0].residual, row.residual) for row in rows]
+    lift = cauchy_passes([row.lift for row in rows], elems, eps)
+    drag = cauchy_passes([row.drag for row in rows], elems, eps)
+    first_r = next((n for n, drop in enumerate(from_peak) if drop >= orders), None)
+    first_c = next(
+        (n for n in range(len(rows)) if lift[n] and drag[n] and from_first[n] >= min_drop), None
+    )
+    at = [row.step for row in rows]
+    final_r = first_r if from_peak[-1] >= orders else None
+    final_c = first_c if lift[-1] and drag[-1] and from_first[-1] >= min_drop else None
+    criterion, iteration = _decide(final_r, final_c, at)
+    last = rows[-1]
+    return Verdict(
+        criterion,
+        iteration,
+        None if first_r is None else at[first_r],
+        None if first_c is None else at[first_c],
+        round(from_first[-1], 3),
+        len(rows),
+        {"residual": last.residual, "CL": last.lift, "CD": last.drag},
+    )
+
+
 def judge_point(folder: Path, solver: str) -> Verdict:
     """Apply the rule, with the default parameters, to one point folder.
 

@@ -32,7 +32,8 @@ from cfdbender.solvers.su2._config import (
     render,
     staged_mesh,
 )
-from cfdbender.solvers.su2._restart import restart_files, restart_values
+from cfdbender.solvers.su2._restart import restart_files, restart_values, staged_solution
+from cfdbender.solvers.su2._run_types import SEGMENT_TWO, SEGMENTS_SCRIPT
 from cfdbender.solvers.su2.routes import select_route
 
 
@@ -50,11 +51,25 @@ def job_command(point: AdapterPoint) -> list[str]:
 
     The executable is named as stated (never resolved on this machine, because the job runs
     elsewhere): the launcher, ``SU2_CFD`` or the stated executable, then ``su2.cfg``.
+    For an export window with two segments, the generated script runs this command with
+    each configuration in order.
     """
     declaration = read_init(point.root, available_solvers=("su2",))
     opts = options(point.setup, declaration.solver_options)
     raw = opts.get("executable") or os.environ.get("CFDBENDER_SU2_EXE") or "SU2_CFD"
-    return [*cast(list[str], opts.get("mpi_launcher", [])), str(raw), "su2.cfg"]
+    command = [*cast(list[str], opts.get("mpi_launcher", [])), str(raw)]
+    values = config(
+        point.setup,
+        point.reference,
+        point.post,
+        point.point.condition,
+        geometry=point.geometry,
+        run_type=point.point.run_type,
+        restarted=point.point.restart_from is not None,
+    )
+    if SEGMENT_TWO in extra_files(values):
+        return ["sh", SEGMENTS_SCRIPT, *command]
+    return [*command, "su2.cfg"]
 
 
 def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path) -> None:
@@ -65,7 +80,7 @@ def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path)
     solution = restart_files(point) if point.point.restart_from is not None else {}
     values = restart_values(point, dict(values))
     folder.mkdir(parents=True, exist_ok=False)
-    copy_solution(folder, solution)
+    copy_solution(folder, staged_solution(dict(solution), values))
     (folder / "su2.cfg").write_bytes(render(values).encode("ascii"))
     for name, text in extra_files(values).items():
         (folder / name).write_bytes(text.encode("ascii"))
@@ -88,6 +103,7 @@ def stage(point: AdapterPoint) -> None:
         point.point.condition,
         geometry=point.geometry,
         run_type=point.point.run_type,
+        restarted=point.point.restart_from is not None,
     )
     folder = workspace_path(point.root, point.point.directory)
     if folder.exists():
@@ -106,6 +122,7 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
         point.point.condition,
         geometry=point.geometry,
         run_type=point.point.run_type,
+        restarted=point.point.restart_from is not None,
     )
     raw_path = opts.get("pysu2_path") or os.environ.get("CFDBENDER_PYSU2_PATH")
     wrapper_path = None
@@ -144,6 +161,23 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
     _run_owned(point, check_ram, opts, values, argv, timeout, folder, route, env)
 
 
+#: Executables that are launcher scripts: SU2 runs inside them with their own environment.
+WRAPPER_SUFFIXES = (".cmd", ".bat", ".sh", ".ps1")
+
+
+def recorded_threads(opts: Mapping[str, object], argv: list[str], route: str) -> object:
+    """Return the thread count execution.json records, or "unknown" behind a launcher script.
+
+    cfdbender sets ``OMP_NUM_THREADS`` from ``threads`` for the process it starts. When that
+    process is a launcher script (a ``.cmd``, ``.bat``, ``.sh`` or ``.ps1`` executable, such as
+    a wrapper that runs SU2 in WSL with its own thread count), SU2 runs in the script's
+    environment and does not print its thread count, so the count is not known here.
+    """
+    if route == "executable" and len(argv) >= 2 and argv[-2].lower().endswith(WRAPPER_SUFFIXES):
+        return "unknown"
+    return opts["threads"]
+
+
 def _run_owned(
     point: AdapterPoint,
     check_ram: Callable[[], None],
@@ -160,41 +194,51 @@ def _run_owned(
     timed_out = False
     code = 1
     start = time.monotonic()
+    # A point with an export window runs its two segments in order, as run_segments.sh does
+    # in a job: the second starts only when the first ended with status zero.
+    segments = ["su2.cfg", *((SEGMENT_TWO,) if (folder / SEGMENT_TWO).is_file() else ())]
     try:
         with (
             (folder / "stdout.log").open("xb") as stdout,
             (folder / "stderr.log").open("xb") as stderr,
         ):
-            check_ram()
-            _ram.require_ram(number(opts["ram_estimate_gib"], "ram_estimate_gib"), solver="SU2")
-            process = subprocess.Popen(
-                argv,
-                cwd=folder,
-                env=env,
-                stdout=stdout,
-                stderr=stderr,
-                stdin=subprocess.DEVNULL,
-                shell=False,
-                creationflags=_NO_WINDOW,
-                start_new_session=sys.platform != "win32",
-            )
-            while True:
-                check_ram()
-                _ram.require_ram(0, solver="SU2")
-                remaining = timeout - (time.monotonic() - start)
-                if remaining <= 0:
-                    timed_out = True
-                    _kill_tree(process)
-                    code = 124
+            for segment in segments:
+                if time.monotonic() - start >= timeout:
+                    timed_out, code = True, 124
                     break
-                try:
-                    status = process.wait(timeout=min(0.1, remaining))
+                code = 1
+                check_ram()
+                _ram.require_ram(number(opts["ram_estimate_gib"], "ram_estimate_gib"), solver="SU2")
+                process = subprocess.Popen(
+                    [*argv[:-1], segment],
+                    cwd=folder,
+                    env=env,
+                    stdout=stdout,
+                    stderr=stderr,
+                    stdin=subprocess.DEVNULL,
+                    shell=False,
+                    creationflags=_NO_WINDOW,
+                    start_new_session=sys.platform != "win32",
+                )
+                while True:
                     check_ram()
                     _ram.require_ram(0, solver="SU2")
-                    code = status
+                    remaining = timeout - (time.monotonic() - start)
+                    if remaining <= 0:
+                        timed_out = True
+                        _kill_tree(process)
+                        code = 124
+                        break
+                    try:
+                        status = process.wait(timeout=min(0.1, remaining))
+                        check_ram()
+                        _ram.require_ram(0, solver="SU2")
+                        code = status
+                        break
+                    except subprocess.TimeoutExpired:
+                        continue
+                if code != 0:
                     break
-                except subprocess.TimeoutExpired:
-                    continue
     finally:
         if process is not None and process.poll() is None:
             _kill_tree(process)
@@ -205,7 +249,7 @@ def _run_owned(
                     "timed_out": timed_out,
                     "route": route,
                     "timeout_s": timeout,
-                    "threads": opts["threads"],
+                    "threads": recorded_threads(opts, argv, route),
                     "ram_estimate_gib": opts["ram_estimate_gib"],
                 },
                 sort_keys=True,

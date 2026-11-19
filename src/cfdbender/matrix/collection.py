@@ -28,8 +28,10 @@ from cfdbender.core.executables import build_mismatch
 from cfdbender.core.plan import InputSession, PlanError, matrix_homes, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
+from cfdbender.matrix._declared import matrix_products
 from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix._tree_migration import warn_retired
+from cfdbender.matrix._unsteady_polar import left_out
 from cfdbender.matrix.batch import batch_status
 from cfdbender.matrix.exports import _write as _write_product
 from cfdbender.matrix.exports import write_polar_files
@@ -81,12 +83,16 @@ def _verify_submission(root: Path, record: RunRecord) -> None:
             raise RegistryError(f"{record.point_id}: submission {key} changed")
 
 
-def _job_outputs(record: RunRecord) -> tuple[str, ...]:
+def _job_outputs(record: RunRecord, root: Path | None = None) -> tuple[str, ...]:
     markers = (
         cast(tuple[str, ...], record.submission.get("job_end_files", ()))
         if record.submission is not None
         else ()
     )
+    if root is not None:
+        completion = getattr(load_solver(record.solver), "job_completion_files", None)
+        if completion is not None and (files := completion(root, record.point)) is not None:
+            return (*files, *markers)
     if record.submission is not None and "job_outputs" in record.submission:
         return (*cast(tuple[str, ...], record.submission["job_outputs"]), *markers)
     return (*record.point.outputs, *markers)
@@ -112,7 +118,7 @@ def _unsettled(root: Path, records: Sequence[RunRecord], settle: float) -> set[s
             if record.status != "SUBMITTED":
                 continue
             states = []
-            for name in _job_outputs(record):
+            for name in _job_outputs(record, root):
                 path = workspace_path(root, name)
                 try:
                     observed = path.stat()
@@ -306,7 +312,7 @@ def collect_workspace(
             continue
         try:
             if record.status == "SUBMITTED" and any(
-                not workspace_path(target, name).is_file() for name in _job_outputs(record)
+                not workspace_path(target, name).is_file() for name in _job_outputs(record, target)
             ):
                 outstanding += 1
                 continue
@@ -387,10 +393,31 @@ def collect_workspace(
         written = polar.paths
         if by_rule is not None:
             written += write_polars(target, name, rows, config.solver, by_rule)
+        declared, details, declared_skips = matrix_products(
+            target,
+            name,
+            rows,
+            {r.point_id: r.point for r in records if r.matrix == name and r.point_id in keep},
+            adapter,
+            config.solver,
+            session,
+        )
+        written += declared
         summaries.append(summary)
         tables.extend(written)
         products.extend(
-            write_products(target, name, config.solver, rows, summary, written, polar, migrated)
+            write_products(
+                target,
+                name,
+                config.solver,
+                rows,
+                summary,
+                written,
+                polar,
+                migrated,
+                details=details,
+                declared_skips=(*declared_skips, *left_out(rows, Path(name).stem)),
+            )
         )
     if archive:
         _archive_replaced(target, before)

@@ -2,7 +2,7 @@
 
 Classification describes numerical termination, separately from process exit.
 Axis directions describe positive x, y and z in the stated axis system.
-Reference area and length use square metres and metres; moment origin uses metres.
+Reference area and length use square meters and meters; moment origin uses meters.
 """
 
 from __future__ import annotations

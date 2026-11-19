@@ -12,6 +12,12 @@ A bare string is the path; a table holds ``path`` and an optional ``launcher``
 list. A local entry replaces the fields it states and may not add a build. A
 relative path resolves from the workspace root. A cluster job takes its build
 from the HPC profile's ``[builds]`` table instead; these files serve local runs.
+
+An adapter that declares ``EXECUTABLE_FIELDS`` (field name to ``path`` or
+``tokens``) reads a multi-field entry instead: one table per build holding only
+those fields, for example a serial and an MPI executable, the MPI launcher
+tokens and a tools folder. The local file replaces the fields it states. The
+two-field form above is unchanged for every other adapter.
 """
 
 from __future__ import annotations
@@ -63,14 +69,33 @@ def _entry(value: object, where: str) -> dict[str, object]:
     return dict(value)
 
 
+def _fields_entry(value: object, where: str, fields: Mapping[str, str]) -> dict[str, object]:
+    known = ", ".join(fields)
+    if not isinstance(value, dict):
+        raise WorkspaceError(f"{where}: give a table of the fields {known}")
+    if unknown := sorted(set(value) - set(fields)):
+        raise WorkspaceError(f"{where}: unknown field {unknown[0]!r}; the fields are: {known}")
+    for name, kind in fields.items():
+        if name not in value:
+            continue
+        item = value[name]
+        if kind == "tokens":
+            if not isinstance(item, list) or not all(isinstance(t, str) and t for t in item):
+                raise WorkspaceError(f"{where}: {name} must be a list of strings")
+        elif not isinstance(item, str) or not item:
+            raise WorkspaceError(f"{where}: {name} must be a non-empty string")
+    return dict(value)
+
+
 def bind_executable(point: AdapterPoint, adapter: object) -> AdapterPoint:
     """Return the point with its build's executable in the setup's [solver] table.
 
     The adapter's EXECUTABLE_KEYS maps ``path`` and ``launcher`` to its own
     [solver] option names, and optional BUILD_OPTIONS adds fixed options (SU2
-    selects its executable route). A point without SOLVER_BUILD, a workspace
-    without inputs/executables.toml, or an adapter without EXECUTABLE_KEYS keeps
-    the setup's [solver] table as written.
+    selects its executable route). An adapter declaring EXECUTABLE_FIELDS gets
+    every field of its multi-field entry under the field's own name. A point
+    without SOLVER_BUILD, a workspace without inputs/executables.toml, or an
+    adapter declaring neither keeps the setup's [solver] table as written.
 
     Parameters
     ----------
@@ -85,12 +110,17 @@ def bind_executable(point: AdapterPoint, adapter: object) -> AdapterPoint:
         The point, or a copy whose setup carries the build's options.
     """
     keys = getattr(adapter, "EXECUTABLE_KEYS", None)
+    fields = getattr(adapter, "EXECUTABLE_FIELDS", None)
     build = point.point.solver_build
-    if keys is None or build is None or not has_registry(point.root):
+    if (keys is None and fields is None) or build is None or not has_registry(point.root):
         return point
-    found = resolve_executable(point.root, point.solver, build)
     table = point.setup.get("solver", {})
     solver = dict(table) if isinstance(table, Mapping) else {}
+    if fields is not None:
+        solver.update(resolve_fields(point.root, point.solver, build, fields))
+        return replace(point, setup={**point.setup, "solver": solver})
+    assert keys is not None
+    found = resolve_executable(point.root, point.solver, build)
     solver.update(getattr(adapter, "BUILD_OPTIONS", {}))
     solver[keys["path"]] = found.path
     solver[keys["launcher"]] = list(found.launcher)
@@ -119,10 +149,13 @@ def check_builds(root: Path, solver: str, adapter: object, builds: Iterable[str 
     WorkspaceError
         The workspace declares executables and a planned build is not among them.
     """
-    if getattr(adapter, "EXECUTABLE_KEYS", None) is None:
+    fields = getattr(adapter, "EXECUTABLE_FIELDS", None)
+    if getattr(adapter, "EXECUTABLE_KEYS", None) is None and fields is None:
         return
     for build in sorted({b for b in builds if b}):
-        if has_registry(root):
+        if has_registry(root) and fields is not None:
+            resolve_fields(root, solver, build, fields)
+        elif has_registry(root):
             resolve_executable(root, solver, build)
         else:
             warn_or_refuse(
@@ -173,28 +206,8 @@ def has_registry(root: Path) -> bool:
     return (root / DECLARED).is_file()
 
 
-def resolve_executable(root: Path, solver: str, build: str) -> Executable:
-    """Return the executable a local run of ``build`` uses.
-
-    Parameters
-    ----------
-    root : Path
-        Workspace root.
-    solver : str
-        The init.toml solver; its table in the files is read.
-    build : str
-        The row's SOLVER_BUILD.
-
-    Returns
-    -------
-    Executable
-        The declared entry with this machine's overlay applied.
-
-    Raises
-    ------
-    WorkspaceError
-        A missing file or build, a local build not declared, or a malformed entry.
-    """
+def _tables(root: Path, solver: str, build: str) -> tuple[dict[str, object], dict[str, object]]:
+    """Return the declared and the local build tables of ``solver``, refusing a missing build."""
     declared_file = root / DECLARED
     if not declared_file.is_file():
         raise WorkspaceError(
@@ -217,6 +230,74 @@ def resolve_executable(root: Path, solver: str, build: str) -> Executable:
             f"SOLVER_BUILD {build!r} is not declared under [{solver}] in {DECLARED} "
             f"(declared: {known}); add it with its executable path"
         )
+    return declared, local
+
+
+def resolve_fields(
+    root: Path, solver: str, build: str, fields: Mapping[str, str]
+) -> dict[str, object]:
+    """Return the multi-field entry of ``build`` for an adapter declaring EXECUTABLE_FIELDS.
+
+    Parameters
+    ----------
+    root : Path
+        Workspace root.
+    solver : str
+        The init.toml solver; its table in the files is read.
+    build : str
+        The row's SOLVER_BUILD.
+    fields : mapping
+        The adapter's field names, each ``path`` (one path, resolved as ``path`` of the
+        two-field form is) or ``tokens`` (a list of strings, kept as written).
+
+    Returns
+    -------
+    dict
+        The fields the entry states, the local file's values replacing the declared ones.
+
+    Raises
+    ------
+    WorkspaceError
+        A missing file or build, a local build not declared, an unknown field or a
+        malformed value.
+    """
+    declared, local = _tables(root, solver, build)
+    entry = _fields_entry(declared[build], f"{DECLARED} [{solver}] {build!r}", fields)
+    if build in local:
+        entry.update(_fields_entry(local[build], f"{LOCAL} [{solver}] {build!r}", fields))
+    for name, kind in fields.items():
+        if kind == "path" and name in entry:
+            value = str(entry[name])
+            path = Path(value).expanduser()
+            if not path.is_absolute() and any(sep in value for sep in "/\\"):
+                path = root / path
+            entry[name] = str(path)
+    return entry
+
+
+def resolve_executable(root: Path, solver: str, build: str) -> Executable:
+    """Return the executable a local run of ``build`` uses.
+
+    Parameters
+    ----------
+    root : Path
+        Workspace root.
+    solver : str
+        The init.toml solver; its table in the files is read.
+    build : str
+        The row's SOLVER_BUILD.
+
+    Returns
+    -------
+    Executable
+        The declared entry with this machine's overlay applied.
+
+    Raises
+    ------
+    WorkspaceError
+        A missing file or build, a local build not declared, or a malformed entry.
+    """
+    declared, local = _tables(root, solver, build)
     entry = _entry(declared[build], f"{DECLARED} [{solver}] {build!r}")
     if build in local:
         entry.update(_entry(local[build], f"{LOCAL} [{solver}] {build!r}"))

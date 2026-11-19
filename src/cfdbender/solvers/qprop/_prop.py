@@ -10,7 +10,7 @@ from cfdbender.solvers.qprop._polar import Fit
 
 @dataclass(frozen=True)
 class Station:
-    """One blade station: radius and chord in metres, beta in degrees."""
+    """One blade station: radius and chord in meters, beta in degrees."""
 
     radius: float
     chord: float
@@ -40,7 +40,7 @@ def render_prop(
     blades : int
         Number of blades.
     radius : float
-        Tip radius in metres.
+        Tip radius in meters.
     stations : sequence of Station
         Stations in ascending radius.
     beta_add : float

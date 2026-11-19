@@ -339,7 +339,7 @@ def _loose_lines(
     """Return the edges of the cut lines no patch corner needs, so their patches join.
 
     A separatrix from a vertex where two boundaries only touch (a node a
-    neighbour holds on a curve the family spans with one edge) cuts the family
+    neighbor holds on a curve the family spans with one edge) cuts the family
     across its grid lines where it has no corner, and every patch side of one
     interval keeps its count. A LOOSE line is a chain of arcs, each between two
     patches of one family and holding no ridge, trailing-edge or join edge
@@ -758,7 +758,7 @@ def te_directions(
             where = ", ".join(f"{v:.3g}" for v in pts.mean(axis=0))
             warn(
                 f"{family}: the sides patch {n} of {what} (centroid {where}) shares with its "
-                "neighbours run both parallel and normal; this patch keeps its own "
+                "neighbors run both parallel and normal; this patch keeps its own "
                 "geometric orientation.",
                 GeometryWarning,
                 stacklevel=4,

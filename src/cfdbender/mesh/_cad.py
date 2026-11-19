@@ -5,8 +5,8 @@ never sees the library behind it. :mod:`cfdbender.mesh._gmsh` is the one module 
 imports a kernel library and holds the adapter; a permissive kernel replaces it by adding an adapter
 that satisfies this protocol and changing :func:`cfdbender.mesh._gmsh.open_kernel`.
 
-Everything here is a plain type: a face is an opaque handle, points are tuples of floats in metres
-(a file read in another unit arrives in metres), and a result is a frozen dataclass. The interface
+Everything here is a plain type: a face is an opaque handle, points are tuples of floats in meters
+(a file read in another unit arrives in meters), and a result is a frozen dataclass. The interface
 is surfaces only: no method builds or returns a solid.
 """
 
@@ -30,7 +30,7 @@ __all__ = [
     "UVCurve",
 ]
 
-#: A point, in metres.
+#: A point, in meters.
 Point = tuple[float, float, float]
 #: A surface parameter pair.
 UV = tuple[float, float]
@@ -63,7 +63,7 @@ class FragmentMap:
 class NamedFaces:
     """The faces of one imported IGES file, each with the name the file gives it.
 
-    The faces are in metres; ``unit`` is the unit the file stated.
+    The faces are in meters; ``unit`` is the unit the file stated.
     """
 
     faces: tuple[Face, ...]
@@ -76,7 +76,7 @@ class NamedFaces:
 class FileTopology:
     """What one IGES file holds once read alone, and sewn when a tolerance was given.
 
-    ``names``, ``areas`` and ``perimeters`` are per face, in metres; each item of ``edges`` is
+    ``names``, ``areas`` and ``perimeters`` are per face, in meters; each item of ``edges`` is
     ``(samples, faces)``: points along the edge and the indices of the faces that share it, so a
     free edge has one face and a non-manifold edge more than two.
     """
@@ -194,7 +194,7 @@ class CadKernel(Protocol):
         ...
 
     def minimum_distance(self, a: Sequence[Face], b: Sequence[Face]) -> float:
-        """Return native minimum distance between trimmed face sets, in metres.
+        """Return native minimum distance between trimmed face sets, in meters.
 
         Contact and intersection give zero. This is a kernel extremum query, with no
         sampling of faces or edges. Empty sets and a failed kernel query are refused.
@@ -214,7 +214,7 @@ class CadKernel(Protocol):
         ...
 
     def area(self, face: Face) -> float:
-        """Return the exact area of ``face``, in square metres."""
+        """Return the exact area of ``face``, in square meters."""
         ...
 
     def centroid(self, face: Face) -> Point:
@@ -286,7 +286,7 @@ class CadKernel(Protocol):
         ...
 
     def edge_length(self, edge: int) -> float:
-        """Return the native arc length of a signed boundary edge, in metres."""
+        """Return the native arc length of a signed boundary edge, in meters."""
         ...
 
     def edge_values(self, edge: int, parameters: Sequence[float]) -> np.ndarray:
@@ -340,6 +340,6 @@ class CadKernel(Protocol):
         2 (model space) or 3 (either) warn and write 1, since the observed reader
         requires the parameter-space boundary. Its coordinates are the exact ones
         supplied to :meth:`add_trimmed_face`.
-        ``unit`` selects ``m`` or ``mm`` in the file; model coordinates remain metres.
+        ``unit`` selects ``m`` or ``mm`` in the file; model coordinates remain meters.
         """
         ...

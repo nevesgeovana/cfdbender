@@ -50,9 +50,9 @@ def version(text: str) -> str:
 
 
 def coefficients(row: dict[str, float], *, rho: float, radius: float) -> dict[str, float]:
-    """Return J, CT and CP in QPROP's and the standard normalisation, with T, Q, P.
+    """Return J, CT and CP in QPROP's and the standard normalization, with T, Q, P.
 
-    QPROP normalises by the tip speed and disk area. The standard forms are
+    QPROP normalizes by the tip speed and disk area. The standard forms are
     T/(rho n^2 D^4), P/(rho n^3 D^5) and J = V/(n D) with n in revolutions per
     second and D = 2R. CT, CP and J are derived from the printed T, Q (shaft power) and rpm;
     CT_QPROP, CP_QPROP and both efficiencies are the values QPROP prints.
@@ -61,7 +61,7 @@ def coefficients(row: dict[str, float], *, rho: float, radius: float) -> dict[st
     thrust, torque, power = row["T(N)"], row["Q(N-m)"], row["Pshaft(W)"]
     n, diameter = rpm / 60.0, 2.0 * radius
     if n <= 0.0 or diameter <= 0.0 or rho <= 0.0:
-        raise ValueError("rpm, radius and rho must be positive to normalise coefficients")
+        raise ValueError("rpm, radius and rho must be positive to normalize coefficients")
     return {
         "J": advance_ratio(speed, n, diameter),
         "CT": thrust / force_scale(n, rho, diameter),

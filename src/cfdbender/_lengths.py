@@ -1,4 +1,4 @@
-"""Length units: metres per unit, exact as decimals, and the factor between two units.
+"""Length units: meters per unit, exact as decimals, and the factor between two units.
 
 The unit words are the upper-case names a geometry or mesh file declares (METER, MILLIMETER,
 INCH and the others below).
@@ -12,7 +12,7 @@ from types import MappingProxyType
 
 __all__ = ["METRES_PER_UNIT", "scale"]
 
-#: Metres in one of each length unit, exact as decimals.
+#: Meters in one of each length unit, exact as decimals.
 METRES_PER_UNIT: Mapping[str, Fraction] = MappingProxyType(
     {
         "METER": Fraction(1),
@@ -32,7 +32,7 @@ METRES_PER_UNIT: Mapping[str, Fraction] = MappingProxyType(
 def scale(from_unit: str, to_unit: str) -> float | None:
     """Return the factor that turns a length in ``from_unit`` into ``to_unit``.
 
-    The ratio is taken exactly and rounded once, so metres to millimetres multiplies by exactly
+    The ratio is taken exactly and rounded once, so meters to millimeters multiplies by exactly
     1000.0.
 
     Parameters

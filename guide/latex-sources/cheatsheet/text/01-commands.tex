@@ -19,7 +19,7 @@
 \begin{minipage}[c]{0.04\linewidth}\includegraphics[width=\linewidth]{owl.png}\end{minipage}
 \end{tcolorbox}
 \vspace{-3pt}
-\fontsize{6.9}{7.8}\selectfont
+\fontsize{6.7}{7.5}\selectfont
 \begin{multicols}{4}
 
 \stage{1. CREATE THE WORKSPACE}
@@ -29,6 +29,14 @@
 \item \fl{--workspace DIR} the same folder as the positional root (default: the current folder)
 \item \fl{--verbose}, \fl{--log-level LEVEL} console \texttt{quiet}, \texttt{normal} (default) or \texttt{verbose}; \fl{--verbose} is the last
 \end{flags}
+\wsub{setups}{write a ready setup file \texttt{inputs/setups/s<id>.toml} from a template the workspace's solver ships; overwrites nothing; alone it lists the templates}
+\begin{flags}
+\item \fl{--template NAME} the template to write; an unknown name is refused, listing the available ones
+\item \fl{--id ID} the setup id, three digits (default: the next free one); an existing file is refused
+\item \fl{--list} print the templates with their descriptions (the same as no option)
+\item \fl{--workspace DIR} campaign root (default: the current folder)
+\item \fl{--verbose}, \fl{--log-level LEVEL} console quiet, normal or verbose
+\end{flags}
 
 \stage{2. PLAN}
 \sub{plan <matrix>}{read the matrix and every file it names, list each point on one line (\fl{--verbose}: the files its run would write), save the receipt \texttt{post/<matrix>/plan.json}; launches nothing}
@@ -36,6 +44,7 @@
 \item \fl{--sims POL [POL ...]} only these simulations, by POL, space or comma separated; an id the matrix lacks is refused
 \item \fl{--points NAME [NAME ...]} only these points, named \texttt{DP-name} or \texttt{POL/DP-name}, within \fl{--sims} when given
 \item \fl{--hpc NAME} the profile \texttt{inputs/hpc/<NAME>.toml}, when the workspace holds several
+\item \fl{--batch N} the rows as N scheduler jobs, each with a generated script
 \item \fl{--rehash-inputs} read every input again; \fl{--no-read-large-inputs} never open one above 8 MiB
 \item \fl{--local} plan for THIS machine, not for a submission; \fl{--warning-refusals} refuse unused cluster values
 \item \fl{--workspace DIR} campaign root (default: the current folder)
@@ -47,10 +56,11 @@
 \begin{flags}
 \item \fl{--resume} skip the points recorded COMPLETED, SUBMITTED or RUNNING and run the rest; a skipped failed point names the \fl{--force-rerun} that redoes it
 \item \fl{--force-rerun POINT} archive this recorded point, then run it again; repeat for several
-\item \fl{--force-rerun-all} archive and redo every recorded point of the matrix; a submitted job is not cancelled
+\item \fl{--force-rerun-all} archive and redo every recorded point of the matrix; a submitted job is not canceled
 \item \fl{--restart} continue each selected point from its last solution, archiving the previous run first; SU2, OpenFOAM and PyFR support it
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
 \item \fl{--hpc NAME} the HPC profile to use, as in \cmd{plan}; \fl{--warning-refusals} refuse unused cluster values
+\item \fl{--batch N} submit the rows as N scheduler jobs, as in \cmd{plan}
 \item \fl{--rehash-inputs} read every input again; \fl{--no-read-large-inputs} never open one above 8 MiB
 \item \fl{--one-run-at-a-time} refuse a local run while another guarded run holds the machine
 \item \fl{--local} keep the work on THIS machine; \fl{--no-local} submit when a profile exists (the default)

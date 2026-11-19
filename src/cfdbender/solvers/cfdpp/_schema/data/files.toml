@@ -1,0 +1,24 @@
+# Files of a CFD++ case folder that an input the solver's GUI saved names. direction is in
+# (read by the solver or a tool) or out (written). A status is promoted only by a committed
+# report under reports/cfdpp/, never by editing this file. No entry holds a default value.
+
+[[files]]
+name = "infout1f.inp"
+direction = "in"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[files]]
+name = "npfopts.inp"
+direction = "in"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[files]]
+name = "pltopts.inp"
+direction = "in"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[files]]
+name = "mcfdspm2.inp"
+direction = "in"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+

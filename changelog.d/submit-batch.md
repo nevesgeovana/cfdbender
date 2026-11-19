@@ -1,3 +1,0 @@
-## Added
-
-- `cfd-matrix plan|run --batch N` submits the rows as N scheduler jobs, with the meaning of the flag in pyflightstream: the rows (POL, with their points) are cut into N runs of consecutive rows in matrix order, the longest run as short as possible, and a job holds one profile, processor count and build. cfdbender writes the shell script of each job in `sims/batch/<matrix>_b<ID>/` (one block per run in its own folder, no warm start, a failed run does not stop the next, the status of each run in `job.exit`, a non-zero exit when any run failed) and the descriptor receives it as `{script_path}`. Rows of one job that disagree on an `hpc.<name>` value are refused. `collect` reads the status of each run. Grouped jobs are no longer a limitation.

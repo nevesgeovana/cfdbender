@@ -68,6 +68,10 @@ CASES = {
         },
         row("MACH:0.2, REmi:0.01, ALPHA:sweep, BETA:0", "4", "model.msh"),
     ),
+    "cfdpp": (
+        {},  # the grid folder, setup and stand-ins come from the CFD++ workspace builder
+        row("MACH:0.15, REmi:6, TK:300, ALPHA:sweep", "0,10", "naca.cfdpp"),
+    ),
     "xfoil": (
         {
             "inputs/setups/s001.toml": 'airfoil = "NACA 0012"\n',
@@ -90,6 +94,13 @@ CASES = {
 
 
 def build(root: Path, solver: str) -> Path:
+    if solver == "cfdpp":
+        from cfdpp_workspace import workspace
+
+        table = f"{HEADER}\n{'-' * 60}\n{CASES[solver][1]}\n"
+        made = workspace(root, table=table)
+        (made / "inputs/matrices/study.fs").rename(made / "inputs/matrices/full.fs")
+        return made
     init_workspace(root, solver=solver, available_solvers=available_solvers())
     files, line = CASES[solver]
     for name, text in {
@@ -102,7 +113,10 @@ def build(root: Path, solver: str) -> Path:
 
 
 @pytest.mark.parametrize("solver", sorted(CASES))
-def test_every_solver_plans_the_full_header(tmp_path, solver):
+def test_every_solver_plans_the_full_header(tmp_path, monkeypatch, solver):
+    from cfdpp_workspace import use_toy
+
+    use_toy(monkeypatch)
     assert set(CASES) <= set(available_solvers()) | {"mock"}
     plan = plan_workspace(build(tmp_path, solver), "full")
     assert plan.points, f"{solver} planned no point"
@@ -114,7 +128,11 @@ def test_every_solver_plans_the_full_header(tmp_path, solver):
     )
     assert (point.ncpus, point.solver_build, point.hidden) == (4, "1.0", True)
     if CASES[solver][1].split("|")[8].strip() != "-":
-        assert point.geometry is not None and point.geometry in point.inputs_sha256
+        assert point.geometry is not None
+        # A file geometry is one planned input; a grid folder is planned file by file.
+        assert point.geometry in point.inputs_sha256 or any(
+            name.startswith(point.geometry + "/") for name in point.inputs_sha256
+        )
 
 
 def test_openfoam_speed_and_viscosity_come_from_the_row(tmp_path):

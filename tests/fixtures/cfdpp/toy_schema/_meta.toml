@@ -1,0 +1,17 @@
+# An invented interface database for the tests of the solver-input engine.
+# Nothing here describes a real solver: sections, keywords and codes are made up.
+
+solver = "ToySolver"
+input_file = "toy.inp"
+
+[[versions]]
+canonical = "1.0"
+aliases = ["1.0.0"]
+inherits_base = false
+help_edition = "toy-help-a"
+
+[[versions]]
+canonical = "2.0"
+aliases = []
+inherits_base = true
+help_edition = "toy-help-b"

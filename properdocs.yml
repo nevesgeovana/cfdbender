@@ -52,8 +52,9 @@ nav:
   - Home: index.md
   - Start here:
       - Install: install.md
-      - Dependency licences: dependency-licences.md
+      - Dependency licenses: dependency-licences.md
       - First campaign: getting-started.md
+      - Upgrading from 0.6: upgrading.md
   - Workflow:
       - The workflow: workflow.md
       - Workspace layout: workspace-layout.md
@@ -68,6 +69,7 @@ nav:
       - Troubleshooting: troubleshooting.md
   - Solvers:
       - Side by side: solvers.md
+      - CFD++: cfdpp-workspaces.md
       - SU2: su2-workspaces.md
       - OpenFOAM: openfoam-workspaces.md
       - PyFR: pyfr-workspaces.md

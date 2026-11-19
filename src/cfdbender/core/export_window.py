@@ -10,7 +10,9 @@ A row states at most one of pyflightstream's four keys:
 with ``S`` the steps per revolution of the rotor clock and ``N`` the run's ``TIME_ITERATIONS``.
 Every window ends at step ``N``. A revolutions form on a row with no rotor clock is warned and
 skipped; two keys, a value that is not positive, a window of no step or longer than the run, a
-threshold beyond the run, and a window that begins after the averaging window are refused.
+threshold beyond the run are refused. The export window is independent of the averaging
+window: pyflightstream refuses an export window that begins after the average only for a
+surface time average (its pproc ``[time_averaging]``), which cfdbender does not read.
 """
 
 from __future__ import annotations
@@ -88,7 +90,6 @@ def export_window(
     pol: str,
     time_iterations: int,
     steps_per_revolution: float | None,
-    averaging_first_step: int | None = None,
 ) -> ExportWindow | None:
     """Resolve the row's export window, or None when it states none.
 
@@ -102,16 +103,12 @@ def export_window(
         The run's last step.
     steps_per_revolution : float or None
         The rotor clock; None on a row that turns nothing.
-    averaging_first_step : int or None, optional
-        The first step of the averaging window; an export window that begins later is
-        refused.
 
     Raises
     ------
     ValueError
         Two keys, a value that is not positive (or not whole for an iterations form), a
-        window of no step or longer than the run, a threshold beyond the run, or a window
-        that begins after the averaging window.
+        window of no step or longer than the run, or a threshold beyond the run.
     """
     stated = [key for key in EXPORT_KEYS if key in variables]
     if not stated:
@@ -157,10 +154,4 @@ def export_window(
                 f"{time_iterations} steps long, so nothing would be exported. Lower it, or "
                 "lengthen the run"
             )
-    if averaging_first_step is not None and first > averaging_first_step:
-        raise ValueError(
-            f"{_who(pol)} states {key} as {value:g}, which is step {first}, and the averaging "
-            f"window begins at step {averaging_first_step}: the steps of the window before the "
-            "exports would never be exported. Begin the exports at that step or earlier"
-        )
     return ExportWindow(key, value, first, time_iterations)

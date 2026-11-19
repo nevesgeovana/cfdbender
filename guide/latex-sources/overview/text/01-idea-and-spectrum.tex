@@ -55,6 +55,7 @@ solver = "su2"
 \toprule
 \textbf{Solver name} & \textbf{What runs} \\
 \midrule
+\code{cfdpp} & CFD++, steady (incomplete, not yet verified against the solver) \\
 \code{su2} & SU2, by its executable or its Python wrapper \\
 \code{openfoam} & OpenFOAM (ESI), \code{simpleFoam} \\
 \code{pyfr} & PyFR, flux reconstruction \\
@@ -143,8 +144,9 @@ PyFR [9] & 2D compressible Navier-Stokes, high order, marched in time & one
 \bottomrule
 \end{tabularx}}
 \vspace{1mm}
-{\small\color{SoftGray}Every library solver runs \textbf{steady} points
-today. Guide 3 states the limits of each solver.\par}
+{\small\color{SoftGray}Every solver runs \textbf{steady} points; SU2 also
+runs rotors and time-accurate points (Part 6). CFD++ is incomplete and not yet
+verified against the solver. Guide 3 states the limits of each solver.\par}
 \end{frame}
 
 \begin{frame}{The mock solver}
@@ -153,7 +155,7 @@ today. Guide 3 states the limits of each solver.\par}
 \begin{itemize}
   \item \code{mock} is a solver that computes nothing and returns fixed
         numbers.
-  \item It needs no installation, no mesh and no licence.
+  \item It needs no installation, no mesh and no license.
   \item Its setup file can ask for a converged point, a point at the
         iteration limit or a failed one.
 \end{itemize}

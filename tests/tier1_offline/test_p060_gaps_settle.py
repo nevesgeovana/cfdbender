@@ -27,6 +27,7 @@ def test_p060_settle_observes_once_and_handles_a_disappearing_file(tmp_path, mon
     path.write_text("a")
     record = SimpleNamespace(
         status="SUBMITTED",
+        solver="mock",
         point_id="1/DP-A",
         submission=None,
         point=SimpleNamespace(outputs=("out",)),
@@ -41,9 +42,12 @@ def test_p060_settle_observes_once_and_handles_a_disappearing_file(tmp_path, mon
                 raise FileNotFoundError("writer replaced output")
         return original(target, *args, **kwargs)
 
+    # Isolate output observations from containment resolution, which also stats paths.
+    monkeypatch.setattr(collection, "workspace_path", lambda root, name: root / name)
     monkeypatch.setattr(Path, "stat", stat)
     try:
         unsettled = collection._unsettled(tmp_path, [record], 0)
     except OSError as error:
         pytest.fail(f"a disappearing output must remain outstanding: {error}")
     assert unsettled == {"1/DP-A"}
+    assert calls == [path, path]

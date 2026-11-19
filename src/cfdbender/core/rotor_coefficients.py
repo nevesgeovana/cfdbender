@@ -98,7 +98,7 @@ def rotor_coefficients(
     """Return the standard coefficients of one rotor.
 
     The definitions are those of ``docs/post-processing-definitions.md`` of pyflightstream.
-    ``n`` is signed revolutions per second and ``D`` the diameter; its magnitude normalises
+    ``n`` is signed revolutions per second and ``D`` the diameter; its magnitude normalizes
     the coefficients and its sign enters power only. ``CQ`` keeps the signed torque about the
     fixed rotor axis, and reversing the rotation alone does not change ``J``::
 

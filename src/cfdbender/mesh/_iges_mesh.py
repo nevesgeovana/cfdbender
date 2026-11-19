@@ -54,7 +54,7 @@ _TRIANGLE, _QUAD = 2, 3
 #: in the release validation assembly (200 sliver faces with 8, 29 with MeshAdapt).
 _MESH_ADAPT, _BLOSSOM = 1, 1
 #: How fast the size grows with the distance from a short curve: a cell about a third larger
-#: than its neighbour nearer the curve.
+#: than its neighbor nearer the curve.
 _GROWTH = 0.3
 #: The least quality of a quad Blossom may make: 1 less the largest departure of a corner from
 #: 90 degrees over 90. 6/90 refuses a quad with a corner over 174 or under 6 degrees, which stays

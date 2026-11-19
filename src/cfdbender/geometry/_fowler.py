@@ -132,7 +132,7 @@ def _nose(skin, entry, lower, upper, top_slope, *, nose_u):
     _, chord, _ = _frame(skin)
     radius = entry.get("nose", {}).get("radius", 0.02)
     # Cubic quarter-ellipse handles, with the end handles on the actual
-    # lower-skin and roof tangents. The centre join has one shared tangent.
+    # lower-skin and roof tangents. The center join has one shared tangent.
     handle = 4 * (np.sqrt(2) - 1) / 3
     tip = (lower + upper) / 2 - radius * chord
     tangent = _tangent(skin, nose_u)

@@ -1,0 +1,113 @@
+# Invented keywords of the toy input. No entry holds a default value.
+
+[[keywords]]
+name = "tsteps"
+section = "control"
+order = 1
+arity = 1
+types = ["int"]
+range = { min = 1 }
+meaning = "steps of the run"
+locator = "TOY :: control, tsteps"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "verified", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tmode"
+section = "control"
+order = 2
+arity = 1
+types = ["choice"]
+choices = [0, 1]
+fixed = 1
+meaning = "run mode code, fixed by the toy scope"
+locator = "TOY :: control, tmode"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tcfl"
+section = "control"
+order = 3
+arity = 2
+types = ["real", "real"]
+range = { min = 0 }
+meaning = "start and end of the step-size ramp"
+locator = "TOY :: control, tcfl"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tname"
+section = "control"
+order = 4
+arity = 1
+types = ["word"]
+meaning = "a label of the run"
+locator = "TOY :: control, tname"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tset"
+section = "control"
+order = 5
+arity = 1
+types = ["int"]
+range = { min = 1 }
+meaning = "the information set used as initial state"
+locator = "TOY :: control, tset"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "ninfo"
+section = "control"
+order = 6
+arity = 1
+types = ["int"]
+range = { min = 0 }
+meaning = "number of information sets"
+locator = "TOY :: control, ninfo"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tlegacy"
+section = "control"
+order = 7
+arity = 1
+types = ["int"]
+meaning = "a switch the second toy version mishandles"
+locator = "TOY :: control, tlegacy"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "broken", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "told"
+section = "control"
+order = 8
+arity = 1
+types = ["real"]
+meaning = "a factor the second toy version dropped"
+locator = "TOY :: control, told"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "removed", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[keywords]]
+name = "tdoc"
+section = "control"
+order = 9
+arity = 1
+types = ["int"]
+meaning = "a keyword only the toy help mentions"
+locator = "TOY :: control, tdoc"
+status = { "1.0" = { status = "documented" }, "2.0" = { status = "documented" } }
+
+[[keywords]]
+name = "tvague"
+meaning = "a keyword whose place the toy help does not give"
+locator = "TOY :: misc, tvague"
+status = { "1.0" = { status = "documented" }, "2.0" = { status = "documented" } }
+
+[[keywords]]
+name = "xgain"
+section = "extras"
+order = 1
+arity = 1
+types = ["real"]
+meaning = "a gain in the free section"
+locator = "TOY :: extras, xgain"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }

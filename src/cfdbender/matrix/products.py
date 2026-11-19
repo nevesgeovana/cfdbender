@@ -150,6 +150,9 @@ def write_products(
     tables: Sequence[Path],
     polar: PolarFiles | None = None,
     migrated: Mapping[str, str] | None = None,
+    *,
+    details: Mapping[Path, Mapping[str, object]] | None = None,
+    declared_skips: Sequence[tuple[str, str]] = (),
 ) -> tuple[Path, Path]:
     """Write products.json and post.log of one matrix and return their paths.
 
@@ -171,6 +174,11 @@ def write_products(
         What the polar files state: their kinds, frames, families and groups.
     migrated : mapping, optional
         Each earlier-layout file left in place, with the file that replaces it.
+    details : mapping, optional
+        What the manifest states about a product a point's p file declared (its point, kind
+        ``instant`` or ``history``, steps, absent columns with reasons, skipped stations).
+    declared_skips : sequence of (str, str), optional
+        Each declared product, or part of one, left out, with the reason.
 
     Returns
     -------
@@ -180,6 +188,8 @@ def write_products(
     folder = workspace_path(root, f"post/{Path(matrix).stem}")
     replace_manifest, replace_log = _check_metadata(folder, matrix, solver)
     products = [_entry(root, path) for path in (summary, *tables)]
+    for path, entry in zip((summary, *tables), products, strict=True):
+        entry.update((details or {}).get(path, {}))
     skipped: list[dict[str, object]] = [
         {
             "product": "result",
@@ -203,6 +213,7 @@ def write_products(
         skipped += [
             {"product": product, "reason": reason} for product, reason in polar.sections_skipped
         ]
+    skipped += [{"product": product, "reason": reason} for product, reason in declared_skips]
     data: dict[str, object] = {
         "matrix": matrix,
         "solver": solver,

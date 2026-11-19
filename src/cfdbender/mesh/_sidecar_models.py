@@ -158,7 +158,7 @@ class MeshImport(BaseModel):
 
     A raw mesh (``.obj``, ``.stl``) carries no length unit, so the file that names its
     boundaries, beside it, states the unit it is written in; a unit is never assumed.
-    The value is only normalised here (stripped, in capitals).
+    The value is only normalized here (stripped, in capitals).
 
     ``cad`` and ``ccs`` are kept as the tables the sidecar wrote; a mesh verb that reads an
     OBJ refuses a sidecar that states either, because they describe a conversion of another
@@ -236,7 +236,7 @@ TrailingEdgeRoute = Literal["file", "detect", "none"]
 
 
 class TrailingEdgeSet(BaseModel):
-    """One points file and the type applied to its trailing edges, in metres."""
+    """One points file and the type applied to its trailing edges, in meters."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
     edge_type: Literal["STANDARD", "RELAXED", "JET_OUTFLOW", "VORTEX_SHEDDING"] = "STANDARD"
@@ -253,8 +253,8 @@ class TrailingEdgeMarking(BaseModel):
     """How a mesh's trailing edges are marked: its sidecar's ``[trailing_edges]``.
 
     ``route = "file"`` is the default route. ``points_m`` are the mid-points
-    of the trailing-edge mesh edges, in metres, read from the points file the table
-    names, and ``tolerance``, also in metres, is the distance within which an edge's
+    of the trailing-edge mesh edges, in meters, read from the points file the table
+    names, and ``tolerance``, also in meters, is the distance within which an edge's
     mid-point counts as a point of the file. ``points_file`` is where they were read
     from, for a refusal to name; it is kept out of every dump, since it is a path on
     one machine.
@@ -301,7 +301,7 @@ class TrailingEdgeMarking(BaseModel):
 
     @property
     def points_m(self) -> tuple[tuple[float, float, float], ...]:
-        """Return the first file's points in metres."""
+        """Return the first file's points in meters."""
         return self.sets[0].points_m if self.sets else ()
 
     @property
@@ -350,7 +350,7 @@ class TrailingEdgeMarking(BaseModel):
             return self
         if not math.isfinite(self.tolerance) or self.tolerance <= 0.0:
             raise InputValueError(
-                f"tolerance = {self.tolerance!r}; it is the distance, in metres, "
+                f"tolerance = {self.tolerance!r}; it is the distance, in meters, "
                 "within which an edge's mid-point counts as a point of the "
                 "file, and it must be positive and finite"
             )

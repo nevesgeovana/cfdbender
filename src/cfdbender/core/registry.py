@@ -287,7 +287,7 @@ def _extras(row: Mapping[str, object]) -> dict[str, Any]:
                 raise RegistryError("defaults_omitted must be a list of setup key names")
             found[key] = tuple(value)
             continue
-        if key in {"variables", "restart_sha256"}:
+        if key in {"variables", "restart_sha256", "provenance"}:
             found[key] = MappingProxyType(dict(_object(value)))
             continue
         if key in {"geometry", "solver_build", "restart_from", "restart_directory"}:
@@ -516,7 +516,7 @@ def _encode(record: RunRecord) -> dict[str, object]:
     # a matrix without them keeps its earlier bytes.
     for key, default in POINT_EXTRAS.items():
         value = getattr(point, key)
-        if key in {"variables", "restart_sha256"}:
+        if key in {"variables", "restart_sha256", "provenance"}:
             value = dict(value)
         if value != default:
             row[key] = value

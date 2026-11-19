@@ -13,7 +13,7 @@ file against its pin, so a record is only as current as the bytes it names.
 
 Coordinate convention: component geometry is in the shared configuration
 frame (x downstream, y along span, z upward). All lengths of a record,
-including deviations and station coordinates, are in millimetres and all
+including deviations and station coordinates, are in millimeters and all
 angles are in degrees. The record model is the authored definition of the
 contract; the schema export renders the draft 2020-12 JSON Schema from it
 and the packaged copy is compared with the export in the test suite, so the

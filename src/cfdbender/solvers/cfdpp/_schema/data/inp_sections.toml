@@ -1,0 +1,122 @@
+# Layout of mcfd.inp as seen in the inputs the GUI of 22.5.U3 saved: the order of the sections, how
+# each opens and closes, the comment prefix, the layout of the information sets and of the boundary
+# rows, and the line ending. Every status cites the committed report under reports/cfdpp/. No entry
+# holds a default value.
+#
+# raw_section is not set: no harvested input shows a section that accepts a keyword the solver
+# does not know, so a raw keyword unknown to the database names its section with a section hint.
+
+[grammar]
+number_format = { real = "shortest" }
+line_ending = "crlf"
+comment = "#"
+infosets = { header = "seq.# {index} #vals {count} title {tag}", values = "values", per_line = 5, trailing_space = true }
+boundaries = { width = 4, family = true }
+every_section = true
+
+[[sections]]
+name = "system"
+order = 1
+kind = "lines"
+open = "system begin"
+close = "system end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "iofiles"
+order = 2
+kind = "pairs"
+open = "iofiles begin"
+close = "iofiles end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "celltypes"
+order = 3
+kind = "pairs"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "tsteps"
+order = 4
+kind = "pairs"
+open = "tsteps begin"
+close = "tsteps end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "options"
+order = 5
+kind = "pairs"
+open = "options begin"
+close = "options end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "infsets"
+order = 6
+kind = "infosets"
+head = "infsets"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "eqslct"
+order = 7
+kind = "pairs"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "mbcons"
+order = 8
+kind = "boundaries"
+head = "mbcons"
+header = "seq# type modi info"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "octree"
+order = 9
+kind = "pairs"
+open = "octree begin"
+close = "octree end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "physics"
+order = 10
+kind = "pairs"
+open = "physics begin"
+close = "physics end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "probe"
+order = 11
+kind = "pairs"
+open = "probe begin"
+close = "probe end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "debug"
+order = 12
+kind = "pairs"
+open = "debug begin"
+close = "debug end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "guiopts"
+order = 13
+kind = "pairs"
+open = "guiopts begin"
+close = "guiopts end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }
+
+[[sections]]
+name = "system_last"
+order = 14
+kind = "lines"
+open = "system begin"
+close = "system end"
+status = { "22.5.U3" = { status = "harvested", report = "reports/cfdpp/CMP-22.5.U3_2026-11-18_harvest-grammar.yaml" } }

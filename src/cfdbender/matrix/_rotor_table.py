@@ -18,9 +18,14 @@ adapter supplies; the condition cells come from the adapter's record and the row
 
 from __future__ import annotations
 
+import csv
+import io
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import cast
+
+from cfdbender._textio import csv_writer
+from cfdbender.core.plan import _checked_file_name
 
 #: The condition block, in pyflightstream's order.
 CONDITION_COLUMNS = (
@@ -67,7 +72,7 @@ SUFFIX = "_rotor.csv"
 
 def rotor_file_name(pol: str, alias: str) -> str:
     """Return ``P<pol>-<alias>_rotor.csv``."""
-    return f"P{pol}-{alias}{SUFFIX}"
+    return _checked_file_name(f"P{pol}-{alias}{SUFFIX}")
 
 
 def full_header(alias: str) -> tuple[str, ...]:
@@ -133,15 +138,19 @@ def rotor_table(
     for (pol, alias), lines in files.items():
         dropped = {*absent[(pol, alias)], *(f"{name}_{alias}" for name in NOT_PORTED)}
         header = [name for name in full_header(alias) if name not in dropped]
-        text = [",".join(header), *(",".join(cell(line.get(h)) for h in header) for line in lines)]
-        written.append(
-            write(folder / "polars" / rotor_file_name(pol, alias), chr(10).join(text) + chr(10))
+        buffer = io.StringIO(newline="")
+        writer = csv_writer(buffer)
+        writer.writerow(header)
+        writer.writerows(
+            [line.get(h) if h == "ROTOR" else cell(line.get(h)) for h in header] for line in lines
         )
+        written.append(write(folder / "polars" / rotor_file_name(pol, alias), buffer.getvalue()))
     return tuple(written)
 
 
 def absent_columns(path: Path) -> list[str]:
     """Return the columns of pyflightstream's rotor table that ``path`` leaves out, in order."""
     alias = path.name.removesuffix(SUFFIX).split("-", 1)[1]
-    header = path.read_text(encoding="ascii").splitlines()[0].split(",")
+    with path.open(encoding="utf-8", newline="") as stream:
+        header = next(csv.reader(stream))
     return [name for name in full_header(alias) if name not in header]

@@ -1,0 +1,61 @@
+# Invented layout of the toy input: five sections, one of each entry kind.
+
+[grammar]
+number_format = { real = "shortest" }
+line_ending = "lf"
+raw_section = "extras"
+
+[[sections]]
+name = "control"
+order = 1
+kind = "pairs"
+open = "begin control"
+close = "end control"
+counted = false
+meaning = "run control keyword pairs"
+locator = "TOY :: layout, control"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[sections]]
+name = "sets"
+order = 2
+kind = "infosets"
+open = "begin sets"
+close = "end sets"
+counted = true
+meaning = "information sets, one line each"
+locator = "TOY :: layout, sets"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[sections]]
+name = "bcs"
+order = 3
+kind = "boundaries"
+open = "begin bcs"
+close = "end bcs"
+counted = true
+meaning = "boundary blocks, one line per selector"
+locator = "TOY :: layout, boundaries"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[sections]]
+name = "extras"
+order = 4
+kind = "pairs"
+open = "begin extras"
+close = "end extras"
+counted = false
+meaning = "free keyword pairs"
+locator = "TOY :: layout, extras"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[sections]]
+name = "shell"
+order = 5
+kind = "lines"
+open = "shell begin"
+close = "shell end"
+counted = false
+meaning = "free command lines kept as written"
+locator = "TOY :: layout, shell"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }

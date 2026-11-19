@@ -28,7 +28,9 @@ def forwarded(tmp_path, monkeypatch):
     return tmp_path, calls
 
 
-@pytest.mark.parametrize("verb", MOVED)
+# setups is cfdbender's own verb: pyflightstream has none, so it is answered locally
+# (test_setups_command.py), never forwarded.
+@pytest.mark.parametrize("verb", [verb for verb in MOVED if verb != "setups"])
 def test_rc1_cfd_workspace_forwards_a_moved_verb_to_pyfs_matrix(verb, forwarded):
     root, calls = forwarded
     argv = [verb, "--workspace", str(root)]
@@ -56,4 +58,22 @@ def test_rc2_a_matrix_verb_still_goes_to_pyfs_matrix(forwarded):
     root, calls = forwarded
     argv = ["status", "--workspace", str(root)]
     assert matrix_main(argv) == 0
+    assert calls == [("matrix", argv)]
+
+
+def test_setups_is_answered_locally_on_a_flightstream_workspace(forwarded, capsys):
+    root, calls = forwarded
+    assert workspace_main(["setups", "--workspace", str(root)]) == 0
+    assert calls == []
+    assert capsys.readouterr().out == "no setup templates for flightstream\n"
+
+
+def test_setups_as_a_workspace_name_does_not_disable_forwarding(forwarded, monkeypatch):
+    root, calls = forwarded
+    target = root / "setups"
+    target.mkdir()
+    (target / "init.toml").write_bytes((root / "init.toml").read_bytes())
+    monkeypatch.chdir(root)
+    argv = ["show", "all", "--workspace", "setups"]
+    assert workspace_main(argv) == 0
     assert calls == [("matrix", argv)]

@@ -41,7 +41,7 @@ __all__ = ["GateFinding", "GateReport", "base_displacement", "check_profile", "r
 def base_displacement(path, sources) -> float:
     """Compare each written face's base coefficients with its other written copies.
 
-    Control poles are placed in metres, including an IGES transformation when
+    Control poles are placed in meters, including an IGES transformation when
     present. Knots and degrees must also match. No surface sampling or fitting
     can hide a changed control net behind a small geometric residual.
     """

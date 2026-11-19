@@ -4,20 +4,20 @@ Two products, named, placed and laid out as the declarations they follow write t
 
 * ``fields/<point>_vsec.vtk`` or ``fields/<point>_vsec.dat`` for a volume cut, with
   ``_step_<STEP>`` before the extension for each step of a series. The topology is a vertex cloud:
-  the sampled positions, in metres in the reference (inertial) frame, and one array per column.
+  the sampled positions, in meters in the reference (inertial) frame, and one array per column.
   ``vtk`` is a legacy ASCII polydata file; ``tecplot`` has one single-point zone per sample. A
   companion ``<file>.provenance.json`` records the source, the frame, the step and the counts.
 * ``probes/<point>_probes.csv`` (``probes/<point>_probes_history.csv`` for a history) with one row
   per probe point and per step. A row opens with ``POL, PROBE, X, Y, Z, FRAME, STEP``, then the
   condition columns the caller states, then the value columns. ``PROBE`` counts the probe points
   from 1 across the entries; ``X, Y, Z`` are the sampled positions in the reference frame, in
-  metres, and ``FRAME`` says ``REFERENCE``; ``STEP`` is the solver step, ``NA`` for none.
+  meters, and ``FRAME`` says ``REFERENCE``; ``STEP`` is the solver step, ``NA`` for none.
 
 What a column holds is the caller's table ``{column: field name or callable on the fields}``. A
 column whose field the volume file does not carry, or whose callable raises ``KeyError``, is
 absent from the product and named in the report; nothing is invented for it. A point in no cell has
-no value: a cut leaves the point out of its file, and a probe table writes the row with an empty
-cell for every value, so the points that could not be filled are never mistaken for zeros. The
+no value: a cut leaves the point out of its file, and a probe table writes the row with ``NA``
+for every value, so the points that could not be filled are never mistaken for zeros. The
 files are byte-stable: the same inputs give the same bytes.
 """
 
@@ -32,6 +32,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from cfdbender._textio import write_csv, write_json, write_text
+from cfdbender.core.axes import NOT_APPLICABLE
+from cfdbender.core.plan import _checked_file_name
 from cfdbender.post.volume import VolumeError, VolumeSampler
 from cfdbender.post.volume_frames import Frame
 from cfdbender.post.vtu import UnstructuredGrid, read_vtu
@@ -49,8 +51,6 @@ __all__ = [
     "write_volume_section",
 ]
 
-#: What the ``STEP`` column says when the product has no step.
-NOT_APPLICABLE = "NA"
 
 #: The ``FRAME`` column of a probe table: the sampled positions are inertial coordinates.
 POSITION_FRAME_LABEL = "REFERENCE"
@@ -111,7 +111,7 @@ class ProbeEntry:
     Attributes
     ----------
     points : numpy.ndarray
-        Shape ``(n, 3)``, in the frame's local coordinates, in metres.
+        Shape ``(n, 3)``, in the frame's local coordinates, in meters.
     frame : Frame
         The frame that places them at a step.
     """
@@ -202,6 +202,8 @@ def _resolve(
         except KeyError:
             absent.append(name)
             continue
+        except (IndexError, TypeError, ValueError, ArithmeticError) as error:
+            raise VolumeError(f"column {name!r} cannot be computed: {error}") from error
         array = np.asarray(values, dtype=np.float64)
         if array.shape not in ((n_points,), (n_points, 3)):
             raise VolumeError(
@@ -210,6 +212,14 @@ def _resolve(
             )
         out[name] = array
     return out, absent
+
+
+def _check_product_name(name: str) -> None:
+    """Refuse an output label that would become a path."""
+    try:
+        _checked_file_name(name)
+    except ValueError as error:
+        raise VolumeError(str(error)) from error
 
 
 def _check_names(columns: Mapping[str, ColumnSource]) -> None:
@@ -318,6 +328,7 @@ def write_volume_section(
     VolumeError
         If the format is unknown or a column name or shape cannot be written.
     """
+    _check_product_name(f"{point}_vsec.vtk")
     if format not in ("vtk", "tecplot"):
         raise VolumeError(f"the format is {format!r}; it is 'vtk' or 'tecplot'")
     _check_names(columns)
@@ -397,7 +408,8 @@ def write_probe_table(
         The ordered series; rows are written step by step in this order.
     columns : mapping
         ``{column: field name or callable}``; every value column is a scalar. A column that any
-        volume cannot fill is absent from the table and named in the report.
+        volume cannot fill is absent from the table and named in the report. A probe point that
+        lies in no cell keeps its row and its value cells carry the token ``NA``.
     pol : str
         The ``POL`` cell of every row.
     condition : mapping, optional
@@ -415,6 +427,7 @@ def write_probe_table(
     VolumeError
         If a value column is not a scalar per point or a name cannot be written.
     """
+    _check_product_name(f"{point}_probes.csv")
     _check_names(columns)
     cond = dict(condition or {})
     _check_names({name: name for name in cond})
@@ -459,7 +472,7 @@ def write_probe_table(
                 *cond_cells,
             ]
             for name in written:
-                row.append(_number(resolved[name][index]) if found[index] else "")
+                row.append(_number(resolved[name][index]) if found[index] else NOT_APPLICABLE)
             rows.append(row)
     folder = Path(directory) / "probes"
     folder.mkdir(parents=True, exist_ok=True)

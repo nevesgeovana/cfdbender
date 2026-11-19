@@ -91,61 +91,84 @@ def read_vtu(path: str | Path) -> UnstructuredGrid:
     return parse_vtu(Path(path).read_bytes())
 
 
-def _decode_block(blob: bytes, header_type: str, compressed: bool) -> bytes:
-    """Return the payload of one binary array given its header and data bytes."""
+def _header(blob: bytes | memoryview, header_type: str, count: int) -> tuple[int, ...]:
+    """Read a complete binary header without trusting a short slice."""
+    if header_type not in _HEADER_BYTES:
+        raise VtuError(f"header type {header_type!r} is not read")
     width = _HEADER_BYTES[header_type]
-    code = "<u4" if width == 4 else "<u8"
+    if len(blob) < count * width:
+        raise VtuError("truncated VTU binary header")
+    return tuple(int.from_bytes(blob[i * width : (i + 1) * width], "little") for i in range(count))
+
+
+def _decode_block(blob: bytes | memoryview, header_type: str, compressed: bool) -> bytes:
+    """Return a complete binary array, checking every declared block length."""
+    first = _header(blob, header_type, 3 if compressed else 1)
+    width = _HEADER_BYTES[header_type]
     if not compressed:
-        size = int(np.frombuffer(blob[:width], dtype=code)[0])
-        return blob[width : width + size]
-    n_blocks = int(np.frombuffer(blob[:width], dtype=code)[0])
-    header_len = (3 + n_blocks) * width
-    sizes = np.frombuffer(blob[3 * width : header_len], dtype=code)
+        size = first[0]
+        if len(blob) < width + size:
+            raise VtuError("truncated VTU binary payload")
+        return bytes(blob[width : width + size])
+    n_blocks, block_size, last_size = first
+    header = _header(blob, header_type, 3 + n_blocks)
+    if last_size > block_size or (n_blocks and block_size == 0):
+        raise VtuError("invalid VTU compressed block sizes")
+    cursor = (3 + n_blocks) * width
     out = bytearray()
-    cursor = header_len
-    for size in sizes:
-        out += zlib.decompress(blob[cursor : cursor + int(size)])
-        cursor += int(size)
+    for index, size in enumerate(header[3:]):
+        if len(blob) < cursor + size:
+            raise VtuError("truncated VTU compressed payload")
+        expected = last_size if index == n_blocks - 1 and last_size else block_size
+        decoder = zlib.decompressobj()
+        try:
+            chunk = decoder.decompress(blob[cursor : cursor + size], expected + 1)
+        except (zlib.error, OverflowError) as error:
+            raise VtuError(f"invalid VTU compressed payload: {error}") from error
+        if len(chunk) != expected or not decoder.eof or decoder.unused_data:
+            raise VtuError("VTU compressed block does not match its declared size")
+        out += chunk
+        cursor += size
     return bytes(out)
 
 
+def _base64(text: str) -> bytes:
+    """Decode one complete base64 fragment, reporting malformed input by format."""
+    try:
+        return base64.b64decode(text, validate=True)
+    except ValueError as error:
+        raise VtuError(f"invalid VTU base64 payload: {error}") from error
+
+
 def _split_inline_base64(text: str, header_type: str, compressed: bool) -> bytes:
-    """Decode an inline or appended base64 array, header and data encoded apart."""
+    """Decode an array whose header and data are encoded together or separately."""
     text = "".join(text.split())
+    if header_type not in _HEADER_BYTES:
+        raise VtuError(f"header type {header_type!r} is not read")
     width = _HEADER_BYTES[header_type]
-    if not compressed:
-        head_chars = -(-width // 3) * 4
-        head = base64.b64decode(text[:head_chars])
-        size = int(np.frombuffer(head, dtype="<u4" if width == 4 else "<u8")[0])
+    first_bytes = (3 if compressed else 1) * width
+    first_chars = -(-first_bytes // 3) * 4
+    first = _header(_base64(text[:first_chars]), header_type, 3 if compressed else 1)
+    head_bytes = (3 + first[0]) * width if compressed else width
+    head_chars = -(-head_bytes // 3) * 4
+    head = _base64(text[:head_chars])
+    header = _header(head, header_type, head_bytes // width)
+    size = sum(header[3:]) if compressed else header[0]
+    if len(head) > head_bytes:
+        # No padding separated the header: this is one continuous base64 stream.
+        whole_chars = -(-(head_bytes + size) // 3) * 4
+        blob = _base64(text[:whole_chars])
+    else:
         data_chars = -(-size // 3) * 4
-        data = base64.b64decode(text[head_chars : head_chars + data_chars])
-        return _decode_block(head + data, header_type, False)
-    first_chars = width * 4
-    first = np.frombuffer(
-        base64.b64decode(text[:first_chars]), dtype="<u4" if width == 4 else "<u8"
-    )
-    n_blocks = int(first[0])
-    head_chars = -(-((3 + n_blocks) * width) // 3) * 4
-    head = base64.b64decode(text[:head_chars])
-    sizes = np.frombuffer(head[3 * width :], dtype="<u4" if width == 4 else "<u8")
-    data_chars = -(-int(sizes.sum()) // 3) * 4
-    data = base64.b64decode(text[head_chars : head_chars + data_chars])
-    return _decode_block(head + data, header_type, True)
+        blob = head + _base64(text[head_chars : head_chars + data_chars])
+    return _decode_block(blob, header_type, compressed)
 
 
 def _raw_appended(blob: bytes, offset: int, header_type: str, compressed: bool) -> bytes:
-    """Decode one raw appended array starting at ``offset``."""
-    width = _HEADER_BYTES[header_type]
-    code = "<u4" if width == 4 else "<u8"
-    if not compressed:
-        size = int(np.frombuffer(blob[offset : offset + width], dtype=code)[0])
-        return _decode_block(blob[offset : offset + width + size], header_type, False)
-    first = np.frombuffer(blob[offset : offset + 3 * width], dtype=code)
-    n_blocks = int(first[0])
-    head_len = (3 + n_blocks) * width
-    sizes = np.frombuffer(blob[offset + 3 * width : offset + head_len], dtype=code)
-    end = offset + head_len + int(sizes.sum())
-    return _decode_block(blob[offset:end], header_type, True)
+    """Decode a raw appended array without copying the remaining file."""
+    if offset < 0 or offset >= len(blob):
+        raise VtuError(f"VTU appended offset {offset} is outside the payload")
+    return _decode_block(memoryview(blob)[offset:], header_type, compressed)
 
 
 def parse_vtu(content: bytes) -> UnstructuredGrid:
@@ -193,6 +216,8 @@ def parse_vtu(content: bytes) -> UnstructuredGrid:
             )
         elif fmt == "appended":
             offset = int(node.get("offset", "0"))
+            if offset < 0 or offset >= len(appended):
+                raise VtuError(f"VTU appended offset {offset} is outside the payload")
             if appended_encoding == "raw":
                 payload = _raw_appended(appended, offset, header_type, compressed)
             elif appended_encoding == "base64":

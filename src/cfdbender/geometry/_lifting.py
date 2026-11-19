@@ -1,7 +1,7 @@
 """The lifting surface: one B-spline skin from its defining sections, its trims and its layout.
 
 Pipeline role: pure numerical stage of the geometry package (S4 to S9 for a lifting surface).
-A resolved lifting-surface component (plain values, metres and degrees) becomes one skin: u runs
+A resolved lifting-surface component (plain values, meters and degrees) becomes one skin: u runs
 chordwise along the stored section curve (lower trailing edge, leading edge at u = 0.5, upper
 trailing edge), v spanwise and equal to the station ``eta``. Pole row k of a ruled skin is the
 defining section k placed by the planform. The upper and lower faces are trims of that skin in
@@ -64,7 +64,7 @@ __all__ = [
 ]
 
 #: Distance allowed between a skin's iso-v curve at a defining station and the placed section,
-#: in metres (design D, ``skin.section_exact``).
+#: in meters (design D, ``skin.section_exact``).
 SECTION_EXACT = 1e-12
 #: Largest number of halving passes of ``law.ruled_twist``.
 _TWIST_PASSES = 12
@@ -746,7 +746,7 @@ def lifting_surface(component) -> list[Patch]:
     Parameters
     ----------
     component : dict
-        Resolved lifting-surface component (plain values, metres and degrees).
+        Resolved lifting-surface component (plain values, meters and degrees).
 
     Returns
     -------

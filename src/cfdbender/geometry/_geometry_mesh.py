@@ -749,7 +749,7 @@ def _kernel_mesh(plan, resolved):
             source = body(spec) if spec["type"] == "body" else lifting_surface(spec) + tip_cap(spec)
             mesh, record = _mesh_component(gmsh, name, spec, values[spec["type"]], source)
         else:
-            # The fairing is meshed from the sizes of its structured neighbours (delta F.2).
+            # The fairing is meshed from the sizes of its structured neighbors (delta F.2).
             body_spec = components[members[0]]
             mesh, record = _mesh_wb(
                 gmsh,
@@ -923,7 +923,7 @@ def mesh_configuration(
     Raises
     ------
     InputValueError
-        For a schema error (named E01 to E16) or a control this route cannot honour.
+        For a schema error (named E01 to E16) or a control this route cannot honor.
     cfdbender.mesh._extras.MissingExtraError
         When the gmsh library cannot load (``KernelUnavailableError``).
     """

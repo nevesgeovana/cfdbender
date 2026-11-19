@@ -9,7 +9,7 @@ every region it leaves out lies inside what it keeps. Of those selections the on
 largest area is the outer skin.
 
 Inside is measured by the generalized winding number of the kept faces, oriented outward, at the
-centres of the region's deepest faces (those farthest from its edge, away from a tangent line
+centers of the region's deepest faces (those farthest from its edge, away from a tangent line
 where a fillet starts on the skin it covers): a region is inside when the median is above one
 half. The winding number of a surface with an opening, such as a lifting surface without its tip
 cap, falls gently near the opening instead of flipping as a ray count would. A half model is
@@ -28,7 +28,7 @@ from numpy.typing import NDArray
 __all__ = ["outer_skin"]
 
 Faces = list[list[int]]
-#: The deepest faces of a region whose centres are measured, at most.
+#: The deepest faces of a region whose centers are measured, at most.
 _SAMPLES = 9
 #: The selections tried at most; past it the assembly is kept whole and the record says so.
 _SEARCH_LIMIT = 200_000

@@ -51,7 +51,7 @@ def test_readme_does_not_describe_su2_as_absent():
 
 def test_p0600_release_target():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert project["version"] == "0.6.1"
+    assert project["version"] == "0.7.0"
 
 
 def test_guide_version_matches_the_package_version():

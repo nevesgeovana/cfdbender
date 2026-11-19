@@ -81,6 +81,7 @@ MOVED = (
     "trace",
     "history",
     "diff",
+    "setups",
 )
 
 
@@ -94,7 +95,7 @@ first campaign (the folder is a workspace made by cfd-workspace init):
 
 cfd-matrix acts on a matrix: plan, run, status, collect, post.
 cfd-workspace acts on what the workspace holds: show, history, log, trace, diff, mark-failed,
-mark-converged, restore, rebuild, space-in-use, free-space, delete-sims, sync, archive.
+mark-converged, restore, rebuild, space-in-use, free-space, delete-sims, sync, archive, setups.
 Every verb takes --workspace, --verbose and --log-level; the verbs that change files preview
 until --apply. `cfd-matrix <verb> --help` says the rest.
 """
@@ -206,7 +207,7 @@ def build_parser() -> tuple[
         dest="force_rerun_all",
         action="store_true",
         help="redo every recorded point of the matrix, archived as --force-rerun archives; "
-        "a SUBMITTED job is not cancelled, cancel it in the scheduler first",
+        "a SUBMITTED job is not canceled, cancel it in the scheduler first",
     )
     collect_parser = commands.add_parser(
         "collect",
@@ -737,11 +738,12 @@ def _execute_inner(
             console.detail(f"    {' '.join(columns)}")
         for key, value in point.variables.items():
             console.detail(f"    variable {key} = {value!r}")
-        if point.numerics_id:
+        carried = f"run type {point.run_type}"
+        if point.numerics_id or carried in point.origins.values():
             by_origin: dict[str, list[str]] = {}
             for key, origin in point.origins.items():
                 by_origin.setdefault(origin, []).append(key)
-            for origin in ("defaults", "numerics", "setup", "row"):
+            for origin in ("defaults", carried, "numerics", "setup", "row"):
                 if origin in by_origin:
                     console.detail(f"    setup keys from {origin}: {', '.join(by_origin[origin])}")
         console.detail(f"    would: {'; '.join(point.actions)}")

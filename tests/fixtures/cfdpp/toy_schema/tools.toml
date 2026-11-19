@@ -1,0 +1,41 @@
+# Invented tool commands, files, output layouts and combinations of the toy solver.
+
+[[tools]]
+name = "toyrun"
+group = "run"
+platform = "any"
+args = ["input"]
+meaning = "the toy solver"
+locator = "TOY :: tools, toyrun"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "documented" } }
+
+[[tools]]
+name = "toystop"
+group = "runtime"
+role = "stop"
+platform = "any"
+args = []
+meaning = "asks the toy solver to finish the step and stop"
+locator = "TOY :: tools, toystop"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[files]]
+name = "toy.inp"
+direction = "in"
+meaning = "the toy input"
+locator = "TOY :: files, input"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[outputs]]
+name = "toy.hist"
+columns = ["step", "residual"]
+meaning = "the toy residual history"
+locator = "TOY :: outputs, history"
+status = { "1.0" = { status = "documented" }, "2.0" = { status = "documented" } }
+
+[[combinations]]
+name = "toy-steady-one"
+keywords = ["tsteps", "tcfl"]
+meaning = "the toy steady case with the one-equation model"
+locator = "TOY :: combinations, steady"
+status = { "1.0" = { status = "verified", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }

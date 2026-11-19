@@ -467,7 +467,7 @@ def wing_contour_normal(component, models, maximum, index, u, eta):
 
 
 def junction_normal(component, models, maximum, index, u, eta):
-    """Return the contour normal, averaged with the neighbour segment at a segment end."""
+    """Return the contour normal, averaged with the neighbor segment at a segment end."""
     normal = wing_contour_normal(component, models, maximum, index, u, eta)
     if u in (0.0, 1.0):
         other = ((index - 1) % 6, 1.0) if u == 0 else ((index + 1) % 6, 0.0)
@@ -534,10 +534,10 @@ def root_fillet(
 
 #: Samples across a cap face, from its rim to its ridge; the face is the cubic through them.
 CAP_ACROSS = 9
-#: Distance allowed between a closure's rim and the skin edge it closes, in metres (S8).
+#: Distance allowed between a closure's rim and the skin edge it closes, in meters (S8).
 RIM_SHARED = 1e-12
 
-#: Dense cap-edge acceptance, in metres (0.005 mm).
+#: Dense cap-edge acceptance, in meters (0.005 mm).
 CAP_EDGE_GAP = 5e-6
 
 
@@ -559,12 +559,12 @@ def cap_edge_gap(model: LiftingModel) -> float:
     Parameters
     ----------
     model : LiftingModel
-        Skin, trailing edge and caps in the same coordinate frame, in metres.
+        Skin, trailing edge and caps in the same coordinate frame, in meters.
 
     Returns
     -------
     float
-        Largest sampled boundary gap in metres, or zero when no caps are present.
+        Largest sampled boundary gap in meters, or zero when no caps are present.
     """
     gaps = [0.0]
     for end, column in (("tip", -1), ("root", 0)):
@@ -876,7 +876,7 @@ def lifting_model(component, warnings=None) -> LiftingModel:
     Parameters
     ----------
     component : dict
-        Resolved lifting-surface component (plain values, metres and degrees).
+        Resolved lifting-surface component (plain values, meters and degrees).
     warnings : list, optional
         Receives the warnings of the section conversion.
 

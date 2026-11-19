@@ -34,7 +34,7 @@ def spline_distribution(stations, values, at, breaks=()):
     control stations is refused when there is more than one station. Each station
     in ``breaks`` is a slope break: the spans on its two sides are interpolated
     separately, so the value is continuous there and the slope is not, and a kink
-    does not ring into its neighbours.
+    does not ring into its neighbors.
 
     Returns
     -------

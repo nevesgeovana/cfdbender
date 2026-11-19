@@ -152,7 +152,7 @@ def shaft_axis(axis: object, name: str) -> tuple[str, Vector]:
     """Read a rotor's ``axis``: a letter, or ``{ shaft, vector_wrt_global }``, as pyflightstream.
 
     The letter X, Y or Z is the positive global axis. The table names the shaft letter and the
-    installed direction, which is normalised and must lie within 45 degrees of the positive
+    installed direction, which is normalized and must lie within 45 degrees of the positive
     axis the letter names. Either way the unit vector is the direction thrust is counted
     positive along, and ``rpm_sign`` is the right-hand rule about it.
 
@@ -222,7 +222,7 @@ def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
     ------
     ValueError
         More than one rotor is declared, a required key is missing, a key is unknown or of
-        the wrong type, the diameter is not positive, the axis is not X, the alias differs
+        the wrong type, the diameter is not positive, the axis is invalid, the alias differs
         from the table name, or blade one's datum is not a usable axis.
     """
     found = {
@@ -259,11 +259,6 @@ def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
     if diameter <= 0.0:
         raise ValueError(f"REF file {name}.diameter_m must be positive")
     shaft, vector = shaft_axis(block["axis"], name)
-    if shaft != "X":
-        raise ValueError(
-            f"REF file {name}.axis names shaft {shaft}: the SU2 adapter runs the rotor in an "
-            'axial flow along +x, so it reads the shaft "X" only'
-        )
     sign = block.get("rpm_sign", 1)
     if type(sign) is not int or sign not in (1, -1):
         raise ValueError(f"REF file {name}.rpm_sign must be 1 or -1")
@@ -472,7 +467,7 @@ class RotorLoads:
 def in_plane_axes(shaft: Sequence[float]) -> tuple[Vector, Vector] | None:
     """Return the rotor's normal ``N`` and side ``S`` unit vectors, or None for a shaft along up.
 
-    ``N`` is the part of :data:`REFERENCE_UP` square to the shaft, normalised; ``S = N x a``.
+    ``N`` is the part of :data:`REFERENCE_UP` square to the shaft, normalized; ``S = N x a``.
     """
     along = _dot(REFERENCE_UP, shaft)
     square = tuple(u - along * a for u, a in zip(REFERENCE_UP, shaft, strict=True))
@@ -607,10 +602,7 @@ def periodic_state(setup: Mapping[str, object]) -> PeriodicState:
     """
     symmetry = str(setup.get("SYMMETRY", "NONE")).strip().upper()
     if symmetry not in {"NONE", "PERIODIC"}:
-        raise ValueError(
-            f"SYMMETRY {symmetry} is not read by the SU2 adapter: it reads NONE or PERIODIC "
-            "(a mirror plane is a marker of the setup)"
-        )
+        raise ValueError(f"SYMMETRY {symmetry} is not read: the rotor block reads NONE or PERIODIC")
     copies = setup.get("PERIODIC_COPIES")
     if symmetry != "PERIODIC":
         if copies is not None:

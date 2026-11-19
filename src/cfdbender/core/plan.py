@@ -27,9 +27,9 @@ from typing import BinaryIO, Protocol, cast
 
 from cfdbender.core.flight import ATTITUDE_KEYS, STATE_KEYS
 from cfdbender.core.matrix import HPC_OVERRIDE_PREFIX, RETIRED_COLUMNS, MatrixRow, parse_matrix
-from cfdbender.core.mesh import mesh_candidates, resolve_setup_paths
+from cfdbender.core.mesh import MESH_FOLDER, mesh_candidates, resolve_setup_paths
 from cfdbender.core.naming import PointNameError, datapoint_dir_name, point_name
-from cfdbender.core.refusals import refusing, warn_or_refuse
+from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.core.settings import WorkspaceError, _validate, setup_defaults
 
 
@@ -90,6 +90,13 @@ def checked_relative(name: str) -> Path:
         ):
             raise PlanError(f"{name!r}: ambiguous or invalid Windows path component")
     return path
+
+
+def _checked_file_name(name: str) -> str:
+    """Require one portable filename before composing an output path."""
+    if len(checked_relative(name).parts) != 1 or "/" in name:
+        raise PlanError(f"{name!r}: output name must be one filename")
+    return name
 
 
 def owned_path(root: Path, name: str) -> Path:
@@ -1136,7 +1143,7 @@ def apply_variables(
     return result
 
 
-def resolve_geometry(root: Path, cell: str | None) -> str | None:
+def resolve_geometry(root: Path, cell: str | None, *, folders: bool = False) -> str | None:
     """Resolve a MESH cell to a workspace-relative file, without reading it.
 
     Parameters
@@ -1147,6 +1154,10 @@ def resolve_geometry(root: Path, cell: str | None) -> str | None:
         A file name in inputs/mesh/ (legacy inputs/geometry/, inputs/geometries/ or
         inputs/meshes/ still read), a stem naming exactly one file there, or a
         workspace-relative path containing ``/``.
+    folders : bool, optional
+        Also accept a folder of inputs/mesh/ named exactly, or a workspace-relative
+        folder: the adapter's validator declares ``geometry_folders = True`` when its
+        mesh is a folder of files (a CFD++ native grid). Other adapters keep files only.
 
     Returns
     -------
@@ -1156,7 +1167,10 @@ def resolve_geometry(root: Path, cell: str | None) -> str | None:
     if cell is None:
         return None
     if "/" in cell:
-        found = [cell] if workspace_path(root, cell).is_file() else []
+        path = workspace_path(root, cell)
+        found = [cell] if path.is_file() or (folders and path.is_dir()) else []
+    elif folders and (root / MESH_FOLDER / cell).is_dir():
+        found = [f"{MESH_FOLDER}/{cell}"]
     else:
         found = mesh_candidates(root, cell)
     if len(found) != 1:
@@ -1278,7 +1292,9 @@ class RowInputs(InputFiles):
         row: MatrixRow,
         common: InputFiles,
         default_overrides: Mapping[str, Collection[str]] | None = None,
+        *,
         accepts_numerics: bool = True,
+        geometry_folders: bool = False,
     ) -> None:
         super().__init__(root, common._snapshots, cache=common._cache)
         self._warned = common._warned
@@ -1320,7 +1336,7 @@ class RowInputs(InputFiles):
             "REF", f"inputs/references/{row.reference_id}.toml", row.reference_id
         )
         self.post = self._named("PPROC", f"inputs/pproc/{row.post_id}.toml", row.post_id)
-        self.geometry = resolve_geometry(root, row.geometry)
+        self.geometry = resolve_geometry(root, row.geometry, folders=geometry_folders)
         self._row = row
 
     def _named(self, column: str, name: str, ident: str) -> Mapping[str, object]:
@@ -1386,6 +1402,11 @@ class RowRequirements:
 
     actions: tuple[str, ...]
     outputs: tuple[str, ...]
+    #: What the point's record states about how it was set up (its run type, the identity of
+    #: the run type's declaration set, the numerics id, the turbulence model and its origin).
+    provenance: Mapping[str, object] = field(default_factory=dict)
+    #: The origin of the solver keys the run type carried, by key, for ``plan --verbose``.
+    origins: Mapping[str, str] = field(default_factory=dict)
 
 
 class RowValidator(Protocol):
@@ -1441,6 +1462,8 @@ class Point:
     run_type: str = "steady"
     #: Where each top-level setup key came from (planning only; never recorded).
     origins: Mapping[str, str] = field(default_factory=dict, compare=False, repr=False)
+    #: How the adapter set the point up, as the record states it; empty when it says nothing.
+    provenance: Mapping[str, object] = field(default_factory=_empty)
 
 
 #: Point fields beyond the original record, with the value an older record implies.
@@ -1460,6 +1483,7 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "defaults_omitted": (),
         "numerics_id": "",
         "run_type": "steady",
+        "provenance": {},
     }
 )
 
@@ -1542,7 +1566,8 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 defaults_omitted=inputs.defaults_omitted,
                 numerics_id=inputs.numerics_id,
                 run_type=row.workflow,
-                origins=inputs.origins,
+                origins={**inputs.origins, **needs.origins},
+                provenance=MappingProxyType(dict(needs.provenance)),
             )
         )
     return points
@@ -1650,9 +1675,37 @@ def _closed_condition_keys(row: MatrixRow, native: tuple[str, ...]) -> None:
 def _warn_retired_header(common: InputFiles, root: Path, matrix: str, retired: str) -> None:
     """Warn once per matrix file and command that its header still says ``retired``."""
     text = _RETIRED.format(matrix=matrix, old=retired, new=RETIRED_COLUMNS[retired])
-    if refusing():
-        warn_or_refuse(text)
     common.warn(f"retired {retired}|{root.as_posix()}|{matrix}", text)
+
+
+def _post_products(
+    common: InputFiles, row: MatrixRow, inputs: RowInputs, hook: object, solver: str
+) -> None:
+    """Read the p file's product tables; skip, with one warning, those the adapter lacks.
+
+    A malformed table is refused with pyflightstream's message. A skipped table is removed
+    from the row's p file as the adapter sees it, so the adapter never warns about it again.
+    """
+    from cfdbender.core.pproc import PRODUCT_TABLES, read_post
+
+    if not any(table in inputs.post for table in PRODUCT_TABLES):
+        return
+    supported = frozenset(getattr(hook, "post_products", ()))
+    where = f"inputs/pproc/{row.post_id}.toml"
+
+    def warn(key: str, message: str) -> None:
+        if key not in common._warned:
+            common._warned.add(key)
+            warn_or_refuse(f"POL {row.pol}: {message}", UserWarning, stacklevel=4)
+
+    read_post(
+        inputs.post, supported=supported, where=where, supplier=f"solver {solver!r}", warn=warn
+    )
+    inputs.post = {
+        key: value
+        for key, value in inputs.post.items()
+        if key not in PRODUCT_TABLES or key in supported
+    }
 
 
 _RETIRED = (
@@ -1720,6 +1773,7 @@ def plan_matrix(
                 common,
                 getattr(hook, "default_setup_overrides", {}),
                 accepts_numerics=accepts_numerics,
+                geometry_folders=bool(getattr(hook, "geometry_folders", False)),
             )
             names = inputs.file_names()
             _closed_condition_keys(row, tuple(getattr(hook, "native_condition_keys", ())))
@@ -1730,8 +1784,15 @@ def plan_matrix(
                         f"{config.solver!r}, which takes symmetry from the mesh and the "
                         "setup; write - in the cell"
                     )
+            _post_products(common, row, inputs, hook, config.solver)
             needs = hook(row, inputs)
-            if inputs.geometry is not None and inputs.geometry not in inputs.digests():
+            read = inputs.digests()
+            if (
+                inputs.geometry is not None
+                and inputs.geometry not in read
+                # A grid folder is read file by file.
+                and not any(name.startswith(inputs.geometry + "/") for name in read)
+            ):
                 warn_or_refuse(
                     f"POL {row.pol}: MESH {row.geometry!r} is skipped; solver "
                     f"{config.solver!r} does not read the MESH column (name the geometry "

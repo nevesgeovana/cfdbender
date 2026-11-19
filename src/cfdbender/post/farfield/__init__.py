@@ -12,7 +12,7 @@ density a parameter of each call.
 UNITS. The core converts nothing. A ledger is the field's units times the square of the
 length unit of ``tip_radius`` (the areas it integrates over are ``tip_radius**2`` times a
 dimensionless weight), so it is in SI (N, W, kg/s, N m) only when the fields are in SI and
-``tip_radius`` is in METRES.
+``tip_radius`` is in Meters.
 """
 
 from __future__ import annotations

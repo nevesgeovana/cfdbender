@@ -93,7 +93,7 @@ QUAD_ANGLE_BAND = (30.0, 150.0)
 #: never merged across.
 QUAD_WARP_DEGREES = 10.0
 #: a level node lies on a source curve (a grid's interface with a
-#: neighbour) when it is within this fraction of the nearest segment's length from it.
+#: neighbor) when it is within this fraction of the nearest segment's length from it.
 ON_CURVE_FRACTION = 0.25
 #: a boundary edge runs along a curve when both its ends lie within this fraction
 #: of the edge's own length from it; a node near a curve's end whose edges all leave the
@@ -105,7 +105,7 @@ ALONG_FRACTION = 0.5
 #: sagitta of the segments it merges, a few hundredths of the extent of a coarsened circle;
 #: a hole moved by one cell of its own size moves by at least 0.7 of it.
 OPENING_FRACTION = 0.25
-#: the band of an unchanged neighbour is this many face layers deep.
+#: the band of an unchanged neighbor is this many face layers deep.
 BAND_LAYERS = 2
 #: the face layers over which the target of a family at factor 1 beside a refined
 #: side returns from the length of their new shared edges to the family's own.
@@ -407,7 +407,7 @@ class NearestIndex:
         diagonal = float(numpy.linalg.norm(self.points.max(axis=0) - self.low))
         self.cell = max(2.0 * diagonal / max(len(self.points) ** 0.5, 1.0), 1e-12)
         keys = numpy.floor((self.points - self.low) / self.cell).astype(numpy.int64)
-        self.dims = keys.max(axis=0) + 3  # room for the -1 and +1 neighbours of every cell
+        self.dims = keys.max(axis=0) + 3  # room for the -1 and +1 neighbors of every cell
         ids = self._ids(keys)
         self.order = numpy.argsort(ids, kind="stable")
         self.sorted_ids = ids[self.order]
@@ -485,7 +485,7 @@ def order_like(pts: Points, new_faces: Faces, verts: Points, faces: Faces) -> Fa
     _, c_new = normals_and_centroids(pts, new_faces)
     _, j = NearestIndex(c_old).query(c_new)
     # The nearest vertex's index and its distance are two sort keys: one
-    # number, index + 0.001 * distance, let a length outweigh the index in a millimetre mesh.
+    # number, index + 0.001 * distance, let a length outweigh the index in a millimeter mesh.
     rank = numpy.zeros(len(new_faces), dtype=numpy.int64)
     near = numpy.zeros(len(new_faces))
     for n, (k, c) in enumerate(zip(j, c_new, strict=True)):

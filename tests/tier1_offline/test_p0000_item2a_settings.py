@@ -18,6 +18,7 @@ def _module(name):
 def test_p0000_item2a_mock_registration_and_loader():
     solvers = _module("cfdbender.solvers")
     assert solvers.available_solvers() == (
+        "cfdpp",
         "flightstream",
         "mock",
         "openfoam",
@@ -38,7 +39,7 @@ def test_p0000_item2a_unknown_solver_is_named_with_available_choices(name):
     with pytest.raises(ValueError) as caught:
         solvers.load_solver(name)
     assert repr(name) in str(caught.value)
-    assert "available solvers: flightstream, mock, openfoam, pyfr, qprop, su2, xfoil" in str(
+    assert "available solvers: cfdpp, flightstream, mock, openfoam, pyfr, qprop, su2, xfoil" in str(
         caught.value
     )
 

@@ -46,7 +46,7 @@ beside the core  cfdbender.hpc   cfdbender.testing   cfdbender.geometry
 | Layer | Package | Role |
 | --- | --- | --- |
 | Core | `cfdbender.core` | The matrix reader, the flight condition and atmosphere, the datapoint names, the plan, the run record, the local run loop, the neutral result types and the adapter protocol. |
-| Adapters | `cfdbender.solvers.<name>` | One package per solver: `su2`, `openfoam`, `pyfr`, `xfoil`, `qprop`, and `mock`, a licence-free adapter that exercises the contract offline. |
+| Adapters | `cfdbender.solvers.<name>` | One package per solver: `su2`, `openfoam`, `pyfr`, `xfoil`, `qprop`, and `mock`, a license-free adapter that exercises the contract offline. |
 | Host helpers | `cfdbender.solvers._host` | What every adapter shares when it launches a process: the free memory floor, the one-process lease, the mesh link, the timeout and the child process cleanup. |
 | Job planner | `cfdbender.hpc` | Renders a job descriptor and a submit command from a profile, and computes walltime. It knows no solver. |
 | Applications | `cfdbender.matrix`, `cfdbender.workspace` | The `cfd-matrix` and `cfd-workspace` commands. They read `init.toml`, load the one declared adapter by name and pass it to the core. The two depend on each other in one direction each: `cfdbender.workspace` imports the console and record helpers of `cfdbender.matrix`, and `cfdbender.matrix` imports the planning of `cfdbender.workspace`; neither is imported by the core, the adapters or the job planner. |
@@ -170,7 +170,7 @@ return, without regenerating any product.
 
 - A new solver is a new adapter package. Follow the
   [adapter contract](adapter-contract.md).
-- A behaviour every solver should share belongs in the core, with a test that
+- A behavior every solver should share belongs in the core, with a test that
   runs it for every adapter.
 - A change to a file in the table above changes its one writer and never adds
   a second one.

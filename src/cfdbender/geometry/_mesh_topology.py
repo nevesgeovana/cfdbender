@@ -277,11 +277,11 @@ def check_mesh(
     transition_surfaces : sequence of int, optional
         Surfaces allowed to hold triangles; default none.
     symmetry_tolerance : float, optional
-        Largest ``|y|`` of a free edge node, metres; default 1e-7.
+        Largest ``|y|`` of a free edge node, meters; default 1e-7.
     distance_tolerance : float, optional
-        Largest accepted node-to-source distance, metres; default 5e-4.
+        Largest accepted node-to-source distance, meters; default 5e-4.
     area_tolerance : float, optional
-        Area below which a cell is degenerate, square metres; default 1e-14.
+        Area below which a cell is degenerate, square meters; default 1e-14.
 
     Returns
     -------
@@ -416,7 +416,7 @@ def flip_slivers(mesh, threshold=0.15, passes=400):
 
 
 def repair_inverted(mesh, normals, inverted, area_tolerance=1e-14):
-    """Flip an edge of each inverted triangle when the same-face neighbour gives two sound ones.
+    """Flip an edge of each inverted triangle when the same-face neighbor gives two sound ones.
 
     The mesh must be consistently oriented and ``normals`` oriented with it. Cell indices are
     preserved. Returns ``(mesh, flips)``.
@@ -430,7 +430,7 @@ def repair_inverted(mesh, normals, inverted, area_tolerance=1e-14):
     inverted : sequence of int
         Indices of the inverted cells.
     area_tolerance : float, optional
-        Smallest signed area of a sound triangle, square metres; default 1e-14.
+        Smallest signed area of a sound triangle, square meters; default 1e-14.
 
     Returns
     -------

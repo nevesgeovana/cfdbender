@@ -9,10 +9,10 @@ edge is the point farthest ahead along the rotation. This module states the conv
 blade-element solver reads, each choice an argument with this default:
 
 - the rotation axis is ``x`` and thrust points along +x;
-- the hub centre is the origin;
+- the hub center is the origin;
 - the rotor turns counter-clockwise seen from +x looking aft (``ccw_from_front``);
 - the blade is the largest connected mesh component;
-- stations are cell-centred between the blade's innermost and outermost radial distances,
+- stations are cell-centered between the blade's innermost and outermost radial distances,
   cosine (clustered toward both ends) or uniform, never on an end;
 - on a plane cut the leading edge is the rounder end of the section, or, when both ends are
   equally round, the end ahead in the direction of motion measured on a reference section; the

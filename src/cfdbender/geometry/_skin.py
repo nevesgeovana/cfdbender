@@ -228,7 +228,7 @@ def _pin_row(controls, fixed, side, rate, step):
 
 
 def _pin_frame(controls, fixed, edges, *, point, knots, degrees, s, smooth):
-    """Fix the boundary controls, and the next row where the edge joins its neighbour smoothly."""
+    """Fix the boundary controls, and the next row where the edge joins its neighbor smoothly."""
     controls[0, :], controls[-1, :] = edges["u0"][0], edges["u1"][0]
     controls[:, 0], controls[:, -1] = edges["v0"][0], edges["v1"][0]
     fixed[[0, -1], :] = True
@@ -249,7 +249,7 @@ def fit_patch(point, spans, degrees=(3, 3), smooth=(True, True, True, True), fam
 
     The four boundary curves are fitted first, each from the samples of its own line, so two
     patches that share a line and its span count get the same curve; where an edge is to join its
-    neighbour smoothly the next row of controls is set from the cross-edge slope of ``point``, so
+    neighbor smoothly the next row of controls is set from the cross-edge slope of ``point``, so
     both sides lie in the one tangent plane of the surface they sample. The interior is the least
     squares fit to the samples.
 

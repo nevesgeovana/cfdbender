@@ -1,0 +1,5 @@
+# Status of each physics combination (method, turbulence model, wall treatment,
+# dimension). A combination is harvested or verified only, so none exists before evidence
+# of a run returns.
+
+combinations = []

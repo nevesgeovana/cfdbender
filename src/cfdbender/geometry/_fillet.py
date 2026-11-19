@@ -245,7 +245,7 @@ def _spine_v(skin, host, u):
 
 
 def _host_contact(host, centre, direction, distance):
-    """Return the body point at chord ``distance`` from ``centre``, leaving along ``direction``."""
+    """Return the body point at chord ``distance`` from ``center``, leaving along ``direction``."""
     point = host.project(centre + distance * direction)
     for _ in range(4):
         point = host.project(centre + distance * _unit(point - centre))
@@ -374,7 +374,7 @@ def fillet_model(fillet, components, name="fillet") -> FilletModel:
     Parameters
     ----------
     fillet : dict
-        Resolved fillet component (plain values, metres).
+        Resolved fillet component (plain values, meters).
     components : dict
         Every resolved component by name (plain values); the hosts are read from it.
     name : str

@@ -56,7 +56,7 @@ def placement_transform(components, name):
     Returns
     -------
     tuple of numpy.ndarray
-        Rotation matrix of shape (3, 3) and translation in metres of shape (3,).
+        Rotation matrix of shape (3, 3) and translation in meters of shape (3,).
     """
     component = components[name]
     rotation = rotation_matrix(component["placement"]["rotation"])

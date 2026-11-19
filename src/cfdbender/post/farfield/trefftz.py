@@ -437,7 +437,7 @@ def plane_induced_drag(plane: PlaneFields, *, rho: float, v_inf: float) -> Plane
 
 
 def _cell_log_integral(hy: float, hz: float) -> float:
-    """``integral of ln r`` over a ``hy`` by ``hz`` cell centred on the origin."""
+    """``integral of ln r`` over a ``hy`` by ``hz`` cell centered on the origin."""
     a, b = 0.5 * hy, 0.5 * hz
     return 2.0 * (
         a * b * (math.log(a * a + b * b) - 3.0)

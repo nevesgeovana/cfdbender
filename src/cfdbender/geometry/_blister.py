@@ -71,7 +71,7 @@ class BodyHost:
         self.length = float(body["length"])
 
     def shape(self, x):
-        """Return half width, half height, centre height and the two exponents at ``x``."""
+        """Return half width, half height, center height and the two exponents at ``x``."""
         values = body_profile(self.body, self.table, np.asarray(float(x) / self.length))
         return [float(v) for v in values]
 
@@ -184,7 +184,7 @@ def blister_law(blister, host: BodyHost) -> dict:
 
     ``x`` the station, ``depth`` below the host's lowest line, ``width`` the half width,
     ``exponent`` of the superellipse, ``top`` the height where each section ends inside the host
-    (the host's centre height) and ``low`` its lowest point. The first and last stations are
+    (the host's center height) and ``low`` its lowest point. The first and last stations are
     poles: depth and width 0. ``of = "host_length"`` in ``stations`` or ``profile`` reads those
     values as ratios of the host length.
     """
@@ -220,7 +220,7 @@ def blister_law(blister, host: BodyHost) -> dict:
 
 
 def read_sections_file(path, count: int) -> dict[int, np.ndarray]:
-    """Read a blister's sections: CSV columns ``station``, ``y``, ``z`` in metres, host frame.
+    """Read a blister's sections: CSV columns ``station``, ``y``, ``z`` in meters, host frame.
 
     ``station`` is the index of the station in ``stations.x``; the rows of one station run from
     the keel (``y = 0``) up to a point inside the host, in order. A station with no rows is a
@@ -269,7 +269,7 @@ def _file_law(path, x, host) -> dict:
     points = []
     for i in range(len(x)):
         pole = i in (0, len(x) - 1) or i not in given
-        # A pole runs, as a superellipse pole does, from the host's lowest line up to its centre.
+        # A pole runs, as a superellipse pole does, from the host's lowest line up to its center.
         column = np.array([[0.0, bottom[i]], [0.0, shapes[i, 2]]])
         points.append(column if pole else given[i])
     low = np.array([p[:, 1].min() for p in points])
@@ -519,7 +519,7 @@ def area_removed_check(bases, crease, host) -> dict:
     """``trim.area_removed``: base area less face area, against the sampled area inside the host.
 
     The removed area comes from the crease loop (each face integrated from u = 0 to the crease,
-    then along v); the reference classifies a grid of cell centres by the host's own law. The two
+    then along v); the reference classifies a grid of cell centers by the host's own law. The two
     measure one quantity by different routes, so a crease off the host shows as a difference.
     """
     nodes, weights = _AREA_GAUSS
@@ -593,7 +593,7 @@ def blister_model(blister, host_body) -> BlisterModel:
     Parameters
     ----------
     blister : dict
-        Resolved blister component (plain values, metres).
+        Resolved blister component (plain values, meters).
     host_body : dict
         Resolved body component the blister hangs under.
 

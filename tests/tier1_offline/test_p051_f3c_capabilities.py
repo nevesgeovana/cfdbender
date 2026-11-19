@@ -9,7 +9,7 @@ import pytest
 from cfdbender.core import adapter as contract
 from cfdbender.solvers import available_solvers, load_solver
 
-SOLVERS = ("mock", "openfoam", "pyfr", "qprop", "su2", "xfoil")
+SOLVERS = ("cfdpp", "mock", "openfoam", "pyfr", "qprop", "su2", "xfoil")
 
 
 def reader():
@@ -36,8 +36,8 @@ def test_p051_f3c_each_declared_capability(solver, capability):
     expected = (
         capability == "cluster_staging"
         or (solver == "pyfr" and capability == "unsteady")
-        or (solver in {"su2", "openfoam", "pyfr"} and capability == "restart")
-        or (solver in {"su2", "openfoam"} and capability == "boundary_groups")
+        or (solver in {"su2", "openfoam", "pyfr", "cfdpp"} and capability == "restart")
+        or (solver in {"su2", "openfoam", "cfdpp"} and capability == "boundary_groups")
         or (solver in {"su2", "openfoam", "pyfr"} and capability == "numerics_file")
     )
     assert (capability in reader()(adapter)) == expected

@@ -19,8 +19,8 @@ executable = "/home/you/bin/xfoil"
 \end{lstlisting}
 \begin{lstlisting}
 # inputs/matrices/study.fs
-POL  | RUN | SET | REF | PPROC | FLIGHT_CONDITION | SWEEP_VALUES
-1001 | 1   | 001 | 001 | 001   | ALPHA:sweep      | 0,2,4
+POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION | SWEEP_VALUES
+1001 | 1   | 001   | 001 | 001   | ALPHA:sweep      | 0,2,4
 \end{lstlisting}
 \end{column}
 \begin{column}{0.46\textwidth}
@@ -63,9 +63,9 @@ xfoil_executable = "/home/you/bin/xfoil"
 \end{column}
 \begin{column}{0.46\textwidth}
 \begin{itemize}\small
-  \item \code{blade} is a 3D blade as an OBJ, in metres, or a set under
+  \item \code{blade} is a 3D blade as an OBJ, in meters, or a set under
         \code{inputs/polars-2D/} with the stations and their polars. A blade
-        named only in the \code{GEOMETRY} cell runs too.
+        named only in the \code{MESH} cell runs too.
   \item An OBJ is sliced at \code{n_sections} radial stations: radius,
         chord, pitch and section shape are measured.
   \item Each section gets its polar from XFOIL, at its own Reynolds and
@@ -80,8 +80,8 @@ xfoil_executable = "/home/you/bin/xfoil"
 
 \begin{frame}[fragile]{QPROP: the operating point and the result}
 \begin{lstlisting}
-POL  | RUN | SET | REF | PPROC | FLIGHT_CONDITION                              | SWEEP_VALUES
-1001 | 1   | 001 | 001 | 001   | V:20, J:sweep, BETA07:30, RHO:1.2, MU:1.8e-5  | 0.6,0.8,1.0
+POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION                              | SWEEP_VALUES
+1001 | 1   | 001   | 001 | 001   | V:20, J:sweep, BETA07:30, RHO:1.2, MU:1.8e-5  | 0.6,0.8,1.0
 \end{lstlisting}
 \begin{columns}[T]
 \begin{column}{0.48\textwidth}
@@ -132,8 +132,11 @@ A 2D section where separation or the turbulence model matters &
   \code{openfoam} or \code{su2} \\
 A 3D configuration, compressible, with a volume mesh & \code{su2} \\
 A 2D section whose unsteady flow must be resolved in time & \code{pyfr} \\
-A 3D configuration without a volume mesh, or a rotating propeller &
-  \code{flightstream}, through pyflightstream [8] \\
+A propeller or rotor on a volume mesh, steady in its rotating frame or time
+  accurate & \code{su2}, with \code{WORKFLOW} \code{qsteady_rotor} or
+  \code{unsteady_rotor} \\
+A 3D configuration without a volume mesh & \code{flightstream}, through
+  pyflightstream [8] \\
 \bottomrule
 \end{tabularx}}
 \begin{takeaway}Start with the cheapest solver that resolves the effect you
@@ -142,10 +145,11 @@ are asking about.\end{takeaway}
 
 \begin{frame}{What no solver here does}
 \begin{itemize}
-  \item \textbf{Unsteady workflows.} Every library solver runs steady
-        points. PyFR marches in time, and what it returns is a mean.
-  \item \textbf{Mesh generation.} A mesh is an input. The package makes
-        none, except the slicing of a propeller blade into sections.
+  \item \textbf{Unsteady run types beyond SU2.} Every other solver runs
+        \code{steady} rows. PyFR marches in time and returns a mean.
+  \item \textbf{A verified CFD++.} The adapter is incomplete.
+  \item \textbf{Automatic meshing of every case.} Prepare the mesh first;
+        \code{cfd-mesh} generates supported meshes, including \code{airfoil-2d}.
   \item \textbf{A verdict on accuracy.} \code{converged} is about the run,
         not about the mesh or the model.
   \item \textbf{Mixing solvers in one workspace.} One workspace, one solver;

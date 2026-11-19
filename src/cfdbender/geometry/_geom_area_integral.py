@@ -400,7 +400,7 @@ def _rectangle_cell(net: Array, budget: float, depth: int = 0) -> tuple[float, f
 
 
 def bounded_area(document: dict[str, Any], scale: float) -> tuple[float, float]:
-    """Return area and a coefficient-based absolute error allowance, in square metres.
+    """Return area and a coefficient-based absolute error allowance, in square meters.
 
     ``scale`` allocates the numerical budget only. The result and accumulated
     error must satisfy their own relative tolerance before they can be used.

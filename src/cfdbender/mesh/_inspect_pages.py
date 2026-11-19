@@ -136,7 +136,7 @@ def patches_pdf(
 
     ``groups`` maps each original family to its patches (the families of the
     patches OBJ ``mesh``); ``governing`` maps a patch to its normal and parallel
-    flags. Each lead is labelled GOVERNING NORMAL or GOVERNING PARALLEL in a red
+    flags. Each lead is labeled GOVERNING NORMAL or GOVERNING PARALLEL in a red
     frame and listed so beside the views. A set of names means both directions.
     The pages are the four views of the
     technical drawing; a family whose patches hold no face is skipped.
@@ -711,7 +711,7 @@ def factor_pages(pdf, name, rows, *, dpi):
 
 
 def _factor_table(fig, chunk):
-    """Draw one page of rows: header bold on grey, zebra rows, flagged rows bold red."""
+    """Draw one page of rows: header bold on gray, zebra rows, flagged rows bold red."""
     ax = fig.add_axes((0.04, 0.12, 0.92, 0.76))
     ax.set_axis_off()
     table = ax.table(

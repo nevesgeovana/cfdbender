@@ -592,7 +592,7 @@ def edge_counts(r: Result, verb: str) -> dict[str, int]:
         new_edges = {e for f in r.added[plan.name] for e in zip(f, [*f[1:], f[0]], strict=True)}
         need(
             all(runs.get(e, 0) == 1 for e in new_edges),
-            f"blade {plan.name!r}: a new hub cell runs an edge the way its neighbour does",
+            f"blade {plan.name!r}: a new hub cell runs an edge the way its neighbor does",
             verb,
         )
     return {"open_edges": len(now), "edges_over_two_faces": over}
@@ -959,7 +959,7 @@ def _scores(q: np.ndarray, normal: np.ndarray) -> np.ndarray:
 
 
 def _places(points: np.ndarray, v: int, ring: list[int], normal: np.ndarray) -> np.ndarray:
-    """Return where a node is tried: its neighbours' centroid and steps about it, unprojected."""
+    """Return where a node is tried: its neighbors' centroid and steps about it, unprojected."""
     h = float(np.mean(np.linalg.norm(points[ring] - points[v], axis=1)))
     t1 = np.cross(normal, np.eye(3)[int(np.argmin(np.abs(normal)))])
     t1 /= np.linalg.norm(t1)
@@ -994,7 +994,7 @@ def polish(
 ) -> np.ndarray:
     """Return an annulus's points with the free nodes of its worst cells moved to better places.
 
-    Every free node of a cell scoring below :data:`POLISH_FLOOR` is tried at its neighbours'
+    Every free node of a cell scoring below :data:`POLISH_FLOOR` is tried at its neighbors'
     centroid and at :data:`POLISH_STEPS` of its mean edge in eight directions of the tangent
     plane, each projected on the source hub, and takes the place that most raises the least
     score of its cells, if any does. The score is taken against the source hub's normal, so a

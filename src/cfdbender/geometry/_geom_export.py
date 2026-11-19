@@ -38,7 +38,7 @@ from cfdbender.geometry.stages import (
 from cfdbender.geometry.stages import junctions as jn
 from cfdbender.mesh._gmsh_worker import run_isolated
 
-#: Absolute geometric verification tolerance in metres; not an area acceptance limit.
+#: Absolute geometric verification tolerance in meters; not an area acceptance limit.
 _CORRESPONDENCE_M = 1e-7
 
 
@@ -129,7 +129,7 @@ def _face_property_names(path):
 
 
 def _export_units(resolved, names):
-    """Choose the definition's mm for propeller-only groups; other groups use kernel metres."""
+    """Choose the definition's mm for propeller-only groups; other groups use kernel meters."""
     components = unpack(resolved or {}).get("components", {})
     if names and all(
         components.get(n, {}).get("type") == "propeller"
@@ -247,7 +247,7 @@ def write_assembly(
                 reference = target.parent / entry["iges"]
                 if _export_units(resolved, [name]) != combined_units:
                     # Compare entities in the combined file's units, including
-                    # a millimetre component inside a metre assembly.
+                    # a millimeter component inside a meter assembly.
                     reference = Path(temporary) / entry["iges"]
                     assembly.k.export_iges({entry["name"]: [face]}, reference, **combined_units)
                 references.append((entry["iges_identity"], reference))
@@ -436,7 +436,7 @@ def profile_checks(folder, manifest, source):
 
 
 def inspect_record(file: str, tolerance: float | None) -> dict[str, Any]:
-    """Read one file alone in a fresh worker; return measured topology in metres."""
+    """Read one file alone in a fresh worker; return measured topology in meters."""
     from cfdbender.mesh._gmsh import open_kernel
 
     kernel = open_kernel("export read-back")
@@ -538,7 +538,7 @@ def _corresponding_faces(record, faces, order, geometry=None):
     """Validate directory identity and the unique geometry of every imported face.
 
     Directory order is only a candidate correspondence. Unique centroids or
-    bounding boxes validate the kernel's import order in metres. A box can
+    bounding boxes validate the kernel's import order in meters. A box can
     describe the underlying surface, so its fallback also requires unchanged
     serialized trim geometry recorded when the source was written.
     Ambiguous geometry cannot establish which imported face carries a label.

@@ -32,7 +32,7 @@ class RemovalSteps(AssemblyBase):
     # ---- D8, D8b: the inside removed, and the skin it leaves --------------------------------
 
     def _interior(self, face: Face) -> tuple[np.ndarray, np.ndarray]:
-        """Return a point inside the trimmed face, nearest its centre, and the normal there."""
+        """Return a point inside the trimmed face, nearest its center, and the normal there."""
         (u0, v0), (u1, v1) = self.k.uv_bounds(face)
         grid = [
             (u0 + (u1 - u0) * a, v0 + (v1 - v0) * b)

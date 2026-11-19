@@ -90,7 +90,8 @@ def test_a_rotor_declaration_of_the_flightstream_reference_file_is_read(tmp_path
         ('diameter_m = "big"', "diameter_m must be a finite number"),
         ("diameter_m = true", "diameter_m must be a finite number"),
         ('axis = "W"', "axis = 'W' is not an axis"),
-        ('axis = "Z"', 'reads the shaft "X" only'),
+        # The agnostic block refuses a blade datum along the shaft before any adapter reads it.
+        ('axis = "Z"', "blade1.zero Z equals shaft Z; choose one of the two remaining axes"),
         ("x_m = [1.0]", "x_m must be a finite number"),
         ("rpm_sign = 2", "rpm_sign must be 1 or -1"),
         ("rpm_sign = 1.0", "rpm_sign must be 1 or -1"),
@@ -104,6 +105,17 @@ def test_a_bad_rotor_declaration_refuses_at_planning(tmp_path, change, message):
     lines = [x for x in REFERENCE_BLOCK.splitlines() if not x.startswith(key + " ")]
     build(tmp_path, block="\n".join([*lines, change]))
     with pytest.raises(PlanError, match=message):
+        plan_workspace(tmp_path, "dpw")
+
+
+@pytest.mark.parametrize("axis", ["Y", "Z"])
+def test_a_valid_rotor_block_off_the_x_shaft_is_refused_by_the_su2_adapter(tmp_path, axis):
+    # The agnostic block accepts any shaft with a datum off it; SU2 refuses it by name at plan.
+    zero = "X" if axis == "Z" else "Z"
+    lines = [x for x in REFERENCE_BLOCK.splitlines() if not x.startswith(("axis ", "blade1 "))]
+    change = [f'axis = "{axis}"', f'blade1 = {{ azimuth_deg = 0.0, zero = "{zero}" }}']
+    build(tmp_path, block="\n".join([*lines, *change]))
+    with pytest.raises(PlanError, match=f'names shaft {axis}.*reads the shaft "X" only'):
         plan_workspace(tmp_path, "dpw")
 
 

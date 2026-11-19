@@ -608,7 +608,7 @@ def _holds(adapted: _Adapted, pairs: Sequence[_Pair], source: ObjMesh) -> bool:
     """Return whether a remeshed band stands on every kept edge, each by one face, cleanly.
 
     It holds when every old node left the interface, every edge of a kept chain has
-    exactly one adapted face, no edge has more than two and no pair of neighbours in the
+    exactly one adapted face, no edge has more than two and no pair of neighbors in the
     band turned against each other where the source's did not.
     """
     if any(entry["not_removed"] for entry in adapted.conformed):

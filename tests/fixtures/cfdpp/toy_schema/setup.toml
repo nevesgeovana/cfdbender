@@ -1,0 +1,275 @@
+# Invented binding of the setup and post-processing keys to the toy input. The key names
+# are cfdbender's own; the keywords they set are made up. A dotted name is a key of a
+# table of the setup file (physics.method is method in [physics]). No entry holds a
+# default value: required keys are stated by the user, the rest are read only when they
+# apply.
+
+[[setup]]
+name = "iterations"
+type = "int"
+required = true
+above = 0
+keyword = "tsteps"
+meaning = "steps of the run"
+locator = "TOY :: setup, iterations"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "convergence_orders"
+type = "real"
+required = true
+above = 0
+keyword = "tdrop"
+meaning = "orders of residual drop that end the run"
+locator = "TOY :: setup, convergence_orders"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "cfl"
+type = "real"
+required = true
+above = 0
+keyword = "tcfl"
+index = 0
+meaning = "step-size number at the start of the ramp"
+locator = "TOY :: setup, cfl"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "cfl_max"
+type = "real"
+required = true
+above = 0
+keyword = "tcfl"
+index = 1
+meaning = "step-size number at the end of the ramp"
+locator = "TOY :: setup, cfl_max"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "cfl_ramp_steps"
+type = "ints"
+length = 2
+required = true
+min = 0
+keyword = "tramp"
+meaning = "first and last step of the ramp"
+locator = "TOY :: setup, cfl_ramp_steps"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "turbulence"
+type = "word"
+required = true
+models = true
+values = { laminar = [9, 0], inviscid = [0, 0] }
+keyword = "tturb"
+meaning = "turbulence model, or laminar or inviscid flow"
+locator = "TOY :: setup, turbulence"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "viscosity_ratio"
+type = "real"
+above = 0
+needed_by = ["nut", "omega", "epsilon"]
+meaning = "eddy to molecular viscosity ratio of the freestream"
+locator = "TOY :: setup, viscosity_ratio"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "turbulence_intensity"
+type = "real"
+above = 0
+needed_by = ["k"]
+meaning = "turbulence intensity of the freestream, a fraction of the speed"
+locator = "TOY :: setup, turbulence_intensity"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "physics.method"
+type = "word"
+required = true
+values = { "density-based" = 0, preconditioned = 1 }
+keyword = "tmeth"
+meaning = "solution method"
+locator = "TOY :: setup, physics.method"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "physics.preconditioning_velocity"
+type = "real"
+above = 0
+when = { "physics.method" = "preconditioned" }
+keyword = "tprev"
+meaning = "velocity bound of the preconditioned method"
+locator = "TOY :: setup, physics.preconditioning_velocity"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "fluid.gas_constant"
+type = "real"
+required = true
+above = 0
+keyword = "trgas"
+meaning = "specific gas constant"
+locator = "TOY :: setup, fluid.gas_constant"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "fluid.gamma"
+type = "real"
+required = true
+above = 1
+keyword = "tgam"
+meaning = "ratio of specific heats"
+locator = "TOY :: setup, fluid.gamma"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "fluid.viscosity"
+type = "word"
+required = true
+values = { sutherland = 1 }
+keyword = "tvisc"
+meaning = "viscosity law"
+locator = "TOY :: setup, fluid.viscosity"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "fluid.sutherland_viscosity"
+type = "real"
+above = 0
+when = { "fluid.viscosity" = "sutherland" }
+keyword = "tmu0"
+meaning = "reference viscosity of the Sutherland law"
+locator = "TOY :: setup, fluid.sutherland_viscosity"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "fluid.sutherland_temperature"
+type = "real"
+above = 0
+when = { "fluid.viscosity" = "sutherland" }
+keyword = "tt0"
+meaning = "reference temperature of the Sutherland law"
+locator = "TOY :: setup, fluid.sutherland_temperature"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "fluid.sutherland_constant"
+type = "real"
+above = 0
+when = { "fluid.viscosity" = "sutherland" }
+keyword = "tsuth"
+meaning = "constant of the Sutherland law"
+locator = "TOY :: setup, fluid.sutherland_constant"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "numerics.multigrid_levels"
+type = "int"
+required = true
+min = 1
+keyword = "tmg"
+meaning = "multigrid levels"
+locator = "TOY :: setup, numerics.multigrid_levels"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "numerics.temporal_smoothing"
+type = "real"
+required = true
+min = 0
+keyword = "tsmooth"
+meaning = "smoothing factor"
+locator = "TOY :: setup, numerics.temporal_smoothing"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "numerics.limiter"
+type = "word"
+required = true
+values = { continuous = 1, minmod = 0 }
+keyword = "tlim"
+meaning = "limiter"
+locator = "TOY :: setup, numerics.limiter"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "numerics.blend_first_order"
+type = "reals"
+length = 2
+required = true
+min = 0
+keyword = "tblend"
+meaning = "first-order blending at the start and the end of its ramp"
+locator = "TOY :: setup, numerics.blend_first_order"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "numerics.blend_steps"
+type = "ints"
+length = 2
+required = true
+min = 1
+keyword = "tbsteps"
+meaning = "first and last step of the blending ramp"
+locator = "TOY :: setup, numerics.blend_steps"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "numerics.turbulence_start_step"
+type = "int"
+required = true
+min = 1
+keyword = "tturbstart"
+meaning = "step at which the turbulence equations start"
+locator = "TOY :: setup, numerics.turbulence_start_step"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "output_frequency"
+file = "post"
+type = "int"
+required = true
+above = 0
+keyword = "tout"
+meaning = "steps between solution outputs"
+locator = "TOY :: setup, output_frequency"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "restart_frequency"
+file = "post"
+type = "int"
+required = true
+above = 0
+keyword = "trst"
+meaning = "steps between restart saves"
+locator = "TOY :: setup, restart_frequency"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "restart"
+source = "case"
+keyword = "trestart"
+meaning = "one when the point starts from a saved solution, else zero"
+locator = "TOY :: setup, restart"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "set_count"
+source = "case"
+keyword = "ninfo"
+meaning = "the number of information sets written"
+locator = "TOY :: setup, set_count"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }
+
+[[setup]]
+name = "initial_set"
+source = "case"
+keyword = "tset"
+meaning = "the information set used as initial state"
+locator = "TOY :: setup, initial_set"
+status = { "1.0" = { status = "harvested", report = "reports/toy/CMP-1.0_2026-01-01_toy.yaml" }, "2.0" = { status = "harvested", report = "reports/toy/CMP-2.0_2026-01-01_toy.yaml" } }

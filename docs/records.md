@@ -154,7 +154,7 @@ cfd-matrix run polar --force-rerun-all
 ```
 
 Every recorded point of the matrix is archived and run again. A job that is
-still `SUBMITTED` on a cluster is not cancelled: cancel it in the scheduler
+still `SUBMITTED` on a cluster is not canceled: cancel it in the scheduler
 first. This option cannot be combined with the other two.
 
 ## Reading the records

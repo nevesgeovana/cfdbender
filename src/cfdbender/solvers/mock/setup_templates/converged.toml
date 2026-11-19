@@ -1,0 +1,5 @@
+# Offline mock solver: converges after four iterations (the test vehicle for setup templates)
+# The mock solver launches nothing; every value below is a placeholder, not physics.
+[mock]
+outcome = "converged"
+iterations = 4

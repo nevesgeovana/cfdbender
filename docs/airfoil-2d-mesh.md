@@ -38,7 +38,7 @@ then one `x y` pair per line, from the trailing edge over the upper surface to t
 and back under the lower surface; the opposite direction is accepted. The Lednicer layout
 (point counts on the first line) is refused.
 
-The section is normalised to a unit chord: the leading edge is the point farthest from the
+The section is normalized to a unit chord: the leading edge is the point farthest from the
 trailing-edge midpoint; it is moved to the origin and the midpoint to (1, 0). The sidecar
 records the transform. A file is refused when its two ends are more than 0.05 chord apart (an
 open contour) or when the contour crosses itself.
@@ -106,7 +106,7 @@ Each mesh has a `<file name>.provenance.json` beside it with:
 - `sources`: the coordinates file with its SHA-256 (empty for a NACA designation);
 - `options`: every value after defaults (`naca` or `coordinates`, `reynolds`, `yplus`,
   `first_cell`, `level` and its counts and spacings, `normal_growth`, `wake_growth`,
-  `farfield`, `trailing_edge`, `gap_removed`, `base_cells`, `span`, the normalising
+  `farfield`, `trailing_edge`, `gap_removed`, `base_cells`, `span`, the normalizing
   `transform`, the `gmsh` version);
 - `outputs`: the measured quality (`cells`, `nodes`, cells per marker, `first_cell` minimum,
   mean and maximum on the airfoil surface, `largest_growth`, far-field distance, `outflow_x`,

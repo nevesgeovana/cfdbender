@@ -6,7 +6,7 @@ each; this module adds them to one OpenCASCADE model, fragments them against
 each other, drops the faces buried in another component, audits the edges
 (free edges off the symmetry plane, non-manifold edges, the transition ring where
 components cross) and writes one IGES file whose faces carry one 406 form 15 NAME
-per component. Coordinates are metres and the file declares them so.
+per component. Coordinates are meters and the file declares them so.
 
 gmsh is a dependency of the package; :func:`generate_iges` raises
 ``KernelUnavailableError``, naming the library, when it cannot load.

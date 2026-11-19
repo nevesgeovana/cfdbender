@@ -15,6 +15,7 @@ from collections.abc import Callable, Mapping
 from typing import Literal, cast
 
 from cfdbender.core.adapter import AdapterPoint
+from cfdbender.core.contract import FreeStream, ProductInputs, StepFile
 from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import (
@@ -26,6 +27,15 @@ from cfdbender.core.results import (
     References,
 )
 from cfdbender.solvers._host._config import steady_only, unknown_keys
+from cfdbender.solvers.mock._fields import (
+    DENSITY,
+    P_INF,
+    SPEED,
+    SURFACE_FILE,
+    VOLUME_FILE,
+    write_fields,
+)
+from cfdbender.solvers.mock._fields import PRODUCTS as PRODUCTS
 
 SOLVER_NAME = "mock"
 CAPABILITIES = frozenset({"cluster_staging"})
@@ -109,7 +119,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     workspace.warn_unread(
         "mock",
         reference=("area", "length", "moment_origin", "axis_system", "axis_directions"),
-        post=("history",),
+        post=("history", *PRODUCTS),
     )
     if row.workflow != "steady":
         raise steady_only("the mock solver")
@@ -123,6 +133,10 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             for name in ("mock.in", "history.csv", "execution.json")
         ),
     )
+
+
+#: The p-file product tables planning keeps for the mock (contract C-61).
+validate_row.post_products = frozenset(PRODUCTS)  # type: ignore[attr-defined]
 
 
 def translate(point: AdapterPoint) -> str:
@@ -266,6 +280,7 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
                     *(round(i * 0.01 + residual, 8) for i in range(6)),
                 )
             )
+    write_fields(folder, deck["post"])
     (folder / "execution.json").write_text(
         json.dumps(
             {
@@ -295,4 +310,35 @@ def collect(point: AdapterPoint) -> NeutralResult:
         result.history,
         classify(result),
         result.solver_version,
+    )
+
+
+def product_inputs(point: AdapterPoint) -> ProductInputs:
+    """Return the mock's surface and volume files of a recorded point: one steady instant.
+
+    Parameters
+    ----------
+    point : AdapterPoint
+        Recorded point whose folder holds the files its p file asked for.
+    """
+    folder = workspace_path(point.root, point.point.directory)
+    found: dict[str, tuple[StepFile, ...]] = {}
+    missing: list[tuple[str, str]] = []
+    for name in (SURFACE_FILE, VOLUME_FILE):
+        relative = f"{point.point.directory}/{name}"
+        if (folder / name).is_file():
+            found[name] = (StepFile(None, None, relative),)
+        else:
+            missing.append((relative, "the run did not write it"))
+    history = _read(point)[0].history
+    return ProductInputs(
+        surface=found.get(SURFACE_FILE, ()),
+        volume=found.get(VOLUME_FILE, ()),
+        free_stream=FreeStream(
+            P_INF, 0.5 * DENSITY * SPEED**2, DENSITY, SPEED, "the mock's free stream"
+        ),
+        normal_sign=1,
+        families=("wing",),
+        iteration=history[-1].iteration if history else None,
+        missing=tuple(missing),
     )

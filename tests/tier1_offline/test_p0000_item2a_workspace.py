@@ -119,7 +119,8 @@ def test_p0000_item2a_unknown_solver_refused_before_writing(tmp_path, solver):
     assert result.returncode == 2
     assert f"unknown solver {solver!r}" in result.stderr
     assert (
-        "available solvers: flightstream, mock, openfoam, pyfr, qprop, su2, xfoil" in result.stderr
+        "available solvers: cfdpp, flightstream, mock, openfoam, pyfr, qprop, su2, xfoil"
+        in result.stderr
     )
     assert "Traceback" not in result.stderr
     assert "pyflightstream" not in result.stderr

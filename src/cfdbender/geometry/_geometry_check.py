@@ -36,7 +36,7 @@ _PURPOSE = "checking a rebuilt surface against an original"
 
 
 def import_component(kernel, path, name=None):
-    """Import an IGES file at metre scale and return the faces of one component, or all of them."""
+    """Import an IGES file at meter scale and return the faces of one component, or all of them."""
     named = kernel.import_iges(path)
     selected = [
         face
@@ -196,7 +196,7 @@ def nearest(kernel, points, faces, boundary_tolerance=1e-8):
 
 
 def local_limits(points, limits, profile="study_default"):
-    """Return the allowed deviation, in metres, at each of ``points`` under a named profile.
+    """Return the allowed deviation, in meters, at each of ``points`` under a named profile.
 
     The local chord comes from ``limits``: ``local_chord`` (a function of the points),
     ``stations_m`` with ``chords_m`` along ``axis`` (default y), or one ``chord_m``.
@@ -288,7 +288,7 @@ def check_against_original(
     """Compare a rebuilt surface with an original: forward and restricted reverse distance.
 
     ``rebuilt`` and ``original`` are OCC surface tags in the active model or IGES paths,
-    optionally ``path#component``. Distances and local chord inputs are metres. Reverse
+    optionally ``path#component``. Distances and local chord inputs are meters. Reverse
     samples whose nearest original witness lies on an original face trim edge are excluded
     explicitly. Empty reverse coverage is a rejection, never a vacuous acceptance.
 
@@ -347,7 +347,7 @@ def check_against_original(
         )
         if limits.get(
             "fold_y"
-        ):  # half-body original: the rebuilt mirror half folds onto the modelled side
+        ):  # half-body original: the rebuilt mirror half folds onto the modeled side
             new = np.c_[new[:, 0], -np.abs(new[:, 1]), new[:, 2]]
         forward, _ = nearest(kernel, old, new_faces)
         reverse, interior = nearest(kernel, new, old_faces)

@@ -36,10 +36,10 @@
 
 \begin{frame}[fragile]{The run matrix: one row per simulation}
 \begin{lstlisting}
-POL  | RUN | FLIGHT_CONDITION                  | SWEEP_VALUES | GEOMETRY | REF | SET | PPROC
------|-----|-----------------------------------|--------------|----------|-----|-----|------
-5001 | 1   | MACH:0.85, REmi:5, ALPHA:sweep    | 2.5,2.75     | wb.su2   | 001 | 001 | 001
-5002 | 0   | MACH:0.85, REmi:5, ALPHA:3.0      | -            | wb.su2   | 001 | 002 | 001
+POL  | RUN | FLIGHT_CONDITION                  | SWEEP_VALUES | MESH   | REF | SETUP | PPROC
+-----|-----|-----------------------------------|--------------|--------|-----|-------|------
+5001 | 1   | MACH:0.85, REmi:5, ALPHA:sweep    | 2.5,2.75     | wb.su2 | 001 | 001   | 001
+5002 | 0   | MACH:0.85, REmi:5, ALPHA:3.0      | -            | wb.su2 | 001 | 002   | 001
 \end{lstlisting}
 \begin{itemize}\small
   \item \code{inputs/matrices/<name>.fs}: text, columns separated by
@@ -49,30 +49,35 @@ POL  | RUN | FLIGHT_CONDITION                  | SWEEP_VALUES | GEOMETRY | REF |
   \item \code{FLIGHT_CONDITION} holds \code{KEY:value} pairs. One key may say
         \code{sweep}; its values are in \code{SWEEP_VALUES}, one
         \textbf{point} each.
-  \item \code{SET}, \code{REF} and \code{PPROC} name the three input files
-        of the row.
+  \item \code{SETUP}, \code{REF} and \code{PPROC} name the three input files
+        of the row; an optional \code{NUMERICS} column names a fourth.
+  \item Matrices written before this release say \code{SET} and
+        \code{GEOMETRY}: both are still read, as \code{SETUP} and
+        \code{MESH}, with one notice.
 \end{itemize}
 \end{frame}
 
 \begin{frame}{Three input files per row: s, r, p}
-\relax{\cfdbbodysize
+\relax{\cfdbtablesize
 \begin{tabularx}{\linewidth}{@{}P{0.12\linewidth}P{0.38\linewidth}R@{}}
 \toprule
 \textbf{Column} & \textbf{File} & \textbf{It holds} \\
 \midrule
-\code{SET} & \code{inputs/setups/s<id>.toml} & how the solver runs: model,
-  numerics, iteration limit. The keys belong to the solver. \\
+\code{SETUP} & \code{inputs/setups/s<id>.toml} & the physical setup: model,
+  boundaries, iteration limit. The keys belong to the solver. \\
+\code{NUMERICS} & \code{inputs/numerics/n<id>.toml} & optional: how the solver
+  solves it (schemes, CFL, convergence), shared by many setups. \\
 \code{REF} & \code{inputs/references/r<id>.toml} & reference area, reference
   length and moment origin. \\
 \code{PPROC} & \code{inputs/pproc/p<id>.toml} & what to keep from each run
   beyond the coefficients. \\
-\code{GEOMETRY} & \code{inputs/mesh/<file>} & the mesh or geometry, in the
+\code{MESH} & \code{inputs/mesh/<file>} & the mesh or geometry, in the
   format the solver reads. \\
 \bottomrule
 \end{tabularx}}
 \vspace{2mm}
 \begin{itemize}\small
-  \item \code{001} and \code{s001} in the \code{SET} cell both name
+  \item \code{001} and \code{s001} in the \code{SETUP} cell both name
         \code{s001.toml}.
   \item Many rows may share one file. A value the row and a file both state
         must agree.
@@ -150,8 +155,8 @@ and not by a job that waited in a queue.\end{takeaway}
 \begin{frame}[fragile]{Four small files}
 \begin{lstlisting}
 # inputs/matrices/first.fs
-POL  | RUN | FLIGHT_CONDITION      | SWEEP_VALUES | REF | SET | PPROC
-1001 | 1   | MACH:0.2, ALPHA:sweep | 0,2,4        | 001 | 001 | 001
+POL  | RUN | FLIGHT_CONDITION      | SWEEP_VALUES | REF | SETUP | PPROC
+1001 | 1   | MACH:0.2, ALPHA:sweep | 0,2,4        | 001 | 001   | 001
 \end{lstlisting}
 \begin{columns}[T]
 \begin{column}{0.36\textwidth}
@@ -208,7 +213,7 @@ file and run a second row: you have seen a failure before it matters.\end{takeaw
   \item Make a new workspace: \code{cfd-workspace init <folder> --solver
         <name>}.
   \item Put the mesh in \code{inputs/mesh/} and name it in the
-        \code{GEOMETRY} cell.
+        \code{MESH} cell.
   \item Write the setup file with the solver's keys: guide 3 has one worked
         setup per solver.
   \item Say where the solver is on this machine: in the setup's

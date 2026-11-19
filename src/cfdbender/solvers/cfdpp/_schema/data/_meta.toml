@@ -1,0 +1,16 @@
+# Supported CFD++ versions, in release order. This list is the only ordering authority and a
+# version is never dropped from it.
+#
+# inherits_base states, as a fact about the two builds, whether a version inherits the
+# evidence of the one before it; a version without it does not load. prints is the
+# version the binary states about itself and is filled only from an identity report.
+# Every status in this database is promoted only by a committed report under
+# reports/cfdpp/, never by editing these files.
+
+solver = "CFD++"
+input_file = "mcfd.inp"
+
+[[versions]]
+canonical = "22.5.U3"
+aliases = []
+inherits_base = false
