@@ -40,6 +40,7 @@ __all__ = [
     "SampleResult",
     "VolumeError",
     "VolumeSampler",
+    "ZonedSampler",
 ]
 
 TETRA, HEXAHEDRON, WEDGE, PYRAMID = 10, 12, 13, 14
@@ -476,3 +477,55 @@ class VolumeSampler:
     def point_data_names(self) -> Mapping[str, tuple[int, ...]]:
         """The point-data arrays of the grid, with their shapes."""
         return {name: tuple(array.shape) for name, array in self._grid.point_data.items()}
+
+
+class ZonedSampler:
+    """The samplers of the zone volumes of one step, searched in zone order.
+
+    A point is taken from the first zone whose volume holds it; a point in none has cell
+    ``-1`` and ``nan`` values, as in one volume. Only the point data every zone carries is
+    sampled when no field is named, so a column is never filled from some zones alone. The
+    cell number of a found point is that of its zone's volume.
+
+    Parameters
+    ----------
+    samplers : sequence of VolumeSampler
+        One per zone, in zone order.
+    """
+
+    def __init__(self, samplers: Sequence[VolumeSampler]) -> None:
+        if not samplers:
+            raise VolumeError("a multizone volume needs at least one zone")
+        self._samplers = tuple(samplers)
+
+    @property
+    def skipped_cells(self) -> int:
+        """The cells of every zone that are not searched."""
+        return sum(sampler.skipped_cells for sampler in self._samplers)
+
+    @property
+    def point_data_names(self) -> Mapping[str, tuple[int, ...]]:
+        """The point-data arrays every zone holds, with the shape of the first zone's."""
+        first, *rest = (dict(s.point_data_names) for s in self._samplers)
+        return {n: shape for n, shape in first.items() if all(n in other for other in rest)}
+
+    def sample(
+        self,
+        points: Sequence[Sequence[float]] | NDArray[np.float64],
+        fields: Sequence[str] | None = None,
+    ) -> SampleResult:
+        """Interpolate point-data arrays at ``points`` from the zone that holds each one."""
+        names = list(self.point_data_names) if fields is None else list(fields)
+        results = [sampler.sample(points, names) for sampler in self._samplers]
+        cell = np.full(results[0].location.cell.shape, -1, dtype=np.int64)
+        nodes = np.zeros_like(results[0].location.nodes)
+        weights = np.zeros_like(results[0].location.weights)
+        values = {name: np.full_like(results[0].values[name], np.nan) for name in names}
+        for result in results:
+            take = (cell < 0) & result.found
+            cell[take] = result.location.cell[take]
+            nodes[take] = result.location.nodes[take]
+            weights[take] = result.location.weights[take]
+            for name in names:
+                values[name][take] = result.values[name][take]
+        return SampleResult(values, Location(cell, nodes, weights))

@@ -39,6 +39,7 @@ from cfdbender.core.contract import (
     FreeStream,
     ProductInputs,
     ProductSupport,
+    StepFile,
     product_support,
 )
 from cfdbender.core.plan import workspace_path
@@ -162,7 +163,22 @@ def _selected(
             f"families {words} name no family of the surface file "
             f"(it holds: {', '.join(inputs.families) or 'none'})"
         )
-    if not inputs.families_separable and set(chosen) != set(inputs.families):
+    if inputs.zoned:
+        unplaced = [name for name in chosen if name not in inputs.family_zones]
+        if unplaced:
+            return [], (
+                f"the zone of {unplaced} is not known (the point folder's mesh.su2 states "
+                f"{sorted(inputs.family_zones) or 'no marker of the surface files'})"
+            )
+        for zone in sorted({inputs.family_zones[name] for name in chosen}):
+            held = [name for name in inputs.families if inputs.family_zones.get(name) == zone]
+            if set(held) - set(chosen):
+                return [], (
+                    f"the surface file of zone {zone} does not say which cell is of which "
+                    f"family, so a distribution cuts all of {held} or none; this entry cuts "
+                    f"{chosen}"
+                )
+    elif not inputs.families_separable and set(chosen) != set(inputs.families):
         return [], (
             f"the surface file does not say which cell is of which family, so a distribution "
             f"cuts all of {list(inputs.families)} or none; this entry cuts {chosen}"
@@ -171,6 +187,41 @@ def _selected(
 
 
 def _surface(
+    paths: Sequence[Path], support: ProductSupport, inputs: ProductInputs, chosen: Sequence[str]
+) -> tuple[Surface, dict[str, str]]:
+    """Read the surface file of a step: one file, or the files of the zones joined in one."""
+    read = [_zone_surface(path, support, inputs, chosen) for path in paths]
+    if len(read) == 1:
+        return read[0]
+    absent: dict[str, str] = {}
+    for _, own in read:
+        absent.update(own)
+    offsets = np.cumsum([0, *(len(surface.points) for surface, _ in read)])
+    surfaces = [surface for surface, _ in read]
+    names = set.intersection(*(set(surface.fields) for surface in surfaces))
+    shear = (
+        np.concatenate([cast(Any, s.shear) for s in surfaces])
+        if all(s.shear is not None for s in surfaces)
+        else None
+    )
+    return (
+        Surface(
+            np.concatenate([s.points for s in surfaces]),
+            np.concatenate([s.triangles + int(o) for s, o in zip(surfaces, offsets, strict=False)]),
+            np.concatenate([s.quads + int(o) for s, o in zip(surfaces, offsets, strict=False)]),
+            np.concatenate([s.pressure for s in surfaces]),
+            {name: np.concatenate([s.fields[name] for s in surfaces]) for name in sorted(names)},
+            surfaces[0].families,
+            None,
+            None,
+            inputs.normal_sign,
+            shear,
+        ),
+        absent,
+    )
+
+
+def _zone_surface(
     path: Path, support: ProductSupport, inputs: ProductInputs, chosen: Sequence[str]
 ) -> tuple[Surface, dict[str, str]]:
     grid = read_vtu(path)
@@ -288,7 +339,7 @@ def _sections(
     target: Callable[[str], Path],
 ) -> None:
     names = distribution_names([e.families for e in entries])
-    files = list(inputs.surface)
+    files = _by_step(inputs.surface)
     kind = "history" if inputs.windowed else "instant"
     if inputs.time_accurate and not inputs.windowed:
         files = files[-1:]
@@ -337,9 +388,20 @@ def _sections(
         absent_loads: dict[str, str] = {}
         try:
             cp_target, sl_target = target(cp_rel), target(sl_rel)
-            for item in files:
+            zones = {inputs.family_zones[name] for name in chosen} if inputs.zoned else None
+            used: list[StepFile] = []
+            for group in files:
+                # A multizone step is cut from the zone files that hold the entry's markers.
+                members = [f for f in group if zones is None or f.zone in zones]
+                if zones is not None and len(members) < len(zones):
+                    continue
+                item = members[0]
+                used.extend(members)
                 surface, absent = _surface(
-                    workspace_path(ctx.point.root, item.path), support, inputs, chosen
+                    [workspace_path(ctx.point.root, f.path) for f in members],
+                    support,
+                    inputs,
+                    chosen,
                 )
                 absent_all.update({k: v for k, v in absent.items() if k in CP_COLUMNS})
                 absent_loads.update(_friction_absent(support, absent, entry.integrate))
@@ -374,6 +436,12 @@ def _sections(
                 skipped_stations += [f"STEP {lead['STEP']}: {text}" for text in result.skips]
                 tabled.append(step)
                 steps.append((result, lead))
+            if not steps:
+                reason = (
+                    f"no step has the surface file of every zone the entry cuts: {_missing(inputs)}"
+                )
+                out.skipped += [(cp_rel, reason), (sl_rel, reason)]
+                continue
             cp_path, sl_path = write_section_series(steps, stage, ctx.name, name)
         except (OSError, ValueError) as error:
             out.skipped += [(cp_rel, str(error)), (sl_rel, str(error))]
@@ -387,7 +455,7 @@ def _sections(
             "steps_tabled": tabled,
             "skipped_stations": skipped_stations,
             "cp_reference": inputs.free_stream.cp_reference,
-            "sources": [item.path for item in files],
+            "sources": [item.path for item in used],
         }
         written_cp = set(steps[0][0].cp_columns)
         absent_cp = {
@@ -416,11 +484,32 @@ def _missing(inputs: ProductInputs) -> str:
     return "; ".join(f"{path}: {reason}" for path, reason in inputs.missing[:3])
 
 
+def _by_step(files: Sequence[StepFile]) -> list[list[StepFile]]:
+    """Group the files of a point by step, in order: one file each, or one per zone."""
+    groups: dict[int | None, list[StepFile]] = {}
+    for item in files:
+        groups.setdefault(item.step, []).append(item)
+    return list(groups.values())
+
+
 def _volumes(inputs: ProductInputs, root: Path) -> list[VolumeStep]:
-    return [
-        VolumeStep(item.step, item.time_s, workspace_path(root, item.path))
-        for item in inputs.volume
-    ]
+    """Return the volume of each step; a multizone step holds its zones' files, in zone order.
+
+    A step that lacks the volume file of a zone is left out: a point is never sampled from
+    some of the zones of a step alone.
+    """
+    steps: list[VolumeStep] = []
+    for group in _by_step(inputs.volume):
+        if not inputs.zoned:
+            source = workspace_path(root, group[0].path)
+            steps.append(VolumeStep(group[0].step, group[0].time_s, source))
+        elif len(group) == inputs.zones:
+            steps.append(
+                VolumeStep(
+                    group[0].step, group[0].time_s, [workspace_path(root, f.path) for f in group]
+                )
+            )
+    return steps
 
 
 def _wrapped(
