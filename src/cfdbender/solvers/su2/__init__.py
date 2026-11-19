@@ -45,8 +45,11 @@ MARKER_EULER=["airfoil"], MARKER_FAR=["farfield"]. For native execution add
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import cast
 
 from cfdbender.core import plan as plan_module
 from cfdbender.core.adapter import AdapterPoint
@@ -55,12 +58,18 @@ from cfdbender.core.matrix import MatrixRow
 from cfdbender.core.plan import RowInputs, RowRequirements, workspace_path
 from cfdbender.core.results import Classification, Coefficient, ExecutionResult, NeutralResult
 from cfdbender.core.rotor import periodic_state, rotor_block
+from cfdbender.core.run_types import (
+    RUN_TYPES,
+    TIME_ACCURATE,
+    run_type,
+    skip_unread_variables,
+)
 from cfdbender.core.settings import _validate
-from cfdbender.solvers._host._config import steady_only
 from cfdbender.solvers._host._groups import groups, point_markers, validate_tracked_groups
 from cfdbender.solvers.su2._config import (
     NEUTRAL_KEYS,
     config,
+    extra_files,
     mesh_name,
     options,
     reads_key,
@@ -72,10 +81,16 @@ from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import dimensions, force_groups, read, residual_field
 from cfdbender.solvers.su2._restart import restart_files as restart_files
 from cfdbender.solvers.su2._restart import restart_values
-from cfdbender.solvers.su2._rotor import rotor_point
+from cfdbender.solvers.su2._rotor import (
+    ABSENT_CONDITION_COLUMNS,
+    condition_cells,
+    rotor_point,
+)
 
 SOLVER_NAME = "su2"
 CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
+#: The run types the adapter offers (pyflightstream's names), all four.
+OFFERED_RUN_TYPES = RUN_TYPES
 SOLVER_TYPE = "SU2"
 STAGED_CONFIG = "su2.cfg"
 #: The namespace of the s file that SU2 forwards unread (contract C-09): its own option names.
@@ -93,6 +108,7 @@ class _SU2Result(NeutralResult):
     dimensions: int | None = None
     residual_field: str | None = None
     rotor: Mapping[str, object] | None = None
+    time_average: Mapping[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Serialize the common fields, the route and, when known, dimension and residual."""
@@ -103,11 +119,13 @@ class _SU2Result(NeutralResult):
             data["residual_field"] = self.residual_field
         if self.rotor is not None:
             data["rotor"] = dict(self.rotor)
+        if self.time_average is not None:
+            data["time_average"] = dict(self.time_average)
         return data
 
 
 def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
-    """Refuse invalid steady s/r/p data and track the mesh without writes.
+    """Refuse invalid s/r/p data of the row's run type and track the mesh without writes.
 
     Parameters
     ----------
@@ -121,8 +139,8 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     RowRequirements
         Actions and claimed point outputs.
     """
-    if row.workflow != "steady":
-        raise steady_only("SU2")
+    kind = run_type(row.workflow, pol=row.pol, offered=RUN_TYPES)
+    skip_unread_variables(kind, row.variables, pol=row.pol)
     declaration = _validate(
         workspace.read_toml("init.toml"), workspace.root / "init.toml", ("su2",)
     )
@@ -130,7 +148,9 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
     workspace.warn_unread(
         "SU2",
         reference=tuple(key for key in workspace.reference if reads_key(key)),
-        post=tuple(key for key in workspace.post if key == "history" or reads_key(key)),
+        post=tuple(
+            key for key in workspace.post if key in ("history", "per_revolution") or reads_key(key)
+        ),
     )
     conditions = [dict(row.condition)]
     if row.sweep_key:
@@ -142,8 +162,10 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             workspace.post,
             condition,
             geometry=workspace.geometry,
+            run_type=kind,
         )
         validate_tracked_groups(workspace.setup, workspace, mesh_name(values))
+    extra = tuple(extra_files(values))
     return RowRequirements(
         ("write SU2 cfg", "stage mesh", "run SU2", "read SU2 history"),
         tuple(
@@ -155,6 +177,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
                 "stderr.log",
                 "execution.json",
                 "history.csv",
+                *extra,
             )
         ),
     )
@@ -196,7 +219,12 @@ def translate(point: AdapterPoint) -> str:
     point.verify()
     if groups(point.setup):
         values = config(
-            point.setup, point.reference, point.post, point.point.condition, geometry=point.geometry
+            point.setup,
+            point.reference,
+            point.post,
+            point.point.condition,
+            geometry=point.geometry,
+            run_type=point.point.run_type,
         )
         point_markers(point, mesh_name(values))
     return render(
@@ -208,6 +236,7 @@ def translate(point: AdapterPoint) -> str:
                 point.post,
                 point.point.condition,
                 geometry=point.geometry,
+                run_type=point.point.run_type,
             ),
         )
     )
@@ -274,22 +303,82 @@ def classify(result: ExecutionResult) -> Classification:
     return "failed"
 
 
+def _kind(name: str) -> tuple[str, str] | None:
+    """Return the load kind of a history column for the drift warning: all are the point's."""
+    if name.startswith("CF"):
+        return ("force", "TOTAL")
+    if name.startswith("CM"):
+        return ("moment", "TOTAL")
+    return None
+
+
+def _time_average(
+    point: AdapterPoint, folder: Path, record: Mapping[str, object]
+) -> dict[str, object]:
+    """Reduce a time-accurate point's history over its averaging window.
+
+    A drift warning of the last revolution is warned and never blocks.
+    """
+    # numpy is imported here only: the serial pysu2 worker imports this package without it.
+    from cfdbender.post.unsteady_point import reduce_point
+    from cfdbender.solvers.su2._time_history import LOAD_COLUMNS, time_history
+
+    sliding = point.setup.get("sliding")
+    zone = sliding.get("rotating_zone") if isinstance(sliding, Mapping) else None
+    clock = cast(Mapping[str, object], record["clock"])
+    first, last = cast(list[int], record["averaging_window"])
+    try:
+        history = time_history(folder, zone=cast(int | None, zone))
+    except (OSError, ValueError, StopIteration) as error:
+        return {"FIRST_STEP": first, "LAST_STEP": last, "skipped": str(error)}
+    declared = point.post.get("per_revolution", {})
+    limit = declared.get("drift_limit_pct", 1.0) if isinstance(declared, Mapping) else 1.0
+    reduced = reduce_point(
+        history,
+        LOAD_COLUMNS,
+        window=(first, last),
+        steps_per_revolution=cast(float | None, clock.get("steps_per_revolution")),
+        kind_of=_kind,
+        drift_limit_pct=float(limit),
+    )
+    for text in cast(list[str], reduced.get("warnings", [])):
+        warnings.warn(f"{point.point.point_id}: {text}", UserWarning, stacklevel=2)
+    return reduced
+
+
 def _rotor(
-    point: AdapterPoint, coefficients: Mapping[str, Coefficient]
+    point: AdapterPoint,
+    coefficients: Mapping[str, Coefficient],
+    averaged: Mapping[str, object] | None = None,
 ) -> dict[str, object] | None:
-    """Return the rotor quantities of a point whose REF file states a rotor block, else None."""
-    if rotor_block(point.reference) is None:
+    """Return the rotor record of a point whose REF file states a rotor block, else None.
+
+    A time-accurate point's rotor row is formed from the window means of the force and
+    moment; a point whose history does not cover the window is left out with the reason.
+    """
+    rotor = rotor_block(point.reference)
+    if rotor is None:
         return None
     values = config(
-        point.setup, point.reference, point.post, point.point.condition, geometry=point.geometry
+        point.setup,
+        point.reference,
+        point.post,
+        point.point.condition,
+        geometry=point.geometry,
+        run_type=point.point.run_type,
     )
-    return rotor_point(
+    if averaged is not None and "skipped" in averaged:
+        return {"rotor": rotor.alias, "skipped": averaged["skipped"]}
+    found = rotor_point(
         values,
         point.reference,
         {k: c.value for k, c in coefficients.items()},
         periodic_state(point.setup),
         point.point.condition,
     )
+    if found is not None and averaged is not None:
+        found["window"] = {key: averaged[key] for key in ("FIRST_STEP", "LAST_STEP", "STEPS")}
+    return found
 
 
 def collect(point: AdapterPoint) -> NeutralResult:
@@ -320,6 +409,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
                     point.post,
                     point.point.condition,
                     geometry=point.geometry,
+                    run_type=point.point.run_type,
                 )
             )
             files.warn(
@@ -330,6 +420,26 @@ def collect(point: AdapterPoint) -> NeutralResult:
             )
     else:
         found = dimensions(folder)
+    averaged: dict[str, object] | None = None
+    if point.point.run_type in TIME_ACCURATE:
+        record: dict[str, object] = {}
+        values = config(
+            point.setup,
+            point.reference,
+            point.post,
+            point.point.condition,
+            geometry=point.geometry,
+            run_type=point.point.run_type,
+            record=record,
+        )
+        averaged = _time_average(point, folder, record)
+        averaged["condition"] = condition_cells(values)
+        averaged["absent"] = list(ABSENT_CONDITION_COLUMNS)
+        means = cast(Mapping[str, float], averaged.get("means", {}))
+        coefficients = {
+            key: replace(c, value=means[key]) if key in means else c
+            for key, c in coefficients.items()
+        }
     return _SU2Result(
         coefficients,
         refs,
@@ -339,6 +449,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
         route,
         found,
         residual_field(folder),
-        _rotor(point, coefficients),
+        _rotor(point, coefficients, averaged),
+        averaged,
         force_groups=force_groups(folder, groups(point.setup), coefficients),
     )

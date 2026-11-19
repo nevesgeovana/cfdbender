@@ -1437,6 +1437,8 @@ class Point:
     restart_sha256: Mapping[str, str] = field(default_factory=dict)
     defaults_omitted: tuple[str, ...] = ()
     numerics_id: str = ""
+    #: The run type the row selects in its WORKFLOW cell; a steady record omits it.
+    run_type: str = "steady"
     #: Where each top-level setup key came from (planning only; never recorded).
     origins: Mapping[str, str] = field(default_factory=dict, compare=False, repr=False)
 
@@ -1457,6 +1459,7 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "restart_sha256": {},
         "defaults_omitted": (),
         "numerics_id": "",
+        "run_type": "steady",
     }
 )
 
@@ -1538,6 +1541,7 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 restart_from=row.restart_from,
                 defaults_omitted=inputs.defaults_omitted,
                 numerics_id=inputs.numerics_id,
+                run_type=row.workflow,
                 origins=inputs.origins,
             )
         )

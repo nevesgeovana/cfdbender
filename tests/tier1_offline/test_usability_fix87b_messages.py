@@ -52,7 +52,7 @@ def test_u30_wording_is_for_the_user_not_for_the_adapter(tmp_path, capsys):
     assert "POC" not in err and "inputs/setups/s001.toml" in err
     root = build(tmp_path / "su2", "su2")
     matrix = root / "inputs/matrices/full.fs"
-    edit(matrix, "| 1.0 | - |", "| 1.0 | unsteady |")
+    edit(matrix, "| 1.0 | - |", "| 1.0 | LEGACY |")
     err = plan_error(capsys, root)
     assert "in this adapter" not in err and "WORKFLOW" in err
     root = build(tmp_path / "pf", "pyfr")

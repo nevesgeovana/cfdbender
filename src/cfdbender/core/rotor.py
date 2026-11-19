@@ -44,7 +44,6 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.core.rotor_coefficients import (
     advance_ratio,
     force_scale,
@@ -52,6 +51,7 @@ from cfdbender.core.rotor_coefficients import (
     power_from_torque,
     rotor_coefficients,
 )
+from cfdbender.core.run_types import CONTROLLED_KEYS
 from cfdbender.core.unsteady_clock import BladeDatum, blade_datum, blade_one_azimuth
 
 Vector = tuple[float, float, float]
@@ -142,6 +142,69 @@ def _family_list(value: object, label: str) -> list[str]:
     return value
 
 
+#: |shaft . datum| above which blade one's datum lies along the shaft (about 5 degrees).
+DATUM_ALIGNMENT_LIMIT = 0.9961946980917455
+#: The largest angle between an installed shaft and the axis it names, in degrees.
+SHAFT_TILT_LIMIT_DEG = 45.0
+
+
+def shaft_axis(axis: object, name: str) -> tuple[str, Vector]:
+    """Read a rotor's ``axis``: a letter, or ``{ shaft, vector_wrt_global }``, as pyflightstream.
+
+    The letter X, Y or Z is the positive global axis. The table names the shaft letter and the
+    installed direction, which is normalised and must lie within 45 degrees of the positive
+    axis the letter names. Either way the unit vector is the direction thrust is counted
+    positive along, and ``rpm_sign`` is the right-hand rule about it.
+
+    Returns
+    -------
+    tuple
+        The shaft letter and the unit vector.
+    """
+    if isinstance(axis, str):
+        token = axis.strip().upper()
+        if token not in _AXES:
+            raise ValueError(
+                f"REF file {name}: axis = {axis!r} is not an axis; write X, Y or Z, or a table "
+                "with shaft and vector_wrt_global for a rotor installed at an angle"
+            )
+        return token, _AXES[token]
+    if isinstance(axis, list):
+        nearest = "XYZ"[max(range(3), key=lambda i: abs(float(axis[i])))] if len(axis) == 3 else "X"
+        raise ValueError(
+            f"REF file {name}: axis = {axis!r} did not say which frame axis is the shaft; "
+            f'write axis = {{ shaft = "{nearest}", vector_wrt_global = {axis!r} }}'
+        )
+    if not isinstance(axis, Mapping):
+        raise ValueError(f"REF file {name}: axis = {axis!r} is not an axis")
+    unknown = sorted(set(axis) - {"shaft", "vector_wrt_global"})
+    if unknown or "shaft" not in axis or "vector_wrt_global" not in axis:
+        raise ValueError(
+            f"REF file {name}: the axis table states shaft and vector_wrt_global, and only them"
+        )
+    shaft = axis["shaft"]
+    if shaft not in _AXES:
+        raise ValueError(f'REF file {name}: axis.shaft must be "X", "Y" or "Z"')
+    stated = axis["vector_wrt_global"]
+    if not isinstance(stated, list) or len(stated) != 3:
+        raise ValueError(f"REF file {name}: axis.vector_wrt_global must be three numbers")
+    components = [_real(value, f"{name}.axis.vector_wrt_global") for value in stated]
+    scale = max(abs(value) for value in components)
+    if scale == 0:
+        raise ValueError("vector_wrt_global has zero length; state the shaft direction")
+    scaled = [value / scale for value in components]
+    length = math.hypot(*scaled)
+    component = scaled["XYZ".index(shaft)] / length
+    angle = math.degrees(math.acos(max(-1.0, min(1.0, component))))
+    if angle > SHAFT_TILT_LIMIT_DEG + 1e-10:
+        raise ValueError(
+            f"REF file {name}: vector_wrt_global is {angle:.2f} degrees from shaft {shaft}; "
+            "at most 45 degrees is accepted. Choose the matching shaft letter"
+        )
+    x, y, z = (value / length for value in scaled)
+    return shaft, (x, y, z)
+
+
 def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
     """Return the REF file's rotor declaration, or None when it holds none.
 
@@ -195,14 +258,11 @@ def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
     diameter = _real(block["diameter_m"], f"{name}.diameter_m")
     if diameter <= 0.0:
         raise ValueError(f"REF file {name}.diameter_m must be positive")
-    axis = block["axis"]
-    if not isinstance(axis, str) or axis.strip().upper() not in _AXES:
-        raise ValueError(f'REF file {name}.axis must be "X", "Y" or "Z"')
-    shaft = axis.strip().upper()
+    shaft, vector = shaft_axis(block["axis"], name)
     if shaft != "X":
         raise ValueError(
-            f"REF file {name}.axis is {axis!r}: the SU2 adapter runs the rotor in an axial "
-            'flow along +x, so it reads axis = "X" only'
+            f"REF file {name}.axis names shaft {shaft}: the SU2 adapter runs the rotor in an "
+            'axial flow along +x, so it reads the shaft "X" only'
         )
     sign = block.get("rpm_sign", 1)
     if type(sign) is not int or sign not in (1, -1):
@@ -220,12 +280,22 @@ def rotor_block(reference: Mapping[str, object]) -> RotorBlock | None:
             f"REF file {name}: blade1.zero {datum.zero} equals shaft {shaft}; "
             "choose one of the two remaining axes"
         )
+    datum_axis = _AXES[datum.zero.lstrip("+-")]
+    alignment = abs(_dot(vector, datum_axis))
+    if alignment > DATUM_ALIGNMENT_LIMIT:
+        degrees = math.degrees(math.acos(min(1.0, alignment)))
+        raise ValueError(
+            f"REF file {name}: blade1 measures its azimuth from {datum.zero}, which is "
+            f"{degrees:.2f} degrees from the shaft direction {vector}. An azimuth measured from "
+            "a datum that nearly lies along the shaft locates nothing, so it is refused rather "
+            "than reported. Choose a datum square to the disk"
+        )
     origin = (
         _real(block.get("x_m", 0.0), f"{name}.x_m"),
         _real(block.get("y_m", 0.0), f"{name}.y_m"),
         _real(block.get("z_m", 0.0), f"{name}.z_m"),
     )
-    return RotorBlock(name, diameter, blades, origin, _AXES[shaft], sign, datum)
+    return RotorBlock(name, diameter, blades, origin, vector, sign, datum)
 
 
 def rotor_speed(
@@ -485,31 +555,9 @@ def rotor_row(
     return row
 
 
-#: The row controls of the symmetry and the time-accurate run types: never solver keys.
-ROW_CONTROLS = (
-    "SYMMETRY",
-    "SYMMETRY_LOADS",
-    "symmetry_loads",
-    "PERIODIC_COPIES",
-    "DELTA_THETA",
-    "REVOLUTIONS",
-    "LAST_REVS_AVG",
-    "LAST_ITERS_AVG",
-    "DELTA_TIME",
-    "TIME_ITERATIONS",
-    "CLOCK_MOTION",
-    "MOTIONS",
-)
-TIME_ACCURATE = (
-    "DELTA_THETA",
-    "REVOLUTIONS",
-    "LAST_REVS_AVG",
-    "LAST_ITERS_AVG",
-    "DELTA_TIME",
-    "TIME_ITERATIONS",
-    "CLOCK_MOTION",
-    "MOTIONS",
-)
+#: The row controls of the symmetry and of the run types: never solver keys. The run types'
+#: own vocabulary is :data:`cfdbender.core.run_types.CONTROLLED_KEYS`.
+ROW_CONTROLS = tuple(dict.fromkeys((*CONTROLLED_KEYS, "CLOCK_MOTION", "MOTIONS")))
 TIME_ACCURATE_PREFIX = "EXPORT_"
 
 
@@ -548,10 +596,8 @@ def periodic_state(setup: Mapping[str, object]) -> PeriodicState:
     ``SYMMETRY`` says what was meshed (``NONE``, the default, or ``PERIODIC``);
     ``PERIODIC_COPIES`` is required with ``PERIODIC`` and refused otherwise;
     ``SYMMETRY_LOADS`` (the row's, else the setup's ``symmetry_loads``, else true) says whether
-    the loads are the whole rotor's or the sector's. Warns and skips ``DELTA_THETA``,
-    ``REVOLUTIONS``, ``LAST_REVS_AVG``, ``LAST_ITERS_AVG``, ``DELTA_TIME``,
-    ``TIME_ITERATIONS``, ``CLOCK_MOTION``, ``MOTIONS`` and every ``EXPORT_*``
-    variable, which belong to the time-accurate run types.
+    the loads are the whole rotor's or the sector's. The run types' own variables are
+    checked by :func:`cfdbender.core.run_types.skip_unread_variables`.
 
     Raises
     ------
@@ -559,14 +605,6 @@ def periodic_state(setup: Mapping[str, object]) -> PeriodicState:
         A symmetry other than NONE or PERIODIC, PERIODIC without a positive whole number of
         copies, copies without PERIODIC, or a non-boolean SYMMETRY_LOADS.
     """
-    for key in setup:
-        if key in TIME_ACCURATE or str(key).startswith(TIME_ACCURATE_PREFIX):
-            warn_or_refuse(
-                f"{key} is skipped: it belongs to a time-accurate run type that the SU2 "
-                "adapter does not offer yet",
-                UserWarning,
-                stacklevel=2,
-            )
     symmetry = str(setup.get("SYMMETRY", "NONE")).strip().upper()
     if symmetry not in {"NONE", "PERIODIC"}:
         raise ValueError(

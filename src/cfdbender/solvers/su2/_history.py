@@ -102,8 +102,17 @@ LARGEST_RMS = "largest rms"
 
 
 def _cfg(folder: Path) -> dict[str, str]:
-    lines = (folder / "su2.cfg").read_text().splitlines()
-    return {key.strip(): value.strip() for key, value in (line.split("=", 1) for line in lines)}
+    """Return the keys of the point's configuration: its last segment's where it has two."""
+    found: dict[str, str] = {}
+    for name in ("su2.cfg", "su2_segment2.cfg"):
+        path = folder / name
+        if name == "su2.cfg" or path.is_file():
+            lines = path.read_text().splitlines()
+            found.update(
+                (key.strip(), value.strip())
+                for key, value in (line.split("=", 1) for line in lines)
+            )
+    return found
 
 
 def _convergence_columns(cfg: dict[str, str], residuals: list[str]) -> tuple[list[str], str]:
@@ -175,8 +184,13 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
     version = re.search(
         "(?:SU2.*?(?:version|Version|v)|Version|Release)[ ]*([0-9]+[.][0-9]+[.][0-9]+)", log
     )
+    # A time-accurate deck marches TIME_ITER steps, each one Time_Iter of the history; its
+    # iterations are the steps and the last row of a step is that step's state.
+    timed = "TIME_ITER" in cfg
+    counter = "Time_Iter" if timed else "Inner_Iter"
+    limit = int(cfg["TIME_ITER"] if timed else cfg["ITER"])
     result = ExecutionResult(
-        int(metadata["exit_code"]), (), int(cfg["ITER"]), version[1] if version else "unknown"
+        int(metadata["exit_code"]), (), limit, version[1] if version else "unknown"
     )
     # Affirmative lines only. 'Exit Success' says nothing about numerical convergence.
     # The message counts only when no iteration line follows it: a banner printed before
@@ -203,8 +217,8 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
             reader = csv.reader(stream, skipinitialspace=True)
             path = folder / "history.csv"
             headers = history_headers(next(reader), path)
-            if "Inner_Iter" not in headers:
-                raise ValueError(f"{path}: no Inner_Iter column")
+            if counter not in headers:
+                raise ValueError(f"{path}: no {counter} column")
             residuals = [key for key in headers if key.startswith("rms[")]
             if not residuals or not any(key in _AXES for key in headers):
                 raise ValueError(f"{path}: no residual or no coefficient column")
@@ -215,11 +229,14 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
                 # Reject non-finite numerical history, including uncollected coefficient fields.
                 if not all(math.isfinite(float(value)) for value in cells):
                     raise ValueError("history.csv contains non-finite values")
-                iteration = int(row["Inner_Iter"]) + 1
-                if history and iteration <= history[-1].iteration:
-                    raise ValueError("history.csv iterations must increase")
+                iteration = int(row[counter]) + 1
                 residual = max(10.0 ** float(row[key]) for key in residuals)
-                history.append(Iteration(iteration, residual))
+                if timed and history and iteration == history[-1].iteration:
+                    history[-1] = Iteration(iteration, residual)
+                else:
+                    if history and iteration <= history[-1].iteration:
+                        raise ValueError("history.csv iterations must increase")
+                    history.append(Iteration(iteration, residual))
                 coefficients = {
                     key: _FramedCoefficient(
                         float(row[key]),
