@@ -2,10 +2,14 @@
 
 ``tests/data/farfield_reference.json`` holds seeded inputs and the outputs the reference
 implementation produced for them (written by ``tools/record_farfield_reference.py``). Every
-output is recomputed here from the stored inputs. The operations are the same, so the
-comparison is exact, bit for bit, NaN with NaN. No output of the ported core is a
-least-squares fit, so the 1e-12 relative arm is not needed; ``FIT_RTOL`` is the tolerance
-any such output would use. The test reads only the JSON.
+output is recomputed here from the stored inputs. Integers, counts, strings and shapes are
+compared exactly and NaN must meet NaN. A float is compared to ``RTOL`` (1e-12) relative to
+the value, with an absolute floor of ``RTOL`` times the largest magnitude of the same output,
+so that a cancellation to nearly zero does not fail on rounding. The recording and a later
+run may differ in the last digits: the quadrature uses ``numpy`` sums, sines and cosines,
+which are not bit reproducible across platforms, numpy builds or CPUs. The measured
+difference between the recording platform and another is far below ``RTOL``; a change in the
+algorithm moves the values by orders of magnitude more. The test reads only the JSON.
 """
 
 from __future__ import annotations
@@ -55,7 +59,8 @@ from cfdbender.post.farfield import (
     transverse_force,
 )
 
-FIT_RTOL = 1e-12
+#: The relative tolerance of a recomputed float, and of the floor of its output.
+RTOL = 1e-12
 DATA = json.loads(
     (Path(__file__).resolve().parents[1] / "data" / "farfield_reference.json").read_text(
         encoding="utf-8"
@@ -84,18 +89,33 @@ def _plain(value: Any) -> Any:
     return value
 
 
-def _same(got: Any, expected: Any, path: str) -> None:
-    """Exact equality of two JSON values, NaN equal to NaN."""
+def _scale(value: Any) -> float:
+    """The largest finite magnitude of the floats inside a JSON value."""
+    if isinstance(value, dict):
+        return max((_scale(v) for v in value.values()), default=0.0)
+    if isinstance(value, list):
+        return max((_scale(v) for v in value), default=0.0)
+    if isinstance(value, float) and math.isfinite(value):
+        return abs(value)
+    return 0.0
+
+
+def _same(got: Any, expected: Any, path: str, floor: float) -> None:
+    """Two JSON values agree: floats to ``RTOL``, everything else exactly, NaN with NaN."""
     if isinstance(expected, dict):
         assert isinstance(got, dict) and got.keys() == expected.keys(), path
         for key in expected:
-            _same(got[key], expected[key], f"{path}.{key}")
+            _same(got[key], expected[key], f"{path}.{key}", floor)
     elif isinstance(expected, list):
         assert isinstance(got, list) and len(got) == len(expected), path
         for index, (g, e) in enumerate(zip(got, expected, strict=True)):
-            _same(g, e, f"{path}[{index}]")
+            _same(g, e, f"{path}[{index}]", floor)
     elif isinstance(expected, float) and math.isnan(expected):
         assert isinstance(got, float) and math.isnan(got), path
+    elif isinstance(expected, float) and math.isfinite(expected):
+        assert isinstance(got, float) and abs(got - expected) <= RTOL * abs(expected) + floor, (
+            f"{path}: {got!r} != {expected!r}"
+        )
     else:
         assert got == expected, f"{path}: {got!r} != {expected!r}"
 
@@ -103,7 +123,7 @@ def _same(got: Any, expected: Any, path: str) -> None:
 def _check(outputs: dict[str, Any], recorded: dict[str, Any], case: str) -> None:
     assert outputs.keys() == recorded.keys(), case
     for name, expected in recorded.items():
-        _same(_plain(outputs[name]), expected, f"{case}:{name}")
+        _same(_plain(outputs[name]), expected, f"{case}:{name}", RTOL * _scale(expected))
 
 
 def _array(record: dict[str, Any]) -> np.ndarray:
@@ -111,7 +131,7 @@ def _array(record: dict[str, Any]) -> np.ndarray:
 
 
 @pytest.mark.parametrize("case", DATA["lattice_cases"], ids=lambda c: c["name"])
-def test_lattice_balances_equal_the_recorded_reference_exactly(case):
+def test_lattice_balances_match_the_recorded_reference(case):
     lattice = SurveyLattice(
         tip_radius=case["lattice"]["tip_radius"],
         stations=tuple(case["lattice"]["stations"]),
@@ -170,7 +190,7 @@ def test_lattice_balances_equal_the_recorded_reference_exactly(case):
 
 
 @pytest.mark.parametrize("case", DATA["grid_cases"], ids=lambda c: c["name"])
-def test_grid_quadrature_equals_the_recorded_reference_exactly(case):
+def test_grid_quadrature_matches_the_recorded_reference(case):
     y, z = np.array(case["y"]), np.array(case["z"])
     field = np.array(case["field"])
     positions = np.array(case["positions"])
@@ -189,7 +209,7 @@ def test_grid_quadrature_equals_the_recorded_reference_exactly(case):
 
 
 @pytest.mark.parametrize("case", DATA["harmonic_cases"], ids=lambda c: c["name"])
-def test_azimuthal_harmonics_equal_the_recorded_reference_exactly(case):
+def test_azimuthal_harmonics_match_the_recorded_reference(case):
     psi = np.array(case["psi"])
     values = np.array(case["values"])
     outputs: dict[str, Any] = {
@@ -201,7 +221,7 @@ def test_azimuthal_harmonics_equal_the_recorded_reference_exactly(case):
 
 
 @pytest.mark.parametrize("case", DATA["plane_cases"], ids=lambda c: c["name"])
-def test_plane_integrals_equal_the_recorded_reference_exactly(case):
+def test_plane_integrals_match_the_recorded_reference(case):
     fields = {k: np.array(v) for k, v in case["fields"].items()}
     plane = plane_fields(np.array(case["y"]), z=np.array(case["z"]), fields=fields)
     outputs: dict[str, Any] = {
@@ -215,7 +235,7 @@ def test_plane_integrals_equal_the_recorded_reference_exactly(case):
 
 
 @pytest.mark.parametrize("case", DATA["trace_cases"], ids=lambda c: c["name"])
-def test_trace_forces_equal_the_recorded_reference_exactly(case):
+def test_trace_forces_match_the_recorded_reference(case):
     sheets = None if case["sheets"] is None else np.array(case["sheets"], dtype=int)
     result = trace_forces(
         np.array(case["y"]),
@@ -238,7 +258,7 @@ def test_trace_forces_equal_the_recorded_reference_exactly(case):
     _check(outputs, case["outputs"], case["name"])
 
 
-def test_counts_equal_the_recorded_reference_exactly():
+def test_counts_match_the_recorded_reference():
     case = DATA["counts_case"]
     outputs: dict[str, Any] = {
         "to_counts": to_counts(1.7, rho_inf=1.2, v_inf=30.0, s_ref=0.8),

@@ -2,8 +2,9 @@
 
 Run once with ``PYTHONPATH=src`` and the source folder of the library that defines the layouts on
 the path as well. The outputs go to ``tests/data/volume_layouts_reference.json``, which the test
-suite compares with :mod:`cfdbender.post.volume_layouts` exactly (volume cuts) or to the last
-bit of the five-decimal rounding (probe shapes).
+suite compares with :mod:`cfdbender.post.volume_layouts`: rectangular cuts exactly (plain
+arithmetic), circular cuts to 1e-12 relative (a sine and a cosine are not bit reproducible
+across platforms) and circular probe shapes to one unit of the five-decimal rounding.
 """
 
 from __future__ import annotations

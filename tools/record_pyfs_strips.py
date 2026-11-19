@@ -3,7 +3,8 @@
 Run once with ``PYTHONPATH=src`` and the source folder of the library that defines the
 integrated sectional-load columns on the path as well. The outputs go to
 ``tests/data/section_strips_reference.json``, which the test suite compares with
-:func:`cfdbender.post.sections.strip_lengths` exactly.
+:func:`cfdbender.post.sections.strip_lengths` exactly: the strips are differences and
+products of the input numbers, plain IEEE arithmetic with no library function.
 """
 
 from __future__ import annotations

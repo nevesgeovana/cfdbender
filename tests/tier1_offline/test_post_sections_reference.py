@@ -1,6 +1,7 @@
 """The strip integration equals the recorded outputs of the library whose columns it follows.
 
-The reference file is written once by ``tools/record_pyfs_strips.py``; the comparison is exact.
+The reference file is written once by ``tools/record_pyfs_strips.py``; the comparison is exact
+because the strips are differences and products of the inputs, plain IEEE arithmetic.
 """
 
 from __future__ import annotations

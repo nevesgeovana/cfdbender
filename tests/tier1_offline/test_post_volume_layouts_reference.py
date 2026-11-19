@@ -22,8 +22,16 @@ REFERENCE = json.loads(
 )
 
 
+#: A circle is laid with a sine and a cosine, which are not bit reproducible across platforms:
+#: its points agree to this relative tolerance, with a floor of the same size times the
+#: largest coordinate of the cut so that a coordinate that is zero up to rounding passes.
+RTOL = 1e-12
+#: Probe points are rounded to five decimals; a sine in the last bit may tip one rounding.
+ROUNDING = 1.001e-5
+
+
 @pytest.mark.parametrize("case", REFERENCE["sections"])
-def test_a_volume_cut_lays_the_recorded_points_exactly(case: dict) -> None:
+def test_a_volume_cut_lays_the_recorded_points(case: dict) -> None:
     declaration = case["declaration"]
     laid = volume_section_points(
         declaration["shape"],
@@ -34,7 +42,11 @@ def test_a_volume_cut_lays_the_recorded_points_exactly(case: dict) -> None:
         refinement_layers=declaration.get("refinement_layers", 1),
         offset_m=declaration.get("offset_m", 0.0),
     )
-    np.testing.assert_array_equal(laid, np.array(case["points"]))
+    recorded = np.array(case["points"])
+    if declaration["shape"] == "circle":
+        np.testing.assert_allclose(laid, recorded, rtol=RTOL, atol=RTOL * np.abs(recorded).max())
+    else:
+        np.testing.assert_array_equal(laid, recorded)
 
 
 def test_the_recorded_cuts_cover_both_shapes_and_every_plane() -> None:
@@ -70,4 +82,4 @@ def test_a_probe_circle_lays_the_recorded_points(case: dict) -> None:
         d["points_azimuth"],
         d["scale"],
     )
-    np.testing.assert_array_equal(laid, np.array(case["points"]))
+    np.testing.assert_allclose(laid, np.array(case["points"]), rtol=0.0, atol=ROUNDING)

@@ -6,7 +6,10 @@
 partial revolutions, windows longer than the run, fractional windows at the halves, refused
 rows). This test recomputes every entry with the cfdbender functions and compares without
 importing pyflightstream: windows, step counts, refusals and warning texts with ``==``, means
-and drifts bit for bit. Regenerating the file is a deliberate act: the tool says how.
+and drifts to ``RTOL`` (1e-12, relative to the value, with a floor of ``RTOL`` times the
+largest magnitude of the recorded result): they are numpy reductions, which are not bit
+reproducible across numpy builds and CPUs. Clock steps and azimuths are plain IEEE
+arithmetic and stay bit for bit. Regenerating the file is a deliberate act: the tool says how.
 """
 
 from __future__ import annotations
@@ -47,22 +50,45 @@ def reference() -> dict:
     return json.loads(REFERENCE.read_text(encoding="utf-8"))
 
 
-def _same(left: object, right: object) -> bool:
-    """Equal values, NaN equal to NaN, lists and tuples alike, floats bit for bit."""
+#: The relative tolerance of a float that is a numpy reduction (a mean or a drift).
+RTOL = 1e-12
+
+
+def _magnitude(value: object) -> float:
+    """The largest finite magnitude of the floats inside a recorded value."""
+    if isinstance(value, dict):
+        return max((_magnitude(v) for v in value.values()), default=0.0)
+    if isinstance(value, list | tuple):
+        return max((_magnitude(v) for v in value), default=0.0)
+    if isinstance(value, float) and math.isfinite(value):
+        return abs(value)
+    return 0.0
+
+
+def _same(left: object, right: object, rtol: float = 0.0, floor: float = 0.0) -> bool:
+    """Equal values, NaN equal to NaN, lists and tuples alike.
+
+    A float is bit for bit (the sign of a zero included) when ``rtol`` is zero, and within
+    ``rtol`` of the recorded value plus ``floor`` otherwise.
+    """
     if isinstance(left, float) and isinstance(right, float):
-        return (math.isnan(left) and math.isnan(right)) or (
-            left == right and math.copysign(1.0, left) == math.copysign(1.0, right)
-        )
+        if math.isnan(left) and math.isnan(right):
+            return True
+        if rtol and math.isfinite(left) and math.isfinite(right):
+            return abs(left - right) <= rtol * abs(right) + floor
+        return left == right and math.copysign(1.0, left) == math.copysign(1.0, right)
     if isinstance(left, dict) and isinstance(right, dict):
-        return list(left) == list(right) and all(_same(left[k], right[k]) for k in left)
+        return list(left) == list(right) and all(
+            _same(left[k], right[k], rtol, floor) for k in left
+        )
     if isinstance(left, list | tuple) and isinstance(right, list | tuple):
         return len(left) == len(right) and all(
-            _same(a, b) for a, b in zip(left, right, strict=True)
+            _same(a, b, rtol, floor) for a, b in zip(left, right, strict=True)
         )
     return bool(left == right) and type(left) is type(right)
 
 
-def _agrees(recorded: dict, call: Callable[[], object]) -> None:
+def _agrees(recorded: dict, call: Callable[[], object], *, rtol: float = 0.0) -> None:
     """The call returns the recorded value, or refuses with the recorded sentence."""
     if "error" in recorded:
         with pytest.raises(WorkspaceError) as refused:
@@ -70,7 +96,8 @@ def _agrees(recorded: dict, call: Callable[[], object]) -> None:
         assert str(refused.value) == recorded["error"]
     else:
         got = call()
-        assert _same(got, recorded["value"]), (got, recorded["value"])
+        floor = rtol * _magnitude(recorded["value"])
+        assert _same(got, recorded["value"], rtol, floor), (got, recorded["value"])
 
 
 def _history(recorded: dict) -> TimeHistory:
@@ -136,7 +163,7 @@ def test_the_step_clock_agrees(reference: dict) -> None:
         _agrees(entry["steps"], lambda c=entry["cells"]: [int(s) for s in step_clock(c)])
 
 
-def test_the_window_averages_agree_bit_for_bit(reference: dict) -> None:
+def test_the_window_averages_agree(reference: dict) -> None:
     for entry in reference["averages"]:
         history = _history(entry["history"])
         for case in entry["windows"]:
@@ -152,10 +179,10 @@ def test_the_window_averages_agree_bit_for_bit(reference: dict) -> None:
                     "read_steps": sorted(read),
                 }
 
-            _agrees(case["result"], run)
+            _agrees(case["result"], run, rtol=RTOL)
 
 
-def test_the_per_revolution_tables_agree_bit_for_bit(reference: dict) -> None:
+def test_the_per_revolution_tables_agree(reference: dict) -> None:
     for entry in reference["per_revolution"]:
         history = _history(entry["history"])
 
@@ -171,12 +198,16 @@ def test_the_per_revolution_tables_agree_bit_for_bit(reference: dict) -> None:
                 "read_steps": sorted(read),
             }
 
-        _agrees(entry["result"], run)
+        _agrees(entry["result"], run, rtol=RTOL)
 
 
-def test_the_drifts_agree_bit_for_bit(reference: dict) -> None:
+def test_the_drifts_agree(reference: dict) -> None:
     for entry in reference["drift"]:
-        _agrees(entry["result"], lambda e=entry: revolution_drift_pct(e["current"], e["previous"]))
+        _agrees(
+            entry["result"],
+            lambda e=entry: revolution_drift_pct(e["current"], e["previous"]),
+            rtol=RTOL,
+        )
 
 
 def test_the_warnings_agree_word_for_word(reference: dict) -> None:
