@@ -31,6 +31,7 @@ from cfdbender.matrix._family_columns import SOLVER_ROTORS
 from cfdbender.matrix._family_polar import Point, PolarFiles, point_loads, polar_files
 from cfdbender.matrix._rotor_table import rotor_table
 from cfdbender.matrix._section_tables import section_files
+from cfdbender.matrix._unsteady_polar import unsteady_polars
 from cfdbender.matrix.polar2d import verdict_cells
 
 NOT_APPLICABLE = "NA"
@@ -281,6 +282,7 @@ def write_polar_files(
         root, folder, rows, points, polar, solver, write=_write, cell=_cell
     )
     rotors = rotor_table(folder, rows, write=_write, cell=_cell)
+    rotors += unsteady_polars(folder, rows, write=_write, cell=_cell)
     return replace(
         polar,
         paths=(*polar.paths, *sections, *rotors),
