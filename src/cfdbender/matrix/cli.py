@@ -604,7 +604,7 @@ def _execute_inner(
             profile_paths = (
                 tuple(p.path.relative_to(plan.root).as_posix() for p in profiles) if cluster else ()
             )
-            require_receipt(plan, profile_paths, grouping)
+            require_receipt(plan, profile_paths, grouping, renumbered_batches=args.force_rerun_all)
             submitting = cluster
             adapter = cast(SolverAdapter, load_solver(plan.solver))
             if args.restart and "restart" not in capabilities(adapter):

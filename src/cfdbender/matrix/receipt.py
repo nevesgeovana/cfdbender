@@ -140,12 +140,29 @@ def write_receipt(
     return target
 
 
+def _unnumbered(grouping: Mapping[str, object]) -> object:
+    """Return a grouping without its batch folder numbers: same rows, points and order."""
+    jobs = grouping.get("jobs")
+    rows = [
+        (job.get("sims"), job.get("points"), job.get("script", "").split("/")[-1])
+        for job in (jobs if isinstance(jobs, list) else [])
+        if isinstance(job, dict)
+    ]
+    return grouping.get("mode"), grouping.get("requested"), rows
+
+
 def receipt_error(
     plan: RunPlan,
     profiles: tuple[str, ...] = (),
     grouping: Mapping[str, object] | None = None,
+    *,
+    renumbered_batches: bool = False,
 ) -> str | None:
-    """Return why a run of this plan may not proceed, or None when the receipt answers for it."""
+    """Return why a run of this plan may not proceed, or None when the receipt answers for it.
+
+    ``renumbered_batches`` accepts a grouping that differs from the planned one only in the
+    batch folder numbers, which move when an earlier submission's folder exists.
+    """
     path, data, problem = _read(plan)
     if problem is not None or data is None:
         return problem
@@ -166,7 +183,10 @@ def receipt_error(
                 f"the plan was made for --batch {held.get('requested')}, not "
                 f"{grouping['requested']}: plan it again."
             )
-        if held != json.loads(json.dumps(grouping)):
+        now_grouping = json.loads(json.dumps(grouping))
+        if held != now_grouping and not (
+            renumbered_batches and _unnumbered(held) == _unnumbered(now_grouping)
+        ):
             return "the plan was made for another grouping of the rows: plan it again."
     recorded = {str(p["point_id"]): p for p in data["points"] if isinstance(p, dict)}  # type: ignore[attr-defined]
     warned: set[str] = set()
@@ -220,7 +240,10 @@ def require_receipt(
     plan: RunPlan,
     profiles: tuple[str, ...] = (),
     grouping: Mapping[str, object] | None = None,
+    *,
+    renumbered_batches: bool = False,
 ) -> None:
     """Raise ValueError with the refusal text unless the plan has a fresh receipt."""
-    if (message := receipt_error(plan, profiles, grouping)) is not None:
+    message = receipt_error(plan, profiles, grouping, renumbered_batches=renumbered_batches)
+    if message is not None:
         raise ValueError(message)
