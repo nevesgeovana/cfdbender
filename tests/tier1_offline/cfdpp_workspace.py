@@ -113,9 +113,11 @@ def workspace(
     else:
         build.write_grid3d(folder)
     (root / "inputs/setups/s001.toml").write_text(setup, encoding="ascii", newline="")
-    (root / "inputs/references/r001.toml").write_text(reference, encoding="ascii")
-    (root / "inputs/pproc/p001.toml").write_text(post, encoding="ascii")
-    (root / "inputs/matrices/study.fs").write_text(table or matrix(), encoding="ascii")
+    (root / "inputs/references/r001.toml").write_text(reference, encoding="ascii", newline="\r\n")
+    (root / "inputs/pproc/p001.toml").write_text(post, encoding="ascii", newline="\r\n")
+    (root / "inputs/matrices/study.fs").write_text(
+        table or matrix(), encoding="ascii", newline="\r\n"
+    )
     if init_options:
         (root / "init.toml").write_text(
             f'schema_version = 1\n\n[solver]\nname = "cfdpp"\n{init_options}',

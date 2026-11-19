@@ -98,7 +98,7 @@ def write_grid(root: Path, files: dict[str, bytes], names: list[str] | None) -> 
     for name, data in files.items():
         (root / name).write_bytes(data)
     if names is not None:
-        (root / "mcfd.bc").write_text(bc_text(names), encoding="ascii")
+        (root / "mcfd.bc").write_text(bc_text(names), encoding="ascii", newline="\r\n")
     return root
 
 
