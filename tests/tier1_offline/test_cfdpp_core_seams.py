@@ -34,10 +34,11 @@ ENTRY = (
 
 
 def test_cfdpp_seam_a_multi_field_entry_is_read_for_an_adapter_declaring_fields(tmp_path):
-    root = registry(tmp_path, ENTRY)
+    vendor = (tmp_path / "vendor").as_posix()  # absolute on every platform
+    root = registry(tmp_path / "ws", ENTRY.replace("C:/vendor", vendor))
     entry = resolve_fields(root, "cfdpp", "22.5.U3", FIELDS)
     assert entry["mpi_launcher"] == ["mpiexec", "-n", "{ncpus}"]
-    assert entry["serial"].replace("\\", "/") == "C:/vendor/serial.exe"
+    assert entry["serial"].replace("\\", "/") == f"{vendor}/serial.exe"
     assert "tools_dir" not in entry
 
 
@@ -61,12 +62,14 @@ def test_cfdpp_seam_a_malformed_field_is_refused(tmp_path):
 
 
 def test_cfdpp_seam_the_local_file_replaces_fields(tmp_path):
-    local = '[cfdpp."22.5.U3"]\nserial = "D:/here/serial.exe"\ntools_dir = "D:/here"\n'
-    root = registry(tmp_path, ENTRY, local)
+    vendor = (tmp_path / "vendor").as_posix()  # absolute on every platform
+    here = (tmp_path / "here").as_posix()
+    local = f'[cfdpp."22.5.U3"]\nserial = "{here}/serial.exe"\ntools_dir = "{here}"\n'
+    root = registry(tmp_path / "ws", ENTRY.replace("C:/vendor", vendor), local)
     entry = resolve_fields(root, "cfdpp", "22.5.U3", FIELDS)
-    assert entry["serial"].replace("\\", "/") == "D:/here/serial.exe"
-    assert entry["mpi"].replace("\\", "/") == "C:/vendor/mpi.exe"
-    assert entry["tools_dir"].replace("\\", "/") == "D:/here"
+    assert entry["serial"].replace("\\", "/") == f"{here}/serial.exe"
+    assert entry["mpi"].replace("\\", "/") == f"{vendor}/mpi.exe"
+    assert entry["tools_dir"].replace("\\", "/") == here
 
 
 def test_cfdpp_seam_an_undeclared_build_is_refused_at_plan_for_a_fields_adapter(tmp_path):
