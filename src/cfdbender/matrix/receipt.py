@@ -144,7 +144,7 @@ def _unnumbered(grouping: Mapping[str, object]) -> object:
     """Return a grouping without its batch folder numbers: same rows, points and order."""
     jobs = grouping.get("jobs")
     rows = [
-        (job.get("sims"), job.get("points"), job.get("script", "").split("/")[-1])
+        (job.get("sims"), sorted(job.get("points") or []), job.get("script", "").split("/")[-1])
         for job in (jobs if isinstance(jobs, list) else [])
         if isinstance(job, dict)
     ]

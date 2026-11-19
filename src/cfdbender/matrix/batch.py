@@ -15,6 +15,7 @@ import hashlib
 import os
 import re
 import shlex
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -145,17 +146,19 @@ def _dependent_block(
     status = shlex.quote(f"{relative}/{STATUS_FILE}")
     temporary = shlex.quote(f"{relative}/{STATUS_FILE}.tmp")
     line = " ".join(shlex.quote(part) for part in command)
-    note = (
-        f"RESTART {point.restart_from}: the source ended with status %s; this run was not started"
-    )
+    head = shlex.quote(f"RESTART {point.restart_from}: the source ended with status ")
+    tail = shlex.quote("; this run was not started")
+    python = shlex.quote(sys.executable)
     return chr(10).join(
         [
             f"# {point.point_id}: RESTART from {point.restart_from}, staged when it ends",
             f"src=$(cat {ended} 2>/dev/null || echo missing)",
+            f"py=${{CFDBENDER_PYTHON:-{python}}}",
+            '[ -x "$py" ] || py=python3',
             'if [ "$src" != 0 ]; then',
-            f"  printf '{note}\\n' \"$src\" > {quoted}/stderr.log",
+            f"  printf '%s%s%s\\n' {head} \"$src\" {tail} > {quoted}/stderr.log",
             f"  rc={SOURCE_FAILED}",
-            f'elif ! "${{CFDBENDER_PYTHON:-python3}}" -m {STAGER} {quoted}; then',
+            f'elif ! "$py" -m {STAGER} {quoted} 2>> {quoted}/stderr.log; then',
             f"  rc={STAGING_FAILED}",
             "else",
             f"  ( cd {quoted} && {line} > stdout.log 2> stderr.log )",
@@ -463,6 +466,18 @@ def grouped_options_refusal(
             "; run the points one by one for that."
         )
     return None
+
+
+def batch_exit_written(root: Path, record: RunRecord) -> int | None:
+    """Return the exit status the batch script wrote for this run, or None when it wrote none."""
+    job = record.submission.get("job") if record.submission is not None else None
+    if not isinstance(job, Mapping):
+        return None
+    try:
+        text = (workspace_path(root, record.point.directory) / STATUS_FILE).read_text("ascii")
+        return int(text.strip())
+    except (OSError, ValueError):
+        return None
 
 
 def batch_status(root: Path, record: RunRecord) -> int | None:

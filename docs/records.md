@@ -60,20 +60,26 @@ With `--batch N`, a source that is not completed yet is accepted when it is in t
 point it feeds: the job runs the rows in sequence, so the solution exists when the dependent
 starts. `cfd-matrix plan --batch N` lists each such pair. The job script reads the source's
 `job.exit` and, only when it is 0, stages the solution into the dependent's folder with
-`python -m cfdbender.matrix.stage_restart` (the compute node needs `cfdbender` importable;
-set `CFDBENDER_PYTHON` to the interpreter). The staging needs the solver's restart file to
-exist and not be empty, not collected products. It records the SHA-256 of each staged file in
-`restart-staged.json` in the dependent's folder, and `su2.cfg` is never edited: it was written
-at submission from the source's rendered configuration. If the source failed, the dependent
-is not run, its `job.exit` is 97 and one line of its `stderr.log` says why; if the restart file
-is missing the status is 98. The job goes on with the next run. A source later in the job is
-moved ahead of its dependents (runs of a job share no state, so no result changes). Points
-that feed each other are refused. This holds for SU2 with a steady source whose rendering
-fixes the restart file: `OUTPUT_FILES`, when stated, holds `RESTART`, and `RESTART_FILENAME`
-is a plain name ending in `.dat` (default `restart_flow.dat`); otherwise the run is refused
-naming the key. A source that is neither completed nor in the same job (no `--batch`, another
-job, or left out by `--points` or `--sims`) is refused as before. With `--force-rerun-all` both rows
-run again in the job, fed from each other's new attempt.
+`python -m cfdbender.matrix.stage_restart`. The interpreter is `$CFDBENDER_PYTHON` when set,
+else the one that wrote the script when it exists on the compute node, else `python3`; it
+must be able to import `cfdbender`. The staging needs the solver's restart file to exist and
+not be empty, not collected products. `restart-staged.json` in the dependent's folder is the
+record of what was staged, with the SHA-256 of each file; `collect` does not read it. `su2.cfg`
+is never edited: it was written at submission from the source's rendered configuration.
+If the source did not end with status 0 (or its `job.exit` is missing, for a killed job), the
+dependent is not run: its `job.exit` is 97 and its `stderr.log` holds one line saying why. If the
+staging fails, `job.exit` is 98 and `stderr.log` holds the reason: the restart file is missing
+or empty, or the interpreter cannot import `cfdbender` (the module-not-found error is
+written there too). The job goes on with the next run. `collect` marks such a run failed with
+that reason; a run the script ended with a failure and left no solver output is never left
+outstanding. A source later in the job is moved ahead of its dependents (runs of a job share
+no state, so no result changes). Points that feed each other are refused. This holds for SU2
+with a steady source whose rendering fixes the restart file: `OUTPUT_FILES`, when stated,
+holds `RESTART`, `WRT_BINARY_RESTART` is not `NO`, and `RESTART_FILENAME` is a plain name
+ending in `.dat` (default `restart_flow.dat`); otherwise the run is refused naming the key.
+A source that is neither completed nor in the same job (no `--batch`, another job, or left
+out by `--points` or `--sims`) is refused as before. With `--force-rerun-all` both rows run
+again in the job, fed from each other's new attempt.
 
 SU2 copies its configured `RESTART_FILENAME` (default `restart_flow.dat` or
 `restart_flow.csv`) to `restart-input.dat` or `.csv` and sets `RESTART_SOL` and

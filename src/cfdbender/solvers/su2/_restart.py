@@ -43,6 +43,11 @@ def predicted_restart_name(point: AdapterPoint) -> str:
             f"RESTART {source}: its restart format is left to run time; "
             "add RESTART to the OUTPUT_FILES of its setup"
         )
+    if (_cfg_value(text, "WRT_BINARY_RESTART") or "YES").upper() == "NO":
+        raise ValueError(
+            f"RESTART {source}: its restart format is left to run time; "
+            "set WRT_BINARY_RESTART to YES in its setup"
+        )
     name = _cfg_value(text, "RESTART_FILENAME") or "restart_flow.dat"
     if not Path(name).suffix:
         name += ".dat"

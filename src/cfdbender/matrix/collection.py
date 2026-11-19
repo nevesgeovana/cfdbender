@@ -32,7 +32,7 @@ from cfdbender.matrix._declared import matrix_products
 from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix._tree_migration import warn_retired
 from cfdbender.matrix._unsteady_polar import left_out
-from cfdbender.matrix.batch import batch_status
+from cfdbender.matrix.batch import batch_exit_written, batch_status
 from cfdbender.matrix.exports import _write as _write_product
 from cfdbender.matrix.exports import write_polar_files
 from cfdbender.matrix.polar2d import judge_rows, write_polars
@@ -81,6 +81,19 @@ def _verify_submission(root: Path, record: RunRecord) -> None:
         path = workspace_path(root, str(record.submission[key]))
         if hashlib.sha256(path.read_bytes()).hexdigest() != record.submission[digest]:
             raise RegistryError(f"{record.point_id}: submission {key} changed")
+
+
+def _ended_reason(root: Path, record: RunRecord, status: int) -> str:
+    """Say why a run the batch script ended with ``status`` left no output: its stderr.log line."""
+    text = f"the batch script reported exit status {status}"
+    try:
+        log = (workspace_path(root, record.point.directory) / "stderr.log").read_text(
+            encoding="utf-8", errors="replace"
+        )
+    except OSError:
+        return text
+    first = next((line.strip() for line in log.splitlines() if line.strip()), "")
+    return f"{text}: {first}" if first else text
 
 
 def _job_outputs(record: RunRecord, root: Path | None = None) -> tuple[str, ...]:
@@ -314,7 +327,27 @@ def collect_workspace(
             if record.status == "SUBMITTED" and any(
                 not workspace_path(target, name).is_file() for name in _job_outputs(record, target)
             ):
-                outstanding += 1
+                ended = batch_exit_written(target, record)
+                if ended is None or ended == 0:
+                    outstanding += 1
+                    continue
+                # The job script ended this run with a failure and left no solver output (a
+                # run it did not start, or one that died): it is failed, never outstanding.
+                record = registry.transition(
+                    record.point_id,
+                    "COMPLETED",
+                    classification="failed",
+                    error="FAILED_EXECUTION: " + _ended_reason(target, record, ended),
+                )
+                row.update(
+                    status=record.status,
+                    classification=record.classification,
+                    completed_at=record.completed_at,
+                    outputs_sha256=dict(record.outputs_sha256),
+                    error=record.error,
+                )
+                failed += 1
+                failed_ids.add(record.point_id)
                 continue
             point = load_point(target, record.point, solver=config.solver, session=session)
             _verify_submission(target, record)

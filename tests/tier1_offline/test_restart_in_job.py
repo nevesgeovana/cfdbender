@@ -111,13 +111,12 @@ def script(root):
     return path
 
 
-def run_script(root):
+def run_script(root, python=sys.executable):
     path = script(root)
-    env = {
-        **os.environ,
-        "CFDBENDER_PYTHON": sys.executable,
-        "PYTHONPATH": str(SRC_DIR),
-    }
+    env = {**os.environ, "PYTHONPATH": str(SRC_DIR)}
+    env.pop("CFDBENDER_PYTHON", None)
+    if python is not None:
+        env["CFDBENDER_PYTHON"] = python
     return subprocess.run(["sh", path.name], cwd=path.parent, env=env, capture_output=True)
 
 
@@ -276,7 +275,9 @@ def test_it_still_refuses_when_the_source_is_not_in_the_same_job(tmp_path, capsy
     source, _ = steady_then_unsteady(tmp_path)
     assert cli_m(tmp_path, "plan", "--hpc", "h001") == 0
     assert cli_m(tmp_path, "run", "--hpc", "h001") == 2
-    assert "RESTART" in capsys.readouterr().err
+    assert f"RESTART {source}: no recorded point; run the source point first" in (
+        capsys.readouterr().err
+    )
     assert (
         batch(
             tmp_path,
@@ -285,8 +286,9 @@ def test_it_still_refuses_when_the_source_is_not_in_the_same_job(tmp_path, capsy
         )
         == 2
     )
-    assert "RESTART" in capsys.readouterr().err
-    assert source
+    assert f"RESTART {source}: no recorded point; run the source point first" in (
+        capsys.readouterr().err
+    )
 
 
 def test_it_refuses_two_batches_that_split_the_source_from_its_dependent(tmp_path, capsys):

@@ -56,6 +56,7 @@ _REAL_RECEIPT_MODULES = {
     "test_p060_int060_rowhpc_merge",
     "test_submit_batch",
     "test_force_rerun_all_receipt",
+    "test_restart_in_job_edges",
 }
 
 
