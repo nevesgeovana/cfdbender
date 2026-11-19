@@ -53,6 +53,8 @@ OPTIONAL_COLUMNS = (
 )
 COLUMNS = (*REQUIRED_COLUMNS, *OPTIONAL_COLUMNS)
 UNSTATED = ("", "-", "NA")
+#: The RESTART keyword that asks for a steady frozen-rotor precursor stage (PROVISIONAL name).
+PRECURSOR_KEYWORD = "MRF"
 #: Provisional syntax of a row's override of the selected HPC profile: ``hpc.<name>: <value>``.
 #: The one place that spells it; every reader takes it from here.
 HPC_OVERRIDE_PREFIX = "hpc."
@@ -102,6 +104,8 @@ class MatrixRow:
     condition_order: tuple[str, ...] = ()
     restart_from: str | None = None
     numerics_id: str = ""
+    #: The RESTART cell holds the keyword ``MRF``: a steady frozen-rotor stage runs first.
+    precursor: bool = False
 
 
 def _number(text: str, label: str) -> float:
@@ -282,11 +286,14 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
         raise MatrixError(f"{label}: MESH {geometry!r} must name a file with / separators")
     workflow = cells.get("WORKFLOW", "")
     restart = cells.get("RESTART", "")
+    precursor = restart.upper() == PRECURSOR_KEYWORD
+    if precursor:
+        restart = ""
     if (
         restart not in UNSTATED
         and re.fullmatch(r"[A-Za-z0-9_-]+/DP-[A-Za-z0-9_+.-]+", restart) is None
     ):
-        raise MatrixError(f"{label}: RESTART must name a recorded point as POL/DP-name, or -")
+        raise MatrixError(f"{label}: RESTART must name a recorded point as POL/DP-name, MRF or -")
 
     def text(column: str) -> str:
         value = cells.get(column, "")
@@ -314,6 +321,7 @@ def _row(cells: Mapping[str, str], number: int, path: Path) -> MatrixRow:
         variables={**_variables(cells.get("VAR_NAMES_VALUES", ""), label), **row_controls},
         condition_order=order,
         restart_from=None if restart in UNSTATED else restart,
+        precursor=precursor,
         numerics_id=(
             ""
             if cells.get("NUMERICS", "") in UNSTATED

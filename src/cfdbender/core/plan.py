@@ -1459,6 +1459,8 @@ class Point:
     #: The source of RESTART runs earlier in the same batch job: the solution is staged by the
     #: job script after the source ends, so no digest is recorded at planning.
     restart_in_job: bool = False
+    #: The row's RESTART cell is ``MRF``: a steady frozen-rotor stage runs before the point.
+    precursor: bool = False
     defaults_omitted: tuple[str, ...] = ()
     numerics_id: str = ""
     #: The run type the row selects in its WORKFLOW cell; a steady record omits it.
@@ -1484,6 +1486,7 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "restart_directory": None,
         "restart_sha256": {},
         "restart_in_job": False,
+        "precursor": False,
         "defaults_omitted": (),
         "numerics_id": "",
         "run_type": "steady",
@@ -1567,6 +1570,7 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 configuration=row.configuration,
                 hidden=row.hidden,
                 restart_from=row.restart_from,
+                precursor=row.precursor,
                 defaults_omitted=inputs.defaults_omitted,
                 numerics_id=inputs.numerics_id,
                 run_type=row.workflow,
