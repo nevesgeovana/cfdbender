@@ -6,6 +6,7 @@ from pathlib import Path
 
 from cfdbender.core.adapter import AdapterPoint
 from cfdbender.core.restart import require_solution, source_folder
+from cfdbender.solvers.su2._config import config
 
 
 def _cfg_value(text: str, key: str) -> str | None:
@@ -16,6 +17,17 @@ def _cfg_value(text: str, key: str) -> str | None:
         if name.strip() == key:
             found = value
     return None if found is None else found.split("%")[0].strip().strip('"')
+
+
+def _two_zone(source: str | None) -> ValueError:
+    return ValueError(
+        f"RESTART {source}: a two-zone (sliding-mesh) restart is not supported; "
+        "run the sliding point cold"
+    )
+
+
+def _is_multizone(text: str | None) -> bool:
+    return (_cfg_value(text, "MULTIZONE") or "NO").upper() in ("YES", "TRUE") if text else False
 
 
 def predicted_restart_name(point: AdapterPoint) -> str:
@@ -30,6 +42,8 @@ def predicted_restart_name(point: AdapterPoint) -> str:
     source = point.point.restart_from
     if text is None:
         raise ValueError(f"RESTART {source}: the rendered source configuration is missing")
+    if _is_multizone(text):
+        raise _two_zone(source)
     if (_cfg_value(text, "TIME_DOMAIN") or "NO").upper() == "YES":
         raise ValueError(
             f"RESTART {source}: a source in the same job must be a steady point; run a "
@@ -60,14 +74,32 @@ def predicted_restart_name(point: AdapterPoint) -> str:
 
 
 def restart_files(point: AdapterPoint) -> dict[str, Path]:
-    """Select the configured RESTART_FILENAME, defaulting to restart_flow.dat."""
+    """Select the configured RESTART_FILENAME, defaulting to restart_flow.dat.
+
+    A two-zone (sliding-mesh) point on either side of the restart is refused.
+    """
+    source = point.point.restart_from
+    dependent = config(
+        point.setup,
+        point.reference,
+        point.post,
+        point.point.condition,
+        geometry=point.geometry,
+        run_type=point.point.run_type,
+        restarted=True,
+    )
+    if dependent.get("MULTIZONE"):
+        raise _two_zone(source)
     folder = source_folder(point)
     if point.point.restart_in_job:
         return {"restart-input.dat": folder / predicted_restart_name(point)}
     name = "restart_flow.dat"
-    config = folder / "su2.cfg"
-    if config.is_file():
-        for line in config.read_text(encoding="ascii").splitlines():
+    saved_cfg = folder / "su2.cfg"
+    if saved_cfg.is_file():
+        saved_text = saved_cfg.read_text(encoding="ascii")
+        if _is_multizone(saved_text):
+            raise _two_zone(source)
+        for line in saved_text.splitlines():
             key, _, value = line.partition("=")
             if key.strip() == "RESTART_FILENAME":
                 name = value.split("%")[0].strip().strip('"')

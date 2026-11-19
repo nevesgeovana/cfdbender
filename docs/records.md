@@ -81,6 +81,9 @@ A source that is neither completed nor in the same job (no `--batch`, another jo
 out by `--points` or `--sims`) is refused as before. With `--force-rerun-all` both rows run
 again in the job, fed from each other's new attempt.
 
+A two-zone (sliding-mesh) point cannot take part in a `RESTART`, as the source or as the
+dependent: it is refused at planning and submission; run the sliding point cold.
+
 SU2 copies its configured `RESTART_FILENAME` (default `restart_flow.dat` or
 `restart_flow.csv`) to `restart-input.dat` or `.csv` and sets `RESTART_SOL` and
 `SOLUTION_FILENAME`. `READ_BINARY_RESTART` matches the saved binary or ASCII
