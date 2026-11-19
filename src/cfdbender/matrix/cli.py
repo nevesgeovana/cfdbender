@@ -206,8 +206,10 @@ def build_parser() -> tuple[
         "--force-rerun-all",
         dest="force_rerun_all",
         action="store_true",
-        help="redo every recorded point of the matrix, archived as --force-rerun archives; "
-        "a SUBMITTED job is not canceled, cancel it in the scheduler first",
+        help="run every selected point again whatever its recorded state, a SUBMITTED or "
+        "RUNNING one included; recorded points are archived as --force-rerun archives, "
+        "and a job of an earlier submission is not canceled (a warning says so), "
+        "cancel it in the scheduler",
     )
     collect_parser = commands.add_parser(
         "collect",
@@ -581,7 +583,6 @@ def _execute_inner(
                 restart=getattr(args, "restart", False),
                 resume=getattr(args, "resume", False),
                 force_rerun=getattr(args, "force_rerun", None),
-                force_all=getattr(args, "force_rerun_all", False),
             )
             if refusal is None and not cluster:
                 refusal = "--batch submits rows as scheduler jobs, and no HPC profile is selected"
@@ -632,6 +633,11 @@ def _execute_inner(
                 console.say(f"archived previous evidence: {decision.archive}")
             for point_id, reason in decision.skipped:
                 console.say(f"  {point_id}  skipped: {reason}")
+            for point_id, was in decision.live:
+                console.error(
+                    f"warning: {point_id} was {was}; a job of the earlier submission may "
+                    "still be running; cancelling it is your action"
+                )
             plan = decision.plan
             if decision.archive is not None:
                 plan = replace(

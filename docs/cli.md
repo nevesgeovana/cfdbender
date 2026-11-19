@@ -159,7 +159,7 @@ cfd-matrix run MATRIX [options]
 | `--one-run-at-a-time` | Reserve this machine for one guarded local run at a time |
 | `--resume` | Skip points already recorded COMPLETED or SUBMITTED and run the rest, so a grown matrix runs only its new points; a RUNNING point is skipped because its process may still be alive. Without it a recorded point refuses the run |
 | `--force-rerun POINT` | Redo this recorded point, named POL/DP-name or DP-name; repeat for several. runs.json is copied to archive/&lt;stamp&gt;/runs.json, the point folder moves to archive/&lt;stamp&gt;/ and its record joins the runs.json history; nothing is deleted |
-| `--force-rerun-all` | Redo every recorded point of the matrix, archived as --force-rerun archives; a SUBMITTED job is not canceled, cancel it in the scheduler first |
+| `--force-rerun-all` | Run every selected point again whatever its recorded state, a SUBMITTED or RUNNING one included; recorded points are archived as --force-rerun archives, and a job of an earlier submission is not canceled (a warning says so), cancel it in the scheduler |
 | `--warning-refusals` | Refuse warnings, including unused cluster values |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |

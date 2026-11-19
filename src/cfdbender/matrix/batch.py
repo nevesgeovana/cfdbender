@@ -320,7 +320,7 @@ def grouping_receipt(batches: Sequence[BatchPlan], n: int) -> dict[str, object]:
 
 
 def grouped_options_refusal(
-    *, local: bool, restart: bool, resume: bool, force_rerun: object, force_all: bool
+    *, local: bool, restart: bool, resume: bool, force_rerun: object
 ) -> str | None:
     """Say why ``--batch`` may not be combined with an option, or return None."""
     if local:
@@ -332,7 +332,6 @@ def grouped_options_refusal(
         flag
         for flag, present in (
             ("--force-rerun", bool(force_rerun)),
-            ("--force-rerun-all", force_all),
             ("--resume", resume),
             ("--restart", restart),
         )

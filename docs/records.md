@@ -153,9 +153,18 @@ the matrix has a point of that name.
 cfd-matrix run polar --force-rerun-all
 ```
 
-Every recorded point of the matrix is archived and run again. A job that is
-still `SUBMITTED` on a cluster is not canceled: cancel it in the scheduler
-first. This option cannot be combined with the other two.
+Every selected point is run again whatever its recorded state: not yet run,
+`SUBMITTED`, `RUNNING`, `COMPLETED`, failed, with or without a job on record. A recorded
+point is archived first as `--force-rerun` archives it, so its `stdout.log`, `history.csv`,
+`restart` folder and `job.exit` stay together in `archive/<stamp>/` and the new attempt
+starts in an empty folder. A point that was `SUBMITTED` or `RUNNING` prints one warning
+line: a job of the earlier submission may still be running, and cancelling it is your
+action, because the library does not talk to the scheduler. The option works with
+`--points`, `--sims` and `--batch` (plan the batch again first: it gets a new folder,
+and the folder of the earlier batch stays where it is).
+Only the validity of the inputs and of the row still refuses a point, for example a
+missing mesh or an input changed after planning. The option cannot be combined with
+`--resume`, and cannot be combined with `--force-rerun`.
 
 ## Reading the records
 

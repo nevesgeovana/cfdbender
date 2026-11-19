@@ -6,7 +6,9 @@ skipped because its process or cluster job may still exist. Name it by ``force``
 after confirming it has stopped. ``force`` names recorded
 points to redo, leaving the other recorded points untouched, and ``force_all``
 redoes every recorded point of the plan; each
-is archived first (see RunRegistry.archive) and registered again.
+is archived first (see RunRegistry.archive) and registered again. ``force_all``
+yields to every recorded state and lists, in ``RerunDecision.live``, the points whose
+job may still be alive; it never cancels one.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ class RerunDecision:
     plan: RunPlan
     skipped: tuple[tuple[str, str], ...]
     archive: Path | None
+    live: tuple[tuple[str, str], ...] = ()
 
 
 def host_slot_free() -> bool:
@@ -89,7 +92,8 @@ def decide(
     Returns
     -------
     RerunDecision
-        Points to execute in plan order, skipped points and the archive folder.
+        Points to execute in plan order, skipped points, the archive folder and, under
+        ``force_all``, the points redone while SUBMITTED or RUNNING.
 
     Raises
     ------
@@ -105,6 +109,7 @@ def decide(
     if unrecorded := sorted(n for n in named if n not in recorded):
         raise RegistryError(f"--force-rerun {unrecorded[0]}: the point has no record to redo")
     redo: list[str] = []
+    live: list[tuple[str, str]] = []
     skipped: list[tuple[str, str]] = []
     run: list[Point] = []
     for point in plan.points:
@@ -112,6 +117,8 @@ def decide(
         if record is None or record.status == "PLANNED":
             run.append(point)
         elif force_all or point.point_id in named:
+            if force_all and record.status in ("SUBMITTED", "RUNNING"):
+                live.append((point.point_id, record.status))
             redo.append(point.point_id)
             run.append(point)
         elif not resume and not named:
@@ -137,4 +144,4 @@ def decide(
     if redo and before_archive is not None:
         before_archive(chosen)
     archive = registry.archive(tuple(redo)) if redo else None
-    return RerunDecision(chosen, tuple(skipped), archive)
+    return RerunDecision(chosen, tuple(skipped), archive, tuple(live))
