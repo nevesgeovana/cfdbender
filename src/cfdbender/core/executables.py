@@ -25,7 +25,7 @@ from __future__ import annotations
 import tomllib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from cfdbender.core.adapter import AdapterPoint, load_point
@@ -269,6 +269,10 @@ def resolve_fields(
         if kind == "path" and name in entry:
             value = str(entry[name])
             path = Path(value).expanduser()
+            if isinstance(path, PurePosixPath) and PureWindowsPath(value).drive:
+                raise WorkspaceError(
+                    f"{name}: Windows drive path {value!r} cannot be used on this host"
+                )
             if not path.is_absolute() and any(sep in value for sep in "/\\"):
                 path = root / path
             entry[name] = str(path)

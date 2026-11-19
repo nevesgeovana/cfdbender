@@ -133,6 +133,11 @@ The adapter validates the composed setup, so an unknown default key is refused
 just like an unknown setup key. Plan
 again after changing defaults: `init.toml` is part of every point's input digest.
 
+Input SHA-256 values describe the raw bytes of each file, including line endings.
+Equivalent text checked out with LF and CRLF has different digests; a checkout
+that changes line endings after planning requires a new plan. Keep line endings
+consistent across machines when the same recorded provenance is needed.
+
 ## What a run writes
 
 `cfd-matrix run` writes one folder per point:

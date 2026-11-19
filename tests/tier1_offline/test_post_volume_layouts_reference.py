@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
+from cfdbender.post import volume_layouts
 from cfdbender.post.volume_layouts import (
     circle_points,
     line_points,
@@ -26,8 +28,6 @@ REFERENCE = json.loads(
 #: its points agree to this relative tolerance, with a floor of the same size times the
 #: largest coordinate of the cut so that a coordinate that is zero up to rounding passes.
 RTOL = 1e-12
-#: Probe points are rounded to five decimals; a sine in the last bit may tip one rounding.
-ROUNDING = 1.001e-5
 
 
 @pytest.mark.parametrize("case", REFERENCE["sections"])
@@ -82,4 +82,20 @@ def test_a_probe_circle_lays_the_recorded_points(case: dict) -> None:
         d["points_azimuth"],
         d["scale"],
     )
-    np.testing.assert_allclose(laid, np.array(case["points"]), rtol=0.0, atol=ROUNDING)
+    recorded = np.array(case["points"])
+    # Only permit a one-unit discrepancy when the unrounded coordinate is at
+    # the boundary between the recorded and adjacent five-decimal values.
+    with patch.object(volume_layouts, "round", lambda value, digits: value, create=True):
+        raw = volume_layouts.circle_points(
+            d["center"],
+            d["normal"],
+            d["radius"],
+            d["points_radial"],
+            d["points_azimuth"],
+            d["scale"],
+        )
+    assert laid.shape == recorded.shape == raw.shape
+    difference = np.abs(laid - recorded)
+    boundary = np.abs(np.abs(raw - recorded) - 0.5e-5)
+    allowance = RTOL * max(1.0, float(np.max(np.abs(raw))))
+    assert np.all((difference == 0) | ((difference <= 1.001e-5) & (boundary <= allowance)))
