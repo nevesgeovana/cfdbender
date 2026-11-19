@@ -52,6 +52,7 @@ def build(root, rows, *, setup=""):
     wrapper.write_text(
         WRAPPER.format(python=Path(sys.executable).as_posix(), fake=FAKE.as_posix()), newline="\n"
     )
+    wrapper.chmod(0o755)
     rt.workspace(
         root,
         setup='RESTART_FILENAME = "restart_flow.dat"\n'

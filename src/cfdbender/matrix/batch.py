@@ -147,26 +147,41 @@ def _staging(point: Point, relative: str, pairs: Mapping[str, str]) -> str:
 
     ``pairs`` maps each staged name to the source file, relative to the script's folder. A
     source file that is missing or empty, or a copy that fails, records 98 and one line naming
-    the file in the dependent's stderr.log; nothing is staged after the first failure. When
-    ``sha256sum`` exists on the node the digests of the staged files go to
+    the first such file in the dependent's stderr.log. Every source is tested before any copy
+    and a failed copy removes the files already staged, so a dependent never keeps a half set.
+    When ``sha256sum`` exists on the node the digests of the staged files go to
     ``restart-staged.sha256``; nothing reads that file.
     """
     quoted = shlex.quote(relative)
-    lines = []
-    for name, source in pairs.items():
-        message = shlex.quote(
+    items = list(pairs.items())
+    messages = [
+        shlex.quote(
             f"RESTART {point.restart_from}: the source wrote no restart file "
             f"{posixpath.basename(source)}; the dependent point was not run"
         )
-        lines += [
-            '  if [ "$rc" -eq 0 ]; then',
-            f"    if [ -s {shlex.quote(source)} ] && cp {shlex.quote(source)} "
-            f"{shlex.quote(posixpath.join(relative, name))}; then :; else",
-            f"      printf '%s\\n' {message} > {quoted}/stderr.log",
+        for _, source in items
+    ]
+    destinations = " ".join(shlex.quote(posixpath.join(relative, name)) for name, _ in items)
+
+    def fail(index: int) -> list[str]:
+        return [
+            f"      printf '%s\\n' {messages[index]} > {quoted}/stderr.log",
             f"      rc={STAGING_FAILED}",
-            "    fi",
-            "  fi",
         ]
+
+    lines = ['  if [ "$rc" -eq 0 ]; then']
+    keyword = "if"
+    for index, (_, source) in enumerate(items):
+        lines += [f"    {keyword} [ ! -s {shlex.quote(source)} ]; then", *fail(index)]
+        keyword = "elif"
+    for index, (name, source) in enumerate(items):
+        target = shlex.quote(posixpath.join(relative, name))
+        lines += [
+            f"    elif ! cp {shlex.quote(source)} {target}; then",
+            f"      rm -f {destinations}",
+            *fail(index),
+        ]
+    lines = [*lines, "    fi", "  fi"] if items else []
     names = " ".join(shlex.quote(name) for name in pairs)
     lines += [
         '  if [ "$rc" -eq 0 ] && command -v sha256sum > /dev/null 2>&1; then',

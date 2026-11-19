@@ -5,8 +5,10 @@ from __future__ import annotations
 import pytest
 from test_runtypes_b1_workflows import deck, workspace
 
+from cfdbender.core.results import Coefficient
 from cfdbender.solvers.su2._history import (
     _zone_headers,
+    force_groups,
     history_name,
     history_outputs,
     read,
@@ -91,6 +93,15 @@ def test_two_turning_zones_are_refused_naming_the_zone_files(tmp_path):
     (folder / "zone_0.cfg").write_text("GRID_MOVEMENT= ROTATING_FRAME\n")
     with pytest.raises(ValueError, match=r"zone_0\.cfg.*zone_1\.cfg"):
         _zone_headers(folder, ["CD[0]"])
+
+
+def test_force_groups_of_two_turning_zones_are_reported_not_raised(tmp_path):
+    folder = _folder(tmp_path)
+    (folder / "zone_0.cfg").write_text("GRID_MOVEMENT= ROTATING_FRAME\n")
+    total = {"CL": Coefficient(0.5, "z", "force")}
+    assert force_groups(folder, {"blade": ("blade",)}, total) == {}
+    result, _, _ = read(folder)
+    assert "zone_0.cfg" in str(result.evidence_error)
 
 
 def test_no_turning_zone_is_refused_naming_the_zone_files(tmp_path):
