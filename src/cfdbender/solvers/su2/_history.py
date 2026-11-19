@@ -273,14 +273,24 @@ def _zone_headers(folder: Path, headers: list[str]) -> list[str]:
     keys = _segment_configs(folder, required=False)[0]
     if not _yes(keys, "MULTIZONE"):
         return headers
-    zone = 0
-    for index in range(len(re.findall(r"zone_\d+[.]cfg", keys.get("CONFIG_LIST", "")))):
-        path = folder / f"zone_{index}.cfg"
-        if path.is_file() and re.search(
-            r"^GRID_MOVEMENT\s*=\s*(?!NONE\b)\S", path.read_text(), re.MULTILINE
-        ):
-            zone = index
-            break
+    names = re.findall(r"zone_\d+[.]cfg", keys.get("CONFIG_LIST", ""))
+    moving = [
+        index
+        for index in range(len(names))
+        if (folder / f"zone_{index}.cfg").is_file()
+        and re.search(
+            r"^GRID_MOVEMENT\s*=\s*(?!NONE\b)\S",
+            (folder / f"zone_{index}.cfg").read_text(),
+            re.MULTILINE,
+        )
+    ]
+    if len(moving) != 1:
+        raise ValueError(
+            f"{folder}: the turning zone is not exactly one: "
+            f"{len(moving)} of the zone files {', '.join(names)} state a grid motion"
+            + (f" ({', '.join(f'zone_{i}.cfg' for i in moving)})" if moving else "")
+        )
+    zone = moving[0]
     pattern = re.compile(rf"([A-Za-z]+)\[{zone}\](.*)")
     renamed: list[str] = []
     for key in headers:

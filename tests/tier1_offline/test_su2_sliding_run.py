@@ -5,7 +5,13 @@ from __future__ import annotations
 import pytest
 from test_runtypes_b1_workflows import deck, workspace
 
-from cfdbender.solvers.su2._history import history_name, history_outputs, read, residual_field
+from cfdbender.solvers.su2._history import (
+    _zone_headers,
+    history_name,
+    history_outputs,
+    read,
+    residual_field,
+)
 
 SLIDING = '[sliding]\nzones = 2\nrotating_zone = 0\ninterface = ["X_OUT", "X_IN"]\n'
 ZONE_COLUMNS = ("rms[Rho]", "rms[RhoU]", "RefForce", "CD", "CL", "CFx", "CMx")
@@ -78,6 +84,20 @@ def test_the_history_of_a_multizone_point_is_read_from_the_turning_zone(tmp_path
     assert coefficients["CL"].value == 0.5 and coefficients["CFx"].value == 0.2
     assert residual_field(folder) == "rms[Rho][0], rms[Rho][1]"
     assert result.history[-1].residual == pytest.approx(1e-10)
+
+
+def test_two_turning_zones_are_refused_naming_the_zone_files(tmp_path):
+    folder = _folder(tmp_path)
+    (folder / "zone_0.cfg").write_text("GRID_MOVEMENT= ROTATING_FRAME\n")
+    with pytest.raises(ValueError, match=r"zone_0\.cfg.*zone_1\.cfg"):
+        _zone_headers(folder, ["CD[0]"])
+
+
+def test_no_turning_zone_is_refused_naming_the_zone_files(tmp_path):
+    folder = _folder(tmp_path)
+    (folder / "zone_1.cfg").write_text("GRID_MOVEMENT= NONE\n")
+    with pytest.raises(ValueError, match=r"0 of the zone files zone_0\.cfg, zone_1\.cfg"):
+        _zone_headers(folder, ["CD[0]"])
 
 
 def test_a_missing_multizone_history_names_the_file_looked_for(tmp_path):
