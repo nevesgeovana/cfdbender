@@ -251,8 +251,12 @@ def _convergence_columns(cfg: dict[str, str], residuals: list[str]) -> tuple[lis
     """
     fields = re.split(r"[\s,()]+", cfg.get("CONV_FIELD", "RMS_DENSITY").upper())
     # A multizone history names a column ``rms[Rho][<zone>]``: every zone's one is converged on.
-    wanted = [CONV_COLUMNS[name] for name in fields if name in CONV_COLUMNS]
-    columns = [key for key in residuals if re.sub(r"\[\d+\]$", "", key) in wanted]
+    columns: list[str] = []
+    for name in fields:
+        wanted = CONV_COLUMNS.get(name)
+        for key in residuals:
+            if key not in columns and re.sub(r"\[\d+\]$", "", key) == wanted:
+                columns.append(key)
     if not columns:
         return residuals, LARGEST_RMS
     return columns, ", ".join(columns)

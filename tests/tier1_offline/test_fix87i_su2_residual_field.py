@@ -39,6 +39,13 @@ def test_several_conv_fields_take_the_largest_of_them(tmp_path):
     assert residual_field(folder) == "rms[Rho], rms[nu]"
 
 
+def test_the_recorded_field_keeps_the_order_of_conv_field(tmp_path):
+    folder = _folder(tmp_path, "CONV_FIELD= RMS_ENERGY, RMS_DENSITY\n")
+    result, _, _ = read(folder)
+    assert result.history[-1].residual == pytest.approx(10**-5.76)
+    assert residual_field(folder) == "rms[RhoE], rms[Rho]"
+
+
 def test_a_coefficient_conv_field_falls_back_to_the_largest_rms(tmp_path):
     folder = _folder(tmp_path, "CONV_FIELD= DRAG\n")
     result, _, _ = read(folder)
