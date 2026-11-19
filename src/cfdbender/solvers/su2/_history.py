@@ -457,7 +457,11 @@ def force_groups(
     path = folder / "history.csv"
     if _yes(_segment_configs(folder, required=False)[0], "TIME_DOMAIN"):
         headers, rows = history_table(folder)
-        headers = _zone_headers(folder, headers)
+        try:
+            headers = _zone_headers(folder, headers)
+        except ValueError:
+            # ``read`` reports the same condition as the point's evidence error.
+            return {}
     else:
         with path.open(encoding="utf-8-sig", newline="") as stream:
             reader = csv.reader(stream, skipinitialspace=True)
