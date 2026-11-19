@@ -135,13 +135,21 @@ def _yes(keys: Mapping[str, str], key: str) -> bool:
     return keys.get(key, "").strip().upper() in ("YES", "TRUE")
 
 
+#: The stem of the master configuration file, which names a multizone run's history.
+MULTIZONE_HISTORY_STEM = "su2"
+
+
 def history_name(keys: Mapping[str, str]) -> str:
     """Return the history file SU2 8.6.0 writes for one configuration.
 
     A restarted time-accurate run (``TIME_DOMAIN`` and ``RESTART_SOL``) appends its
     ``RESTART_ITER`` as five digits, ``history_00060.csv``, and writes no ``history.csv``; every
-    other run writes ``history.csv`` (``CONV_FILENAME= history`` is the adapter's).
+    other single-zone run writes ``history.csv`` (``CONV_FILENAME= history`` is the adapter's).
+    A multizone run (``MULTIZONE``) writes its driver history under the stem of the master
+    configuration file, ``su2.csv``, whatever ``CONV_FILENAME`` says.
     """
+    if _yes(keys, "MULTIZONE"):
+        return f"{MULTIZONE_HISTORY_STEM}.csv"
     if _yes(keys, "TIME_DOMAIN") and _yes(keys, "RESTART_SOL"):
         return f"history_{int(keys.get('RESTART_ITER', '0')):05d}.csv"
     return "history.csv"
@@ -153,7 +161,7 @@ def history_outputs(values: Mapping[str, object]) -> list[str]:
 
     def rendered(prefix: str) -> dict[str, str]:
         found: dict[str, str] = {}
-        for key in ("TIME_DOMAIN", "RESTART_SOL", "RESTART_ITER"):
+        for key in ("MULTIZONE", "TIME_DOMAIN", "RESTART_SOL", "RESTART_ITER"):
             value = values.get(prefix + key, values.get(key))
             if value is not None:
                 found[key] = ("YES" if value else "NO") if isinstance(value, bool) else str(value)
@@ -242,10 +250,39 @@ def _convergence_columns(cfg: dict[str, str], residuals: list[str]) -> tuple[lis
     the largest of all rms columns.
     """
     fields = re.split(r"[\s,()]+", cfg.get("CONV_FIELD", "RMS_DENSITY").upper())
-    columns = [CONV_COLUMNS[name] for name in fields if CONV_COLUMNS.get(name) in residuals]
+    # A multizone history names a column ``rms[Rho][<zone>]``: every zone's one is converged on.
+    wanted = [CONV_COLUMNS[name] for name in fields if name in CONV_COLUMNS]
+    columns = [key for key in residuals if re.sub(r"\[\d+\]$", "", key) in wanted]
     if not columns:
         return residuals, LARGEST_RMS
     return columns, ", ".join(columns)
+
+
+def _zone_headers(folder: Path, headers: list[str]) -> list[str]:
+    """Name the loads of a multizone history as a single-zone one: those of the turning zone.
+
+    SU2's multizone output writes ``CD[0]``, ``CFx[1](blade)``: the field, the zone, then the
+    marker. The loads are read from the zone whose file states a grid motion, as the time
+    average reads them (``sliding.rotating_zone``); the residual columns keep their zones. A
+    history without zone loads is returned as it is.
+    """
+    keys = _segment_configs(folder, required=False)[0]
+    if not _yes(keys, "MULTIZONE"):
+        return headers
+    zone = 0
+    for index in range(len(re.findall(r"zone_\d+[.]cfg", keys.get("CONFIG_LIST", "")))):
+        path = folder / f"zone_{index}.cfg"
+        if path.is_file() and re.search(
+            r"^GRID_MOVEMENT\s*=\s*(?!NONE\b)\S", path.read_text(), re.MULTILINE
+        ):
+            zone = index
+            break
+    pattern = re.compile(rf"([A-Za-z]+)\[{zone}\](.*)")
+    renamed: list[str] = []
+    for key in headers:
+        found = pattern.fullmatch(key)
+        renamed.append(found[1] + found[2] if found and found[1] in _AXES else key)
+    return renamed
 
 
 #: The counters of a history row the adapter reads.
@@ -283,7 +320,7 @@ def residual_field(folder: Path) -> str | None:
     """Return the name of the residual the history records, or None without a history."""
     try:
         if _yes(_segment_configs(folder, required=False)[0], "TIME_DOMAIN"):
-            headers = history_table(folder)[0]
+            headers = _zone_headers(folder, history_table(folder)[0])
         else:
             with (folder / "history.csv").open(encoding="utf-8-sig", newline="") as stream:
                 headers = history_headers(
@@ -345,6 +382,7 @@ def read(folder: Path) -> tuple[ExecutionResult, dict[str, Coefficient], Referen
             # Every segment's history, joined in step order (history_<RESTART_ITER>.csv).
             path = folder / history_name(_segment_configs(folder)[0])
             headers, table = history_table(folder, counter)
+            headers = _zone_headers(folder, headers)
         else:
             path = folder / "history.csv"
             with path.open(encoding="utf-8-sig", newline="") as stream:
@@ -405,6 +443,7 @@ def force_groups(
     path = folder / "history.csv"
     if _yes(_segment_configs(folder, required=False)[0], "TIME_DOMAIN"):
         headers, rows = history_table(folder)
+        headers = _zone_headers(folder, headers)
     else:
         with path.open(encoding="utf-8-sig", newline="") as stream:
             reader = csv.reader(stream, skipinitialspace=True)

@@ -42,14 +42,14 @@ def test_sliding_declaration_outranks_defaults(tmp_path, home):
         workflow="unsteady_rotor",
         condition="MACH:0.0529, ALPHA:0, RPM:1000",
         var="DELTA_THETA: 3 / REVOLUTIONS: 5 / LAST_REVS_AVG: 2.5",
-        setup=('KIND_INTERPOLATION = "NEAREST_NEIGHBOR"\n' if home == "setup" else "")
+        setup=('KIND_INTERPOLATION = "WEIGHTED_AVERAGE"\n' if home == "setup" else "")
         + '[sliding]\nzones = 2\nrotating_zone = 1\ninterface = ["X_BOXD1", "X_BOX1"]\n',
     )
     init = tmp_path / "init.toml"
-    init.write_text(init.read_text() + '\n[defaults]\nKIND_INTERPOLATION = "NEAREST_NEIGHBOR"\n')
+    init.write_text(init.read_text() + '\n[defaults]\nKIND_INTERPOLATION = "ISOPARAMETRIC"\n')
     point, values, _ = deck(tmp_path)
     assert values["KIND_INTERPOLATION"] == (
-        "WEIGHTED_AVERAGE" if home == "defaults" else "NEAREST_NEIGHBOR"
+        "NEAREST_NEIGHBOR" if home == "defaults" else "WEIGHTED_AVERAGE"
     )
     assert point.origins["KIND_INTERPOLATION"] == (
         "run type unsteady_rotor" if home == "defaults" else "setup"
