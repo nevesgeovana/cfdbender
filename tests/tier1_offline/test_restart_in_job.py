@@ -22,7 +22,6 @@ from cfdbender.solvers import load_solver
 from cfdbender.workspace.planning import plan_workspace
 
 FAKE = Path(__file__).resolve().parents[1] / "fixtures/su2/fake_su2_transient.py"
-SRC_DIR = Path(__file__).resolve().parents[2] / "src"
 HEADER = rt.HEADER + " | RESTART"
 CONDITION = "MACH:0.0529, ALPHA:0, BETA:0, ADVANCE_RATIO:0.4"
 CLOCK = "DELTA_THETA: 10 / REVOLUTIONS: 1 / LAST_REVS_AVG: 0.25"
@@ -111,13 +110,20 @@ def script(root):
     return path
 
 
-def run_script(root, python=sys.executable):
+def run_script(root, search_path=None):
+    """Run the job script; ``search_path`` replaces PATH for the whole script."""
     path = script(root)
-    env = {**os.environ, "PYTHONPATH": str(SRC_DIR)}
-    env.pop("CFDBENDER_PYTHON", None)
-    if python is not None:
-        env["CFDBENDER_PYTHON"] = python
+    env = dict(os.environ)
+    if search_path is not None:
+        env["PATH"] = search_path
     return subprocess.run(["sh", path.name], cwd=path.parent, env=env, capture_output=True)
+
+
+def shell_only_path():
+    """A PATH holding the shell's own folder and no python, or None when one is there."""
+    sh_folder = str(Path(shutil.which("sh") or "").parent)
+    found = [shutil.which(name, path=sh_folder) for name in ("python", "python3", "py")]
+    return None if any(found) else sh_folder
 
 
 needs_sh = pytest.mark.skipif(shutil.which("sh") is None, reason="needs a POSIX shell")
@@ -138,7 +144,7 @@ def test_the_plan_shows_the_dependency_and_the_run_is_not_refused(tmp_path, caps
     assert {r.status for r in records.values()} == {"SUBMITTED"}
     text = script(tmp_path).read_text()
     assert text.index("# " + source) < text.index("RESTART from " + source)
-    assert "stage_restart" in text
+    assert "cp " in text and "restart-input_00001.dat" in text
     folder = tmp_path / records["7002"].point.directory
     pending = json.loads((folder / "restart-pending.json").read_text())
     assert pending["source"] == source
@@ -159,8 +165,10 @@ def test_the_script_stages_after_the_source_and_collect_reads_both(tmp_path):
     folder = cfg.parent
     for name in ("restart-input_00000.dat", "restart-input_00001.dat"):
         assert (folder / name).read_bytes() == b"steady solution"
-    staged = json.loads((folder / "restart-staged.json").read_text())
-    assert set(staged["sha256"].values()) == {hashlib.sha256(b"steady solution").hexdigest()}
+    sidecar = folder / "restart-staged.sha256"
+    if shutil.which("sha256sum"):
+        digests = {line.split()[0] for line in sidecar.read_text().splitlines()}
+        assert digests == {hashlib.sha256(b"steady solution").hexdigest()}
     assert hashlib.sha256(cfg.read_bytes()).hexdigest() == before, "su2.cfg is never edited"
     submitted = point_of(tmp_path, 7002).submission["config_sha256"]
     assert submitted == before
@@ -267,7 +275,7 @@ def test_one_source_feeds_every_point_of_a_sweep_row(tmp_path):
     assert batch(tmp_path) == 0
     fed = [r for r in RunRegistry(tmp_path).read() if r.point.pol == "7002"]
     assert len(fed) == 2 and all(r.point.restart_in_job for r in fed)
-    assert script(tmp_path).read_text().count("stage_restart") == 2
+    assert script(tmp_path).read_text().count("restart-staged.sha256") == 2
 
 
 def test_it_still_refuses_when_the_source_is_not_in_the_same_job(tmp_path, capsys):
@@ -337,7 +345,7 @@ def test_the_staging_comes_before_a_per_point_wrapper(tmp_path):
     assert batch(tmp_path) == 0
     text = script(tmp_path).read_text()
     block = text[text.index("RESTART from " + source) :]
-    assert block.index("stage_restart") < block.index("wrap.sh")
+    assert block.index("cp ") < block.index("wrap.sh")
 
 
 def test_points_that_feed_each_other_are_refused_by_name(tmp_path):

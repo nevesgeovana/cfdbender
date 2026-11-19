@@ -14,7 +14,6 @@ from cfdbender.core.plan import workspace_path
 from cfdbender.core.registry import RunRegistry
 
 PENDING_FILE = "restart-pending.json"
-STAGED_FILE = "restart-staged.json"
 
 
 def source_folder(point: AdapterPoint) -> Path:
@@ -62,7 +61,7 @@ def copy_solution(folder: Path, files: Mapping[str, Path]) -> None:
 
 
 def write_pending(folder: Path, point: AdapterPoint, staged: Mapping[str, Path]) -> None:
-    """Write the sidecar a job script reads to stage a RESTART solution after its source ends.
+    """Write the sidecar that submission renders into the job script as the RESTART staging.
 
     ``staged`` maps each file name the solver reads to the source file it is copied from. The
     sidecar holds the names and the paths relative to the point folder; su2.cfg is not touched.
@@ -76,39 +75,6 @@ def write_pending(folder: Path, point: AdapterPoint, staged: Mapping[str, Path])
     }
     (folder / PENDING_FILE).write_text(
         json.dumps(document, indent=2, sort_keys=True) + chr(10), encoding="ascii"
-    )
-
-
-def stage_pending(folder: Path) -> None:
-    """Stage the solution a finished source wrote into this point folder, from its sidecar.
-
-    Each source file must exist and be non-empty. The copies are exclusive, and their SHA-256
-    digests go to ``restart-staged.json`` beside the sidecar, the record collect can read.
-
-    Raises
-    ------
-    ValueError
-        A missing sidecar, a missing or empty source file, or a file that exists.
-    """
-    folder = folder.resolve()
-    try:
-        document = json.loads((folder / PENDING_FILE).read_text(encoding="ascii"))
-        stage = dict(document["stage"])
-        source = str(document["source"])
-    except (OSError, ValueError, KeyError, TypeError) as failure:
-        raise ValueError(f"{PENDING_FILE} is missing or unreadable: {failure}") from failure
-    files = {name: (folder / relative).resolve() for name, relative in stage.items()}
-    for path in files.values():
-        if not path.is_file() or path.stat().st_size == 0:
-            raise ValueError(
-                f"RESTART {source}: the source wrote no restart file {path.name}; "
-                "the dependent point was not run"
-            )
-    copy_solution(folder, files)
-    digests = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in files.items()}
-    (folder / STAGED_FILE).write_text(
-        json.dumps({"source": source, "sha256": digests}, indent=2, sort_keys=True) + chr(10),
-        encoding="ascii",
     )
 
 

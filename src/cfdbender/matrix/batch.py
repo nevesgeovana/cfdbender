@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
+import posixpath
 import re
 import shlex
-import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -25,7 +26,7 @@ from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.matrix import HPC_OVERRIDE_PREFIX
 from cfdbender.core.plan import InputSession, Point, RunPlan, workspace_path
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
-from cfdbender.core.restart import check_restart
+from cfdbender.core.restart import PENDING_FILE, check_restart
 from cfdbender.hpc import HpcProfile, SubmissionPlan, plan_submission
 from cfdbender.hpc._batch_split import RowUnit, split_rows
 from cfdbender.hpc._overrides import ORIGIN, apply_overrides, is_script_path, row_overrides
@@ -128,7 +129,51 @@ def _command(
 SOURCE_FAILED = 97
 #: Exit status a dependent run records when the source's restart file could not be staged.
 STAGING_FAILED = 98
-STAGER = "cfdbender.matrix.stage_restart"
+#: The line of a dependent block that submission replaces with the staging of its solution.
+STAGE_MARK = "@@STAGE {point_id}@@"
+
+
+def _staging(point: Point, relative: str, pairs: Mapping[str, str]) -> str:
+    """Return the shell that copies each source file to its staged name, or fails with 98.
+
+    ``pairs`` maps each staged name to the source file, relative to the script's folder. A
+    source file that is missing or empty, or a copy that fails, records 98 and one line naming
+    the file in the dependent's stderr.log; nothing is staged after the first failure. When
+    ``sha256sum`` exists on the node the digests of the staged files go to
+    ``restart-staged.sha256``; nothing reads that file.
+    """
+    quoted = shlex.quote(relative)
+    lines = []
+    for name, source in pairs.items():
+        message = shlex.quote(
+            f"RESTART {point.restart_from}: the source wrote no restart file "
+            f"{posixpath.basename(source)}; the dependent point was not run"
+        )
+        lines += [
+            '  if [ "$rc" -eq 0 ]; then',
+            f"    if [ -s {shlex.quote(source)} ] && cp {shlex.quote(source)} "
+            f"{shlex.quote(posixpath.join(relative, name))}; then :; else",
+            f"      printf '%s\\n' {message} > {quoted}/stderr.log",
+            f"      rc={STAGING_FAILED}",
+            "    fi",
+            "  fi",
+        ]
+    names = " ".join(shlex.quote(name) for name in pairs)
+    lines += [
+        '  if [ "$rc" -eq 0 ] && command -v sha256sum > /dev/null 2>&1; then',
+        f"    ( cd {quoted} && sha256sum {names} > restart-staged.sha256 ) 2> /dev/null || :",
+        "  fi",
+    ]
+    return chr(10).join(lines)
+
+
+def _stage_pairs(point_folder: Path, relative: str) -> dict[str, str]:
+    """Read the staged names and source paths recorded for a dependent, script-relative."""
+    document = json.loads((point_folder / PENDING_FILE).read_text(encoding="ascii"))
+    return {
+        str(name): posixpath.normpath(posixpath.join(relative, str(path)))
+        for name, path in dict(document["stage"]).items()
+    }
 
 
 def _dependent_block(
@@ -137,9 +182,10 @@ def _dependent_block(
     """Return the block of a run whose RESTART source ran earlier in the same script.
 
     The source's exit status is read from its job.exit; only when it is 0 is the solution
-    staged (by the library entry ``cfdbender.matrix.stage_restart``) and the run started.
-    Otherwise the run is not started, its job.exit records 97 (source failed) or 98 (staging
-    failed) and one line in its stderr.log says why; the script goes on to the next run.
+    staged and the run started. The staging is plain POSIX shell: submission replaces the mark
+    line with :func:`_staging`. Otherwise the run is not started, its job.exit records 97
+    (source failed) or 98 (staging failed) and one line in its stderr.log says why; the script
+    goes on to the next run.
     """
     quoted = shlex.quote(relative)
     ended = shlex.quote(f"{source_relative}/{STATUS_FILE}")
@@ -148,21 +194,20 @@ def _dependent_block(
     line = " ".join(shlex.quote(part) for part in command)
     head = shlex.quote(f"RESTART {point.restart_from}: the source ended with status ")
     tail = shlex.quote("; this run was not started")
-    python = shlex.quote(sys.executable)
     return chr(10).join(
         [
             f"# {point.point_id}: RESTART from {point.restart_from}, staged when it ends",
             f"src=$(cat {ended} 2>/dev/null || echo missing)",
-            f"py=${{CFDBENDER_PYTHON:-{python}}}",
-            '[ -x "$py" ] || py=python3',
+            "rc=0",
             'if [ "$src" != 0 ]; then',
             f"  printf '%s%s%s\\n' {head} \"$src\" {tail} > {quoted}/stderr.log",
             f"  rc={SOURCE_FAILED}",
-            f'elif ! "$py" -m {STAGER} {quoted} 2>> {quoted}/stderr.log; then',
-            f"  rc={STAGING_FAILED}",
             "else",
-            f"  ( cd {quoted} && {line} > stdout.log 2> stderr.log )",
-            "  rc=$?",
+            STAGE_MARK.format(point_id=point.point_id),
+            '  if [ "$rc" -eq 0 ]; then',
+            f"    ( cd {quoted} && {line} > stdout.log 2> stderr.log )",
+            "    rc=$?",
+            "  fi",
             "fi",
             f"printf '%s\\n' \"$rc\" > {temporary} && mv {temporary} {status}",
             '[ "$rc" -eq 0 ] || failed=1',
@@ -581,9 +626,21 @@ def submit_batches(
             staged.append(point)
         if not staged:
             continue
+        text = batch.script_text
+        for point in batch.points:
+            if not point.restart_in_job:
+                continue
+            point_folder = workspace_path(plan.root, point.directory)
+            mark = STAGE_MARK.format(point_id=point.point_id)
+            if point in staged:
+                relative = _relative(point_folder, folder)
+                shell = _staging(point, relative, _stage_pairs(point_folder, relative))
+            else:
+                shell = f"  rc={STAGING_FAILED}"
+            text = text.replace(mark, shell)
         script = workspace_path(plan.root, batch.script)
         with script.open("x", encoding="utf-8", newline="") as stream:
-            stream.write(batch.script_text)
+            stream.write(text)
         script.chmod(0o755)
         job = batch.submission
         result = submit(job)

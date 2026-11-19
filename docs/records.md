@@ -59,18 +59,17 @@ not request saved solution state.
 With `--batch N`, a source that is not completed yet is accepted when it is in the same job as the
 point it feeds: the job runs the rows in sequence, so the solution exists when the dependent
 starts. `cfd-matrix plan --batch N` lists each such pair. The job script reads the source's
-`job.exit` and, only when it is 0, stages the solution into the dependent's folder with
-`python -m cfdbender.matrix.stage_restart`. The interpreter is `$CFDBENDER_PYTHON` when set,
-else the one that wrote the script when it exists on the compute node, else `python3`; it
-must be able to import `cfdbender`. The staging needs the solver's restart file to exist and
-not be empty, not collected products. `restart-staged.json` in the dependent's folder is the
-record of what was staged, with the SHA-256 of each file; `collect` does not read it. `su2.cfg`
+`job.exit` and, only when it is 0, copies the solution into the dependent's folder with `cp`.
+The job script needs only a POSIX shell: the source files and the names the solver reads are
+written into it at submission, and no Python is called on the compute node. The staging needs
+the solver's restart file to exist and not be empty, not collected products. When `sha256sum`
+exists on the node, the script writes the digests of the staged files to
+`restart-staged.sha256` in the dependent's folder; nothing reads that file. `su2.cfg`
 is never edited: it was written at submission from the source's rendered configuration.
 If the source did not end with status 0 (or its `job.exit` is missing, for a killed job), the
 dependent is not run: its `job.exit` is 97 and its `stderr.log` holds one line saying why. If the
-staging fails, `job.exit` is 98 and `stderr.log` holds the reason: the restart file is missing
-or empty, or the interpreter cannot import `cfdbender` (the module-not-found error is
-written there too). The job goes on with the next run. `collect` marks such a run failed with
+staging fails, `job.exit` is 98 and `stderr.log` holds one line naming the restart file that is
+missing or empty. The job goes on with the next run. `collect` marks such a run failed with
 that reason; a run the script ended with a failure and left no solver output is never left
 outstanding. A source later in the job is moved ahead of its dependents (runs of a job share
 no state, so no result changes). Points that feed each other are refused. This holds for SU2

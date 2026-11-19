@@ -214,7 +214,8 @@ without a command line of its own (`job_command`) is grouped only for rows that 
 
 A row whose `RESTART` names a point of the same job, earlier in it, is not refused although the
 source has not run: the script stages the source's restart file after the source ends with
-status 0, before the dependent's command (or its `hpc.application_id` wrapper) is called; see
+status 0, before the dependent's command (or its `hpc.application_id` wrapper) is called, with
+`cp` alone: the job script needs only a POSIX shell, no Python on the node; see
 [restart](records.md#a-source-that-runs-earlier-in-the-same-job).
 
 ## See what would be submitted

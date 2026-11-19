@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from dataclasses import replace
 
 import pytest
@@ -18,12 +17,13 @@ from test_restart_in_job import (
     row,
     run_script,
     script,
+    shell_only_path,
     source_id_for,
     write_matrix,
 )
 
 from cfdbender.core.registry import RunRegistry
-from cfdbender.matrix.batch import _dependent_block
+from cfdbender.matrix.batch import STAGE_MARK, _dependent_block
 from cfdbender.workspace.planning import plan_workspace
 
 
@@ -50,30 +50,39 @@ def exit_of(root, pol):
     return (root / point_of(root, pol).point.directory / "job.exit").read_text()
 
 
-@needs_sh
-def test_a_missing_interpreter_is_status_98_with_a_line_and_the_job_goes_on(tmp_path):
-    three_rows(tmp_path)
-    assert submit(tmp_path) == 0
-    run_script(tmp_path, python="/nonexistent/python")
-    assert exit_of(tmp_path, 7002) == "98\n"
-    log = (tmp_path / point_of(tmp_path, 7002).point.directory / "stderr.log").read_text()
-    assert log.strip(), "the stager's own failure reaches the dependent's stderr.log"
-    assert exit_of(tmp_path, 7003) == "0\n", "the next independent run still ran"
-
-
-def test_the_default_interpreter_is_the_one_that_wrote_the_script(tmp_path):
+def test_the_script_names_no_python_and_needs_only_a_posix_shell(tmp_path):
     three_rows(tmp_path)
     assert submit(tmp_path) == 0
     text = script(tmp_path).read_text()
-    assert "py=${CFDBENDER_PYTHON:-" in text and '[ -x "$py" ] || py=python3' in text
-    assert 'elif ! "$py" -m cfdbender.matrix.stage_restart' in text
-    if sys.platform != "win32":
-        assert exit_of_run(tmp_path, None) == "0\n"
+    assert "python" not in text.lower() and "stage_restart" not in text
+    assert "CFDBENDER_PYTHON" not in text and "@@STAGE" not in text
 
 
-def exit_of_run(root, python):
-    run_script(root, python=python)
-    return exit_of(root, 7002)
+@needs_sh
+def test_the_script_runs_on_a_path_that_holds_no_python(tmp_path):
+    search_path = shell_only_path()
+    if search_path is None:
+        pytest.skip("the shell's folder holds a python")
+    three_rows(tmp_path)
+    assert submit(tmp_path) == 0
+    done = run_script(tmp_path, search_path)
+    assert done.returncode == 0, done.stderr.decode()
+    folder = tmp_path / point_of(tmp_path, 7002).point.directory
+    for name in ("restart-input_00000.dat", "restart-input_00001.dat"):
+        assert (folder / name).read_bytes() == b"steady solution"
+    assert [exit_of(tmp_path, p) for p in (7001, 7002, 7003)] == ["0\n"] * 3
+
+
+@needs_sh
+def test_a_missing_source_file_is_status_98_naming_it_and_the_job_goes_on(tmp_path):
+    three_rows(tmp_path)
+    assert submit(tmp_path) == 0
+    (tmp_path / "drop-restart").write_text("x")
+    run_script(tmp_path)
+    assert exit_of(tmp_path, 7002) == "98\n"
+    log = (tmp_path / point_of(tmp_path, 7002).point.directory / "stderr.log").read_text()
+    assert log.count("\n") == 1 and "restart_flow.dat" in log
+    assert exit_of(tmp_path, 7003) == "0\n", "the next independent run still ran"
 
 
 def test_a_source_with_an_ascii_restart_is_refused_naming_the_key(tmp_path, capsys):
@@ -107,6 +116,7 @@ def test_the_97_note_survives_quotes_and_percent_signs_and_a_killed_source(tmp_p
     odd = "1/DP-a'b%s$x"
     point = replace(plan.points[0], restart_from=odd)
     block = _dependent_block(point, "dep", ["true"], "src")
+    block = block.replace(STAGE_MARK.format(point_id=point.point_id), ":")
     (tmp_path / "dep").mkdir()
     (tmp_path / "src").mkdir()
     body = "failed=0\n" + block + "\nexit $failed\n"
@@ -165,8 +175,9 @@ def test_a_run_that_was_not_started_is_failed_with_its_reason_never_outstanding(
         run_script(tmp_path)
         reason = "the source ended with status 3"
     else:
-        run_script(tmp_path, python="/nonexistent/python")
-        reason = ""
+        (tmp_path / "drop-restart").write_text("x")
+        run_script(tmp_path)
+        reason = "wrote no restart file"
     code = cli_m(tmp_path, "collect")
     assert code != 3, "nothing may stay outstanding"
     record = point_of(tmp_path, 7002)
