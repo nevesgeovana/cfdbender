@@ -81,6 +81,9 @@ class ExecutionResult:
     history: tuple[Iteration, ...]
     iteration_limit: int
     solver_version: str
+    #: Why the numerical evidence could not be read, when it could not; None otherwise.
+    #: Keyword-only, so a subclass's own positional fields keep their places.
+    evidence_error: str | None = field(default=None, kw_only=True)
 
 
 @dataclass(frozen=True)

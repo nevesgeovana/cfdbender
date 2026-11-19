@@ -1,7 +1,7 @@
 # SU2
 
 
-You run steady SU2 cases through cfdbender: it writes `su2.cfg`, links your mesh, runs SU2 and reads the residual history and the force and moment coefficients. This page lists only what is specific to SU2.
+You run SU2 cases through cfdbender, steady or time accurate (see [Run types](#run-types)): it writes `su2.cfg`, links your mesh, runs SU2 and reads the residual history and the force and moment coefficients. This page lists only what is specific to SU2.
 
 ## Install
 
@@ -191,18 +191,22 @@ A row that states only `MACH` and angles keeps the setup's flow state. When neit
 
 The deck states no free-stream value that SU2 recomputes and ignores. Under SU2's default `FREESTREAM_OPTION`, `TEMPERATURE_FS`, the density follows from the pressure and the temperature, so the resolved density is written only with `FREESTREAM_OPTION = "DENSITY_FS"`. A compressible viscous run (`SOLVER` `NAVIER_STOKES` or `RANS`) with a Reynolds number, under SU2's default `INIT_OPTION`, `REYNOLDS`, takes the density from the Reynolds number and recomputes the pressure from it, so the resolved pressure is not written either; `INIT_OPTION = "TD_CONDITIONS"` keeps it. An Euler run gets the pressure. A value you state in the setup is always written. A compressible deck (`SOLVER` `EULER`, `NAVIER_STOKES` or `RANS`) without `REF_DIMENSIONALIZATION` gets `REF_DIMENSIONALIZATION= FREESTREAM_PRESS_EQ_ONE`, as SU2's own NACA 0012 case states: SU2's default, `DIMENSIONAL`, leaves the energy rows of the implicit system about 1e5 times the density rows, and on the TMR NACA 0012 at CFL 1000 SU2's official deck then stalls at rms[Rho] -4.4 instead of converging in 688 iterations. The coefficients do not change; the residual levels in `history.csv` are then relative to the free stream, so a `CONV_RESIDUAL_MINVAL` chosen for a dimensional run means a different level. State `REF_DIMENSIONALIZATION = "DIMENSIONAL"` to keep SU2's default.
 
-### Propeller in a steady rotating frame
+### Run types
 
-A propeller in axial flow can be run steady in a frame that turns with the blade (a moving reference frame). The setup declares the frame with SU2's own keys, the reference file declares the rotor, and the matrix row states the advance ratio `J`. cfdbender then writes the rotation of that point, so a sweep over `J` is one row.
+The matrix column `WORKFLOW` selects the run type with pyflightstream's names: `steady` (also `-`), `qsteady_rotor`, `unsteady` and `unsteady_rotor`. Each run type carries the SU2 keys that follow from it, so the setup states only what is particular to the case; a key the setup states itself wins over a carried one. Any other value, `LEGACY` included, is refused.
 
-The setup declares the rotating frame; this is the switch (a later release may offer it as a run type):
+| `WORKFLOW` | What it solves | What cfdbender writes |
+|---|---|---|
+| `steady` | a steady case | nothing beyond the rules of this page: an existing workspace plans the same `su2.cfg` |
+| `qsteady_rotor` | a rotor solved steady in the frame that turns with it (blades held still, free stream turning) | `GRID_MOVEMENT= ROTATING_FRAME`, `ROTATION_RATE`, `MOTION_ORIGIN`, `MACH_MOTION`, and `MARKER_PERIODIC` of a sector |
+| `unsteady` | time accurate, nothing turns | `TIME_DOMAIN`, `TIME_MARCHING`, `TIME_STEP`, `TIME_ITER`, `INNER_ITER`, `WINDOW_START_ITER` |
+| `unsteady_rotor` | time accurate, the rotor turning | the time keys and the rotation: the whole mesh in rigid motion, or a sliding-mesh multizone layout |
 
-```toml
-GRID_MOVEMENT = "ROTATING_FRAME"
-freestream_temperature = 288.15
-```
+Row variables of another run type are warned and skipped, as pyflightstream does (for example `DELTA_THETA` on a `steady` row: "DELTA_THETA is not registered for run type 'steady'. It is read by unsteady, unsteady_rotor."). `CLOCK_MOTION`, `MOTIONS` and `PASSAGE_POSITIONS` are not offered yet: a row turns the one rotor of its reference file, and the clockings of a whole wheel are not solved; each is warned and skipped.
 
-The reference file declares the rotor as a FlightStream reference file does, as a table of its own with `kind = "rotor"` (the table may have any name). The rotor part of a FlightStream reference file can be copied as it is:
+#### The rotor declaration
+
+The reference file declares the rotor as a pyflightstream reference file does, a table with `kind = "rotor"`; the table name is the rotor's alias:
 
 ```toml
 area = 1.0
@@ -211,91 +215,105 @@ moment_origin = [0.0, 0.0, 0.0]
 
 [ROTOR]
 kind = "rotor"
-x_m = 0.0                  # hub centre in the mesh frame, m (default 0)
+x_m = 0.0                  # the hub in the mesh frame, m (default 0)
 y_m = 0.0
 z_m = 0.0
-axis = "X"                 # the declared shaft
-rpm_sign = -1              # 1: right-handed about the axis; -1: left-handed
-diameter_m = 0.40741537    # rotor diameter D in m, the one the advance ratio uses
-families_general = ["S"]   # accepted, not read
+axis = "X"                 # the shaft: thrust is counted positive along it
+rpm_sign = -1              # 1: right-handed about the shaft; -1: left-handed
+diameter_m = 0.40741537
+families_general = ["S"]
 families_blades = ["Blade1", "Blade6", "Blade5", "Blade4", "Blade3", "Blade2"]
-blade1 = { azimuth_deg = 0.0, zero = "Z" }    # accepted, not read
+blade1 = { azimuth_deg = 0.0, zero = "Z" }
 ```
 
-`diameter_m` must be positive and `axis` is required. The blade count is the length of `families_blades` and is only written to the rotor table. `alias`, `families_general` and `blade1` to `bladeN` are accepted and not read; any other key is refused. One rotor only: a reference file declaring two is refused with a message that multi-rotor rotating-frame runs are not supported yet. A reference file without a rotor behaves exactly as before.
+`axis` is a letter or, for a shaft installed at an angle, `axis = { shaft = "X", vector_wrt_global = [0.996, 0, 0.087] }`: the vector is normalised and must lie within 45 degrees of the positive axis the letter names, as pyflightstream requires. `blade1` places blade one at step zero, `azimuth_deg` measured from the axis `zero` (one of the two axes that are not the shaft, with an optional sign) right-handed about the shaft; blade `k` of `B` sits `(k - 1) 360 / B` further on. Without `blade1` the datum is `zero = "X"`, which a shaft `X` refuses, as in pyflightstream. `alias`, when stated, equals the table name. The blade count is the length of `families_blades`. One rotor only, and the SU2 adapter reads the shaft `X` only (the free stream runs along +x).
 
-What differs from the FlightStream side: SU2 reads `axis = "X"` only (the free stream runs along +x and thrust is positive toward -x; `"Y"` and `"Z"` are refused), and the reference lengths are still `area`, `length` and `moment_origin`, not `area_m2`, `chord_m` and `moment_point`.
+What differs from the pyflightstream reference file: the reference lengths are `area`, `length` and `moment_origin`, not `area_m2`, `chord_m` and `moment_point`.
 
-The matrix row states `ADVANCE_RATIO` as a value or as the swept variable:
+#### The rotor speed
+
+The row states the speed in `FLIGHT_CONDITION` as `ADVANCE_RATIO` (a value or the swept variable) or as `RPM`, a magnitude whose hand is `rpm_sign`:
 
 ```text
-POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION                                  | SWEEP_VALUES                       | MESH         
------|-----|-------|-----|-------|---------------------------------------------------|------------------------------------|--------------
-1001 | 1   | 001 | 001 | 001   | MACH:0.0529, ALPHA:0, BETA:0, ADVANCE_RATIO:sweep | 0.30,0.35,0.45,0.50,0.55,0.60,0.70 | tud_xprop.su2
+POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION                                  | SWEEP_VALUES                       | MESH          | WORKFLOW
+-----|-----|-------|-----|-------|---------------------------------------------------|------------------------------------|---------------|--------------
+1001 | 1   | 001   | 001 | 001   | MACH:0.0529, ALPHA:0, BETA:0, ADVANCE_RATIO:sweep | 0.30,0.35,0.45,0.50,0.55,0.60,0.70 | tud_xprop.su2 | qsteady_rotor
 ```
 
-The definition is the one pyflightstream uses, `J = V / (n D)`: `V` is the free-stream speed of the point (the written `MACH_NUMBER` times the speed of sound `sqrt(GAMMA R T)` of the deck's ideal gas, with the deck's `FREESTREAM_TEMPERATURE`, else SU2's 288.15 K), `n` the rotation speed in revolutions per second and `D` the rotor's `diameter_m`. For each point cfdbender writes:
+`J = V / (n D)`: `V` is the free-stream speed of the point (`MACH_NUMBER` times `sqrt(GAMMA R T)` of the deck), `n` the speed in revolutions per second and `D` the rotor's `diameter_m`. cfdbender writes `ROTATION_RATE` as `rpm_sign 2 pi n` along the shaft in rad/s, `MOTION_ORIGIN` as the hub and `MACH_MOTION` as the free-stream Mach number unless the setup states it (a hover, with no free stream, takes the tip Mach number). For `V = 18.0017 m/s`, `D = 0.40741537 m`, `J = 0.4116` and `rpm_sign = -1` it writes about `-674.44 0 0`. Each `J` is its own point, named like pyflightstream's: `DP-M053AL+000BE+000J+041`.
 
-| Key | Value |
-|---|---|
-| `ROTATION_RATE` | the vector `rpm_sign * 2 pi n` along the declared axis, in rad/s, with `n = V / (J D)` |
-| `MOTION_ORIGIN` | the rotor's hub, `x_m`, `y_m`, `z_m` |
-| `MACH_MOTION` | the free-stream Mach number, unless the setup states `MACH_MOTION`: the setup wins |
+What is refused: an advance ratio or a speed that is not positive, both `ADVANCE_RATIO` and `RPM`, no rotor declaration, a `ROTATION_RATE` stated as well (two sources of one quantity), a `MOTION_ORIGIN` that differs from the hub. A `qsteady_rotor` row with a nonzero `ALPHA` or `BETA` is refused: an angle makes the inflow vary around the disc, which a steady rotating frame does not hold; solve it as `unsteady_rotor`.
 
-The sign convention is the FlightStream one: `rpm_sign = 1` turns right-handed about the declared axis. With `axis = "X"` and `rpm_sign = -1` the rotation rate is along minus x, and the rotor, which thrusts toward minus x, turns right-handed about its thrust direction. For `V = 18.0017 m/s`, `D = 0.40741537 m` and `J = 0.4116` it writes a `ROTATION_RATE` of about `-674.44 0 0` (printed to 15 digits); `rpm_sign = 1` writes `674.44 0 0`.
-
-Each `J` is its own point. The point name carries it like pyflightstream: `J` and the advance ratio times 100 with its sign, for example `DP-M053AL+000BE+000J+030`; the condition is in the record, the summary and the `J` column of the polar files. Two values of `J` that differ by less than 0.01 write the same name, and planning refuses them naming both points.
-
-What is refused, each with its own message:
-
-- `ADVANCE_RATIO` zero or negative, or a speed of zero (`MACH:0`);
-- no rotor declaration in the reference file;
-- a setup without `GRID_MOVEMENT = "ROTATING_FRAME"`;
-- `ROTATION_RATE` stated as well, in the setup or in `VAR_NAMES_VALUES`: two sources of one quantity, and a silent choice would change the physics;
-- a `MOTION_ORIGIN` in the setup that differs from the rotor's hub.
-
-A steady rotating frame assumes axial flow: a nonzero `ALPHA` or `BETA` with `ADVANCE_RATIO` warns and the run continues. `RPM` is not read from `FLIGHT_CONDITION` by SU2; state `ADVANCE_RATIO`.
+A `steady` row whose setup states `GRID_MOVEMENT = "ROTATING_FRAME"` with an `ADVANCE_RATIO` still plans as before, to the same `su2.cfg` as `qsteady_rotor`; with a nonzero angle it warns and continues.
 
 #### Periodic sector
 
-A sector mesh is stated as FlightStream states it. The matrix column `SYMMETRY` says what was meshed: `NONE` (the default) or `PERIODIC` (SU2 reads no `MIRROR`; a mirror plane is a marker of the setup). With `PERIODIC` the row variable `PERIODIC_COPIES` is required, a positive whole number: the copies the sector stands for. It is refused with any other symmetry. The column `SYMMETRY_LOADS` (`true` or `false`, or `-` for the setup's `symmetry_loads`, else `true`) says whether the loads that come back are the whole rotor's or the sector's:
+The matrix column `SYMMETRY` says what was meshed: `NONE` (the default) or `PERIODIC` (SU2 reads no `MIRROR`; a mirror plane is a marker of the setup). With `PERIODIC` the row variable `PERIODIC_COPIES` is required, a positive whole number. `SYMMETRY_LOADS` (`true` or `false`, or `-` for the setup's `symmetry_loads`, else `true`) says whether the loads are the whole rotor's or the sector's:
 
 ```text
-POL  | RUN | SETUP | REF | PPROC | SYMMETRY | SYMMETRY_LOADS | VAR_NAMES_VALUES              
------|-----|-------|-----|-------|----------|----------------|-------------------------------
-1001 | 1   | 001 | 001 | 001   | PERIODIC | true           | hpc: h004 / PERIODIC_COPIES: 6
+POL  | RUN | SETUP | REF | PPROC | SYMMETRY | SYMMETRY_LOADS | WORKFLOW      | VAR_NAMES_VALUES
+-----|-----|-------|-----|-------|----------|----------------|---------------|-------------------------------
+1001 | 1   | 001   | 001 | 001   | PERIODIC | true           | qsteady_rotor | hpc: h004 / PERIODIC_COPIES: 6
 ```
 
-`SYMMETRY`, `SYMMETRY_LOADS` and `PERIODIC_COPIES` are never written to `su2.cfg`; the setup's `MARKER_PERIODIC` is what SU2 reads. `DELTA_THETA`, `REVOLUTIONS`, `LAST_REVS_AVG`, `CLOCK_MOTION`, `MOTIONS` and every variable that starts with `EXPORT_` belong to the time-accurate run types, which the SU2 adapter does not offer yet: each warns once and is skipped. These warnings check the row against the setup (they warn and never refuse):
+On a `qsteady_rotor` row the setup may name its periodic pair, `periodic_markers = ["left", "right"]` (a provisional name), listed so that the first, turned right-handed about the shaft by `360 / PERIODIC_COPIES` degrees, lands on the second; cfdbender then writes `MARKER_PERIODIC`. A `MARKER_PERIODIC` the setup states itself wins. These warnings check the row against the setup: `MARKER_PERIODIC` turns by an angle whose `360 / angle` differs from `PERIODIC_COPIES`; `SYMMETRY` is `PERIODIC` and no `MARKER_PERIODIC` is written; the setup states `MARKER_PERIODIC` beside a rotor while `SYMMETRY` is not `PERIODIC`.
 
-- `MARKER_PERIODIC` turns by an angle whose `360 / angle` differs from `PERIODIC_COPIES`;
-- `SYMMETRY` is `PERIODIC` and the setup states no `MARKER_PERIODIC`;
-- the setup states `MARKER_PERIODIC` beside a rotor while `SYMMETRY` is not `PERIODIC`: the loads are the sector's.
+#### Time-accurate rows
 
-The other solvers still refuse a `SYMMETRY` or `SYMMETRY_LOADS` that is not `-`.
+A row of `unsteady` or `unsteady_rotor` states its clock and its averaging window; cfdbender supplies neither:
+
+- the clock, `DELTA_THETA` (degrees per step) and `REVOLUTIONS` against the rotor speed, or `DELTA_TIME` (s) and `TIME_ITERATIONS` (steps): `TIME_STEP = DELTA_THETA / (6 abs(rpm))` and `TIME_ITER = REVOLUTIONS 360 / DELTA_THETA`, a whole number of steps;
+- the window, `LAST_REVS_AVG` on a row that turns a rotor or `LAST_ITERS_AVG`, never both.
+
+```text
+POL  | RUN | SETUP | REF | PPROC | FLIGHT_CONDITION         | MESH       | WORKFLOW       | VAR_NAMES_VALUES
+-----|-----|-------|-----|-------|--------------------------|------------|----------------|------------------------------------------------------
+2001 | 1   | 002   | 002 | 001   | MACH:0.1, ALPHA:5, RPM:972 | wllk.su2 | unsteady_rotor | DELTA_THETA: 1.5 / REVOLUTIONS: 5 / LAST_REVS_AVG: 2.5
+```
+
+That row writes `TIME_STEP= 0.000257201646090535`, `TIME_ITER= 1200` and `WINDOW_START_ITER= 600`. SU2's time iteration `k` (0-based) is cfdbender's step `k + 1`; `INNER_ITER` is the setup's `iterations`. `TIME_MARCHING` is `DUAL_TIME_STEPPING-2ND_ORDER` unless the setup states another.
+
+An `unsteady_rotor` setup turns the whole mesh (`GRID_MOVEMENT= RIGID_MOTION`) unless it states a sliding interface (provisional names):
+
+```toml
+[sliding]
+zones = 2                         # the zones of the mesh file
+rotating_zone = 1                 # the zone that turns
+interface = ["X_BOXD1", "X_BOX1"] # [stationary side, rotating side]
+```
+
+cfdbender then writes `MULTIZONE= YES`, `CONFIG_LIST= ( zone_0.cfg, zone_1.cfg )`, the interface pair as `MARKER_ZONE_INTERFACE` and `MARKER_FLUID_INTERFACE`, `KIND_INTERPOLATION= WEIGHTED_AVERAGE`, `OUTER_ITER` from `iterations` with `INNER_ITER= 1`, per-zone history groups, and one file per zone beside `su2.cfg`: the turning zone's states `GRID_MOVEMENT= RIGID_MOTION`, `MOTION_ORIGIN`, `ROTATION_RATE` and `MACH_MOTION`, the others `GRID_MOVEMENT= NONE`.
+
+The reported result of a time-accurate point is the mean over the window of each history column (equal weights, one row per time step, the last row of each step), and its rotor row is formed from the mean force and moment. A history that does not hold every step of the window leaves the point out with the reason. `post/<matrix>/polars/P<sim>_<matrix>_uns_avg.csv` holds one row per point: `POL`, `FIRST_STEP`, `LAST_STEP`, `STEPS`, the condition block, `XMOM`, `YMOM`, `ZMOM`, the averaged history columns, then `RPM_<alias>` and `DIAMETER_<alias>`. The point's result also holds one row per complete revolution with each column's mean and its drift from the previous revolution, and a drift of the last revolution above `[per_revolution] drift_limit_pct` of the PPROC file (default 1 per cent) warns, never blocks. To verify on a real time-accurate run: the column names SU2 gives a time-accurate and a multizone history (`solvers/su2/_time_history.py` keeps them in one table).
+
+#### Export window
+
+A time-accurate row may state one of pyflightstream's `EXPORT_UNSTEADY_LAST_REV`, `EXPORT_UNSTEADY_LAST_ITER`, `EXPORT_UNSTEADY_AFTER_REV` or `EXPORT_UNSTEADY_AFTER_ITER`: the surface and volume files are written at every step from the window's first step to the last. SU2 writes its files at one frequency for a whole run, so such a point runs in two segments of one job: `su2.cfg` marches to the step before the window writing restart files only, `su2_segment2.cfg` restarts there (`RESTART_SOL= YES`, `RESTART_ITER`) and writes every step to the end, and `run_segments.sh` runs the two in order (`sh run_segments.sh mpirun -np 64 SU2_CFD`). That an SU2 time-accurate restart continues cleanly is to be verified on a real run. Two keys, a value that is not positive, a window longer than the run, a threshold beyond the run, and a window that begins after the averaging window are refused; a revolutions form on a row with no rotor clock warns and is skipped.
+
+#### Turbulence model
+
+The row variable `TURBULENCE_MODEL` (a provisional name: pyflightstream has none) names the model, `SA` or `SST`, and SU2 writes `KIND_TURB_MODEL` (with the SA-neg options below for `SA`). Every model is fully turbulent: cfdbender never writes a transition model. A setup that states its own `KIND_TURB_MODEL` wins, with one warning when the two differ; another name is refused, listing `SA` and `SST`.
 
 ### Rotor coefficients
 
-When the reference file declares a rotor and the point is a rotating frame, `collect` adds a `rotor` mapping to the point's result and writes `post/<matrix>/rotor.csv`, one row per such point. It is a table of its own beside the polar files. For a `SYMMETRY = PERIODIC` row the lift, drag, side-force and moment coefficients of the polar tables keep the sector's own values, as SU2 computed them; the whole-rotor loads are in `rotor.csv`.
+When the reference file declares a rotor and the point turns it, `collect` adds a `rotor` mapping to the point's result: the force and moment the adapter supplies, the condition and the rotor row. The rotor table is pyflightstream's `post/<matrix>/polars/P<sim>-<alias>_rotor.csv`, one row per point, with its columns in its order: `POL`, `ROTOR`, the condition block (`ALPHA`, `BETA`, `MACH`, `RE`, `VINF`, `VREF`, `ALT`, `RHO`, `TEMP`, `MU`, `J`, `J_CLOCK`, `RPM_CLOCK`, `SREF`, `CREF`), then `RPM_<alias>`, `DIAMETER_<alias>`, `J_<alias>`, `CT_<alias>`, `CQ_<alias>`, `CP_<alias>`, `ETA_<alias>`, `CN_<alias>`, `CS_<alias>`, `CMN_<alias>` and `CMS_<alias>`. Absent, and named under `absent_columns` in `products.json`: `BREF` (SU2 has no reference span), and `ETAW`, `MTIP`, `MHEL` and `MADV`, which cfdbender does not compute yet. For a `SYMMETRY = PERIODIC` row the polar tables keep the sector's own coefficients, as SU2 computed them; the whole-rotor loads are in the rotor table.
 
-SU2's coefficients are of the monitored surface, which for a sector is one sector. With `SYMMETRY = PERIODIC` and `SYMMETRY_LOADS` true, the whole-rotor loads are the sum over the `m = PERIODIC_COPIES` copies of the sector's force and moment, copy `j` turned about the rotor axis through the hub by `360 j / m` degrees. They are not a multiplication: the components along the axis add up to `m` times the sector's, and the components normal to the axis add up as vectors, which cancel for equal copies. With `SYMMETRY_LOADS` false the loads are the sector's as computed. `m` is `PERIODIC_COPIES`; the blade count of the reference file is not a multiplier.
-
-With `q = 0.5 rho V_q^2` the dynamic pressure SU2 divides by (`V_q` is `MACH_MOTION` times the speed of sound), `A` and `L` the reference area and length, `r` the moment origin and `o` the hub:
+SU2's coefficients are of the monitored surface. The adapter turns them into a force and a moment, and cfdbender forms every rotor coefficient from those vectors, with pyflightstream's definitions and signs. With `q = 0.5 rho V_q^2` the dynamic pressure SU2 divides by (`V_q` is `MACH_MOTION` times the speed of sound), `A` and `L` the reference area and length, `r` the moment origin, `o` the hub and `a` the unit shaft:
 
 ```text
-F    = q A (CFx, CFy, CFz)                    the sector's force
+F    = q A (CFx, CFy, CFz)                    the monitored force
 M_o  = q A L (CMx, CMy, CMz) + (r - o) x F    its moment about the hub
-F_w  = sum_j R_j F        M_w = sum_j R_j M_o     R_j: turn by 360 j / m degrees about the axis
-T    = F_w . thrust_hat                       thrust, positive against the declared axis
-Q    = -M_w . axis_hat                        torque the shaft supplies, signed about the axis
-n    = rpm_sign abs(ROTATION_RATE) / (2 pi)   signed rev/s
+F_w  = sum_j R_j F        M_w = sum_j R_j M_o     R_j: turn by 360 j / m degrees about the shaft
+T    = F_w . a            Q = M_w . a         thrust and torque along the shaft
+n    = rpm_sign rev/s
 J    = V / (abs(n) D)
-CT   = T / (rho n^2 D^4)    CQ = Q / (rho n^2 D^5)    CP = 2 pi CQ sign(n)    eta = J CT / CP
+CT   = T / (rho n^2 D^4)    CQ = Q / (rho n^2 D^5)    CP = 2 pi CQ sign(n)    ETA = J CT / CP
+CN, CS = F_w . N, F_w . S over rho n^2 D^4    CMN, CMS = M_w . N, M_w . S over rho n^2 D^5
 ```
 
-`CP` is positive for a propeller that absorbs power whichever way it turns, and `eta` is `NA` where `CP` is zero. The density `rho` is `FREESTREAM_DENSITY` under `FREESTREAM_OPTION = "DENSITY_FS"`; for a viscous deck that SU2 initialises from `REYNOLDS_NUMBER` it is `Re mu / (V L)`; otherwise `p / (R T)` with SU2's 101325 Pa when the deck states no pressure. The columns of `rotor.csv` are `POL`, `POINT`, `ROTOR`, `BLADES`, `PERIODIC_COPIES`, `LOADS` (`WHOLE` or `SECTOR`), `D`, `VINF`, `RHO`, `QINF`, `RPM`, `N`, `J`, `T`, `Q`, `CT`, `CQ`, `CP`, `ETA`, `FIP` and `MIP`, the last two the magnitudes of the summed force and moment normal to the axis (zero for a whole rotor within round-off). A value that does not exist is `NA`.
+`N` is the part of the mesh frame's up (`+z`) square to the shaft and `S = N x a`; the four in-plane coefficients are `NA` for a shaft along up. With `SYMMETRY = PERIODIC` and `SYMMETRY_LOADS` true the whole-rotor loads are the vector sum over `m = PERIODIC_COPIES` copies, never a multiplication; with `SYMMETRY_LOADS` false they are the sector's. Thrust is counted along the declared shaft, so with `axis = "X"` and the flow along +x a pulling propeller has a negative `CT`, as in pyflightstream; `ETA` is `NA` where `CP` is zero or the free stream is. The density `rho` is `FREESTREAM_DENSITY` under `FREESTREAM_OPTION = "DENSITY_FS"`; for a viscous deck that SU2 initialises from `REYNOLDS_NUMBER` it is `Re mu / (V L)`; otherwise `p / (R T)`.
 
-The same quantities hold for a point whose rotation you typed by hand (`GRID_MOVEMENT` and `ROTATION_RATE` in the setup), as long as the reference file declares the rotor.
+The same quantities hold for a `steady` point whose rotation you typed by hand (`GRID_MOVEMENT` and `ROTATION_RATE` in the setup), as long as the reference file declares the rotor.
 
 ## What converged means
 

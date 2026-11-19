@@ -23,7 +23,15 @@ from cfdbender.solvers._host._exe import check_host_free, resolve_executable
 from cfdbender.solvers._host._execute import _NO_WINDOW, _kill_tree, _timeout
 from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._version import refuse_wrong_build
-from cfdbender.solvers.su2._config import config, mesh_name, number, options, render, staged_mesh
+from cfdbender.solvers.su2._config import (
+    config,
+    extra_files,
+    mesh_name,
+    number,
+    options,
+    render,
+    staged_mesh,
+)
 from cfdbender.solvers.su2._restart import restart_files, restart_values
 from cfdbender.solvers.su2.routes import select_route
 
@@ -59,6 +67,8 @@ def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path)
     folder.mkdir(parents=True, exist_ok=False)
     copy_solution(folder, solution)
     (folder / "su2.cfg").write_bytes(render(values).encode("ascii"))
+    for name, text in extra_files(values).items():
+        (folder / name).write_bytes(text.encode("ascii"))
     link_mesh(
         workspace_path(point.root, mesh_name(values)),
         folder / staged_mesh(values),
@@ -77,6 +87,7 @@ def stage(point: AdapterPoint) -> None:
         point.post,
         point.point.condition,
         geometry=point.geometry,
+        run_type=point.point.run_type,
     )
     folder = workspace_path(point.root, point.point.directory)
     if folder.exists():
@@ -94,6 +105,7 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
         point.post,
         point.point.condition,
         geometry=point.geometry,
+        run_type=point.point.run_type,
     )
     raw_path = opts.get("pysu2_path") or os.environ.get("CFDBENDER_PYSU2_PATH")
     wrapper_path = None

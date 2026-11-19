@@ -26,7 +26,6 @@ from cfdbender.core.rotor import (
     periodic_state,
     rotation_rate,
     rotor_block,
-    rotor_quantities,
 )
 from cfdbender.solvers._host._config import number as number
 from cfdbender.solvers._host._config import unknown_keys
@@ -184,7 +183,7 @@ def _flow(
     """Split the matrix condition into SU2 keys and the resolved free stream."""
     kept = {key: value for key, value in condition.items() if key not in STATE_KEYS}
     for key in kept:
-        if key in ATTITUDE_KEYS and key not in {"ALPHA", "BETA", "ADVANCE_RATIO"}:
+        if key in ATTITUDE_KEYS and key not in {"ALPHA", "BETA", "ADVANCE_RATIO", "RPM"}:
             raise ValueError(f"the SU2 adapter does not read FLIGHT_CONDITION key {key}")
     if not states_flow(condition):
         if "MACH" in condition:
@@ -257,7 +256,15 @@ def config(
     condition: Mapping[str, float],
     *,
     geometry: str | None = None,
+    run_type: str = "steady",
+    record: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    """Return the SU2 keys of one point: the s/r/p files, the row and its run type's keys.
+
+    ``record``, when given, receives what the run type resolved (its clock and windows).
+    """
+    from cfdbender.solvers.su2._run_types import SETUP_KEYS, apply_run_type, turbulence
+
     options(setup)
     if type(setup.get("mesh_link", True)) is not bool:
         raise ValueError("mesh_link must be a boolean")
@@ -270,6 +277,9 @@ def config(
         raise ValueError("pproc history must be true")
     condition, derived = _flow(condition, setup, reference)
     advance = condition.pop("ADVANCE_RATIO", None)
+    rpm = condition.pop("RPM", None)
+    if rpm is not None and run_type == "steady":
+        raise ValueError("the SU2 adapter does not read FLIGHT_CONDITION key RPM")
     rotor = rotor_block(reference)
     periodic = periodic_state(setup)
     if geometry is not None:
@@ -292,7 +302,7 @@ def config(
     ):
         for key, value in table.items():
             if (
-                key in {"solver", "mesh_link", "groups"}
+                key in {"solver", "mesh_link", "groups", *SETUP_KEYS}
                 and table is setup
                 or is_row_control(key)
                 and table is setup
@@ -388,8 +398,23 @@ def config(
     _history_output(values)
     _cfl_ramp(values, ramp)
     _fluid_model(values)
-    if advance is not None:
-        _advance_ratio(values, number(advance, "ADVANCE_RATIO"), rotor)
+    turbulence(values, setup)
+    if run_type == "steady":
+        if advance is not None:
+            _advance_ratio(values, number(advance, "ADVANCE_RATIO"), rotor)
+    else:
+        if advance is not None and (not math.isfinite(advance) or advance <= 0.0):
+            raise ValueError("FLIGHT_CONDITION ADVANCE_RATIO must be positive")
+        motion = {
+            key: number(value, key)
+            for key, value in (("ADVANCE_RATIO", advance), ("RPM", rpm))
+            if value is not None
+        }
+        resolved = apply_run_type(
+            values, run_type, setup=setup, rotor=rotor, periodic=periodic, motion=motion
+        )
+        if record is not None:
+            record.update(resolved)
     _periodic_warnings(values, rotor, periodic)
     _dimensionalization(values)
     _sa_variant(values)
@@ -768,72 +793,6 @@ def _advance_ratio(values: dict[str, object], advance: float, rotor: RotorBlock 
             )
 
 
-def rotor_point(
-    values: Mapping[str, object],
-    reference: Mapping[str, object],
-    coefficients: Mapping[str, float],
-    periodic: PeriodicState | None = None,
-) -> dict[str, object] | None:
-    """Return the rotor quantities of one rotating-frame point, or None without a rotor.
-
-    Parameters
-    ----------
-    values : mapping
-        The point's SU2 deck (:func:`config`).
-    reference : mapping
-        The point's REF file.
-    coefficients : mapping
-        The last CFx, CFy, CFz, CMx, CMy and CMz of the monitored surface.
-    periodic : PeriodicState, optional
-        The row's symmetry; without it the monitored surface is the whole rotor.
-
-    Returns
-    -------
-    dict or None
-        None when the REF file has no rotor block, the deck is not a steady rotating frame
-        with a ROTATION_RATE, or the history lacks the force and moment coefficients.
-        Otherwise the rotor, its inputs and :func:`cfdbender.solvers.su2._rotor.rotor_quantities`.
-    """
-    rotor = rotor_block(reference)
-    if (
-        rotor is None
-        or _upper(values, "GRID_MOVEMENT") != "ROTATING_FRAME"
-        or "ROTATION_RATE" not in values
-        or not all(key in coefficients for key in ("CFx", "CFy", "CFz", "CMx", "CMy", "CMz"))
-    ):
-        return None
-    stream = free_stream(values)
-    if stream is None or stream.velocity <= 0.0:
-        return None
-    origin = [number(values[f"REF_ORIGIN_MOMENT_{axis}"], "moment_origin") for axis in "XYZ"]
-    quantities = rotor_quantities(
-        rotor,
-        rotation=_stated_vector(values["ROTATION_RATE"], "ROTATION_RATE"),
-        velocity=stream.velocity,
-        density=stream.density,
-        dynamic_pressure=stream.dynamic_pressure,
-        area=number(values["REF_AREA"], "REF_AREA"),
-        length=number(values["REF_LENGTH"], "REF_LENGTH"),
-        moment_origin=origin,
-        force_coefficients=[coefficients[key] for key in ("CFx", "CFy", "CFz")],
-        moment_coefficients=[coefficients[key] for key in ("CMx", "CMy", "CMz")],
-        copies=1 if periodic is None else periodic.multiplier,
-    )
-    return {
-        "rotor": rotor.name,
-        "blades": rotor.blades,
-        "periodic_copies": 1 if periodic is None else periodic.copies,
-        "loads": "SECTOR"
-        if periodic is not None and periodic.multiplier == 1 and periodic.symmetry == "PERIODIC"
-        else "WHOLE",
-        "diameter_m": rotor.diameter_m,
-        "velocity_m_s": stream.velocity,
-        "density_kg_m3": stream.density,
-        "dynamic_pressure_pa": stream.dynamic_pressure,
-        **quantities,
-    }
-
-
 #: The CFL ramp written when the setup states no CFL key.
 #: SU2 8.x ramps the CFL number itself: CFL_NUMBER is the start value and CFL_ADAPT_PARAM
 #: is (factor down, factor up, CFL min, CFL max). Start 5 and max 25: a conservative ramp.
@@ -926,4 +885,51 @@ def render(values: Mapping[str, object]) -> str:
         f"{key}= {render_value(staged_mesh(values) if key == 'MESH_FILENAME' else value, key)}"
         + chr(10)
         for key, value in sorted(values.items())
+        if "/" not in key
     )
+
+
+def extra_files(values: Mapping[str, object]) -> dict[str, str]:
+    """Return the configuration files beside su2.cfg a point needs, by name.
+
+    A key written ``<file>/<KEY>`` belongs to that file: a zone file of a sliding-mesh run
+    states its own keys only; the second segment of an export window is ``su2.cfg`` with
+    its keys replaced. A point with two segments also gets the job script that runs them.
+    """
+    from cfdbender.solvers.su2._run_types import SEGMENT_TWO, SEGMENTS_SCRIPT
+
+    files: dict[str, dict[str, object]] = {}
+    for key, value in values.items():
+        if "/" in key:
+            name, _, native = key.partition("/")
+            files.setdefault(name, {})[native] = value
+    texts: dict[str, str] = {}
+    for name, own in sorted(files.items()):
+        if name == SEGMENT_TWO:
+            texts[name] = render({**values, **own})
+        else:
+            texts[name] = "".join(
+                f"{key}= {render_value(value, key)}" + chr(10) for key, value in sorted(own.items())
+            )
+    if SEGMENT_TWO in texts:
+        texts[SEGMENTS_SCRIPT] = SEGMENTS_TEXT
+    return texts
+
+
+#: The job script of a two-segment point: the solver command is its arguments.
+SEGMENTS_TEXT = (
+    "#!/bin/sh"
+    + chr(10)
+    + "# Run the two segments of an SU2 point with an export window, in order."
+    + chr(10)
+    + "# Usage: sh run_segments.sh [launcher and solver command, default SU2_CFD]"
+    + chr(10)
+    + "set -e"
+    + chr(10)
+    + 'if [ "$#" -eq 0 ]; then set -- SU2_CFD; fi'
+    + chr(10)
+    + '"$@" su2.cfg'
+    + chr(10)
+    + '"$@" su2_segment2.cfg'
+    + chr(10)
+)

@@ -74,11 +74,12 @@ def test_a_rotor_declaration_of_the_flightstream_reference_file_is_read(tmp_path
                 "rpm_sign": -1,
                 "diameter_m": 0.5,
                 "families_blades": ["Blade1", "Blade2", "Blade3"],
+                "blade1": {"azimuth_deg": 0.0, "zero": "Z"},
             },
         }
     )
     assert (block.blades, block.rpm_sign, block.origin) == (3, -1, (1.0, 2.0, 3.0))
-    assert block.axis == (1.0, 0.0, 0.0) and block.thrust_direction == (-1.0, 0.0, 0.0)
+    assert block.axis == (1.0, 0.0, 0.0)
     assert rotor_block({"area": 1.0}) is None
 
 
@@ -88,8 +89,8 @@ def test_a_rotor_declaration_of_the_flightstream_reference_file_is_read(tmp_path
         ("diameter_m = 0.0", "diameter_m must be positive"),
         ('diameter_m = "big"', "diameter_m must be a finite number"),
         ("diameter_m = true", "diameter_m must be a finite number"),
-        ('axis = "W"', 'axis must be "X", "Y" or "Z"'),
-        ('axis = "Z"', 'reads axis = "X" only'),
+        ('axis = "W"', "axis = 'W' is not an axis"),
+        ('axis = "Z"', 'reads the shaft "X" only'),
         ("x_m = [1.0]", "x_m must be a finite number"),
         ("rpm_sign = 2", "rpm_sign must be 1 or -1"),
         ("rpm_sign = 1.0", "rpm_sign must be 1 or -1"),

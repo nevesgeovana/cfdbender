@@ -25,6 +25,8 @@ from cfdbender.core.plan import workspace_path
 from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.matrix._family_polar import PolarFiles
 from cfdbender.matrix._manifest_schema import SECTIONS_DIR, manifest_statement
+from cfdbender.matrix._rotor_table import SUFFIX as ROTOR_SUFFIX
+from cfdbender.matrix._rotor_table import absent_columns
 
 _FAMILY_FILE = re.compile(r"^FAM-(?P<kind>DIM|ACOEF|RCOEF)-P(?P<pol>.+)[.]csv$")
 _GROUP_FILE = re.compile(r"^P(?P<pol>[^-]+)-(?P<group>.+)-(?P<kind>DIM|ACOEF|RCOEF)[.]csv$")
@@ -127,6 +129,9 @@ def _entry(root: Path, path: Path) -> dict[str, object]:
         entry.update(kind=f"FAM-{found['kind']}", polar=found["pol"])
     elif found := _GROUP_FILE.match(path.name):
         entry.update(kind=found["kind"], polar=found["pol"], group=found["group"])
+    elif path.parent.name == "polars" and path.name.endswith(ROTOR_SUFFIX):
+        pol, rotor = path.name.removesuffix(ROTOR_SUFFIX).removeprefix("P").split("-", 1)
+        entry.update(kind="rotor", polar=pol, rotor=rotor, absent_columns=absent_columns(path))
     elif path.name == "campaign_summary.json":
         entry.update(name="campaign_summary", kind="summary")
     elif path.parent.name == "polars" and path.suffix == ".txt":

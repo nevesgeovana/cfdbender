@@ -28,6 +28,8 @@ campaign/
     <matrix>/campaign_summary.json
     <matrix>/polars/FAM-<KIND>-P<POL>.csv
     <matrix>/polars/P<POL>-<GROUP>-<KIND>.csv
+    <matrix>/polars/P<POL>-<ALIAS>_rotor.csv      # a rotor's table (SU2 rotor run types)
+    <matrix>/polars/P<POL>_<matrix>_uns_avg.csv   # time-accurate points, window means
     <matrix>/products.json
     <matrix>/post.log
   archive/<stamp>/              # earlier evidence, moved here and never deleted
@@ -205,6 +207,8 @@ Everything derived from a matrix is under `post/<matrix>/`:
 | `campaign_summary.json` | `collect`, `post` | Every recorded point with its result. |
 | `polars/FAM-<KIND>-P<POL>.csv` | `collect`, `post` | One row per point and family: loads (DIM), airframe coefficients (ACOEF), rotor coefficients (RCOEF); see [Results](results.md). |
 | `polars/P<POL>-<GROUP>-<KIND>.csv` | `collect`, `post` | One row per point for each group TOTAL, AIRFRAME and each rotor. |
+| `polars/P<POL>-<ALIAS>_rotor.csv` | `collect`, `post` | pyflightstream's rotor table: one row per point that turns the rotor `<ALIAS>`; see [SU2](su2-workspaces.md#rotor-coefficients). |
+| `polars/P<POL>_<matrix>_uns_avg.csv` | `collect`, `post` | pyflightstream's unsteady polar: one row per time-accurate point, the means over its averaging window. |
 | `products.json` | `collect`, `post` | Every product written, and every one skipped with the reason. |
 | `post.log` | `collect`, `post` | The same, as text. |
 

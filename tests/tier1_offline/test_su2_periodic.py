@@ -38,8 +38,8 @@ def test_the_row_controls_never_reach_the_configuration(tmp_path):
     assert "ROTATION_RATE" in deck and "MARKER_PERIODIC" in deck
     texts = [str(w.message) for w in caught]
     for key in ("DELTA_THETA", "REVOLUTIONS"):
-        assert any(f"{key} is skipped" in t for t in texts)
-        assert any("time-accurate run type" in t and "does not offer yet" in t for t in texts)
+        assert any(f"{key} is not registered for run type 'steady'" in t for t in texts)
+        assert any("It is read by unsteady, unsteady_rotor" in t for t in texts)
 
 
 def test_a_consistent_periodic_row_warns_of_nothing(tmp_path):
@@ -148,9 +148,13 @@ def test_the_explicit_clock_and_the_iteration_window_are_warned_once_and_never_f
         deck = columns.deck(tmp_path)
     for key in ("LAST_ITERS_AVG", "DELTA_TIME", "TIME_ITERATIONS"):
         assert key not in deck
-        hits = [str(w.message) for w in caught if f"{key} is skipped" in str(w.message)]
+        hits = [
+            str(w.message)
+            for w in caught
+            if f"{key} is not registered for run type 'steady'" in str(w.message)
+        ]
         assert len(hits) == 1
-        assert "time-accurate run type" in hits[0]
+        assert "it is skipped" in hits[0]
 
 
 def test_time_accurate_controls_are_warned_once_and_never_forwarded(tmp_path):
@@ -160,6 +164,10 @@ def test_time_accurate_controls_are_warned_once_and_never_forwarded(tmp_path):
         deck = columns.deck(tmp_path)
     for key in ("LAST_REVS_AVG", "CLOCK_MOTION", "MOTIONS", "EXPORT_SURFACE", "EXPORT_FLOW"):
         assert key not in deck
-        hits = [str(w.message) for w in caught if f"{key} is skipped" in str(w.message)]
+        hits = [
+            str(w.message)
+            for w in caught
+            if f"{key} is not registered for run type 'steady'" in str(w.message)
+        ]
         assert len(hits) == 1
-        assert "time-accurate run type" in hits[0]
+        assert "it is skipped" in hits[0]
