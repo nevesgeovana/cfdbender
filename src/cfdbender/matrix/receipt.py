@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 
 from cfdbender.core.plan import (
@@ -24,6 +25,7 @@ from cfdbender.core.plan import (
     warn_once,
     workspace_path,
 )
+from cfdbender.hpc._overrides import ORIGIN, row_overrides
 
 PLAN_REQUIRED_MESSAGE = (
     "no plan for this matrix, and a run needs one. Run `cfd-matrix plan <matrix>` first: "
@@ -83,7 +85,11 @@ def _valid_points(points: list[object]) -> bool:
     return True
 
 
-def write_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> Path:
+def write_receipt(
+    plan: RunPlan,
+    profiles: tuple[str, ...] = (),
+    grouping: Mapping[str, object] | None = None,
+) -> Path:
     """Write post/<matrix>/plan.json for the plan's points and return its path.
 
     Points of an earlier receipt that the plan does not name are kept while the
@@ -99,6 +105,8 @@ def write_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> Path:
             "point_id": point.point_id,
             "inputs_sha256": dict(sorted(point.inputs_sha256.items())),
         }
+        if overrides := row_overrides(point.variables):
+            kept[point.point_id]["hpc_overrides"] = {"origin": ORIGIN, "values": overrides}
         if profiles:
             kept[point.point_id]["profile"] = profiles[index]
             kept[point.point_id]["profile_sha256"] = hashlib.sha256(
@@ -111,6 +119,8 @@ def write_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> Path:
         "matrix_sha256": digest,
         "points": [kept[name] for name in sorted(kept)],
     }
+    if grouping is not None:
+        data["grouping"] = grouping
     target = receipt_path(plan.root, plan.matrix)
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
@@ -130,7 +140,11 @@ def write_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> Path:
     return target
 
 
-def receipt_error(plan: RunPlan, profiles: tuple[str, ...] = ()) -> str | None:
+def receipt_error(
+    plan: RunPlan,
+    profiles: tuple[str, ...] = (),
+    grouping: Mapping[str, object] | None = None,
+) -> str | None:
     """Return why a run of this plan may not proceed, or None when the receipt answers for it."""
     path, data, problem = _read(plan)
     if problem is not None or data is None:
@@ -143,6 +157,17 @@ def receipt_error(plan: RunPlan, profiles: tuple[str, ...] = ()) -> str | None:
             f"{str(planned)[:12]} and {Path(plan.matrix).name} is {now[:12]} now. "
             "Plan it again; a plan that measured another study is not a plan for this one."
         )
+    if grouping is not None:
+        held = data.get("grouping")
+        if not isinstance(held, dict):
+            return "the plan holds no grouping: plan it again with the same --batch."
+        if held.get("requested") != grouping["requested"]:
+            return (
+                f"the plan was made for --batch {held.get('requested')}, not "
+                f"{grouping['requested']}: plan it again."
+            )
+        if held != json.loads(json.dumps(grouping)):
+            return "the plan was made for another grouping of the rows: plan it again."
     recorded = {str(p["point_id"]): p for p in data["points"] if isinstance(p, dict)}  # type: ignore[attr-defined]
     warned: set[str] = set()
     for index, point in enumerate(plan.points):
@@ -191,7 +216,11 @@ def receipt_error(plan: RunPlan, profiles: tuple[str, ...] = ()) -> str | None:
     return None
 
 
-def require_receipt(plan: RunPlan, profiles: tuple[str, ...] = ()) -> None:
+def require_receipt(
+    plan: RunPlan,
+    profiles: tuple[str, ...] = (),
+    grouping: Mapping[str, object] | None = None,
+) -> None:
     """Raise ValueError with the refusal text unless the plan has a fresh receipt."""
-    if (message := receipt_error(plan, profiles)) is not None:
+    if (message := receipt_error(plan, profiles, grouping)) is not None:
         raise ValueError(message)

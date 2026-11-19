@@ -37,6 +37,18 @@ def _argv(opts: Mapping[str, object], root: Path) -> list[str]:
     return [*cast(list[str], opts.get("mpi_launcher", [])), *command, "su2.cfg"]
 
 
+def job_command(point: AdapterPoint) -> list[str]:
+    """Return the command line a batch script runs in the point folder, as the job would.
+
+    The executable is named as stated (never resolved on this machine, because the job runs
+    elsewhere): the launcher, ``SU2_CFD`` or the stated executable, then ``su2.cfg``.
+    """
+    declaration = read_init(point.root, available_solvers=("su2",))
+    opts = options(point.setup, declaration.solver_options)
+    raw = opts.get("executable") or os.environ.get("CFDBENDER_SU2_EXE") or "SU2_CFD"
+    return [*cast(list[str], opts.get("mpi_launcher", [])), str(raw), "su2.cfg"]
+
+
 def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path) -> None:
     """Create the point folder, write su2.cfg and link the mesh into it.
 

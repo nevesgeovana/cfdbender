@@ -116,6 +116,7 @@ cfd-matrix plan MATRIX [options]
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
 | `--local` | Keep work on THIS machine instead of submitting it |
+| `--batch N` | Submit the rows as N scheduler jobs, rows split across them in matrix order; cfdbender writes the shell script each job runs, one run after another with no warm start. Needs an HPC profile; not with --local |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
@@ -145,6 +146,7 @@ cfd-matrix run MATRIX [options]
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
 | `--local` | Keep work on THIS machine instead of submitting it |
+| `--batch N` | Submit the rows as N scheduler jobs, rows split across them in matrix order; cfdbender writes the shell script each job runs, one run after another with no warm start. Needs an HPC profile; not with --local |
 | `--no-local` | The opposite of --local: submit when a profile exists (the default) |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |

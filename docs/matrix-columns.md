@@ -157,6 +157,15 @@ over `--hpc`, and is ignored with `--local`. Separate entries with `/`.
 `{cluster}`. The key is case-insensitive and is not sent to the solver setup.
 See [cluster jobs](cluster-jobs.md#choosing-the-cluster-per-row).
 
+`hpc.<name>: <value>` replaces one value of the selected profile for this row
+and keeps everything else of the profile: `hpc: alpha / hpc.application_id: compute_polars.py`.
+`<name>` is a descriptor field of the profile, `application_id` or `cluster`; any
+other name is refused with the list the profile accepts. `NCPUS` and `WALLTIME`
+keep their columns. A value is written between double quotes when it holds a `/`
+(`hpc.application_id: "tools/run_all.sh"`): the separator `/` between entries is not read
+inside double quotes, and a cell without double quotes is split exactly as before. See
+[overriding the profile per row](cluster-jobs.md#overriding-the-profile-per-row).
+
 ## Where the values go
 
 The plan listing (`cfd-matrix plan <name>`) prints AIRCRAFT, CONFIGURATION,

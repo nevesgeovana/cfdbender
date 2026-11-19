@@ -105,6 +105,107 @@ The placeholder also works in the submit command. A row without a value is
 refused when the profile uses it. An unused row value produces a warning;
 `--warning-refusals` makes that warning a refusal. Local runs ignore it.
 
+## Overriding the profile per row
+
+The profile is the base of every row. A row can replace one value of it with an
+`hpc.<name>` entry in `VAR_NAMES_VALUES`, next to the `hpc:` selector:
+
+```text
+POL | RUN | SETUP | REF | PPROC | VAR_NAMES_VALUES
+----|-----|-------|-----|-------|-----------------
+1001 | 1 | 001   | 001 | 001 | hpc: alpha / cluster: one
+1002 | 1 | 001   | 001 | 001 | hpc: alpha / hpc.cluster: two / hpc.mode: custom / hpc.application_id: "tools/run_all.sh"
+```
+
+Row 1002 uses the profile `alpha` with `{cluster}` set to `two`, the descriptor
+field `mode` written as `custom`, and `tools/run_all.sh` as the application.
+Every other value of the profile is kept.
+
+| Name | Replaces |
+|---|---|
+| a field of `[descriptor.fields]` | That field's line, with the text of the entry. |
+| `application_id` | What the job launches: `{application_id}` in the descriptor and in the submit command. It takes a solver executable, an installed command, or a script of the workspace. |
+| `cluster` | `{cluster}`, when the profile uses it. |
+
+A name the profile does not declare is refused with the names it accepts.
+`NCPUS` and `WALLTIME` are not overridden here: state them in their columns.
+An application with a folder or a script extension (`.py`, `.sh`) is a file of the
+workspace, written relative to it between double quotes; it is checked when the
+plan is made, and written to the descriptor as its absolute path. A row with an
+`hpc.<name>` entry needs a selected profile (`hpc:` in the row, or `--hpc`), and
+`--local` ignores the entries with one warning. The plan record and the run
+record keep each override with its origin, `matrix row`.
+
+## Grouping rows into jobs: `--batch N`
+
+`cfd-matrix plan study --batch 2` and `cfd-matrix run study --batch 2` submit the
+rows as N scheduler jobs instead of one job per point. N is the number of jobs,
+as in pyflightstream. The rows (`POL`, with all their points) stay in matrix
+order and are cut into N runs of consecutive rows so that the longest run is as
+short as possible (a row's weight is its `WALLTIME` cells, else one per point);
+a row is never cut. A job holds one profile, one `NCPUS` and one `SOLVER_BUILD`:
+rows that differ in those never share a job, so a plan can hold more jobs than N,
+and a plan asking for more jobs than rows holds one per row; both warn. The
+`WALLTIME` of a job is computed as for a grouped job, and `BEST` is accepted.
+
+Each job lives in `sims/batch/<matrix>_b<ID>/`, where `<ID>` is the next free
+number of the matrix. There `cfd-matrix run` writes the descriptor of the job and
+a shell script, `BATCH-<first row>-<last row>.sh`, with LF line endings and the
+executable bit set:
+
+```sh
+#!/bin/sh
+set -u
+cd "$(dirname "$0")" || exit 2
+failed=0
+
+# 1001/DP-M200AL+000
+( cd ../../sim_1001/datapoints/DP-M200AL+000 && SU2_CFD su2.cfg > stdout.log 2> stderr.log )
+rc=$?
+printf '%s\n' "$rc" > ../../sim_1001/datapoints/DP-M200AL+000/job.exit.tmp && mv ../../sim_1001/datapoints/DP-M200AL+000/job.exit.tmp ../../sim_1001/datapoints/DP-M200AL+000/job.exit
+[ "$rc" -eq 0 ] || failed=1
+
+exit "$failed"
+```
+
+The script holds one block per run, in matrix order. Each run starts in its own
+point folder, by a path relative to the script, with the command line of its row:
+the adapter's (`su2.cfg` read by `SU2_CFD`, the executable and launcher as the
+setup states them) or the row's `hpc.application_id`. No restart or solution file
+passes from one run to the next. A failed run does not stop the next one; its exit
+status is written to `job.exit` in its folder, and the script exits non-zero when
+any run failed. `collect` waits for `job.exit` of each run and marks a run failed
+when it holds a status other than 0.
+
+The descriptor of the job is rendered from the profile as for one point, with
+`{workdir}` the job folder, `{job_name}` the batch name (`study_b1`), `{sims}` its
+rows, `{batch}` the N, `{batch_id}` the number, and `{script_path}` the script, written
+relative to the job folder. A profile whose job runs a custom command points at
+the script, for example:
+
+```toml
+[descriptor.fields]
+job_name = "{job_name}"
+mode = "custom"
+command = "{script_path}"
+ncpus = "{ncpus}"
+walltime = "{walltime}"
+```
+
+```text
+mode: "custom"
+command: "BATCH-1001-1003.sh"
+job_name: "study_b1"
+```
+
+Rows of one job whose `hpc.<name>` entries (or `cluster`) disagree are refused,
+naming both rows: a job has one value of each. `hpc.application_id` may differ
+between rows, because each run has its own command. `--batch` needs an HPC profile,
+cannot be combined with `--local`, `--resume`, `--restart` or `--force-rerun`, and
+`run --batch N` needs a `plan --batch N` made for the same N. A solver adapter
+without a command line of its own (`job_command`) is grouped only for rows that state
+`hpc.application_id`.
+
 ## See what would be submitted
 
 With a profile in `inputs/hpc/`, `plan` adds the job description of each point

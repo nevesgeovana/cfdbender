@@ -68,6 +68,7 @@ from cfdbender.solvers.su2._config import (
     rotor_point,
     staged_mesh,
 )
+from cfdbender.solvers.su2._execute import job_command as job_command
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import dimensions, force_groups, read, residual_field

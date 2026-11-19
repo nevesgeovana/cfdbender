@@ -37,6 +37,14 @@ from cfdbender.matrix._console import (
     refusals_wanted,
     status_word,
 )
+from cfdbender.matrix.batch import (
+    BatchPlan,
+    batch_count,
+    batch_plans,
+    grouped_options_refusal,
+    grouping_receipt,
+    submit_batches,
+)
 from cfdbender.matrix.collection import collect_workspace
 from cfdbender.matrix.post import post_workspace
 from cfdbender.matrix.receipt import require_receipt, write_receipt
@@ -48,6 +56,7 @@ from cfdbender.matrix.submission import (
     select_profile,
     submission_plans,
     submit_plan,
+    warn_ignored_overrides,
 )
 from cfdbender.solvers import available_solvers, load_solver
 from cfdbender.solvers._host import _exe
@@ -258,6 +267,15 @@ def build_parser() -> tuple[
             help=argparse.SUPPRESS
             if command_parser is collect_parser
             else "keep work on THIS machine instead of submitting it",
+        )
+    for command_parser in (plan_parser, run_parser):
+        command_parser.add_argument(
+            "--batch",
+            type=batch_count,
+            metavar="N",
+            help="submit the rows as N scheduler jobs, rows split across them in matrix order; "
+            "cfdbender writes the shell script each job runs, one run after another with no "
+            "warm start. Needs an HPC profile; not with --local",
         )
     run_parser.add_argument(
         "--no-local",
@@ -521,6 +539,8 @@ def _execute_inner(
         if not plan.points:
             console.final(f"no active row: every row of {Path(plan.matrix).name} has RUN = 0")
             return 0
+        if args.local:
+            warn_ignored_overrides(plan)
         selected_profiles = () if args.local else point_profiles(plan, args.hpc)
         cluster = bool(selected_profiles) and all(p is not None for p in selected_profiles)
         profiles = cast(tuple[HpcProfile, ...], selected_profiles)
@@ -551,19 +571,38 @@ def _execute_inner(
                 check_local_executables(
                     plan.root, plan.solver, load_solver(plan.solver), plan.points
                 )
-        jobs = submission_plans(plan, profiles) if cluster else ()
+        batch = getattr(args, "batch", None)
+        batches: tuple[BatchPlan, ...] = ()
+        grouping = None
+        if batch is not None:
+            refusal = grouped_options_refusal(
+                local=args.local,
+                restart=getattr(args, "restart", False),
+                resume=getattr(args, "resume", False),
+                force_rerun=getattr(args, "force_rerun", None),
+                force_all=getattr(args, "force_rerun_all", False),
+            )
+            if refusal is None and not cluster:
+                refusal = "--batch submits rows as scheduler jobs, and no HPC profile is selected"
+            if refusal is not None:
+                raise WorkspaceError(refusal)
+            batches, split_warnings = batch_plans(plan, profiles, batch)
+            for text in split_warnings:
+                warn_or_refuse(text, UserWarning, stacklevel=1)
+            grouping = grouping_receipt(batches, batch)
+        jobs = submission_plans(plan, profiles) if cluster and batch is None else ()
         if args.command == "plan":
             profile_paths = (
                 tuple(p.path.relative_to(plan.root).as_posix() for p in profiles) if cluster else ()
             )
-            receipt = write_receipt(plan, profile_paths)
+            receipt = write_receipt(plan, profile_paths, grouping)
             console.detail(f"plan receipt: {receipt}")
             receipt_rel = _shown(args.workspace, receipt)
         if args.command == "run":
             profile_paths = (
                 tuple(p.path.relative_to(plan.root).as_posix() for p in profiles) if cluster else ()
             )
-            require_receipt(plan, profile_paths)
+            require_receipt(plan, profile_paths, grouping)
             submitting = cluster
             adapter = cast(SolverAdapter, load_solver(plan.solver))
             if args.restart and "restart" not in capabilities(adapter):
@@ -611,7 +650,7 @@ def _execute_inner(
             profiles = (
                 cast(tuple[HpcProfile, ...], point_profiles(plan, args.hpc)) if submitting else ()
             )
-            jobs = submission_plans(plan, profiles) if submitting else ()
+            jobs = submission_plans(plan, profiles) if submitting and not batches else ()
             live = not submitting
             started: dict[str, float] = {}
 
@@ -634,6 +673,8 @@ def _execute_inner(
                     records = execute_plan(
                         plan, adapter, on_event=progress, one_run_at_a_time=args.guard_active
                     )
+            elif submitting and batches:
+                records = submit_batches(plan, batches, adapter)
             elif submitting:
                 records = submit_plan(plan, jobs, profiles, adapter)
             else:
@@ -714,6 +755,17 @@ def _execute_inner(
         if console.level != "quiet":
             print(job.descriptor_text, end="")
         console.say(f"would submit: {shlex.join(job.command)}")
+    for group in batches:
+        console.say(
+            f"batch {group.batch_id}: {group.label} holds row(s) {', '.join(group.sims)}, "
+            f"{len(group.points)} point(s); script {group.script}"
+        )
+        for warning in group.submission.warnings:
+            console.error(f"warning: {warning}")
+        console.say(f"descriptor: {group.submission.descriptor_path.as_posix()}")
+        if console.level != "quiet":
+            print(group.submission.descriptor_text, end="")
+        console.say(f"would submit: {shlex.join(group.submission.command)}")
     if receipt_rel is not None:
         console.final(
             f"{len(plan.points)} point(s) planned; receipt {receipt_rel}; "
