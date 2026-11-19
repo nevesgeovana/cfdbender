@@ -46,7 +46,7 @@ with `columns are separated by |`.
 | `NCPUS` | Processor count for the scheduler, `{ncpus}` in an HPC profile. Where it is `-`, a setup `ncpus` answers. |
 | `WALLTIME` | Wall clock with its unit: `90s`, `240m`, `4h`, `1d`. `{walltime}` in an HPC profile. |
 | `SOLVER_BUILD` | Solver version the row runs, such as `8.3.0`. A local run takes that build's executable from `inputs/executables.toml` (see [Executables](executables.md)); the HPC profile's `[builds]` table maps it to `{solver_version_alias}`. After a local run the version the solver printed must equal it (or `<version>-<alias>`), or the point is recorded failed with that message. The column may also be named `FS_BUILD`, with the same meaning; a header holding both names is refused. |
-| `WORKFLOW` | Run type; `-` means `steady`, the only type that runs. |
+| `WORKFLOW` | Run type, with pyflightstream's names: `steady` (also `-`), `qsteady_rotor`, `unsteady` or `unsteady_rotor`; SU2 offers all four, the other solvers `steady` ([SU2 run types](su2-workspaces.md#run-types)). |
 | `VAR_NAMES_VALUES` | Per-row overrides of setup keys and optional HPC profile and cluster selection; see below. |
 | `RESTART` | Recorded source point as `POL/DP-name`, whose saved solution is copied into every point of the row. `-` requests a cold start. |
 
@@ -156,6 +156,14 @@ over `--hpc`, and is ignored with `--local`. Separate entries with `/`.
 `cluster: alpha` selects the cluster for this row when the HPC profile uses
 `{cluster}`. The key is case-insensitive and is not sent to the solver setup.
 See [cluster jobs](cluster-jobs.md#choosing-the-cluster-per-row).
+
+The row variables of the run types are pyflightstream's and are never sent to the
+solver as setup keys: the clock (`DELTA_THETA` and `REVOLUTIONS`, or `DELTA_TIME`
+and `TIME_ITERATIONS`), the averaging window (`LAST_REVS_AVG` or
+`LAST_ITERS_AVG`), the export window (`EXPORT_UNSTEADY_LAST_REV`, `_LAST_ITER`,
+`_AFTER_REV`, `_AFTER_ITER`), `PERIODIC_COPIES` and `TURBULENCE_MODEL` (`SA` or
+`SST`, a name of cfdbender). A variable of another run type than the row's is
+warned and skipped. See [SU2 run types](su2-workspaces.md#run-types).
 
 ## Where the values go
 
