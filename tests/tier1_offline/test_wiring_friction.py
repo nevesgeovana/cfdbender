@@ -7,7 +7,6 @@ import importlib.util
 import io
 import json
 import math
-import subprocess
 import sys
 from pathlib import Path
 
@@ -39,8 +38,9 @@ PARTS_INT = [
     "My_fric_int",
 ]
 FRICTION = [*PARTS, *PARTS_INT]
-#: The commit whose sections module wrote the files before a shear field existed.
-BEFORE = "ba11d91"
+#: The sections module as it stood before a shear field existed, kept as a fixture so the
+#: comparison needs no git history (a shallow checkout or an installed package has none).
+FROZEN = Path(__file__).resolve().parents[1] / "fixtures" / "sections_before_shear.py.txt"
 
 
 def _surface(points, quads, shear=None, pressure=None):
@@ -154,12 +154,7 @@ def test_zero_shear_gives_zero_friction_and_totals_equal_to_the_pressure():
 
 def test_without_shear_the_files_are_those_the_earlier_module_wrote(tmp_path):
     """Byte identity against the sections module before the shear field existed."""
-    text = subprocess.run(
-        ["git", "show", f"{BEFORE}:src/cfdbender/post/sections.py"],
-        capture_output=True,
-        check=True,
-        cwd=Path(__file__).resolve().parents[2],
-    ).stdout
+    text = FROZEN.read_bytes()
     old = tmp_path / "sections_before.py"
     old.write_bytes(text)
     spec = importlib.util.spec_from_file_location("sections_before", old)
