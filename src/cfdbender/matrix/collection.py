@@ -25,7 +25,13 @@ from typing import cast
 from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.convergence import SOLVERS as JUDGED
 from cfdbender.core.executables import build_mismatch
-from cfdbender.core.plan import InputSession, PlanError, matrix_homes, workspace_path
+from cfdbender.core.plan import (
+    InputSession,
+    PlanError,
+    matrix_homes,
+    new_post_file_allowed,
+    workspace_path,
+)
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
 from cfdbender.matrix._declared import matrix_products
@@ -290,6 +296,7 @@ def collect_workspace(
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
     failed_ids: set[str] = set()
+    post_files: dict[str, dict[str, bytes]] = {}
     session = InputSession(target)
     for record in records:
         row: dict[str, object] = {
@@ -351,6 +358,12 @@ def collect_workspace(
                 continue
             point = load_point(target, record.point, solver=config.solver, session=session)
             _verify_submission(target, record)
+            if new_post_file_allowed():
+                name = f"inputs/pproc/{record.point.post_id}.toml"
+                data = workspace_path(target, name).read_bytes()
+                digest = hashlib.sha256(data).hexdigest()
+                row["inputs_sha256"] = {**cast(dict[str, str], row["inputs_sha256"]), name: digest}
+                post_files.setdefault(record.matrix, {})[digest] = data
             measured = record
             if record.status == "SUBMITTED":
                 measured = replace(
@@ -419,6 +432,11 @@ def collect_workspace(
     products: list[Path] = []
     for name, rows in sorted(grouped.items()):
         _check_metadata(workspace_path(target, f"post/{Path(name).stem}"), name, config.solver)
+        for digest, data in post_files.get(name, {}).items():
+            kept = workspace_path(target, f"post/{Path(name).stem}/pproc/{digest}.toml")
+            if not kept.exists():
+                kept.parent.mkdir(parents=True, exist_ok=True)
+                kept.write_bytes(data)
         summary = _write_summary(target, name, config.solver, rows)
         migrated = warn_retired(workspace_path(target, f"post/{Path(name).stem}"))
         by_rule = judge_rows(target, rows, config.solver) if config.solver in JUDGED else None

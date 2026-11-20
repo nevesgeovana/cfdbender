@@ -615,3 +615,23 @@ def test_a_run_never_takes_the_option_and_the_others_inputs_stay_checked(tmp_pat
         assert cli(["collect", "--workspace", str(tmp_path), "--new-pproc"]) == 1
         path.write_text(original, encoding="ascii")
     capsys.readouterr()
+
+
+def test_tables_made_with_a_new_post_file_name_it_and_keep_a_copy(tmp_path):
+    import hashlib
+
+    from test_p0000_item3c2_collect import executed
+    from test_p0000_item3c2_run import cli
+
+    executed(tmp_path)
+    assert cli(["collect", "--workspace", str(tmp_path)]) == 0
+    name = "inputs/pproc/p001.toml"
+    summary = tmp_path / "post/study/campaign_summary.json"
+    planned = json.loads(summary.read_bytes())["points"][0]["inputs_sha256"][name]
+    edited = b"history = true" + NL.encode() + b"# a new grouping" + NL.encode()
+    (tmp_path / name).write_bytes(edited)
+    assert cli(["collect", "--workspace", str(tmp_path), "--new-pproc"]) == 0
+    digest = hashlib.sha256(edited).hexdigest()
+    row = json.loads(summary.read_bytes())["points"][0]
+    assert row["inputs_sha256"][name] == digest != planned
+    assert (tmp_path / f"post/study/pproc/{digest}.toml").read_bytes() == edited
