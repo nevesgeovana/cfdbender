@@ -14,7 +14,7 @@ from typing import cast
 
 from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
-from cfdbender.core.plan import large_input_check, rehash_inputs
+from cfdbender.core.plan import large_input_check, new_post_file, rehash_inputs
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.refusals import warn_or_refuse, warning_refusals
 from cfdbender.core.registry import RunRecord, RunRegistry
@@ -240,6 +240,13 @@ def build_parser() -> tuple[
         help="keep a copy of each replaced product under archive/<stamp>/",
     )
     add_console_options(post_parser)
+    for command_parser in (collect_parser, post_parser):
+        command_parser.add_argument(
+            "--new-pproc",
+            action="store_true",
+            help="accept a PPROC file that differs from the planned one, so a new grouping of "
+            "the products (an edited [plots] table) needs no new plan and no new run",
+        )
     for command_parser in (plan_parser, run_parser, collect_parser):
         if command_parser is not collect_parser:
             command_parser.add_argument(
@@ -395,6 +402,7 @@ def main(argv: list[str] | None = None) -> int:
             held_warnings(root, show=args.console_warnings, log=live),
             warning_refusals(refuse),
             rehash_inputs(getattr(args, "rehash_inputs", False)),
+            new_post_file(getattr(args, "new_pproc", False)),
             large_input_check("identity" if no_read else None),
         ):
             code = _execute(args, verbs, console)

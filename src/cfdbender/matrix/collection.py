@@ -349,9 +349,7 @@ def collect_workspace(
                 failed += 1
                 failed_ids.add(record.point_id)
                 continue
-            point = load_point(
-                target, record.point, solver=config.solver, session=session, post_may_change=True
-            )
+            point = load_point(target, record.point, solver=config.solver, session=session)
             _verify_submission(target, record)
             measured = record
             if record.status == "SUBMITTED":

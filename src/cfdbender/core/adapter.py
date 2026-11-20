@@ -127,7 +127,7 @@ def load_point(
     solver: str,
     session: InputSession | None = None,
     restart_source_cfg: str | None = None,
-    post_may_change: bool = False,
+    post_may_change: bool | None = None,
 ) -> AdapterPoint:
     """Read planned s/r/p snapshots, verifying all digests and the solver binding.
 
@@ -148,13 +148,18 @@ def load_point(
         job, for a point whose ``restart_in_job`` is set.
     post_may_change : bool, optional
         Accept a PPROC file that differs from the planned one, for ``collect`` and ``post``,
-        which only read the saved outputs. A run never does.
+        which only read the saved outputs; a run never does. Default: the command's setting,
+        :func:`~cfdbender.core.plan.new_post_file` (the option ``--new-pproc``).
 
     Returns
     -------
     AdapterPoint
         Prepared context. No solver is imported and no output is written.
     """
+    if post_may_change is None:
+        from cfdbender.core.plan import new_post_file_allowed
+
+        post_may_change = new_post_file_allowed()
     target = Path(root).resolve()
     shared = session if session is not None and session.root == target else None
     files = shared.files() if shared is not None else InputFiles(target)

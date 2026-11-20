@@ -192,6 +192,30 @@ _REHASH: contextvars.ContextVar[bool] = contextvars.ContextVar(
 )
 
 
+_NEW_POST: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "cfdbender_new_post_file", default=False
+)
+
+
+@contextmanager
+def new_post_file(enabled: bool = True) -> Iterator[None]:
+    """Let a point be loaded with a PPROC file that differs from the planned one, in the block.
+
+    ``collect`` and ``post`` read saved outputs only, so a new grouping of the products needs no
+    new plan and no new run; a command that runs never sets it.
+    """
+    token = _NEW_POST.set(enabled)
+    try:
+        yield
+    finally:
+        _NEW_POST.reset(token)
+
+
+def new_post_file_allowed() -> bool:
+    """Return whether the running command accepts a PPROC file that differs from the plan."""
+    return _NEW_POST.get()
+
+
 @contextmanager
 def rehash_inputs(enabled: bool = True) -> Iterator[None]:
     """Ignore the persistent digest cache inside the block, reading every input again.
