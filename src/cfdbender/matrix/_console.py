@@ -367,6 +367,17 @@ def emit_rows(
 WRAP_WIDTH = 90
 
 
+def table(rows: Sequence[Sequence[str]], *, indent: str = "") -> list[str]:
+    """Return ``rows`` as left-aligned columns, the first row being the heading."""
+    if not rows:
+        return []
+    widths = [max(len(row[column]) for row in rows) for column in range(len(rows[0]))]
+    return [
+        (indent + "  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=True))).rstrip()
+        for row in rows
+    ]
+
+
 def wrap(text: str, *, first: str = "", width: int = WRAP_WIDTH) -> list[str]:
     """Return ``text`` wrapped at ``width`` columns, continuation lines under the text."""
     lines = textwrap.wrap(

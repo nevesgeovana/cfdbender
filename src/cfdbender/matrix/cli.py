@@ -16,7 +16,7 @@ from cfdbender import __version__, _cli
 from cfdbender._cli import cli_entrypoint, note_post_ran
 from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
-from cfdbender.core.plan import large_input_check, new_post_file, rehash_inputs
+from cfdbender.core.plan import large_input_check, new_post_file, overwrite_outputs, rehash_inputs
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.refusals import warn_or_refuse, warning_refusals
 from cfdbender.core.registry import RunRecord, RunRegistry
@@ -265,6 +265,13 @@ def build_parser() -> tuple[
     add_console_options(post_parser)
     for command_parser in (collect_parser, post_parser):
         command_parser.add_argument(
+            "--overwrite",
+            action="store_true",
+            help="replace a product or table file that the manifest does not record (edited by "
+            "hand or left by another tool) and go on through every point; without it such a "
+            "file stops the command, which names the file",
+        )
+        command_parser.add_argument(
             "--new-pproc",
             action="store_true",
             help="accept a PPROC file that differs from the planned one, so a new grouping of "
@@ -304,13 +311,23 @@ def build_parser() -> tuple[
             else "keep work on THIS machine instead of submitting it",
         )
     for command_parser in (plan_parser, run_parser):
-        command_parser.add_argument(
+        grouping_choice = command_parser.add_mutually_exclusive_group()
+        grouping_choice.add_argument(
             "--batch",
             type=batch_count,
             metavar="N",
             help="submit the rows as N scheduler jobs, rows split across them in matrix order; "
             "cfdbender writes the shell script each job runs, one run after another with no "
             "warm start. Needs an HPC profile; not with --local",
+        )
+        grouping_choice.add_argument(
+            "--batch-per-polar",
+            action="store_true",
+            help="submit one scheduler job per polar (a matrix row, POL): its points run one "
+            "after another inside the job in sweep order, with the row's NCPUS and the sum of "
+            "its points' WALLTIME (capped by the profile's max_walltime, with its warning). "
+            "Needs an HPC profile; not with --local, --resume, --restart or --force-rerun; a "
+            "selection (--sims, --points) plans only the polars it touches",
         )
     run_parser.add_argument(
         "--no-local",
@@ -435,6 +452,7 @@ def main(argv: list[str] | None = None) -> int:
             warning_refusals(refuse),
             rehash_inputs(getattr(args, "rehash_inputs", False)),
             new_post_file(getattr(args, "new_pproc", False)),
+            overwrite_outputs(getattr(args, "overwrite", False)),
             large_input_check("identity" if no_read else None),
         ):
             code = _execute(args, verbs, console)
@@ -639,17 +657,20 @@ def _execute_inner(
                     plan.root, plan.solver, load_solver(plan.solver), plan.points
                 )
         batch = getattr(args, "batch", None)
+        per_polar = bool(getattr(args, "batch_per_polar", False))
+        flag = "--batch-per-polar" if per_polar else "--batch"
         batches: tuple[BatchPlan, ...] = ()
         grouping = None
-        if batch is not None:
+        if batch is not None or per_polar:
             refusal = grouped_options_refusal(
                 local=args.local,
                 restart=getattr(args, "restart", False),
                 resume=getattr(args, "resume", False),
                 force_rerun=getattr(args, "force_rerun", None),
+                flag=flag,
             )
             if refusal is None and not cluster:
-                refusal = "--batch submits rows as scheduler jobs, and no HPC profile is selected"
+                refusal = f"{flag} submits rows as scheduler jobs, and no HPC profile is selected"
             if refusal is not None:
                 raise WorkspaceError(refusal)
             # A source already COMPLETED, and not run again, feeds its dependents as before;
@@ -661,13 +682,15 @@ def _execute_inner(
                     r.point_id for r in RunRegistry(plan.root).read() if r.status == "COMPLETED"
                 )
             )
-            batches, split_warnings = batch_plans(plan, profiles, batch, completed=done)
+            batches, split_warnings = batch_plans(
+                plan, profiles, batch or 0, completed=done, per_polar=per_polar
+            )
             fed = {p.point_id: p for group in batches for p in group.points if p.restart_in_job}
             plan = replace(plan, points=tuple(fed.get(p.point_id, p) for p in plan.points))
             for text in split_warnings:
                 warn_or_refuse(text, UserWarning, stacklevel=1)
-            grouping = grouping_receipt(batches, batch)
-        jobs = submission_plans(plan, profiles) if cluster and batch is None else ()
+            grouping = grouping_receipt(batches, batch or 0, per_polar=per_polar)
+        jobs = submission_plans(plan, profiles) if cluster and not grouping else ()
         if args.command == "plan":
             profile_paths = (
                 tuple(p.path.relative_to(plan.root).as_posix() for p in profiles) if cluster else ()

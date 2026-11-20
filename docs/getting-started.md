@@ -169,8 +169,11 @@ cfd-matrix status
 ```
 
 ```text
-sim   matrix  points  status       failed
-1001  polar   3       COMPLETED=3  0
+SIM   POLAR         SWEEP  POINTS  MATRIX  STATUS
+1001  M200AL+sweep  alpha  3/3     polar   COMPLETED
+1 polar(s), 3 datapoint(s): COMPLETED
+plan/polar: made from the matrix on disk
+post/polar: no post yet
 ```
 
 ```console
@@ -178,14 +181,19 @@ cfd-matrix status --points
 ```
 
 ```text
-sim   matrix  point               status     classification  error
-1001  polar   1001/DP-M200AL+000  COMPLETED  converged
-1001  polar   1001/DP-M200AL+020  COMPLETED  converged
-1001  polar   1001/DP-M200AL+040  COMPLETED  converged
+SIM   POINT       MATRIX  STATUS     WAS  ITER  RESIDUAL  WALL  BUILD   WHERE
+1001  M200AL+000  polar   COMPLETED       2     0.01      0.03  mock-1  local
+1001  M200AL+020  polar   COMPLETED       2     0.01      0.03  mock-1  local
+1001  M200AL+040  polar   COMPLETED       2     0.01      0.03  mock-1  local
+3 datapoint(s): COMPLETED
+plan/polar: made from the matrix on disk
+post/polar: no post yet
 ```
 
 `status` reads the records, so it works at any time, also while a long run is
-going in another terminal. `cfd-workspace show 1001/DP-M200AL+020` prints the card
+going in another terminal. It prints what `pyfs-matrix status` prints: a row per polar
+(the points of one simulation) with the points recorded out of those the plan names, the
+totals, and whether the plan and the post of each matrix are current. `cfd-workspace show 1001/DP-M200AL+020` prints the card
 of one point: its status and verdict, its iterations and coefficients once
 collected, and its folder.
 

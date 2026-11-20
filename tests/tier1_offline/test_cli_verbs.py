@@ -46,16 +46,16 @@ def test_status_lists_sims_and_points_and_filters(tmp_path, capsys):
     ran(tmp_path)
     assert main(["status", "--workspace", str(tmp_path)]) == 0
     text = out(capsys)
-    assert "1001" in text and "1002" in text and "COMPLETED=1" in text
+    assert "1001" in text and "1002" in text and "2 polar(s), 2 datapoint(s): COMPLETED" in text
     assert (
         main(["status", "--points", "--sims", "1002", "--json", "--workspace", str(tmp_path)]) == 0
     )
-    rows = json.loads(out(capsys))
-    assert [r["point"] for r in rows] == [SECOND]
+    rows = json.loads(out(capsys))["rows"]
+    assert [r["point"] for r in rows] == [SECOND.split("/", 1)[1].removeprefix("DP-")]
     assert main(["status", "--failed", "--workspace", str(tmp_path)]) == 0
     assert "1001" not in out(capsys)
     assert main(["status", "--status", "CONVER*", "--csv", "--workspace", str(tmp_path)]) == 0
-    assert out(capsys).splitlines()[0] == "sim,matrix,points,status,failed"
+    assert out(capsys).splitlines()[0] == "sim,polar,sweep,points,matrix,status"
 
 
 def test_read_only_verbs_change_no_byte_and_no_mtime(tmp_path, capsys):
@@ -310,7 +310,7 @@ def test_runs_option_reads_another_manifest(tmp_path, capsys):
     (tmp_path / "runs.json").unlink()
     capsys.readouterr()
     assert main(["status", "--workspace", str(tmp_path)]) == 0
-    assert "no recorded sim yet" in out(capsys), "runs.json is absent"
+    assert "0/1" in out(capsys), "runs.json is absent: the plan names the points, none recorded"
     assert main(["status", "--runs", "other.json", "--workspace", str(tmp_path)]) == 0
     assert "1001" in out(capsys)
     assert main(["status", "--runs", "../x.json", "--workspace", str(tmp_path)]) == 2
