@@ -39,7 +39,7 @@ from cfdbender.matrix._declared import matrix_products
 from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix._tree_migration import warn_retired
 from cfdbender.matrix._unsteady_polar import left_out, plots_absent
-from cfdbender.matrix.batch import batch_exit_written, batch_status
+from cfdbender.matrix.batch import STATUS_FILE, batch_exit_written, batch_status
 from cfdbender.matrix.exports import _write as _write_product
 from cfdbender.matrix.exports import write_polar_files
 from cfdbender.matrix.polar2d import judge_rows, write_polars
@@ -116,6 +116,42 @@ def _job_outputs(record: RunRecord, root: Path | None = None) -> tuple[str, ...]
     if record.submission is not None and "job_outputs" in record.submission:
         return (*cast(tuple[str, ...], record.submission["job_outputs"]), *markers)
     return (*record.point.outputs, *markers)
+
+
+#: The error of a point sealed by ``collect --ended``: its job ended and wrote no job.exit.
+ENDED_ERROR = "FAILED_EXECUTION: job ended without job.exit (declared with --ended)"
+
+
+def _ended_points(root: Path, records: Sequence[RunRecord], ended: Sequence[str]) -> set[str]:
+    """Check the points ``collect --ended`` names, before anything is written.
+
+    Raises
+    ------
+    RegistryError
+        A name no record of the collection carries, a point that is not SUBMITTED, or one
+        whose folder holds job.exit (its job ended and said how: a plain collect reads it).
+    """
+    by_id = {r.point_id: r for r in records}
+    found: set[str] = set()
+    for name in ended:
+        record = by_id.get(name)
+        if record is None:
+            raise RegistryError(
+                f"--ended {name}: no recorded point of this collection has that id "
+                "(write it POL/DP-name, as cfd-matrix status --points shows it)"
+            )
+        if record.status != "SUBMITTED":
+            raise RegistryError(
+                f"--ended {name}: the point is {record.status}; only a SUBMITTED point whose "
+                "job ended without job.exit is declared ended"
+            )
+        if (workspace_path(root, record.point.directory) / STATUS_FILE).exists():
+            raise RegistryError(
+                f"--ended {name}: its folder holds {STATUS_FILE}, so its job said how it "
+                "ended; collect it without --ended"
+            )
+        found.add(name)
+    return found
 
 
 def _write_summary(root: Path, matrix: str, solver: str, rows: list[dict[str, object]]) -> Path:
@@ -232,6 +268,7 @@ def collect_workspace(
     archive: bool = False,
     settle: float | None = None,
     pickup: bool = True,
+    ended: Sequence[str] = (),
 ) -> CollectReport:
     """Read saved results through the declared adapter and rebuild neutral summaries.
 
@@ -258,6 +295,10 @@ def collect_workspace(
         Read a SUBMITTED point whose job outputs are present and seal its record
         COMPLETED. False leaves every submitted point outstanding and changes no
         record; the post stage passes it.
+    ended : sequence of str, optional
+        Point ids (``POL/DP-name``) of SUBMITTED points whose cluster job ended without
+        writing job.exit (killed by its walltime, cancelled): each is sealed COMPLETED with
+        a failed classification and :data:`ENDED_ERROR`, its files kept (``collect --ended``).
 
     Returns
     -------
@@ -290,7 +331,8 @@ def collect_workspace(
         raise RegistryError("no recorded points for this collection")
     if any(r.solver != config.solver for r in records):
         raise RegistryError("init.toml solver differs from the recorded solver")
-    keep = chosen((r.point for r in records), sims, points)
+    sealing = _ended_points(target, records, ended)
+    keep = chosen((r.point for r in records), sims, points) | sealing
     previous = {name: _previous_rows(target, name) for name in {r.matrix for r in records}}
     unsettled = _unsettled(target, records, settle) if settle is not None else set()
     marked = verdicts(target, records)
@@ -324,6 +366,21 @@ def collect_workspace(
             grouped.setdefault(record.matrix, []).append(row)
             continue
         grouped.setdefault(record.matrix, []).append(row)
+        if record.point_id in sealing:
+            # Declared ended (--ended): sealed failed, every file of the point kept as it is.
+            record = registry.transition(
+                record.point_id, "COMPLETED", classification="failed", error=ENDED_ERROR
+            )
+        if record.status == "COMPLETED" and record.error == ENDED_ERROR:
+            row.update(
+                status=record.status,
+                classification=record.classification,
+                completed_at=record.completed_at,
+                error=record.error,
+            )
+            failed += 1
+            failed_ids.add(record.point_id)
+            continue
         if (
             record.status not in ("COMPLETED", "SUBMITTED")
             or record.point_id in unsettled

@@ -218,10 +218,29 @@ cfd-matrix run polar --continue --sims 2001
 ```
 
 After you raise `REVOLUTIONS` (or `TIME_ITERATIONS`) in the row of a finished time-accurate
-point, or when its run was killed by its walltime, `--continue` runs each selected point on
-from its latest restart files, in its own folder. It is a separate option because a recorded
-point refuses a second run unless an option says what to do with it: `--resume` keeps skipping
-it, and `--force-rerun` starts it again from step 1.
+point, or when its cluster job ended early and its record is `COMPLETED` with a failed
+classification, `--continue` runs each selected point on from its latest restart files, in its
+own folder. It is a separate option because a recorded point refuses a second run unless an
+option says what to do with it: `--resume` keeps skipping it, and `--force-rerun` starts it
+again from step 1.
+
+A job killed by its walltime after SU2 wrote its history is recorded failed by a plain
+`collect`. A job that ended before SU2 wrote anything (cancelled in the queue, killed while it
+staged) leaves its point `SUBMITTED` with no `job.exit`, which `collect` cannot tell from a job
+still queued, and so does a point of a batch job that never started. Once you know such a job
+has ended, declare it:
+
+```console
+cfd-matrix collect polar --ended 2001/DP-M053AL+000
+```
+
+`--ended` (a provisional name) takes one or more `POL/DP-name` ids and seals each point
+`COMPLETED` with a failed classification and the error `FAILED_EXECUTION: job ended without
+job.exit (declared with --ended)`; every file of the point folder stays as it is. It refuses,
+changing nothing, an id no record carries, a point that is not `SUBMITTED`, and a point whose
+folder holds `job.exit` (a plain `collect` reads that one). The point then continues with
+`--continue` from its latest restart pair, or, without one, runs again with the force-rerun
+options.
 
 - `runs.json` is copied to `archive/<stamp>/runs.json`;
 - the earlier record joins the history with `continued` true (`cfd-workspace history` lists it

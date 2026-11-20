@@ -209,8 +209,9 @@ def build_parser() -> tuple[
         dest="continue_run",
         action="store_true",
         help="continue every selected time-accurate point in place from its latest restart "
-        "files, after its REVOLUTIONS (or TIME_ITERATIONS) grew in the matrix row or its run "
-        "was killed; the earlier run's configuration, history and logs move to "
+        "files, after its REVOLUTIONS (or TIME_ITERATIONS) grew in the matrix row, or after its "
+        "job ended early and collect recorded it failed (collect --ended for a job that wrote "
+        "no history); the earlier run's configuration, history and logs move to "
         "continued/<n>/ in the point folder and its record joins the runs.json history",
     )
     run_parser.add_argument(
@@ -376,6 +377,17 @@ def build_parser() -> tuple[
         help="seconds between sweeps under --watch (default: 60)",
     )
     collect_parser.add_argument(
+        "--ended",
+        nargs="+",
+        metavar="POINT",
+        default=None,
+        help="declare these SUBMITTED points (POL/DP-name) as points whose cluster job ended "
+        "without job.exit (killed by its walltime, cancelled): each is sealed COMPLETED with a "
+        "failed classification, its files kept, so run --continue (from its latest restart "
+        "pair) or run --force-rerun can follow. Refused for a point that is not SUBMITTED or "
+        "that holds a job.exit (provisional name)",
+    )
+    collect_parser.add_argument(
         "--rounds",
         type=_rounds,
         default=None,
@@ -518,6 +530,7 @@ def _collect(args: argparse.Namespace, console: Console) -> int:
             runs=args.runs,
             archive=args.archive,
             settle=settle,
+            ended=() if sweeps > 1 else split_ids(args.ended),
         )
         note_post_ran()
         for path in (*report.summaries, *report.tables):
