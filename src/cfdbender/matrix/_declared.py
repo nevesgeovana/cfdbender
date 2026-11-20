@@ -51,7 +51,9 @@ def matrix_products(
         lead = {column: _cell(cells.get(column)) for column in CONTEXT}
         moment = cast(Sequence[float], references.get("moment_origin") or (0.0, 0.0, 0.0))
         try:
-            point = load_point(root, planned[point_id], solver=solver, session=session)
+            point = load_point(
+                root, planned[point_id], solver=solver, session=session, post_may_change=True
+            )
             if not any(table in point.post for table in PRODUCT_TABLES):
                 continue
             if not support:

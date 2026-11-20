@@ -49,30 +49,33 @@ def left_out(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str
     return tuple(found)
 
 
-def airframe_absent(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str, str], ...]:
-    """Name each point of the unsteady polar whose stationary zone's columns are absent, with why.
+def plots_absent(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str, str], ...]:
+    """Name each ``[plots]`` column or group the unsteady polar leaves out, with the reason.
 
-    A multizone point whose stationary zone monitors no wall (or whose loads cannot be read)
-    has no airframe column in ``polars/P<pol>_<name>_uns_avg.csv``; the entry is
-    ``(<file>#airframe,point=<id>, <reason>)``. A point with its airframe columns, and a
-    single-zone point, names nothing.
+    A parameter SU2 cannot fill (``CDI``), a group whose markers carry no load or that the
+    history cannot give, and a group in a frame SU2 does not supply are never a column, empty or
+    ``NA``; each is ``(<file>#plots:<what>,point=<id>, <reason>)``. A point without ``[plots]``
+    names nothing.
     """
     found: list[tuple[str, str]] = []
     for row in rows:
         result = cast(Mapping[str, object], row.get("result") or {})
         averaged = result.get("time_average")
-        block = result.get("airframe")
-        if (
+        plots = result.get("plots")
+        if not (
             isinstance(averaged, dict)
             and isinstance(averaged.get("means"), dict)
-            and isinstance(block, dict)
-            and "absent" in block
+            and isinstance(plots, dict)
         ):
-            product = (
-                f"polars/{unsteady_polar_name(str(row['pol']), name)}"
-                f"#airframe,point={row['point_id']}"
+            continue
+        base = f"polars/{unsteady_polar_name(str(row['pol']), name)}"
+        point = f"point={row['point_id']}"
+        for what, reason in cast(Mapping[str, str], plots.get("absent") or {}).items():
+            found.append((f"{base}#plots:{what},{point}", f"plot column absent: {reason}"))
+        for item in cast(Sequence[Mapping[str, str]], plots.get("skipped") or ()):
+            found.append(
+                (f"{base}#plots:{item['group']},{point}", f"plot group skipped: {item['reason']}")
             )
-            found.append((product, f"airframe columns absent: {block['absent']}"))
     return tuple(found)
 
 

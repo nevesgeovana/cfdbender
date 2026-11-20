@@ -86,6 +86,9 @@ class AdapterPoint:
     #: The rendered configuration of a RESTART source that runs earlier in the same batch job;
     #: set only for such a point, so its restart keys follow from the source's rendering.
     restart_source_cfg: str | None = field(default=None, compare=False, repr=False)
+    #: Whether the PPROC file may differ from the planned one: ``collect`` and ``post`` read it
+    #: again, so a new grouping of the products needs no new plan and no new run.
+    post_may_change: bool = field(default=False, compare=False, repr=False)
 
     @property
     def geometry(self) -> str | None:
@@ -109,6 +112,8 @@ class AdapterPoint:
         for name, digest in self.point.inputs_sha256.items():
             if is_matrix_file(name):
                 continue  # records of earlier plans carry it; a grown matrix is not stale
+            if self.post_may_change and name == f"inputs/pproc/{self.point.post_id}.toml":
+                continue
             if not is_identity_value(digest):
                 files.track(name)
             if not files.agrees(name, digest):
@@ -122,6 +127,7 @@ def load_point(
     solver: str,
     session: InputSession | None = None,
     restart_source_cfg: str | None = None,
+    post_may_change: bool = False,
 ) -> AdapterPoint:
     """Read planned s/r/p snapshots, verifying all digests and the solver binding.
 
@@ -140,6 +146,9 @@ def load_point(
     restart_source_cfg : str, optional
         The rendered configuration of a RESTART source that runs earlier in the same batch
         job, for a point whose ``restart_in_job`` is set.
+    post_may_change : bool, optional
+        Accept a PPROC file that differs from the planned one, for ``collect`` and ``post``,
+        which only read the saved outputs. A run never does.
 
     Returns
     -------
@@ -170,10 +179,13 @@ def load_point(
         files.read_toml(f"inputs/pproc/{point.post_id}.toml"),
         shared,
         restart_source_cfg,
+        post_may_change,
     )
     result.verify()
     for name in files.digests():
         planned = point.inputs_sha256.get(name)
+        if post_may_change and name == f"inputs/pproc/{point.post_id}.toml":
+            continue
         if planned is None or not files.agrees(name, planned):
             raise ValueError(f"untracked or changed input: {name}")
     return result

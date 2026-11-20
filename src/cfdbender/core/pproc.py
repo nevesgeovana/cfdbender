@@ -29,13 +29,22 @@ from __future__ import annotations
 
 import difflib
 import math
+import re
+import string
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from cfdbender.core.refusals import warn_or_refuse
 
 __all__ = [
+    "AXES_PLOT_COMPONENTS",
+    "AXES_PLOT_GROUP",
+    "DEFAULT_FORCE_PLOTS",
+    "FORCE_PLOT_PARAMETERS",
     "FLUID_PLOT_PARAMETERS",
+    "PlotGroup",
+    "Plots",
+    "read_plots",
     "PLANES",
     "PRODUCT_TABLES",
     "PROBES",
@@ -756,3 +765,188 @@ def read_post(
         probes,  # type: ignore[arg-type]
         tuple(said),
     )
+
+
+#: The force-plot parameters of ``[plots]``, pyflightstream's: the plot is named
+#: ``<parameter>_<group>``.
+FORCE_PLOT_PARAMETERS: tuple[str, ...] = (
+    "CL",
+    "CDI",
+    "CDO",
+    "CDP",
+    "CDV",
+    "CD",
+    "FX",
+    "FY",
+    "FZ",
+    "MX",
+    "MY",
+    "MZ",
+)
+#: What a group plots when ``[plots]`` names no parameter: all but the drag split CDP and CDV.
+DEFAULT_FORCE_PLOTS: tuple[str, ...] = tuple(
+    name for name in FORCE_PLOT_PARAMETERS if name not in ("CDP", "CDV")
+)
+#: The six components of the axes of a polar; a run adds ``MRP_TOTAL`` when no group plots them.
+AXES_PLOT_COMPONENTS: tuple[str, ...] = ("FX", "FY", "FZ", "MX", "MY", "MZ")
+AXES_PLOT_GROUP = "MRP_TOTAL"
+#: The frames whose group is one per rotor or per blade, in that rotor's or blade's own axes.
+EXPANDING_FRAMES: dict[str, str] = {"SMRP": "rotor", "RMRP": "rotor", "LOCAL_AXIS": "blade"}
+PLOTS = "plots"
+
+
+@dataclass(frozen=True)
+class PlotGroup:
+    """One ``[[plots.groups]]`` entry: a name, a frame and the families summed."""
+
+    name: str
+    frame: str
+    families: str | tuple[str, ...]
+
+    @property
+    def emits_per(self) -> str:
+        """Return ``once``, ``rotor``, ``blade`` or ``family``: what the entry is one of."""
+        kind = EXPANDING_FRAMES.get(self.frame.strip().upper())
+        if kind is not None:
+            return kind
+        return "family" if self.families == "each" else "once"
+
+
+@dataclass(frozen=True)
+class Plots:
+    """The ``[plots]`` table: the parameters and the groups, in the order written."""
+
+    parameters: tuple[str, ...] = DEFAULT_FORCE_PLOTS
+    groups: tuple[PlotGroup, ...] = ()
+    #: ``[plots.families]``: each named family and the wall markers it holds, in order.
+    families: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+
+def _plot_group(value: object, loc: str) -> PlotGroup:
+    table = _table(value, loc)
+    _known(table, ("name", "frame", "families"), loc)
+    if "name" not in table:
+        raise _fail(f"{loc}.name", "Field required")
+    if "families" not in table:
+        raise _fail(f"{loc}.families", "Field required")
+    name = table["name"]
+    if not isinstance(name, str) or not name:
+        raise _fail(f"{loc}.name", "Input should be a non-empty string")
+    frame = _frame(table.get("frame", "MRP"), f"{loc}.frame")
+    families = _families(table["families"], f"{loc}.families")
+    if families == "each_blade":
+        raise _fail(
+            loc,
+            f"plot group {name!r}: families = 'each_blade' was renamed to frame = 'LOCAL_AXIS'. "
+            "Change the key named above.",
+        )
+    group = PlotGroup(name, frame, families)
+    if (group.emits_per != "once") != ("{family}" in name):
+        expands = (
+            f"an entry in {frame} is one per {group.emits_per}"
+            if group.emits_per != "once"
+            else f"an entry in {frame} is ONE group over the families it names"
+        )
+        carries = "carries" if group.emits_per != "once" else "carries no"
+        raise _fail(
+            loc,
+            f"plot group {name!r}: {expands}, so its name {carries} {{family}}, which names "
+            f"what each emission is about. The frames that expand are "
+            f"{', '.join(sorted(EXPANDING_FRAMES))}, and the selector 'each' expands in a "
+            "common frame.",
+        )
+    fields = [f for _, f, _, _ in string.Formatter().parse(name) if f is not None]
+    if any(f != "family" for f in fields) or re.search(r"\{family[^}]", name):
+        raise _fail(
+            loc,
+            f"plot group {name!r}: a plot name may carry only the bare placeholder {{family}}, "
+            "with no format spec and no conversion",
+        )
+    if re.fullmatch(r"(?:[A-Za-z0-9_]|\{family\})+", name) is None:
+        raise _fail(
+            loc,
+            f"plot group {name!r}: a plot name is letters, digits and underscores, and the "
+            "bare placeholder {family}; no space and no other character",
+        )
+    if EXPANDING_FRAMES.get(frame.strip().upper()) and families == "each":
+        raise _fail(
+            loc,
+            f"plot group {name!r}: the frame {frame} already expands, one per "
+            f"{group.emits_per}, and families = 'each' expands too, so the entry states how "
+            "many it is twice. Name the rotors or the alias whose families they own, or 'all' "
+            "for every rotor; write families = 'each' only in a frame that does not expand.",
+        )
+    return group
+
+
+def _plot_families(value: object) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Read ``[plots.families]``: a family name to the wall markers it holds, no marker in two."""
+    loc = "[plots].families"
+    table = _table(value, loc)
+    found: list[tuple[str, tuple[str, ...]]] = []
+    claimed_by: dict[str, str] = {}
+    for name, markers in table.items():
+        if re.fullmatch(r"[A-Za-z0-9_]+", str(name)) is None:
+            raise _fail(
+                f"{loc}.{name}", "a family name is letters, digits and underscores, one word"
+            )
+        if (
+            not isinstance(markers, list)
+            or not markers
+            or not all(isinstance(m, str) and m.strip() for m in markers)
+        ):
+            raise _fail(f"{loc}.{name}", "Input should be a non-empty list of marker names")
+        if len(set(markers)) != len(markers):
+            raise _fail(f"{loc}.{name}", "a marker is repeated")
+        for marker in markers:
+            if marker in claimed_by:
+                raise _fail(
+                    f"{loc}.{name}",
+                    f"marker {marker!r} is claimed by two families, {claimed_by[marker]!r} and "
+                    f"{name!r}; a family is a set of markers and no marker is in two",
+                )
+            claimed_by[marker] = str(name)
+        found.append((str(name), tuple(markers)))
+    return tuple(found)
+
+
+def read_plots(post: Mapping[str, object], *, where: str = "the PPROC file") -> Plots | None:
+    """Read the ``[plots]`` table of a p file with pyflightstream's keys, or None without one.
+
+    ``parameters`` defaults to every force parameter but ``CDP`` and ``CDV``; each group has
+    a ``name`` (the plot is ``<parameter>_<name>``), a ``frame`` (default ``MRP``) and
+    ``families``. A name carries ``{family}`` exactly when the entry expands.
+
+    Raises
+    ------
+    PprocError
+        A malformed table, with pyflightstream's message.
+    """
+    if PLOTS not in post:
+        return None
+    try:
+        table = _table(post[PLOTS], "[plots]")
+        _known(table, ("parameters", "groups", "families"), "[plots]")
+        parameters: tuple[str, ...] = DEFAULT_FORCE_PLOTS
+        if "parameters" in table:
+            stated = table["parameters"]
+            if not isinstance(stated, list) or not all(isinstance(p, str) for p in stated):
+                raise _fail("[plots].parameters", "Input should be a valid list of strings")
+            unknown = [p for p in stated if p not in FORCE_PLOT_PARAMETERS]
+            if unknown:
+                raise _fail(
+                    "[plots].parameters",
+                    f"force plot parameter(s) {', '.join(unknown)} are not among "
+                    f"{', '.join(FORCE_PLOT_PARAMETERS)}. Use one of the parameters listed.",
+                )
+            parameters = tuple(dict.fromkeys(stated))
+        entries = table.get("groups", [])
+        if not isinstance(entries, list):
+            raise _fail("[plots].groups", "Input should be a valid list")
+        groups = tuple(
+            _plot_group(entry, f"[plots].groups.{index}") for index, entry in enumerate(entries)
+        )
+        families = _plot_families(table.get("families", {}))
+    except PprocError as error:
+        raise PprocError(f"{where} {error}") from None
+    return Plots(parameters, groups, families)
