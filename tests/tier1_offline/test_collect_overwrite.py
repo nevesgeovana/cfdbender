@@ -42,7 +42,8 @@ def test_a_stop_names_the_file_and_the_flag(collected, capsys, verb):
     code = main([verb, "full", "--workspace", str(collected)])
     err = capsys.readouterr().err
     assert code == 2
-    assert "P7001-TOTAL-DIM.csv" in err and "--overwrite" in err, "".join(l for l in err.splitlines(True) if not l.startswith("#"))[-900:]
+    shown = "".join(t for t in err.splitlines(True) if not t.startswith("#"))[-900:]
+    assert "P7001-TOTAL-DIM.csv" in err and "--overwrite" in err, shown
     assert target.read_bytes() == b"edited by hand\n"
 
 

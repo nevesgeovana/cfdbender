@@ -421,7 +421,8 @@ class Status:
         path = next((p for p in candidates if p.is_file()), None)
         if path is None:
             return "no matrix"
-        return "current" if hashlib.sha256(path.read_bytes()).hexdigest() == plan.sha256 else "stale"
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        return "current" if digest == plan.sha256 else "stale"
 
     def document(
         self, rows: Sequence[Mapping[str, object]], freshness: Sequence[Mapping[str, object]]

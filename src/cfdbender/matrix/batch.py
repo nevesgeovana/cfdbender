@@ -448,8 +448,7 @@ def batch_plans(
             submission = replace(
                 submission,
                 warnings=tuple(
-                    text.replace(_BATCH_N_ADVICE, _PER_POLAR_ADVICE)
-                    for text in submission.warnings
+                    text.replace(_BATCH_N_ADVICE, _PER_POLAR_ADVICE) for text in submission.warnings
                 ),
             )
         batches.append(
@@ -460,9 +459,7 @@ def batch_plans(
                 f"{BATCH_DIR}/{label}/{script_name}",
                 sims,
                 tuple(p for p, _ in members),
-                script_text(
-                    label, n, blocks, any(p.restart_in_job for p, _ in members), per_polar
-                ),
+                script_text(label, n, blocks, any(p.restart_in_job for p, _ in members), per_polar),
                 submission,
                 base,
                 applications,

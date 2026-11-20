@@ -198,9 +198,7 @@ def run_status(args: argparse.Namespace) -> int:
         columns.append("error")
     unmatched = snapshot.unmatched(sims or ())
     for sim in unmatched:
-        print(
-            f"--sims: simulation {sim} holds no record and no planned point", file=sys.stderr
-        )
+        print(f"--sims: simulation {sim} holds no record and no planned point", file=sys.stderr)
     if args.json:
         stems = {str(row["matrix"]) for row in rows}
         document = snapshot.document(rows, snapshot.freshness(stems))

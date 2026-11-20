@@ -50,7 +50,9 @@ def normal(text: str, root: Path) -> str:
     )
     # The width of the WALL column follows the time measured, so the table's spacing does too.
     text = "\n".join(
-        re.sub(r" {2,}", "  ", line) if "<WALL>" in line or (line.startswith("SIM  ") and "WALL" in line) else line
+        re.sub(r" {2,}", "  ", line)
+        if "<WALL>" in line or (line.startswith("SIM  ") and "WALL" in line)
+        else line
         for line in text.split("\n")
     )
     return text.replace("\r\n", "\n")

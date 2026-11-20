@@ -373,7 +373,9 @@ def table(rows: Sequence[Sequence[str]], *, indent: str = "") -> list[str]:
         return []
     widths = [max(len(row[column]) for row in rows) for column in range(len(rows[0]))]
     return [
-        (indent + "  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=True))).rstrip()
+        (
+            indent + "  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=True))
+        ).rstrip()
         for row in rows
     ]
 

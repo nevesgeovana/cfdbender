@@ -86,8 +86,19 @@ def test_points_prints_one_row_per_datapoint_with_its_columns(root, capsys):
     _, out, _ = _go(capsys, "status", "--points", "--workspace", str(root))
     rows = _rows(out)
     assert rows[0][:4] == ["SIM", "POINT", "MATRIX", "STATUS"]
-    assert out.splitlines()[[line.startswith("SIM") for line in out.splitlines()].index(True)].split() == [
-        "SIM", "POINT", "MATRIX", "STATUS", "WAS", "ITER", "RESIDUAL", "WALL", "BUILD", "WHERE"
+    lines = out.splitlines()
+    header = lines[[line.startswith("SIM") for line in lines].index(True)]
+    assert header.split() == [
+        "SIM",
+        "POINT",
+        "MATRIX",
+        "STATUS",
+        "WAS",
+        "ITER",
+        "RESIDUAL",
+        "WALL",
+        "BUILD",
+        "WHERE",
     ]
     assert [r[1] for r in rows[1:]] == ["M200AL+000", "M200AL+020"]
     assert "2 datapoint(s): COMPLETED" in out
