@@ -54,6 +54,114 @@ def rotor_loads(
     return RotorLoads((fx, fy, fz), (mx, my, mz), (ox, oy, oz), stream.velocity, stream.density)
 
 
+def rotor_markers(reference: Mapping[str, object]) -> tuple[str, ...]:
+    """Return the markers of the REF file's rotor: ``families_blades``, then ``families_general``.
+
+    The rotor of a mesh is its blades and its spinner, the families its declaration names; an
+    SU2 marker is named by its family. Empty without a rotor or without those lists.
+    """
+    block = rotor_block(reference)
+    table = reference.get(block.name) if block is not None else None
+    if not isinstance(table, Mapping):
+        return ()
+    names = [
+        str(name)
+        for key in ("families_blades", "families_general")
+        for name in (table.get(key) or [])
+    ]
+    return tuple(dict.fromkeys(names))
+
+
+def rotor_surfaces(
+    reference: Mapping[str, object],
+    walls: Sequence[str],
+    surfaces: Sequence[str],
+    *,
+    multizone: bool,
+) -> tuple[tuple[str, ...] | None, str | None]:
+    """Return the markers whose own loads are the rotor's, or why no rotor row can be formed.
+
+    SU2's total coefficients sum every monitored marker, and every wall is monitored, so the
+    totals of an isolated propeller hold its nacelle and those of a zone every wall of the
+    zone. The rotor's loads are the sum of the per-surface loads of its markers
+    (:func:`rotor_markers`). The totals stand for the rotor only where they are the rotor's
+    alone: no monitored wall is outside the rotor's markers in the deck. On a multizone point
+    the turning zone names the rotor where its declaration names none of the zone's walls (or
+    the history holds no per-surface load): the rotor is then the turning zone's total, every
+    wall of that zone.
+
+    Parameters
+    ----------
+    reference : mapping
+        The point's REF file.
+    walls : sequence of str
+        The wall markers the deck monitors.
+    surfaces : sequence of str
+        The markers the history holds per-surface loads of (the turning zone's on a multizone
+        point).
+    multizone : bool
+        Whether the point has several zones.
+
+    Returns
+    -------
+    tuple
+        ``(markers, None)`` to sum those markers' own loads, ``(None, None)`` for the totals,
+        ``(None, reason)`` when neither is the rotor's.
+    """
+    declared = rotor_markers(reference)
+    if multizone and not surfaces:
+        return None, None
+    zone_walls = list(surfaces) if multizone else list(dict.fromkeys([*walls, *surfaces]))
+    others = [name for name in zone_walls if name not in declared]
+    own = [name for name in declared if name in zone_walls]
+    if not others or (multizone and not own):
+        return None, None
+    if not declared:
+        return None, (
+            "the rotor declaration names no families_blades or families_general and the deck "
+            f"monitors {', '.join(zone_walls)}, so the totals are not the rotor's alone"
+        )
+    if not own:
+        return None, (
+            f"no marker of the rotor ({', '.join(declared)}) is a wall the deck monitors "
+            f"({', '.join(zone_walls)}), so the totals are not the rotor's alone"
+        )
+    if missing := [name for name in own if name not in surfaces]:
+        return None, (
+            f"the history holds no per-surface loads of the rotor marker(s) {', '.join(missing)} "
+            f"(keep AERO_COEFF_SURF in HISTORY_OUTPUT) and its totals also hold {', '.join(others)}"
+        )
+    return tuple(own), None
+
+
+def surface_markers(headers: Sequence[str]) -> list[str]:
+    """Return the markers a history holds the six per-surface loads of, in column order.
+
+    ``CFx(blade)`` ... ``CMz(blade)``: a single-zone history, or a multizone one whose turning
+    zone's columns are named as a single zone's.
+    """
+    names = set(headers)
+    found = [
+        header[4:-1] for header in headers if header.startswith("CFx(") and header.endswith(")")
+    ]
+    return [
+        marker
+        for marker in dict.fromkeys(found)
+        if all(f"{key}({marker})" in names for key in (*FORCE_KEYS, *MOMENT_KEYS))
+    ]
+
+
+def marker_loads(row: Mapping[str, str], markers: Sequence[str]) -> dict[str, float]:
+    """Return the six load coefficients of ``markers`` summed over one history row."""
+    found: dict[str, float] = {}
+    for key in (*FORCE_KEYS, *MOMENT_KEYS):
+        values = [float(row[f"{key}({marker})"]) for marker in markers]
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError(f"history: the rotor's {key} is not finite")
+        found[key] = sum(values)
+    return found
+
+
 def condition_cells(values: Mapping[str, object]) -> dict[str, object]:
     """Return the condition-block cells SU2's deck determines (pyflightstream's names).
 

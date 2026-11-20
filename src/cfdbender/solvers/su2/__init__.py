@@ -44,6 +44,7 @@ MARKER_EULER=["airfoil"], MARKER_FAR=["farfield"]. For native execution add
 
 from __future__ import annotations
 
+import csv
 import json
 import warnings
 from collections.abc import Callable, Mapping, Sequence
@@ -453,9 +454,16 @@ def _plot_groups(
                 f"sliding.rotating_zone is {zone}, but the zone files state the grid motion of "
                 f"zone_{turning}.cfg: make the setup and the zone files name the same turning zone"
             )
+    from cfdbender.solvers.su2._history import _zone_headers
+    from cfdbender.solvers.su2._rotor import surface_markers
+
     headers, _ = history_table(folder)
     groups, skipped = plot_groups(
-        point.reference, point.post, history_markers(headers), multizone=multizone
+        point.reference,
+        point.post,
+        history_markers(headers),
+        multizone=multizone,
+        turning_surfaces=surface_markers(_zone_headers(folder, headers)) if multizone else (),
     )
     if not groups:
         return None, {}
@@ -583,15 +591,96 @@ def _turning_zone_values(point: AdapterPoint, values: Mapping[str, object]) -> d
     return found
 
 
+def _rotor_loads(
+    point: AdapterPoint,
+    folder: Path,
+    values: Mapping[str, object],
+    totals: dict[str, float],
+    averaged: Mapping[str, object] | None,
+) -> dict[str, float] | str:
+    """Return the rotor's six load coefficients, ``totals`` itself where they are the rotor's.
+
+    The rotor's loads are the sum of its markers' per-surface loads, never SU2's totals,
+    which sum every monitored wall (:func:`~cfdbender.solvers.su2._rotor.rotor_surfaces`): the
+    last history row of a steady point, the window means of a time-accurate one. A string is
+    the reason no rotor row is formed.
+    """
+    from cfdbender.solvers.su2._config import _marker_items
+    from cfdbender.solvers.su2._history import _zone_headers, history_headers, history_table
+    from cfdbender.solvers.su2._rotor import (
+        FORCE_KEYS,
+        MOMENT_KEYS,
+        marker_loads,
+        rotor_surfaces,
+        surface_markers,
+    )
+
+    timed = point.point.run_type in TIME_ACCURATE
+    multizone = bool(values.get("MULTIZONE"))
+    if timed:
+        headers, rows = history_table(folder)
+        headers = _zone_headers(folder, headers)
+    else:
+        path = folder / "history.csv"
+        with path.open(encoding="utf-8-sig", newline="") as stream:
+            reader = csv.reader(stream, skipinitialspace=True)
+            headers = history_headers(next(reader, []), path)
+            rows = [cells for cells in reader if cells]
+    walls = [str(item) for item in _marker_items(values.get("MARKER_MONITORING"))]
+    surfaces = surface_markers(headers)
+    markers, reason = rotor_surfaces(point.reference, walls, surfaces, multizone=multizone)
+    if reason is not None:
+        return reason
+    if markers is None:
+        return totals
+    zone_walls = surfaces if multizone else list(dict.fromkeys([*walls, *surfaces]))
+    left = [name for name in zone_walls if name not in markers]
+    # One line per command (held warnings are deduplicated by text): which walls are not rotor.
+    block = rotor_block(point.reference)
+    warnings.warn(
+        f"rotor {block.alias if block else ''}: its row sums {', '.join(markers)}; the "
+        f"monitored wall(s) {', '.join(left)} are outside its families_blades and "
+        "families_general, so they are not in it",
+        UserWarning,
+        stacklevel=3,
+    )
+    if not timed:
+        if not rows:
+            return "history.csv: no data rows"
+        return {**totals, **marker_loads(dict(zip(headers, rows[-1], strict=False)), markers)}
+    # numpy is imported here only: the serial pysu2 worker imports this package without it.
+    import numpy as np
+
+    from cfdbender.post.time_average import TimeHistory, window_average
+    from cfdbender.solvers.su2._time_history import time_history
+
+    sliding = point.setup.get("sliding")
+    zone = sliding.get("rotating_zone") if isinstance(sliding, Mapping) and multizone else None
+    keys = (*FORCE_KEYS, *MOMENT_KEYS)
+    parts = [
+        time_history(folder, zone=cast(int | None, zone), columns=keys, marker=marker)
+        for marker in markers
+    ]
+    summed = TimeHistory(
+        parts[0].steps, {k: np.add.reduce([p.columns[k] for p in parts]) for k in keys}
+    )
+    window = cast(Mapping[str, int], averaged or {})
+    mean = window_average(summed, window=(window["FIRST_STEP"], window["LAST_STEP"]))
+    return {**totals, **{key: float(mean.means[key]) for key in keys}}
+
+
 def _rotor(
     point: AdapterPoint,
+    folder: Path,
     coefficients: Mapping[str, Coefficient],
     averaged: Mapping[str, object] | None = None,
 ) -> dict[str, object] | None:
     """Return the rotor record of a point whose REF file states a rotor block, else None.
 
-    A time-accurate point's rotor row is formed from the window means of the force and
-    moment; a point whose history does not cover the window is left out with the reason.
+    The rotor row is formed from the loads of the rotor's markers alone (:func:`_rotor_loads`),
+    whatever else the run monitors. A time-accurate point's rotor row is formed from the window
+    means of the force and moment; a point whose history does not cover the window, or whose
+    rotor loads cannot be told from the other walls', is left out with the reason.
     """
     rotor = rotor_block(point.reference)
     if rotor is None:
@@ -609,14 +698,28 @@ def _rotor(
     values = _turning_zone_values(point, values)
     if averaged is not None and "skipped" in averaged:
         return {"rotor": rotor.alias, "skipped": averaged["skipped"]}
+    totals = {k: c.value for k, c in coefficients.items()}
     found = rotor_point(
-        values,
-        point.reference,
-        {k: c.value for k, c in coefficients.items()},
-        periodic_state(point.setup),
-        point.point.condition,
+        values, point.reference, totals, periodic_state(point.setup), point.point.condition
     )
-    if found is not None and averaged is not None:
+    if found is None:
+        return None
+    try:
+        loads = _rotor_loads(point, folder, values, totals, averaged)
+    except (OSError, ValueError, StopIteration) as error:
+        loads = str(error) or type(error).__name__
+    if isinstance(loads, str):
+        warnings.warn(
+            f"{point.point.point_id}: the rotor row is left out: {loads}", UserWarning, stacklevel=2
+        )
+        return {"rotor": rotor.alias, "skipped": loads}
+    if loads is not totals:
+        found = rotor_point(
+            values, point.reference, loads, periodic_state(point.setup), point.point.condition
+        )
+        if found is None:
+            return None
+    if averaged is not None:
         found["window"] = {key: averaged[key] for key in ("FIRST_STEP", "LAST_STEP", "STEPS")}
     return found
 
@@ -697,7 +800,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
         route,
         found,
         residual_field(folder),
-        _rotor(point, coefficients, averaged),
+        _rotor(point, folder, coefficients, averaged),
         averaged,
         force_groups=force_groups(folder, groups(point.setup), coefficients),
         plots=plots,

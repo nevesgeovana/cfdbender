@@ -20,9 +20,12 @@ for SU2 from the history:
   and ``CDV`` are absent (SU2's history has no such split), each with its reason.
 * A group in a rotor's own frame (``SMRP``, ``RMRP``, ``LOCAL_AXIS``) is not supplied and is
   skipped with its reason.
-* A multizone point without a ``[plots]`` table gets the two groups its per-zone totals can
-  fill: ``MRP_TOTAL`` (the sum of the zones) and ``ROTOR_<alias>`` (the turning zone, the name
-  pyflightstream gives a rotor's own group); a point with one zone gets none.
+* A multizone point without a ``[plots]`` table gets two groups: ``MRP_TOTAL`` (the sum of the
+  zones) and ``ROTOR_<alias>`` (the name pyflightstream gives a rotor's own group), the sum of
+  the rotor's markers, the blades and the spinner its REF declaration names, in the turning
+  zone; the turning zone's total only where it holds no other wall
+  (:func:`~cfdbender.solvers.su2._rotor.rotor_surfaces`), since every wall is monitored. A
+  point with one zone gets none.
 """
 
 from __future__ import annotations
@@ -156,27 +159,36 @@ def plot_groups(
     monitored: Sequence[str],
     *,
     multizone: bool,
+    turning_surfaces: Sequence[str] = (),
 ) -> tuple[tuple[Group, ...], tuple[tuple[str, str], ...]]:
     """Return the groups a time-accurate point plots and each entry skipped with its reason.
 
     A point whose post file declares no ``[plots]`` gets the two groups of a multizone point
-    (see the module) and none otherwise. Pyflightstream's default applies: when no group of
-    the global ``MRP`` frame plots the six load components, ``MRP_TOTAL`` over every marker is
-    added with them.
+    (see the module) and none otherwise; ``turning_surfaces`` are the markers the turning
+    zone's history holds per-surface loads of, which the rotor group sums. Pyflightstream's
+    default applies: when no group of the global ``MRP`` frame plots the six load components,
+    ``MRP_TOTAL`` over every marker is added with them.
 
     Raises
     ------
     ValueError
         A marker claimed by two families, or two groups with one name.
     """
+    from cfdbender.solvers.su2._rotor import rotor_surfaces
+
     plots: Plots | None = read_plots(post)
     block = rotor_block(reference)
     if plots is None:
         if not multizone:
             return (), ()
         found = [Group(AXES_PLOT_GROUP, DEFAULT_FORCE_PLOTS)]
-        if block is not None:
-            found.append(Group(ROTOR_GROUP_PREFIX + block.alias, DEFAULT_FORCE_PLOTS, turning=True))
+        if block is None:
+            return tuple(found), ()
+        name = ROTOR_GROUP_PREFIX + block.alias
+        markers, reason = rotor_surfaces(reference, (), turning_surfaces, multizone=True)
+        if reason is not None:
+            return tuple(found), ((name, reason),)
+        found.append(Group(name, DEFAULT_FORCE_PLOTS, markers=markers, turning=True))
         return tuple(found), ()
     families = _family_map(dict(plots.families), monitored)
     found = []
