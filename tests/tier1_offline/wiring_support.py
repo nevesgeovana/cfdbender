@@ -7,12 +7,14 @@ from pathlib import Path
 from cfdbender.solvers.mock._fields import _vtu
 
 
-def box_surface(path: Path, p_inf: float, *, chord: float = 1.0, span: float = 1.0) -> None:
+def box_surface(
+    path: Path, p_inf: float, *, chord: float = 1.0, span: float = 1.0, shift_x: float = 0.0
+) -> None:
     """A closed box wing (x chord, y span, z thickness 0.1), outward winding, SU2 fields.
 
     ``Pressure = p_inf - 1000 z``, so a section along y carries ``Fz = 100 * chord`` N/m.
     """
-    xs = [chord * i / 4 for i in range(5)]
+    xs = [shift_x + chord * i / 4 for i in range(5)]
     ys = [span * j / 4 for j in range(5)]
     zs = [-0.05, 0.0, 0.05]
     points: list[tuple[float, float, float]] = []
@@ -35,9 +37,11 @@ def box_surface(path: Path, p_inf: float, *, chord: float = 1.0, span: float = 1
             )
         for k in range(2):
             z0, z1 = zs[k], zs[k + 1]
-            quads.append((at(0.0, y0, z0), at(0.0, y0, z1), at(0.0, y1, z1), at(0.0, y1, z0)))
             quads.append(
-                (at(chord, y1, z0), at(chord, y1, z1), at(chord, y0, z1), at(chord, y0, z0))
+                (at(xs[0], y0, z0), at(xs[0], y0, z1), at(xs[0], y1, z1), at(xs[0], y1, z0))
+            )
+            quads.append(
+                (at(xs[4], y1, z0), at(xs[4], y1, z1), at(xs[4], y0, z1), at(xs[4], y0, z0))
             )
     fields = {
         "Pressure": [(p_inf - 1000.0 * z,) for _, _, z in points],
@@ -50,9 +54,16 @@ def box_surface(path: Path, p_inf: float, *, chord: float = 1.0, span: float = 1
     path.write_text(_vtu(points, quads, 9, fields), encoding="ascii")
 
 
-def block_volume(path: Path, p_inf: float) -> None:
-    """Hexahedra over x -1..2, y -1..2, z -1..1; ``Momentum / Density = (10 + x, y, z)``."""
-    xs, ys, zs = [-1.0, 0.0, 1.0, 2.0], [-1.0, 0.0, 1.0, 2.0], [-1.0, 0.0, 1.0]
+def block_volume(path: Path, p_inf: float, *, shift_x: float = 0.0) -> None:
+    """Hexahedra over x -1..2 (moved by ``shift_x``), y -1..2, z -1..1.
+
+    ``Momentum / Density = (10 + x, y, z)``.
+    """
+    xs, ys, zs = (
+        [shift_x + x for x in (-1.0, 0.0, 1.0, 2.0)],
+        [-1.0, 0.0, 1.0, 2.0],
+        [-1.0, 0.0, 1.0],
+    )
     points = [(x, y, z) for z in zs for y in ys for x in xs]
 
     def node(i: int, j: int, k: int) -> int:

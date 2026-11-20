@@ -46,10 +46,10 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from cfdbender.core import plan as plan_module
 from cfdbender.core.adapter import AdapterPoint
@@ -79,15 +79,18 @@ from cfdbender.solvers.su2._config import (
     staged_mesh,
 )
 from cfdbender.solvers.su2._execute import job_command as job_command
+from cfdbender.solvers.su2._execute import job_wrapper as job_wrapper
 from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import (
+    MULTIZONE_HISTORY_STEM,
     dimensions,
     force_groups,
     history_outputs,
     read,
     residual_field,
 )
+from cfdbender.solvers.su2._precursor import settings as precursor_settings
 from cfdbender.solvers.su2._products import PRODUCTS as PRODUCTS
 from cfdbender.solvers.su2._products import product_inputs as product_inputs
 from cfdbender.solvers.su2._restart import restart_files as restart_files
@@ -103,6 +106,8 @@ SOLVER_NAME = "su2"
 CAPABILITIES = frozenset({"cluster_staging", "restart", "boundary_groups", "numerics_file"})
 #: A RESTART source of the same batch job is staged by the job script after it ends.
 RESTART_IN_JOB = True
+#: A time-accurate sliding rotor row may start from its own steady frozen-rotor stage (``MRF``).
+PRECURSOR = True
 #: The run types the adapter offers (pyflightstream's names), all four.
 OFFERED_RUN_TYPES = RUN_TYPES
 SOLVER_TYPE = "SU2"
@@ -118,14 +123,17 @@ def job_output_files(point: object) -> tuple[str, ...]:
     """Name the files a cluster job writes: the solver log and every history the point declares.
 
     A restarted time-accurate run writes ``history_<RESTART_ITER>.csv`` instead of
-    ``history.csv``, and a point with an export window one history per segment.
+    ``history.csv``, a point with an export window one history per segment, and a multizone
+    point its driver history ``su2.csv``.
     """
     directory = str(getattr(point, "directory", "")).rstrip("/") + "/"
     names = (name.removeprefix(directory) for name in getattr(point, "outputs", ()))
     return tuple(
         name
         for name in names
-        if name == "stdout.log" or (name.startswith("history") and name.endswith(".csv"))
+        if name == "stdout.log"
+        or name == f"{MULTIZONE_HISTORY_STEM}.csv"
+        or (name.startswith("history") and name.endswith(".csv"))
     )
 
 
@@ -138,6 +146,7 @@ class _SU2Result(NeutralResult):
     residual_field: str | None = None
     rotor: Mapping[str, object] | None = None
     time_average: Mapping[str, object] | None = None
+    plots: Mapping[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Serialize the common fields, the route and, when known, dimension and residual."""
@@ -150,6 +159,8 @@ class _SU2Result(NeutralResult):
             data["rotor"] = dict(self.rotor)
         if self.time_average is not None:
             data["time_average"] = dict(self.time_average)
+        if self.plots is not None:
+            data["plots"] = dict(self.plots)
         return data
 
 
@@ -211,6 +222,7 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             run_type=kind,
             record=record,
             restarted=row.restart_from is not None,
+            precursor=row.precursor and kind in TIME_ACCURATE,
         )
         validate_tracked_groups(workspace.setup, workspace, mesh_name(values))
     extra = tuple(extra_files(values))
@@ -228,17 +240,20 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
                 *extra,
             )
         ),
-        _provenance(kind, workspace, values),
+        _provenance(kind, workspace, values, row.precursor and kind in TIME_ACCURATE),
         {key: f"run type {kind}" for key in cast(list[str], record.get("carried", []))},
     )
 
 
-def _provenance(kind: str, workspace: RowInputs, values: Mapping[str, object]) -> dict[str, object]:
+def _provenance(
+    kind: str, workspace: RowInputs, values: Mapping[str, object], precursor: bool = False
+) -> dict[str, object]:
     """Return what the record states about the run type and the turbulence model.
 
     The run type, the identity of its declaration set (``su2/<run type>``), the numerics id
     and the turbulence model with the file or row that chose it. A steady row that names no
-    model states nothing new, so its record keeps its earlier bytes.
+    model states nothing new, so its record keeps its earlier bytes. A row with a frozen-rotor
+    precursor adds its iterations and stop level.
     """
     stated = workspace.setup.get(TURBULENCE_MODEL)
     if kind == STEADY and stated is None:
@@ -250,13 +265,17 @@ def _provenance(kind: str, workspace: RowInputs, values: Mapping[str, object]) -
         origin = workspace.origins.get(TURBULENCE_MODEL, "row")
     else:
         origin = workspace.origins.get("KIND_TURB_MODEL", "setup")
-    return {
+    found: dict[str, object] = {
         "run_type": kind,
         "declarations": f"su2/{kind}",
         "numerics_id": workspace.numerics_id or None,
         "turbulence_model": None if model is None else str(model),
         "turbulence_model_from": origin,
     }
+    if precursor:
+        chosen = precursor_settings(workspace.setup)
+        found["precursor"] = {"iterations": chosen.iterations, "converge_to": chosen.converge_to}
+    return found
 
 
 _FLOW_SETUP_KEYS = {
@@ -304,6 +323,7 @@ def translate(point: AdapterPoint) -> str:
             geometry=point.geometry,
             run_type=point.point.run_type,
             restarted=point.point.restart_from is not None,
+            precursor=point.point.precursor,
         )
         point_markers(point, mesh_name(values))
     return render(
@@ -317,6 +337,7 @@ def translate(point: AdapterPoint) -> str:
                 geometry=point.geometry,
                 run_type=point.point.run_type,
                 restarted=point.point.restart_from is not None,
+                precursor=point.point.precursor,
             ),
         )
     )
@@ -384,22 +405,126 @@ def classify(result: ExecutionResult) -> Classification:
 
 
 def _kind(name: str) -> tuple[str, str] | None:
-    """Return the load kind of a history column for the drift warning: all are the point's."""
-    if name.startswith("CF"):
+    """Return the load kind of a history or plot column for the drift warning."""
+    head = name.split("_", 1)[0]
+    if name.startswith("CF") or head in ("FX", "FY", "FZ"):
         return ("force", "TOTAL")
-    if name.startswith("CM"):
+    if name.startswith("CM") or head in ("MX", "MY", "MZ"):
         return ("moment", "TOTAL")
     return None
 
 
+def _plot_groups(
+    point: AdapterPoint, folder: Path, values: Mapping[str, object], zone: object
+) -> tuple[Any, dict[str, object]]:
+    """Read the ``[plots]`` groups of a time-accurate point from its history.
+
+    Returns the :class:`~cfdbender.post.time_average.TimeHistory` of the plot columns (None
+    when there are none) and the point's ``plots`` record: the columns, what is absent with the
+    reason, and what was skipped.
+    """
+    from cfdbender.solvers.su2._history import (
+        _segment_configs,
+        _yes,
+        _zones,
+        history_table,
+    )
+    from cfdbender.solvers.su2._plots import (
+        history_markers,
+        plot_groups,
+        plot_series,
+        zone_scales,
+    )
+
+    keys = _segment_configs(folder, required=False)[0]
+    multizone = _yes(keys, "MULTIZONE")
+    turning, count = (None, 1)
+    if multizone:
+        turning, count = _zones(folder, keys)
+        if zone is not None and zone != turning:
+            raise ValueError(
+                f"sliding.rotating_zone is {zone}, but the zone files state the grid motion of "
+                f"zone_{turning}.cfg: make the setup and the zone files name the same turning zone"
+            )
+    headers, _ = history_table(folder)
+    groups, skipped = plot_groups(
+        point.reference, point.post, history_markers(headers), multizone=multizone
+    )
+    if not groups:
+        return None, {}
+    scales = zone_scales(values, folder, turning_zone=turning, zones=count)
+    history, absent = plot_series(folder, groups, scales, turning_zone=turning, zones=count)
+    record: dict[str, object] = {
+        "groups": [g.name for g in groups],
+        "columns": [] if history is None else list(history.columns),
+        "absent": absent,
+        "skipped": [{"group": name, "reason": reason} for name, reason in skipped],
+    }
+    return history, record
+
+
+def _steady_plots(
+    point: AdapterPoint, folder: Path, history: Sequence[Any]
+) -> dict[str, object] | None:
+    """Read the ``[plots]`` groups of a steady point from the last row of its history.
+
+    The same groups, names and rules as a time-accurate point's, reduced as the steady
+    coefficients are: the last row. None without a ``[plots]`` table.
+    """
+    from cfdbender.solvers.su2._plots import (
+        _steady_table,
+        history_markers,
+        plot_groups,
+        plot_series,
+        zone_scales,
+    )
+
+    if "plots" not in point.post or not (folder / "history.csv").is_file():
+        return None
+    values = config(
+        point.setup,
+        point.reference,
+        point.post,
+        point.point.condition,
+        geometry=point.geometry,
+        run_type=point.point.run_type,
+        restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
+    )
+    headers, _ = _steady_table(folder)
+    groups, skipped = plot_groups(
+        point.reference, point.post, history_markers(headers), multizone=False
+    )
+    scales = zone_scales(values, folder, turning_zone=None, zones=1)
+    found, absent = plot_series(folder, groups, scales, turning_zone=None, zones=1, steady=True)
+    columns = {} if found is None else {n: float(v[0]) for n, v in found.columns.items()}
+    return {
+        "groups": [g.name for g in groups],
+        "columns": list(columns),
+        "values": columns,
+        "absent": absent,
+        "skipped": [{"group": name, "reason": reason} for name, reason in skipped],
+        "iteration": history[-1].iteration if history else None,
+        "condition": condition_cells(values),
+        "absent_condition": list(ABSENT_CONDITION_COLUMNS),
+    }
+
+
 def _time_average(
-    point: AdapterPoint, folder: Path, record: Mapping[str, object], columns: tuple[str, ...]
+    point: AdapterPoint,
+    folder: Path,
+    record: Mapping[str, object],
+    columns: tuple[str, ...],
+    values: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Reduce a time-accurate point's history over its averaging window.
 
-    A drift warning of the last revolution is warned and never blocks.
+    The ``[plots]`` columns ``<parameter>_<group>`` come first, then the history's own columns;
+    ``plots`` of the result says which were read and what is absent. A drift warning of the last
+    revolution is warned and never blocks.
     """
     # numpy is imported here only: the serial pysu2 worker imports this package without it.
+    from cfdbender.post.time_average import TimeHistory
     from cfdbender.post.unsteady_point import reduce_point
     from cfdbender.solvers.su2._time_history import time_history
 
@@ -411,6 +536,11 @@ def _time_average(
         history = time_history(folder, zone=cast(int | None, zone), columns=columns)
     except (OSError, ValueError, StopIteration) as error:
         return {"FIRST_STEP": first, "LAST_STEP": last, "skipped": str(error)}
+    found: dict[str, object] = {}
+    own, found = _plot_groups(point, folder, values or {}, zone)
+    if own is not None:
+        history = TimeHistory(history.steps, {**own.columns, **history.columns}, history.time_s)
+        columns = (*own.columns, *columns)
     declared = point.post.get("per_revolution", {})
     limit = declared.get("drift_limit_pct", 1.0) if isinstance(declared, Mapping) else 1.0
     reduced = reduce_point(
@@ -423,7 +553,27 @@ def _time_average(
     )
     for text in cast(list[str], reduced.get("warnings", [])):
         warnings.warn(f"{point.point.point_id}: {text}", UserWarning, stacklevel=2)
+    if found:
+        reduced["plots"] = found
     return reduced
+
+
+def _turning_zone_values(point: AdapterPoint, values: Mapping[str, object]) -> dict[str, object]:
+    """Return the deck as the turning zone of a sliding-mesh point sees it.
+
+    The grid motion of a two-zone point is written in the turning zone's file only
+    (``zone_<i>.cfg/GRID_MOVEMENT``, ``ROTATION_RATE``, ``MOTION_ORIGIN``, ``MACH_MOTION``), where
+    the rotor quantities do not look for it. They are lifted to the top of the deck, so the zone's
+    own loads, its rotation and the dynamic pressure of its ``MACH_MOTION`` give the rotor row.
+    """
+    sliding = point.setup.get("sliding")
+    found = dict(values)
+    if isinstance(sliding, Mapping) and "rotating_zone" in sliding:
+        prefix = f"zone_{sliding['rotating_zone']}.cfg/"
+        for key in ("GRID_MOVEMENT", "ROTATION_RATE", "MOTION_ORIGIN", "MACH_MOTION"):
+            if prefix + key in values:
+                found[key] = values[prefix + key]
+    return found
 
 
 def _rotor(
@@ -447,7 +597,9 @@ def _rotor(
         geometry=point.geometry,
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
     )
+    values = _turning_zone_values(point, values)
     if averaged is not None and "skipped" in averaged:
         return {"rotor": rotor.alias, "skipped": averaged["skipped"]}
     found = rotor_point(
@@ -492,6 +644,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
                     geometry=point.geometry,
                     run_type=point.point.run_type,
                     restarted=point.point.restart_from is not None,
+                    precursor=point.point.precursor,
                 )
             )
             files.warn(
@@ -503,6 +656,9 @@ def collect(point: AdapterPoint) -> NeutralResult:
     else:
         found = dimensions(folder)
     averaged: dict[str, object] | None = None
+    plots: dict[str, object] | None = None
+    if point.point.run_type not in TIME_ACCURATE:
+        plots = _steady_plots(point, folder, result.history)
     if point.point.run_type in TIME_ACCURATE:
         record: dict[str, object] = {}
         values = config(
@@ -513,9 +669,11 @@ def collect(point: AdapterPoint) -> NeutralResult:
             geometry=point.geometry,
             run_type=point.point.run_type,
             restarted=point.point.restart_from is not None,
+            precursor=point.point.precursor,
             record=record,
         )
-        averaged = _time_average(point, folder, record, tuple(coefficients))
+        averaged = _time_average(point, folder, record, tuple(coefficients), values)
+        plots = cast(dict[str, object] | None, averaged.pop("plots", None))
         averaged["condition"] = condition_cells(values)
         averaged["absent"] = list(ABSENT_CONDITION_COLUMNS)
         means = cast(Mapping[str, float], averaged.get("means", {}))
@@ -535,4 +693,5 @@ def collect(point: AdapterPoint) -> NeutralResult:
         _rotor(point, coefficients, averaged),
         averaged,
         force_groups=force_groups(folder, groups(point.setup), coefficients),
+        plots=plots,
     )

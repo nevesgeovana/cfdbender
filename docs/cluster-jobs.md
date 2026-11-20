@@ -218,6 +218,45 @@ status 0, before the dependent's command (or its `hpc.application_id` wrapper) i
 `cp` alone: the job script needs only a POSIX shell, no Python on the node; see
 [restart](records.md#a-source-that-runs-earlier-in-the-same-job).
 
+## A point that starts from a frozen-rotor solution
+
+A time-accurate sliding rotor row whose `RESTART` cell is `MRF` runs two solver stages in its
+point folder (`precursor.cfg`, then `su2.cfg`; see [SU2 workspaces](su2-workspaces.md)), and the
+solver is launched twice through the same launcher. cfdbender writes `run_mrf.sh` into the folder
+and its batch block runs `sh run_mrf.sh <the row's command without its configuration file>`:
+
+```sh
+( cd ../../sim_1001/datapoints/DP-M053AL+004RPM00955 && sh run_mrf.sh sh ../../../../tools/su2.sh > stdout.log 2> stderr.log )
+```
+
+The script calls the command once per stage with the stage's configuration file as its last
+argument. That is the contract of the command already (it receives `su2.cfg`), so a launcher or
+an application wrapper that ends in `"$@"` needs nothing; one that runs a fixed file does not:
+
+```sh
+#!/bin/sh
+exec mpirun -np 16 SU2_CFD "$@"      # the stage's file is the last argument; do not name su2.cfg here
+```
+
+A wrapper that ignores its argument and runs `su2.cfg` both times is caught: stage 1 then ends
+without `precursor_restart_<zone>.dat`, or SU2 stops because the staged solution is missing, and
+the point's `job.exit` is 91 with the line `PRECURSOR_FAILED: ... the command must run the
+configuration file it is given as its last argument` in `stderr.log`; stage 2 never starts.
+
+The exit statuses of such a point are 91 (stage 1 ended non-zero, or ran nothing), 92 (NaN in
+`precursor.csv`), 93 (a restart file of stage 1 is missing or empty), 94 (staging a copy failed),
+or stage 2's own status. 97 and 98 stay those of an in-job `RESTART` source. A stage 1 that ends
+at its iteration cap without meeting `[precursor] converge_to` is not a failure; the point's
+`stdout.log` gets one `PRECURSOR_WARNING` line. Every file is written at submission and the job
+needs only a POSIX shell (`cp`, `grep`): no Python runs on the node.
+
+Without `--batch` the per-point descriptor is rendered from the profile as for any point and the
+scheduler runs the profile's own application, which cfdbender cannot see: the folder holds
+`run_mrf.sh` and the job command must be `sh run_mrf.sh <launcher and solver>`, as an export
+window's `run_segments.sh` is run. A profile that runs `su2.cfg` directly runs the time-accurate
+stage without its staged solution, which SU2 refuses (`Unable to open SU2 restart file`), so the
+point fails and is never a silent cold start. A local `run` does both stages itself.
+
 ## See what would be submitted
 
 With a profile in `inputs/hpc/`, `plan` adds the job description of each point

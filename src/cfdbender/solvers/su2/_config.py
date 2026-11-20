@@ -260,11 +260,14 @@ def config(
     run_type: str = "steady",
     record: dict[str, object] | None = None,
     restarted: bool = False,
+    precursor: bool = False,
 ) -> dict[str, object]:
     """Return the SU2 keys of one point: the s/r/p files, the row and its run type's keys.
 
     ``record``, when given, receives what the run type resolved (its clock and windows).
     ``restarted`` states that the point starts from a saved solution (the row's RESTART).
+    ``precursor`` states that it starts from a steady frozen-rotor stage of its own (the row's
+    RESTART is ``MRF``): the stage's files are keys written ``<file>/<KEY>``.
     """
     from cfdbender.solvers.su2._products import product_outputs
     from cfdbender.solvers.su2._run_types import SETUP_KEYS, apply_run_type, turbulence
@@ -437,6 +440,7 @@ def config(
             periodic=periodic,
             motion=motion,
             restarted=restarted,
+            precursor=precursor,
         )
         if record is not None:
             record.update(resolved)
@@ -461,7 +465,27 @@ def config(
         if "AERO_COEFF_SURF" not in history_groups:
             history_groups.append("AERO_COEFF_SURF")
         values["HISTORY_OUTPUT"] = history_groups
+    _surface_history(values)
+    if precursor:
+        from cfdbender.solvers.su2._precursor import stage_one
+
+        sliding = cast(Mapping[str, object], setup["sliding"])
+        values.update(stage_one(values, setup, cast(int, sliding["rotating_zone"])))
     return values
+
+
+def _surface_history(values: dict[str, object]) -> None:
+    """Ask for the per-surface coefficients of every monitored marker, on every point.
+
+    The loads of a part of the model are summed at post time from the per-marker columns
+    (``CFx(wing)``), so the run writes them for every wall marker whatever the groups of a post
+    file are: a new grouping needs only a new post. A multizone history names the group per
+    zone, ``AERO_COEFF_SURF[<zone>]``.
+    """
+    groups = [str(group) for group in cast(list[object], values["HISTORY_OUTPUT"])]
+    zones = len(cast(list[object], values["CONFIG_LIST"])) if values.get("MULTIZONE") else 0
+    wanted = [f"AERO_COEFF_SURF[{i}]" for i in range(zones)] if zones else ["AERO_COEFF_SURF"]
+    values["HISTORY_OUTPUT"] = [*groups, *(name for name in wanted if name not in groups)]
 
 
 #: The SU2 markers that are walls: their names are plotted and monitored by default.
@@ -937,8 +961,10 @@ def extra_files(values: Mapping[str, object]) -> dict[str, str]:
 
     A key written ``<file>/<KEY>`` belongs to that file: a zone file of a sliding-mesh run
     states its own keys only; the second segment of an export window is ``su2.cfg`` with
-    its keys replaced. A point with two segments also gets the job script that runs them.
+    its keys replaced. A point with two segments also gets the job script that runs them, and
+    a point with a frozen-rotor precursor stage its files and the script that runs the stages.
     """
+    from cfdbender.solvers.su2._precursor import PRECURSOR_SCRIPT, script_text, stages
     from cfdbender.solvers.su2._run_types import SEGMENT_TWO, SEGMENTS_SCRIPT
 
     files: dict[str, dict[str, object]] = {}
@@ -954,7 +980,9 @@ def extra_files(values: Mapping[str, object]) -> dict[str, str]:
             texts[name] = "".join(
                 f"{key}= {render_value(value, key)}" + chr(10) for key, value in sorted(own.items())
             )
-    if SEGMENT_TWO in texts:
+    if spec := stages(values):
+        texts[PRECURSOR_SCRIPT] = script_text(spec)
+    elif SEGMENT_TWO in texts:
         texts[SEGMENTS_SCRIPT] = SEGMENTS_TEXT
     return texts
 

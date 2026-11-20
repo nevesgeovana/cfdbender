@@ -28,6 +28,7 @@ PROVISIONAL readings, each behind one named parameter of this module:
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
@@ -167,6 +168,39 @@ def product_outputs(values: dict[str, object], post: Mapping[str, object]) -> No
     values["OUTPUT_FILES"] = [*outputs, *(name for name in wanted if name not in upper)]
 
 
+_MESH_LINE = re.compile(rb"^[ \t]*(IZONE|MARKER_TAG)[ \t]*=[ \t]*([^\r\n%]*)", re.MULTILINE)
+
+
+def zone_markers(path: Path) -> dict[str, int]:
+    """Return the zone (0-based, the index in SU2's file names) of each marker of a SU2 mesh.
+
+    ``IZONE= 2`` opens the second zone and each ``MARKER_TAG`` after it belongs to it; a mesh
+    that states no ``IZONE`` is one zone. The file is read in blocks, so a large mesh costs no
+    memory. A marker name repeated in a later zone keeps the first zone.
+    """
+    found: dict[str, int] = {}
+    zone = 0
+
+    def scan(text: bytes) -> None:
+        nonlocal zone
+        for key, value in _MESH_LINE.findall(text):
+            word = value.decode("ascii", errors="replace").strip()
+            if key == b"IZONE":
+                zone = int(word) - 1 if word.isdigit() and int(word) > 0 else zone
+            else:
+                found.setdefault(word, zone)
+
+    tail = b""
+    with path.open("rb") as stream:
+        while block := stream.read(1 << 24):
+            data = tail + block
+            cut = data.rfind(b"\n") + 1
+            tail = data[cut:]
+            scan(data[:cut])
+    scan(tail)
+    return found
+
+
 def _stem(values: Mapping[str, object], key: str, default: str) -> str:
     name = str(values.get(key, default)).strip()
     return name.removesuffix(".vtu") or default
@@ -187,8 +221,9 @@ def product_inputs(point: AdapterPoint) -> ProductInputs:
 
     A steady point (``steady``, ``qsteady_rotor``) has one file of each kind; a
     time-accurate point has one per step of its export window, or the last step's without
-    one. A file that is absent is named with the reason; a sliding-mesh multizone point's
-    per-zone files are not read yet and are named the same way.
+    one. A file that is absent is named with the reason. A sliding-mesh multizone point has one
+    file of each kind per zone and step, ``flow_<zone>_<iteration>.vtu`` (the order of SU2 8.3.0's
+    files), listed in zone order with their ``zone``.
     """
     from cfdbender.solvers.su2._config import config, free_stream, gas_state
 
@@ -201,6 +236,7 @@ def product_inputs(point: AdapterPoint) -> ProductInputs:
         geometry=point.geometry,
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
         record=record,
     )
     folder = workspace_path(point.root, point.point.directory)
@@ -236,22 +272,24 @@ def product_inputs(point: AdapterPoint) -> ProductInputs:
     else:
         steps.append((None, None, ""))
     multizone = bool(values.get("MULTIZONE"))
+    zones: list[int | None] = (
+        list(range(len(cast(list[object], values["CONFIG_LIST"])))) if multizone else [None]
+    )
     found: dict[str, list[StepFile]] = {SURFACE: [], VOLUME: []}
     for kind, stem in ((SURFACE, surface_stem), (VOLUME, volume_stem)):
         for at, time_s, suffix in steps:
-            name = f"{stem}{suffix}.vtu"
-            if multizone:
-                missing.append(
-                    (
-                        f"{relative}/{name}",
-                        "a sliding-mesh run writes one file per zone, not read yet",
-                    )
-                )
-            elif (folder / name).is_file():
-                found[kind].append(StepFile(at, time_s, f"{relative}/{name}"))
-            else:
-                missing.append((f"{relative}/{name}", "the run did not write it"))
+            for zone in zones:
+                # SU2 writes the zone before the time iteration: flow_<zone>_<iteration>.vtu.
+                name = f"{stem}{'' if zone is None else f'_{zone}'}{suffix}.vtu"
+                if (folder / name).is_file():
+                    found[kind].append(StepFile(at, time_s, f"{relative}/{name}", zone))
+                else:
+                    missing.append((f"{relative}/{name}", "the run did not write it"))
     markers = _listed(values.get("MARKER_PLOTTING", []))
+    family_zones: dict[str, int] = {}
+    if multizone and (folder / "mesh.su2").is_file():
+        owned = zone_markers(folder / "mesh.su2")
+        family_zones = {name: owned[name] for name in markers if name in owned}
     clock = cast(Mapping[str, object], record.get("clock") or {})
     spr = clock.get("steps_per_revolution")
     return ProductInputs(
@@ -266,6 +304,8 @@ def product_inputs(point: AdapterPoint) -> ProductInputs:
         time_accurate=timed,
         windowed=timed and record.get("export_window") is not None,
         missing=tuple(missing),
+        zones=len(zones),
+        family_zones=family_zones,
         notes={
             "velocity_frame": VELOCITY_FRAME,
             "cp_reference": CP_REFERENCE,

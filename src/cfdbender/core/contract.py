@@ -100,11 +100,15 @@ class StepFile:
         The physical time of the step, s.
     path : str
         The workspace-relative file.
+    zone : int or None
+        The zone a multizone point's file holds; None for a single-zone point. The files of
+        one step are listed together, in zone order.
     """
 
     step: int | None
     time_s: float | None
     path: str
+    zone: int | None = None
 
 
 @dataclass(frozen=True)
@@ -139,6 +143,12 @@ class ProductInputs:
         Each file the point should hold and does not, with the reason.
     notes : mapping of str to str
         Further provenance the manifest states (for example the velocity's frame).
+    zones : int
+        The number of zones of a multizone point, whose files are one per zone and step; 1 for
+        a single-zone point.
+    family_zones : mapping of str to int
+        The zone each family belongs to, of a multizone point; empty when the zones of the
+        families are not known.
     """
 
     surface: tuple[StepFile, ...] = ()
@@ -154,6 +164,13 @@ class ProductInputs:
     windowed: bool = False
     missing: tuple[tuple[str, str], ...] = ()
     notes: Mapping[str, str] = field(default_factory=dict)
+    zones: int = 1
+    family_zones: Mapping[str, int] = field(default_factory=dict)
+
+    @property
+    def zoned(self) -> bool:
+        """Whether the point is multizone."""
+        return self.zones > 1
 
 
 def product_support(adapter: object) -> Mapping[str, ProductSupport]:

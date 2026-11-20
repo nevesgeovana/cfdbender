@@ -34,7 +34,7 @@ from numpy.typing import NDArray
 from cfdbender._textio import write_csv, write_json, write_text
 from cfdbender.core.axes import NOT_APPLICABLE
 from cfdbender.core.plan import _checked_file_name
-from cfdbender.post.volume import VolumeError, VolumeSampler
+from cfdbender.post.volume import VolumeError, VolumeSampler, ZonedSampler
 from cfdbender.post.volume_frames import Frame
 from cfdbender.post.vtu import UnstructuredGrid, read_vtu
 
@@ -67,25 +67,37 @@ class VolumeStep:
         The solver step; None for a product with no step (a steady solution).
     time : float or None
         The physical time, recorded in the provenance, never written as a column.
-    source : path or UnstructuredGrid
-        The ``.vtu`` file, read when first needed, or a grid already read.
+    source : path, UnstructuredGrid or list of paths
+        The ``.vtu`` file, read when first needed, or a grid already read. A list holds the
+        files of the zones of a multizone step, in zone order: a point is sampled from the first
+        zone that holds it.
     """
 
     def __init__(
-        self, step: int | None, time: float | None, source: str | Path | UnstructuredGrid
+        self,
+        step: int | None,
+        time: float | None,
+        source: str | Path | UnstructuredGrid | list[Path],
     ) -> None:
         self.step = step
         self.time = time
         self.source = source
-        self._sampler: VolumeSampler | None = None
+        self._sampler: VolumeSampler | ZonedSampler | None = None
 
-    def sampler(self) -> VolumeSampler:
+    def sampler(self) -> VolumeSampler | ZonedSampler:
         """Return the sampler of this volume, reading and indexing it on first use."""
         if self._sampler is None:
-            grid = (
-                self.source if isinstance(self.source, UnstructuredGrid) else read_vtu(self.source)
-            )
-            self._sampler = VolumeSampler(grid)
+            if isinstance(self.source, list):
+                self._sampler = ZonedSampler(
+                    [VolumeSampler(read_vtu(path)) for path in self.source]
+                )
+            else:
+                grid = (
+                    self.source
+                    if isinstance(self.source, UnstructuredGrid)
+                    else read_vtu(self.source)
+                )
+                self._sampler = VolumeSampler(grid)
         return self._sampler
 
     def release(self) -> None:
@@ -93,15 +105,26 @@ class VolumeStep:
         self._sampler = None
 
     def source_name_and_hash(self) -> tuple[str | None, str | None]:
-        """Return the file name and SHA-256 of a source file, ``(None, None)`` for a grid."""
+        """Return the file name and SHA-256 of a source file, ``(None, None)`` for a grid.
+
+        The zone files of a multizone step give their names joined by ``, `` and the SHA-256 of
+        their own SHA-256 digests, written in hexadecimal and joined by ``,``.
+        """
         if isinstance(self.source, UnstructuredGrid):
             return None, None
-        path = Path(self.source)
-        digest = hashlib.sha256()
-        with path.open("rb") as stream:
-            for block in iter(lambda: stream.read(1 << 20), b""):
-                digest.update(block)
-        return path.name, digest.hexdigest()
+        if isinstance(self.source, list):
+            parts = [_file_digest(path) for path in self.source]
+            joined = ",".join(digest for _, digest in parts)
+            return ", ".join(name for name, _ in parts), hashlib.sha256(joined.encode()).hexdigest()
+        return _file_digest(Path(self.source))
+
+
+def _file_digest(path: Path) -> tuple[str, str]:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(block)
+    return path.name, digest.hexdigest()
 
 
 @dataclass(frozen=True)

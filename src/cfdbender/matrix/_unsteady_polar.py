@@ -49,6 +49,40 @@ def left_out(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str
     return tuple(found)
 
 
+def plots_absent(rows: Sequence[Mapping[str, object]], name: str) -> tuple[tuple[str, str], ...]:
+    """Name each ``[plots]`` column or group the unsteady polar leaves out, with the reason.
+
+    The file is the unsteady polar of a time-accurate point and the steady plot table of a
+    steady one. A parameter SU2 cannot fill (``CDI``), a group whose markers carry no load or
+    that the history cannot give, and a group in a frame SU2 does not supply are never a
+    column, empty or ``NA``; each is ``(<file>#plots:<what>,point=<id>, <reason>)``. A point
+    without ``[plots]`` names nothing.
+    """
+    found: list[tuple[str, str]] = []
+    for row in rows:
+        result = cast(Mapping[str, object], row.get("result") or {})
+        averaged = result.get("time_average")
+        plots = result.get("plots")
+        if not isinstance(plots, dict):
+            continue
+        if isinstance(averaged, dict) and isinstance(averaged.get("means"), dict):
+            base = f"polars/{unsteady_polar_name(str(row['pol']), name)}"
+        elif isinstance(plots.get("values"), dict):
+            from cfdbender.matrix._steady_plots import steady_plots_name
+
+            base = f"polars/{steady_plots_name(str(row['pol']), name)}"
+        else:
+            continue
+        point = f"point={row['point_id']}"
+        for what, reason in cast(Mapping[str, str], plots.get("absent") or {}).items():
+            found.append((f"{base}#plots:{what},{point}", f"plot column absent: {reason}"))
+        for item in cast(Sequence[Mapping[str, str]], plots.get("skipped") or ()):
+            found.append(
+                (f"{base}#plots:{item['group']},{point}", f"plot group skipped: {item['reason']}")
+            )
+    return tuple(found)
+
+
 def unsteady_polars(
     folder: Path,
     rows: Sequence[Mapping[str, object]],

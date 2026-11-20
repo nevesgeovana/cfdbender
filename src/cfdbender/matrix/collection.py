@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import stat
 import time
 import warnings
@@ -25,13 +26,19 @@ from typing import cast
 from cfdbender.core.adapter import SolverAdapter, load_point
 from cfdbender.core.convergence import SOLVERS as JUDGED
 from cfdbender.core.executables import build_mismatch
-from cfdbender.core.plan import InputSession, PlanError, matrix_homes, workspace_path
+from cfdbender.core.plan import (
+    InputSession,
+    PlanError,
+    matrix_homes,
+    new_post_file_allowed,
+    workspace_path,
+)
 from cfdbender.core.registry import RegistryError, RunRecord, RunRegistry
 from cfdbender.core.settings import read_init
 from cfdbender.matrix._declared import matrix_products
 from cfdbender.matrix._journal import verdicts
 from cfdbender.matrix._tree_migration import warn_retired
-from cfdbender.matrix._unsteady_polar import left_out
+from cfdbender.matrix._unsteady_polar import left_out, plots_absent
 from cfdbender.matrix.batch import batch_exit_written, batch_status
 from cfdbender.matrix.exports import _write as _write_product
 from cfdbender.matrix.exports import write_polar_files
@@ -290,6 +297,7 @@ def collect_workspace(
     grouped: dict[str, list[dict[str, object]]] = {}
     collected = failed = outstanding = 0
     failed_ids: set[str] = set()
+    post_files: dict[str, dict[str, bytes]] = {}
     session = InputSession(target)
     for record in records:
         row: dict[str, object] = {
@@ -404,6 +412,17 @@ def collect_workspace(
                     f"{record.point_id}: collected classification differs from record"
                 )
             row["result"] = result.to_dict()
+            if new_post_file_allowed():
+                # the digest and the copy are those of the bytes the point was parsed from
+                name = f"inputs/pproc/{record.point.post_id}.toml"
+                files = session.files()
+                data = files.read_bytes(name)  # the first-read bytes the point parsed
+                files.track(name)
+                digest = files.digests()[name]
+                if hashlib.sha256(data).hexdigest() != digest:
+                    raise ValueError(f"{name} changed while it was read")
+                row["inputs_sha256"] = {**cast(dict[str, str], row["inputs_sha256"]), name: digest}
+                post_files.setdefault(record.matrix, {})[digest] = data
             if record.classification == "failed":
                 failed += 1
                 failed_ids.add(record.point_id)
@@ -419,6 +438,13 @@ def collect_workspace(
     products: list[Path] = []
     for name, rows in sorted(grouped.items()):
         _check_metadata(workspace_path(target, f"post/{Path(name).stem}"), name, config.solver)
+        for digest, data in post_files.get(name, {}).items():
+            kept = workspace_path(target, f"post/{Path(name).stem}/pproc/{digest}.toml")
+            if not kept.is_file() or kept.read_bytes() != data:
+                kept.parent.mkdir(parents=True, exist_ok=True)
+                temporary = kept.with_name(".collect-" + kept.name)
+                temporary.write_bytes(data)
+                os.replace(temporary, kept)
         summary = _write_summary(target, name, config.solver, rows)
         migrated = warn_retired(workspace_path(target, f"post/{Path(name).stem}"))
         by_rule = judge_rows(target, rows, config.solver) if config.solver in JUDGED else None
@@ -449,7 +475,11 @@ def collect_workspace(
                 polar,
                 migrated,
                 details=details,
-                declared_skips=(*declared_skips, *left_out(rows, Path(name).stem)),
+                declared_skips=(
+                    *declared_skips,
+                    *left_out(rows, Path(name).stem),
+                    *plots_absent(rows, Path(name).stem),
+                ),
             )
         )
     if archive:

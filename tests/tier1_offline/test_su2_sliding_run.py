@@ -48,6 +48,13 @@ def test_a_multizone_history_is_named_after_the_master_configuration():
     assert history_outputs({"TIME_DOMAIN": True}) == ["history.csv"]
 
 
+def test_a_sliding_point_waits_for_its_multizone_history(tmp_path):
+    from cfdbender.solvers import su2
+
+    point, _, _ = _sliding(tmp_path)
+    assert set(su2.job_output_files(point)) == {"stdout.log", "su2.csv"}
+
+
 def test_a_sliding_point_expects_the_history_it_will_get(tmp_path):
     point, _, _ = _sliding(tmp_path)
     names = [output.rsplit("/", 1)[1] for output in point.outputs]

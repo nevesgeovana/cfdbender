@@ -273,6 +273,21 @@ def _zone_headers(folder: Path, headers: list[str]) -> list[str]:
     keys = _segment_configs(folder, required=False)[0]
     if not _yes(keys, "MULTIZONE"):
         return headers
+    zone, _ = _zones(folder, keys)
+    pattern = re.compile(rf"([A-Za-z]+)\[{zone}\](.*)")
+    renamed: list[str] = []
+    for key in headers:
+        found = pattern.fullmatch(key)
+        renamed.append(found[1] + found[2] if found and found[1] in _AXES else key)
+    return renamed
+
+
+def _zones(folder: Path, keys: Mapping[str, str]) -> tuple[int, int]:
+    """Return the turning zone of a multizone point and the number of its zones.
+
+    The turning zone is the one whose zone file states a grid motion; anything but exactly one
+    is refused, naming the zone files.
+    """
     names = re.findall(r"zone_\d+[.]cfg", keys.get("CONFIG_LIST", ""))
     moving = [
         index
@@ -290,13 +305,7 @@ def _zone_headers(folder: Path, headers: list[str]) -> list[str]:
             f"{len(moving)} of the zone files {', '.join(names)} state a grid motion"
             + (f" ({', '.join(f'zone_{i}.cfg' for i in moving)})" if moving else "")
         )
-    zone = moving[0]
-    pattern = re.compile(rf"([A-Za-z]+)\[{zone}\](.*)")
-    renamed: list[str] = []
-    for key in headers:
-        found = pattern.fullmatch(key)
-        renamed.append(found[1] + found[2] if found and found[1] in _AXES else key)
-    return renamed
+    return moving[0], len(names)
 
 
 #: The counters of a history row the adapter reads.

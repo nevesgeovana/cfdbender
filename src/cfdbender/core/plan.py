@@ -192,6 +192,30 @@ _REHASH: contextvars.ContextVar[bool] = contextvars.ContextVar(
 )
 
 
+_NEW_POST: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "cfdbender_new_post_file", default=False
+)
+
+
+@contextmanager
+def new_post_file(enabled: bool = True) -> Iterator[None]:
+    """Let a point be loaded with a PPROC file that differs from the planned one, in the block.
+
+    ``collect`` and ``post`` read saved outputs only, so a new grouping of the products needs no
+    new plan and no new run; a command that runs never sets it.
+    """
+    token = _NEW_POST.set(enabled)
+    try:
+        yield
+    finally:
+        _NEW_POST.reset(token)
+
+
+def new_post_file_allowed() -> bool:
+    """Return whether the running command accepts a PPROC file that differs from the plan."""
+    return _NEW_POST.get()
+
+
 @contextmanager
 def rehash_inputs(enabled: bool = True) -> Iterator[None]:
     """Ignore the persistent digest cache inside the block, reading every input again.
@@ -1459,6 +1483,8 @@ class Point:
     #: The source of RESTART runs earlier in the same batch job: the solution is staged by the
     #: job script after the source ends, so no digest is recorded at planning.
     restart_in_job: bool = False
+    #: The row's RESTART cell is ``MRF``: a steady frozen-rotor stage runs before the point.
+    precursor: bool = False
     defaults_omitted: tuple[str, ...] = ()
     numerics_id: str = ""
     #: The run type the row selects in its WORKFLOW cell; a steady record omits it.
@@ -1484,6 +1510,7 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "restart_directory": None,
         "restart_sha256": {},
         "restart_in_job": False,
+        "precursor": False,
         "defaults_omitted": (),
         "numerics_id": "",
         "run_type": "steady",
@@ -1567,6 +1594,7 @@ def _points(root: Path, row: MatrixRow, inputs: RowInputs, needs: RowRequirement
                 configuration=row.configuration,
                 hidden=row.hidden,
                 restart_from=row.restart_from,
+                precursor=row.precursor,
                 defaults_omitted=inputs.defaults_omitted,
                 numerics_id=inputs.numerics_id,
                 run_type=row.workflow,
@@ -1690,8 +1718,10 @@ def _post_products(
     A malformed table is refused with pyflightstream's message. A skipped table is removed
     from the row's p file as the adapter sees it, so the adapter never warns about it again.
     """
-    from cfdbender.core.pproc import PRODUCT_TABLES, read_post
+    from cfdbender.core.pproc import PRODUCT_TABLES, read_plots, read_post
 
+    if solver == "su2":
+        read_plots(inputs.post, where=f"inputs/pproc/{row.post_id}.toml")
     if not any(table in inputs.post for table in PRODUCT_TABLES):
         return
     supported = frozenset(getattr(hook, "post_products", ()))
