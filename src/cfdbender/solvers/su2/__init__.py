@@ -98,7 +98,6 @@ from cfdbender.solvers.su2._restart import restart_values
 from cfdbender.solvers.su2._rotor import (
     ABSENT_CONDITION_COLUMNS,
     condition_cells,
-    rotor_loads,
     rotor_point,
 )
 
@@ -434,6 +433,7 @@ def _plot_groups(
         history_markers,
         plot_groups,
         plot_series,
+        zone_scales,
     )
 
     keys = _segment_configs(folder, required=False)[0]
@@ -452,9 +452,8 @@ def _plot_groups(
     )
     if not groups:
         return None, {}
-    loads = rotor_loads(values, (1.0, 1.0, 1.0), (1.0, 1.0, 1.0))
-    scale = None if loads is None else (loads.force_n[0], loads.moment_nm[0])
-    history, absent = plot_series(folder, groups, scale, turning_zone=turning, zones=count)
+    scales = zone_scales(values, folder, turning_zone=turning, zones=count)
+    history, absent = plot_series(folder, groups, scales, turning_zone=turning, zones=count)
     record: dict[str, object] = {
         "groups": [g.name for g in groups],
         "columns": [] if history is None else list(history.columns),
@@ -477,6 +476,7 @@ def _steady_plots(
         history_markers,
         plot_groups,
         plot_series,
+        zone_scales,
     )
 
     if "plots" not in point.post or not (folder / "history.csv").is_file():
@@ -495,9 +495,8 @@ def _steady_plots(
     groups, skipped = plot_groups(
         point.reference, point.post, history_markers(headers), multizone=False
     )
-    loads = rotor_loads(values, (1.0, 1.0, 1.0), (1.0, 1.0, 1.0))
-    scale = None if loads is None else (loads.force_n[0], loads.moment_nm[0])
-    found, absent = plot_series(folder, groups, scale, turning_zone=None, zones=1, steady=True)
+    scales = zone_scales(values, folder, turning_zone=None, zones=1)
+    found, absent = plot_series(folder, groups, scales, turning_zone=None, zones=1, steady=True)
     columns = {} if found is None else {n: float(v[0]) for n, v in found.columns.items()}
     return {
         "groups": [g.name for g in groups],

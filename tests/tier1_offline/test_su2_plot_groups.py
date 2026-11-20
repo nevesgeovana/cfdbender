@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import warnings
 
 import pytest
@@ -427,3 +428,102 @@ def test_collect_and_post_take_an_edited_post_file_only_with_the_option(tmp_path
     assert cli(["post", "--workspace", str(tmp_path), "--new-pproc"]) == 0
     summary = json.loads((tmp_path / "post/study/campaign_summary.json").read_bytes())
     assert not summary["points"][0]["error"]
+
+
+# ---- the absolute scale of FX..MZ, and the dynamic pressure of each zone
+
+NL = chr(10)
+# SU2's dynamic pressure at Mach 0.0529, 288.15 K, 101325 Pa, STANDARD_AIR
+Q = 0.5 * 1.2249781262066513 * (0.0529 * 340.2970287557621) ** 2
+AREA, LENGTH = 2.5, 0.8
+
+
+@pytest.fixture
+def reference(monkeypatch):
+    original = rt.workspace
+
+    def wrapped(root, **kw):
+        original(root, **kw)
+        f = root / "inputs/references/r001.toml"
+        text = f.read_text().replace("area = 1.0", f"area = {AREA}")
+        f.write_text(text.replace("length = 0.5", f"length = {LENGTH}"))
+
+    monkeypatch.setattr(rt, "workspace", wrapped)
+
+
+def _expect(means, name, coefficient, markers, factor):
+    assert means[name] == pytest.approx(factor * _mean(markers, coefficient)), name
+
+
+def test_time_accurate_loads_are_coefficient_times_q_a_and_q_a_l(tmp_path, reference):
+    _, point, _ = _point(tmp_path, POST_B)
+    means = _means(_collect(point))
+    for parameter, coefficient in (("FX", "CFx"), ("FY", "CFy"), ("FZ", "CFz")):
+        _expect(means, f"{parameter}_MRP_TOTAL", coefficient, MARKERS, Q * AREA)
+    for parameter, coefficient in (("MX", "CMx"), ("MY", "CMy"), ("MZ", "CMz")):
+        _expect(means, f"{parameter}_MRP_TOTAL", coefficient, MARKERS, Q * AREA * LENGTH)
+        _expect(means, f"{parameter}_MRP_PROP", coefficient, ZONES[1], Q * AREA * LENGTH)
+
+
+def test_steady_loads_are_coefficient_times_q_a_and_q_a_l(tmp_path, reference):
+    six = '"FX", "FY", "FZ", "MX", "MY", "MZ"'
+    _, point = _steady(tmp_path, STEADY_POST.replace('"FX", "MY"', six))
+    values = _collect(point)["plots"]["values"]
+    last = ITERATIONS - 1
+    wing = ("wing", "wing_te")
+    fx = Q * AREA * sum(_steady_value(m, "CFx", last) for m in wing)
+    mz = Q * AREA * LENGTH * sum(_steady_value(m, "CMz", last) for m in wing)
+    assert values["FX_MRP_Wing"] == pytest.approx(fx)
+    assert values["MZ_MRP_Wing"] == pytest.approx(mz)
+    mx = Q * AREA * LENGTH * _steady_value("tail", "CMx", last)
+    assert values["MX_MRP_tail"] == pytest.approx(mx)
+
+
+def _moving(monkeypatch, tmp_path, motion, *, condition=None):
+    monkeypatch.setattr(sys.modules[__name__], "SLIDING", f"MACH_MOTION = {motion}" + NL + SLIDING)
+    if condition is not None:
+        original = rt.workspace
+
+        def wrapped(root, **kw):
+            kw["condition"] = condition
+            original(root, **kw)
+
+        monkeypatch.setattr(rt, "workspace", wrapped)
+    _, point, folder = _point(tmp_path, POST_B)
+    zone = "GRID_MOVEMENT= RIGID_MOTION" + NL + "ROTATION_RATE= 1 0 0" + NL
+    (folder / "zone_1.cfg").write_text(zone + f"MACH_MOTION= {motion}" + NL)
+    return point
+
+
+def test_a_stated_mach_motion_scales_the_turning_zone_by_its_own_dynamic_pressure(
+    tmp_path, monkeypatch
+):
+    point = _moving(monkeypatch, tmp_path, 0.1)
+    means = _means(_collect(point))
+    prop = Q * (0.1 / 0.0529) ** 2 * _mean(ZONES[1], "CFx")
+    frame = Q * _mean(ZONES[0], "CFx")
+    assert means["FX_MRP_PROP"] == pytest.approx(prop)
+    assert means["FX_MRP_AIRFRAME"] == pytest.approx(frame)
+    assert means["FX_MRP_TOTAL"] == pytest.approx(prop + frame)
+    # a group over both zones: its lift is the dimensional sum over the free-stream q
+    cl = (Q * (0.1 / 0.0529) ** 2 * _mean(ZONES[1], "CL") + Q * _mean(ZONES[0], "CL")) / Q
+    assert means["CL_MRP_TOTAL"] == pytest.approx(cl)
+    # a group in one zone is SU2's own coefficient
+    assert means["CL_MRP_PROP"] == pytest.approx(_mean(ZONES[1], "CL"))
+
+
+def test_a_hover_has_no_free_stream_pressure_so_mixed_coefficients_are_absent(
+    tmp_path, monkeypatch
+):
+    point = _moving(monkeypatch, tmp_path, 0.1, condition="MACH:0, ALPHA:0, RPM:1000")
+    result = _collect(point)
+    means = _means(result)
+    # the turning zone alone: SU2's own coefficient, and a load from its MACH_MOTION
+    assert means["CL_MRP_PROP"] == pytest.approx(_mean(ZONES[1], "CL"))
+    assert means["FX_MRP_PROP"] > 0.0
+    # the fixed zone has no pressure to scale it: no load, never 0.0
+    assert "FX_MRP_AIRFRAME" not in means and "FX_MRP_TOTAL" not in means
+    assert "dynamic pressure" in result["plots"]["absent"]["FX_MRP_TOTAL"]
+    # both zones: no free-stream reference for the coefficient
+    assert "CL_MRP_TOTAL" not in means
+    assert "free-stream" in result["plots"]["absent"]["CL_MRP_TOTAL"]

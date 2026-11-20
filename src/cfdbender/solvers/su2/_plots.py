@@ -31,7 +31,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from cfdbender.core.pproc import (
     AXES_PLOT_COMPONENTS,
@@ -259,6 +259,88 @@ def unfillable(groups: Sequence[Group]) -> dict[str, str]:
     }
 
 
+@dataclass(frozen=True)
+class Scales:
+    """The dynamic pressure SU2 scales each zone's coefficients by, and the references.
+
+    ``zone`` maps a zone (None for a single-zone point) to its ``q`` in Pa: the free-stream
+    one for a fixed zone and the one of the zone file's ``MACH_MOTION`` for the turning zone.
+    ``free`` is the free-stream ``q`` (0 in a hover, None when the deck fixes none).
+    """
+
+    zone: Mapping[int | None, float | None]
+    free: float | None
+    area: float
+    length: float
+
+    def q(self, zone: int | None) -> float | None:
+        """Return the dynamic pressure of a zone, None when unknown."""
+        return self.zone.get(zone)
+
+    def same_as_free(self, zone: int | None) -> bool:
+        """Whether the zone's coefficients are scaled by the free-stream pressure."""
+        q = self.q(zone)
+        return (
+            q is not None
+            and self.free is not None
+            and abs(q - self.free) <= 1e-9 * max(abs(self.free), 1e-300)
+        )
+
+
+def _no_pressure(scales: Scales | None, bad: Sequence[int | None]) -> str:
+    if scales is None:
+        return "the run states no free stream to turn a coefficient into a load"
+    where = ", ".join("the point" if z is None else f"zone {z}" for z in bad)
+    return (
+        f"the dynamic pressure of {where} is 0 or unknown (a zone moves at its MACH_MOTION, "
+        "a fixed zone at the free stream), so the coefficient cannot be turned into a load"
+    )
+
+
+def zone_scales(
+    values: Mapping[str, object], folder: Path, *, turning_zone: int | None, zones: int
+) -> Scales | None:
+    """Return the dynamic pressures of a point's zones, None without a free stream.
+
+    SU2 normalises a moving zone's coefficients by ``MACH_MOTION`` and a fixed zone's by the
+    free stream (its log says so per zone). The turning zone's ``MACH_MOTION`` is the one its
+    zone file states, else the deck's, else the free stream's Mach number.
+    """
+    import math
+
+    from cfdbender.solvers._host._config import number
+    from cfdbender.solvers.su2._config import free_stream
+
+    area = number(values["REF_AREA"], "REF_AREA")
+    length = number(values["REF_LENGTH"], "REF_LENGTH")
+    if zones <= 1:
+        stream = free_stream(values)
+        if stream is None:
+            return None
+        return Scales({None: stream.dynamic_pressure}, stream.dynamic_pressure, area, length)
+    stream = free_stream({k: v for k, v in values.items() if k != "MACH_MOTION"})
+    if stream is None:
+        return None
+    free = stream.dynamic_pressure
+    pressures: dict[int | None, float | None] = dict.fromkeys(range(zones), free)
+    stated: object = values.get(f"zone_{turning_zone}.cfg/MACH_MOTION")
+    path = folder / f"zone_{turning_zone}.cfg"
+    if path.is_file():
+        found = re.search(
+            r"^[ \t]*MACH_MOTION[ \t]*=[ \t]*([0-9.eE+-]+)", path.read_text(), re.MULTILINE
+        )
+        if found:
+            stated = found[1]
+    if stated is not None and turning_zone is not None:
+        motion = number(float(str(stated)), "MACH_MOTION")
+        if stream.density is None:
+            pressures[turning_zone] = None
+        elif not math.isclose(motion, stream.mach, rel_tol=1e-9):
+            speed = motion * stream.sonic_velocity
+            pressures[turning_zone] = 0.5 * stream.density * speed * speed
+    return Scales(pressures, free, area, length)
+
+
 def _steady_table(folder: Path) -> tuple[list[str], list[list[str]]]:
     """Return the header and the rows of a steady point's ``history.csv``."""
     import csv
@@ -300,7 +382,7 @@ def _steady_history(folder: Path, names: Sequence[str], marker: str | None) -> A
 def plot_series(
     folder: Path,
     groups: Sequence[Group],
-    scale: tuple[float, float] | None,
+    scales: Scales | None,
     *,
     turning_zone: int | None,
     zones: int,
@@ -314,8 +396,8 @@ def plot_series(
         The point folder.
     groups : sequence of Group
         What :func:`plot_groups` returned.
-    scale : tuple of float or None
-        ``q A`` (N) and ``q A L`` (N m) that turn a force and a moment coefficient into the
+    scales : Scales or None
+        The dynamic pressure of each zone, that turn a force and a moment coefficient into the
         dimensional parameter; None when the run states no free stream.
     turning_zone, zones : int
         The turning zone and the zone count of a multizone point; ``zones`` is 1 otherwise.
@@ -355,9 +437,9 @@ def plot_series(
     for group in groups:
         try:
             if group.markers is None and group.turning:
-                parts = [series(turning_zone, None)]
+                parts = [(turning_zone, series(turning_zone, None))]
             elif group.markers is None:
-                parts = [series(z, None) for z in (range(zones) if zones > 1 else [None])]
+                parts = [(z, series(z, None)) for z in (range(zones) if zones > 1 else [None])]
             else:
                 parts = []
                 for marker in group.markers:
@@ -372,26 +454,52 @@ def plot_series(
                             "keep AERO_COEFF_SURF in HISTORY_OUTPUT and the marker in "
                             "MARKER_MONITORING"
                         )
-                    parts.append(series(where[0], marker))
+                    parts.append((where[0], series(where[0], marker)))
         except (OSError, ValueError, StopIteration) as error:
             absent[group.name] = str(error)
             continue
-        total = {n: sum(p.columns[n] for p in parts) for n in names}
+        total = {n: sum(p.columns[n] for _, p in parts) for n in names}
         if all(not np.any(total[n]) for n in names):
             absent[group.name] = "its markers carry no load: every value is zero in every row"
             continue
-        steps = parts[0].steps
+        steps = parts[0][1].steps
+        zone_q = [scales.q(z) if scales is not None else None for z, _ in parts]
+        # SU2's own coefficients: the markers of one zone, or of zones it scales alike
+        same = len({z for z, _ in parts}) == 1 or (
+            scales is not None and all(scales.same_as_free(z) for z, _ in parts)
+        )
         for parameter in group.parameters:
             if parameter not in COEFFICIENT:
                 continue
-            values = total[COEFFICIENT[parameter]]
+            column = f"{parameter}_{group.name}"
+            coefficient = COEFFICIENT[parameter]
             if parameter[0] in "FM":
-                if scale is None:
-                    absent[f"{parameter}_{group.name}"] = (
-                        "the run states no free stream to turn a coefficient into a load"
-                    )
+                bad = [z for (z, _), q in zip(parts, zone_q, strict=True) if not q or q <= 0.0]
+                if scales is None or bad:
+                    absent[column] = _no_pressure(scales, bad)
                     continue
-                values = values * (scale[0] if parameter[0] == "F" else scale[1])
-            columns[f"{parameter}_{group.name}"] = values
+                factor = scales.area * (scales.length if parameter[0] == "M" else 1.0)
+                values = sum(
+                    p.columns[coefficient] * q * factor
+                    for (_, p), q in zip(parts, zone_q, strict=True)
+                )
+            elif same:
+                values = total[coefficient]
+            elif scales is None or not scales.free or scales.free <= 0.0 or None in zone_q:
+                absent[column] = (
+                    "the group's markers lie in zones that SU2 normalises by different dynamic "
+                    "pressures, and the free-stream dynamic pressure is 0 or unknown, so the "
+                    "coefficient has no reference; the force and moment columns remain"
+                )
+                continue
+            else:
+                values = (
+                    sum(
+                        p.columns[coefficient] * cast(float, q)
+                        for (_, p), q in zip(parts, zone_q, strict=True)
+                    )
+                    / scales.free
+                )
+            columns[column] = values
     history = None if steps is None or not columns else TimeHistory(steps, columns)
     return history, absent
