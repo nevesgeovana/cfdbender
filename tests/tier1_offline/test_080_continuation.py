@@ -1,6 +1,6 @@
 """A finished (or killed) time-accurate point continues with more revolutions: ``run --continue``.
 
-The owner's requirement: raise REVOLUTIONS in the matrix row of a finished ``unsteady_rotor``
+The requirement: raise REVOLUTIONS in the matrix row of a finished ``unsteady_rotor``
 point and run again; the point continues from its last time step instead of restarting. SU2
 8.6.0 continues a dual-time run as a restart at ``RESTART_ITER = R``, reading the two files of
 the iterations before it (``R - 2`` and ``R - 1`` under second order) of every zone, which a

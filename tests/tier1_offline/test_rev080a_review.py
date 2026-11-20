@@ -1,4 +1,4 @@
-"""Review round rev080-r1: regressions found reviewing c748af8..d5213ce (REV080A-NNN)."""
+"""Regressions REV080A-NNN found in c748af8..d5213ce, each with the test that fails there."""
 
 from __future__ import annotations
 

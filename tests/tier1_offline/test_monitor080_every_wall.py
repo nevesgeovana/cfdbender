@@ -1,6 +1,6 @@
 """Every wall marker is monitored, whatever the setup lists (0.8.0).
 
-The owner's rule of 0.8.0: every mesh family is monitored. A ``MARKER_MONITORING`` list that
+The rule of 0.8.0: every mesh family is monitored. A ``MARKER_MONITORING`` list that
 misses a wall of ``MARKER_EULER``, ``MARKER_HEATFLUX`` or ``MARKER_ISOTHERMAL`` is completed
 after its own markers, with a one-line note in the plan output, never a refusal.
 """
