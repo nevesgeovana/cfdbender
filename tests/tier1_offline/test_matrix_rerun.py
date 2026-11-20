@@ -36,7 +36,7 @@ def test_resume_runs_only_the_points_a_grown_matrix_added(tmp_path, capsys):
     grow(tmp_path)
     assert cli(tmp_path) == 2, "a recorded point still refuses a run without --resume"
     assert cli(tmp_path, "--resume") == 0
-    assert f"{FIRST}  skipped: COMPLETED" in capsys.readouterr().out
+    assert f"{FIRST}  skipped: COMPLETED" in capsys.readouterr().err
     assert statuses(tmp_path) == {FIRST: "COMPLETED", SECOND: "COMPLETED"}
     assert (tmp_path / "sims/sim_1001/datapoints/DP-NOCOND/history.csv").read_bytes() == first
     assert not (tmp_path / "archive").exists() or not any((tmp_path / "archive").iterdir())
@@ -48,7 +48,7 @@ def test_force_rerun_archives_record_and_folder_then_runs_again(tmp_path, capsys
     old = RunRegistry(tmp_path).read()[0]
     manifest = (tmp_path / "runs.json").read_bytes()
     assert cli(tmp_path, "--force-rerun", "DP-NOCOND") == 0
-    out = capsys.readouterr().out
+    out = capsys.readouterr().err
     archives = list((tmp_path / "archive").iterdir())
     assert len(archives) == 1 and str(archives[0]) in out
     assert (archives[0] / "runs.json").read_bytes() == manifest
@@ -128,7 +128,7 @@ def test_resume_leaves_a_running_point_while_a_solver_holds_the_slot(tmp_path, c
     crashed(tmp_path)
     before = tree(tmp_path)
     assert cli(tmp_path, "--resume") == 0
-    assert "skipped: RUNNING and its process may be alive" in capsys.readouterr().out
+    assert "skipped: RUNNING and its process may be alive" in capsys.readouterr().err
     assert before == tree(tmp_path)
     assert cli(tmp_path, "--force-rerun", FIRST) == 0
     assert statuses(tmp_path) == {FIRST: "COMPLETED"}
@@ -139,7 +139,7 @@ def test_resume_skips_a_submitted_point(tmp_path, capsys):
 
     submitted(tmp_path)
     assert cli(tmp_path, "--resume", "--local") == 0
-    assert f"{FIRST}  skipped: SUBMITTED" in capsys.readouterr().out
+    assert f"{FIRST}  skipped: SUBMITTED" in capsys.readouterr().err
     assert statuses(tmp_path) == {FIRST: "SUBMITTED"}
 
 

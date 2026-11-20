@@ -32,6 +32,7 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from cfdbender._cli import cli_entrypoint
 from cfdbender._errors import GeometryError, InputValueError
 from cfdbender.core.mesh import GEOMETRY_FOLDER, GEOMETRY_SIDECAR
 from cfdbender.geometry._cli_verbs import add_moved_verbs, report_of
@@ -358,6 +359,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+@cli_entrypoint
 def main(argv: list[str] | None = None) -> int:
     """Run ``cfd-geom``; returns the exit code (0 accepted, 1 failed, 2 refused, 3 incomplete).
 

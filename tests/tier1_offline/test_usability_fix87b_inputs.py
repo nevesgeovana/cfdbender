@@ -27,8 +27,11 @@ def test_u31_a_stated_executable_selects_the_executable_route_without_a_warning(
 def test_u31_console_lines_keep_their_order_when_streams_are_captured(tmp_path, capsys):
     root = standin(tmp_path, "su2")
     assert run(capsys, "plan", "full", "--workspace", root)[0] == 0
-    _, out, _ = run(capsys, "run", "full", "--workspace", root, "--local")
-    assert out.splitlines()[0].startswith("[1/2]")
+    _, _, err = run(capsys, "run", "full", "--workspace", root, "--local")
+    lines = err.splitlines()
+    first = next(i for i, line in enumerate(lines) if line.startswith("  -> "))
+    assert "(1 of 2)" in lines[first]
+    assert lines.index(next(x for x in lines if x.startswith("[run] started"))) < first
 
 
 def test_u32_xfoil_designation_must_be_a_real_naca_five_digit(tmp_path, capsys):

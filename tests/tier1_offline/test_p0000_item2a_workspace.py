@@ -7,6 +7,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from test_signature_module import without_signature
 
 ROOT = Path(__file__).resolve().parents[2]
 KINDS = (
@@ -93,7 +94,7 @@ def test_p0000_item2a_init_creates_root_declaration_and_empty_layout(tmp_path, s
     assert "campaign workspace ready at" in result.stdout
     assert str(target.resolve()) in result.stdout
     assert "init.toml" in result.stdout and "mock" in result.stdout
-    assert result.stderr == ""
+    assert without_signature(result.stderr) == ""
     assert "pyflightstream" not in result.stdout
 
 
@@ -122,7 +123,7 @@ def test_p0000_item2a_unknown_solver_refused_before_writing(tmp_path, solver):
         "available solvers: cfdpp, flightstream, mock, openfoam, pyfr, qprop, su2, xfoil"
         in result.stderr
     )
-    assert "Traceback" not in result.stderr
+    assert "Traceback" not in without_signature(result.stderr)
     assert "pyflightstream" not in result.stderr
     assert not target.exists()
 
@@ -153,7 +154,7 @@ def test_p0000_item2a_bad_layout_refused_with_exit_2(tmp_path, collision):
     result = _cli("init", target, "--solver", "mock")
     assert result.returncode == 2
     assert str(taken) in result.stderr
-    assert "Traceback" not in result.stderr
+    assert "Traceback" not in without_signature(result.stderr)
     assert taken.read_bytes() == b"not a folder"
     assert not (target / "init.toml").exists()
 
@@ -172,4 +173,4 @@ def test_p0000_item2a_parser_refuses_missing_arguments_and_abbreviations(args):
     result = _cli(*args)
     assert result.returncode == 2
     assert "usage: cfd-workspace" in result.stderr
-    assert "Traceback" not in result.stderr
+    assert "Traceback" not in without_signature(result.stderr)

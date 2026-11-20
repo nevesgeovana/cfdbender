@@ -1,0 +1,26 @@
+exit 0
+--- stdout
+matrix: inputs/matrices/full.fs
+solver: mock
+2 point(s)
+  7001/DP-M200AL+000: SETUP=s001 REF=r001 PPROC=p001 WALLTIME=2h  ALPHA=0, MACH=0.2
+  7001/DP-M200AL+020: SETUP=s001 REF=r001 PPROC=p001 WALLTIME=2h  ALPHA=2, MACH=0.2
+2 point(s) planned; receipt post/full/plan.json; next: cfd-matrix run full
+--- stderr
+cfd-matrix plan
+  purpose: print proposed work and write the plan receipt post/<matrix>/plan.json
+  workspace: <ROOT>
+
+
+#################################################################################
+#                                                                               #
+#                                                 _                             #
+# Good to go                                     ( )                            #
+#                                            .---' '-.                          #
+#                                           (___      '----.                    #
+#                                           (___           |                    #
+# geoversegoddess sees you                  (___           |                    #
+#                                            (__.__________'                    #
+#                                                                               #
+#################################################################################
+
