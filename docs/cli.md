@@ -43,6 +43,35 @@ to edit; a solver that ships none says so.
 5. **A verb typed on the wrong program is refused by name.** `cfd-matrix show 1001`
    exits 2 and prints the command to type: `cfd-workspace show 1001`.
 
+## What the console shows
+
+Every command writes its progress and its closing signature on standard error and its
+result on standard output, so a program that reads a result is not disturbed by the
+progress lines.
+
+- **Opening block.** Each `cfd-matrix` command starts with its name, then `purpose:`,
+  `workspace:` and, for `run`, `collect` and `post`, `live log:` (the file
+  `logs/<command>-<stamp>.log`, which receives every line the console shows).
+- **`run`.** After `[run] started: <workspace>`, a banner names the campaign and the
+  number of points to run (it is left out when nothing will run). Each point has a line
+  when it starts, `-> <point>  [<run type>]  building and running  (1 of 2)`, and a line
+  when it ends with its status word and, for a failure, its error. A table counts the
+  points by status and gives the time, one `row <POL>: ...` line per matrix row says whether
+  every planned point has a record, and `[run] finished; outcomes={...}` closes the stage
+  (`[run] failed` when the run did not succeed). A point handed to a scheduler reads
+  `building and submitting`.
+- **Standard output.** `plan` prints the proposed work, `collect` and `post` the files
+  they wrote and the line `collected <a>, failed <b>, outstanding <c>` (`post read ...`
+  for `post`), and `run` the line `submitted; extraction pending collect` after a
+  submission. Nothing else is printed there by `run`.
+- **Warnings** are held and printed together at the end under `Warnings (<count>)`.
+- **Signature.** Every invocation, of every program, ends with a drawing in a box on
+  standard error: one drawn for a success, a successful `post` or `collect`, a failure or
+  a cancellation, or one short line for `--help`. It never changes the exit code or the
+  standard output.
+- `--log-level quiet` hides the opening block and the progress lines and keeps the errors,
+  the final summary line and the signature; `--verbose` adds details.
+
 ## Choosing part of a matrix
 
 `plan`, `run`, `collect` and `post` take `--sims` and `--points` to work on part

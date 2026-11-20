@@ -5,6 +5,11 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+### Changed
+
+- The console of every program (`cfd-matrix`, `cfd-workspace`, `cfd-mesh`, `cfd-geom`) ends each invocation with a drawing in an 81-column box on standard error, drawn from the pool of the outcome (success, a successful `post` or `collect`, failure, cancellation) with a phrase and the line "geoversegoddess sees you"; `--help` leaves one short line instead. Return values, exit codes and standard output are unchanged, and a closed or unencodable stderr changes nothing. The drawings, phrases and outcome sets are the ones pyflightstream uses.
+- `cfd-matrix` opens every command with a block naming it, its purpose, the workspace and the live log. `run` says `[run] started: <workspace>`, a banner with the campaign name and the number of points to run, a line as each point starts (`-> <point>  [<run type>]  building and running  (1 of 2)`) and ends (its status word and error), a table of statuses with the time taken, one line per matrix row (`row 7001: all 2 executed`) and `[run] finished; outcomes={...}`. These lines, the opening block and the signature are on standard error and in the live log; `plan`, `collect` and `post` keep their results on standard output. The point lines of `run` moved from standard output to standard error, and a point handed to a scheduler reads `building and submitting`.
+
 ## [0.7.0] - 2026-11-19
 
 ### Added

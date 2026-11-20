@@ -1,0 +1,39 @@
+exit 0
+--- stdout
+--- stderr
+cfd-matrix run
+  purpose: run every active point; on this machine a row's SOLVER_BUILD picks its
+           executable from inputs/executables.toml and executables.local.toml
+  workspace: <ROOT>
+  live log: logs/run-<STAMP>.log
+
+[run] started: <ROOT>
+             _______
+                |
+   --(+)--(+)--(_)--(+)--(+)--   cfdbender <V>: campaign full, 2 point(s) to run
+  -> 7001/DP-M200AL+000  [steady]  building and running  (1 of 2)
+     7001/DP-M200AL+000  COMPLETED
+  -> 7001/DP-M200AL+020  [steady]  building and running  (2 of 2)
+     7001/DP-M200AL+020  COMPLETED
+  +-----------+--------+
+  | status    | points |
+  +-----------+--------+
+  | COMPLETED |      2 |
+  +-----------+--------+
+  2 point(s) in <CLOCK>
+row 7001: all 2 executed
+[run] finished; outcomes={'COMPLETED': 2}
+
+#################################################################################
+#                                                                               #
+#                                               .-"""""""-.                     #
+# Smooth run. Shades on                       .'           '.                   #
+#                                            /  ___     ___  \                  #
+#                                           |==(___)===(___)==|                 #
+#                                           |                 |                 #
+#                                            \   '._____.'   /                  #
+# geoversegoddess sees you                    '.           .'                   #
+#                                               '-._____.-'                     #
+#                                                                               #
+#################################################################################
+

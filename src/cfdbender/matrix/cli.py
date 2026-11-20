@@ -12,6 +12,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
+from cfdbender import __version__, _cli
+from cfdbender._cli import cli_entrypoint, note_post_ran
 from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
 from cfdbender.core.plan import large_input_check, rehash_inputs
@@ -30,11 +32,17 @@ from cfdbender.matrix._console import (
     add_refusal_option,
     add_runs_option,
     add_warning_option,
+    banner_lines,
+    clock_text,
+    command_help,
     held_warnings,
     level_of,
     open_live_log,
+    opening_lines,
     record_activity,
     refusals_wanted,
+    row_lines,
+    status_table,
     status_word,
 )
 from cfdbender.matrix.batch import (
@@ -99,6 +107,21 @@ mark-converged, restore, rebuild, space-in-use, free-space, delete-sims, sync, a
 Every verb takes --workspace, --verbose and --log-level; the verbs that change files preview
 until --apply. `cfd-matrix <verb> --help` says the rest.
 """
+
+
+def _start_line(
+    point_id: str, run_types: Mapping[str, str], number: int, total: int, doing: str
+) -> str:
+    """Return the line that names a point as it starts, with its run type."""
+    kind = run_types.get(point_id, "steady")
+    verb = "building and running" if doing == "running" else "building and submitting"
+    return f"  -> {point_id}  [{kind}]  {verb}  ({number} of {total})"
+
+
+def _end_line(record: RunRecord) -> str:
+    """Return the line that says how a point ended, its error after the status word."""
+    word = status_word(record.status, record.classification, record.error)
+    return f"     {record.point_id}  {word}" + (f"  ({record.error})" if record.error else "")
 
 
 def _typed(argv: list[str]) -> str:
@@ -346,6 +369,7 @@ REHASH_HELP = (
 )
 
 
+@cli_entrypoint
 def main(argv: list[str] | None = None) -> int:
     """Plan, run or collect a matrix, printing refusals to stderr with exit code 2.
 
@@ -387,6 +411,14 @@ def main(argv: list[str] | None = None) -> int:
     # verbs leave nothing behind.
     live = open_live_log(root, args.command) if args.command in LOGGED else None
     console = Console(level, live)
+    console.block(
+        f"cfd-matrix {args.command}",
+        opening_lines(
+            command_help(parser, args.command),
+            workspace=root,
+            live_log=live.path.relative_to(root).as_posix() if live is not None else None,
+        ),
+    )
     code = 2
     if args.command in LOGGED:
         record_activity(root, args.command, "started", argv=list(argv))
@@ -450,6 +482,7 @@ def _collect(args: argparse.Namespace, console: Console) -> int:
             archive=args.archive,
             settle=settle,
         )
+        note_post_ran()
         for path in (*report.summaries, *report.tables):
             console.say(f"wrote {_shown(args.workspace, path)}")
         if report.strays:
@@ -473,6 +506,7 @@ def _post(args: argparse.Namespace, console: Console) -> int:
         runs=args.runs,
         archive=args.archive,
     )
+    note_post_ran()
     for path in (*report.summaries, *report.tables):
         console.say(f"wrote {_shown(args.workspace, path)}")
     console.final(
@@ -484,6 +518,26 @@ def _post(args: argparse.Namespace, console: Console) -> int:
 
 
 def _execute(
+    args: argparse.Namespace,
+    verbs: dict[str, Callable[[argparse.Namespace], int]],
+    console: Console,
+) -> int:
+    """Run the command; a run is bracketed by its ``[run]`` stage lines."""
+    if args.command != "run":
+        return _execute_command(args, verbs, console)
+    console.chatter(f"[run] started: {Path(args.workspace).resolve()}")
+    args.run_outcomes = {}
+    code = 2
+    try:
+        code = _execute_command(args, verbs, console)
+        return code
+    finally:
+        outcomes = dict(sorted(args.run_outcomes.items()))
+        detail = f"; outcomes={outcomes}" if outcomes else ""
+        console.chatter(f"[run] {'finished' if code == 0 else 'failed'}{detail}")
+
+
+def _execute_command(
     args: argparse.Namespace,
     verbs: dict[str, Callable[[argparse.Namespace], int]],
     console: Console,
@@ -630,6 +684,7 @@ def _execute_inner(
                     "--restart cannot be combined with --resume or --force-rerun options"
                 )
             plan = prepare_restart(plan, adapter, own=args.restart, local=not submitting)
+            planned = plan
             decision = decide(
                 plan,
                 resume=args.resume,
@@ -643,9 +698,9 @@ def _execute_inner(
                 else lambda chosen: judge_environment(chosen, adapter),
             )
             if decision.archive is not None:
-                console.say(f"archived previous evidence: {decision.archive}")
+                console.chatter(f"archived previous evidence: {decision.archive}")
             for point_id, reason in decision.skipped:
-                console.say(f"  {point_id}  skipped: {reason}")
+                console.chatter(f"  {point_id}  skipped: {reason}")
             for point_id, was in decision.live:
                 console.error(
                     f"warning: {point_id} was {was}; a job of the earlier submission may "
@@ -669,29 +724,28 @@ def _execute_inner(
                         for p in plan.points
                     ),
                 )
+            to_run = len(plan.points)
+            began = time.perf_counter()
+            if to_run:
+                for line in banner_lines(__version__, Path(plan.matrix).stem, to_run, _cli._RNG):
+                    console.chatter(line)
+            run_types = {p.point_id: p.run_type for p in plan.points}
             profiles = (
                 cast(tuple[HpcProfile, ...], point_profiles(plan, args.hpc)) if submitting else ()
             )
             jobs = submission_plans(plan, profiles) if submitting and not batches else ()
             live = not submitting
-            started: dict[str, float] = {}
 
             def progress(
                 kind: str, index: int, total: int, record: RunRecord | None, point_id: str
             ) -> None:
                 if kind == "start":
-                    started[point_id] = time.monotonic()
-                    console.say(f"[{index}/{total}] {point_id}  running")
+                    console.chatter(_start_line(point_id, run_types, index, total, "running"))
                 elif record is not None:
-                    took = time.monotonic() - started.get(point_id, time.monotonic())
-                    word = status_word(record.status, record.classification, record.error)
-                    console.say(
-                        f"[{index}/{total}] {point_id}  {word} "
-                        f"{record.classification} in {took:.0f} s"
-                    )
+                    console.chatter(_end_line(record))
 
             if live:
-                with progress_sink(console.say):
+                with progress_sink(console.chatter):
                     records = execute_plan(
                         plan, adapter, on_event=progress, one_run_at_a_time=args.guard_active
                     )
@@ -701,13 +755,34 @@ def _execute_inner(
                 records = submit_plan(plan, jobs, profiles, adapter)
             else:
                 raise WorkspaceError("no HPC profile selected")
-            for record in records:
+            for number, record in enumerate(records, 1):
                 if not live:
-                    console.say(f"  {record.point_id}  {record.status} {record.classification}")
+                    console.chatter(
+                        _start_line(record.point_id, run_types, number, len(records), "submitting")
+                    )
+                    console.chatter(_end_line(record))
                 if record.error:
-                    console.error(f"  {record.point_id}: {record.error}")
+                    # The point line already says it, except on a console that is quiet.
+                    if console.level == "quiet":
+                        console.error(f"  {record.point_id}: {record.error}")
                 elif record.submission and record.submission["timed_out"]:
                     console.error(str(record.submission["stderr"]))
+            words = [status_word(r.status, r.classification, r.error) for r in records]
+            for word in words:
+                args.run_outcomes[word] = args.run_outcomes.get(word, 0) + 1
+            if records:
+                spent = time.perf_counter() - began
+                for line in status_table(words, spent):
+                    console.chatter(line)
+                ended = ", ".join(f"{w} {n}" for w, n in sorted(args.run_outcomes.items()))
+                console.quiet_note(f"{len(words)} point(s) in {clock_text(spent)}: {ended}")
+            if to_run:
+                recorded = {r.point_id for r in RunRegistry(plan.root).read()}
+                rows: dict[str, list[str]] = {}
+                for point in planned.points:
+                    rows.setdefault(str(point.pol), []).append(point.point_id)
+                for line in row_lines(rows, recorded):
+                    console.chatter(line)
             if any(
                 record.classification == "failed"
                 or (record.submission and record.submission["return_code"] != 0)

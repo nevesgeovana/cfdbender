@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from cli_route import main as matrix_main
 from test_matrix_columns_all_solvers import build
+from test_signature_module import after_opening
 
 NL = chr(10)
 
@@ -92,8 +93,9 @@ def test_u15_every_row_refusal_starts_with_the_matrix_path_and_the_row(mock, cap
     edit(matrix, "MACH:0.2", "MACH:abc")
     code, _, err = run(capsys, "plan", "full", "--workspace", mock)
     assert code == 2
-    assert err.startswith("inputs/matrices/full.fs, data row 1 (POL 7001)")
-    assert "\\" not in err.split(":")[0]
+    refusal = after_opening(err)
+    assert refusal.startswith("inputs/matrices/full.fs, data row 1 (POL 7001)")
+    assert "\\" not in refusal.split(":")[0]
 
 
 def test_u15_an_adapter_refusal_names_the_setup_file_it_concerns(mock, capsys):
@@ -101,7 +103,7 @@ def test_u15_an_adapter_refusal_names_the_setup_file_it_concerns(mock, capsys):
     edit(setup, "iterations", "iteratons")
     code, _, err = run(capsys, "plan", "full", "--workspace", mock)
     assert code == 2
-    assert err.startswith("inputs/matrices/full.fs, data row 1 (POL 7001)")
+    assert after_opening(err).startswith("inputs/matrices/full.fs, data row 1 (POL 7001)")
     assert "inputs/setups/s001.toml" in err
 
 

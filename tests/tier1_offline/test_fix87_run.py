@@ -113,11 +113,13 @@ def test_u03_run_prints_a_line_as_each_point_starts_and_ends(case, capsys):  # n
     solver, root = case
     _planned(root)
     assert local(root) == 0
-    lines = [x for x in capsys.readouterr().out.splitlines() if x.startswith("[")]
+    streams = capsys.readouterr()
     total = len(RunRegistry(root).read())
-    assert len(lines) == 2 * total, lines
-    assert re.match(rf"\[1/{total}\] \S+  running", lines[0])
-    assert re.match(rf"\[1/{total}\] \S+  COMPLETED \w+ in \d+ s", lines[1])
+    starts = [x for x in streams.err.splitlines() if x.startswith("  -> ")]
+    ends = [x for x in streams.err.splitlines() if re.match(r"     \S+  COMPLETED$", x)]
+    assert len(starts) == total and len(ends) == total, streams.err
+    assert re.fullmatch(rf"  -> \S+  \[steady\]  building and running  \(1 of {total}\)", starts[0])
+    assert not [x for x in streams.out.splitlines() if x.startswith(("  -> ", "["))]
 
 
 @pytest.mark.parametrize("solver", REAL)

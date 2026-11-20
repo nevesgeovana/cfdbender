@@ -18,9 +18,11 @@ import argparse
 import csv
 import io
 import json
+import random
 import sys
+import textwrap
 import warnings
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -227,6 +229,26 @@ class Console:
             print(text, flush=True)
             self._tee(text)
 
+    def chatter(self, text: str = "") -> None:
+        """Print a progress line on stderr, as pyflightstream does, unless the level is quiet.
+
+        Standard output stays for the result of a command.
+        """
+        if self.level != "quiet":
+            print(text, file=sys.stderr, flush=True)
+            self._tee(text)
+
+    def block(self, title: str, lines: Sequence[str]) -> None:
+        """Print a titled block on stderr, then one blank line, unless the level is quiet."""
+        for line in (title, *lines, ""):
+            self.chatter(line)
+
+    def quiet_note(self, text: str) -> None:
+        """Print one line on stderr at the quiet level only: the summary a quiet run keeps."""
+        if self.level == "quiet":
+            print(text, file=sys.stderr, flush=True)
+            self._tee(text)
+
     def detail(self, text: str = "") -> None:
         """Print a detail line at verbose only."""
         if self.level == "verbose":
@@ -339,3 +361,106 @@ def emit_rows(
     print("  ".join(c.ljust(w) for c, w in zip(columns, widths, strict=True)).rstrip())
     for line in table:
         print("  ".join(v.ljust(w) for v, w in zip(line, widths, strict=True)).rstrip())
+
+
+#: The column a wrapped line stays within, where its words allow it.
+WRAP_WIDTH = 90
+
+
+def wrap(text: str, *, first: str = "", width: int = WRAP_WIDTH) -> list[str]:
+    """Return ``text`` wrapped at ``width`` columns, continuation lines under the text."""
+    lines = textwrap.wrap(
+        text,
+        width=width,
+        initial_indent=first,
+        subsequent_indent=" " * len(first),
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    return lines or [first.rstrip()]
+
+
+def opening_lines(what: str, *, workspace: object = None, live_log: str | None = None) -> list[str]:
+    """Return the lines of a command's opening block, under its title: what it is for, and where."""
+    lines = wrap(what, first="  purpose: ")
+    if workspace is not None:
+        lines.append(f"  workspace: {workspace}")
+    if live_log is not None:
+        lines.append(f"  live log: {live_log}")
+    return lines
+
+
+def command_help(parser: argparse.ArgumentParser, name: str) -> str:
+    """Return the one-line help the parser states for the command ``name``."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for choice in action._choices_actions:
+                if choice.dest == name:
+                    return " ".join(str(choice.help or "").split())
+            sub = action.choices.get(name)
+            if sub is not None:
+                return " ".join(str(sub.description or "").split())
+    return ""
+
+
+def clock_text(seconds: float) -> str:
+    """Return a duration as ``H:MM:SS``."""
+    whole = max(int(round(seconds)), 0)
+    return f"{whole // 3600}:{whole % 3600 // 60:02d}:{whole % 60:02d}"
+
+
+def status_table(outcomes: Sequence[str], elapsed_s: float) -> list[str]:
+    """Return how the points of a run ended as a small ASCII table and the time it took."""
+    counts: dict[str, int] = {}
+    for status in outcomes:
+        counts[status] = counts.get(status, 0) + 1
+    width = max(len("status"), *(len(status) for status in counts))
+    rule = f"  +-{'-' * width}-+--------+"
+    lines = [rule, f"  | {'status':<{width}} | points |", rule]
+    lines += [f"  | {status:<{width}} | {count:>6} |" for status, count in sorted(counts.items())]
+    lines += [rule, f"  {len(outcomes)} point(s) in {clock_text(elapsed_s)}"]
+    return lines
+
+
+#: The run banner's two aircraft: the rows above the wing, then the wing, which the text follows.
+RUN_BANNERS: tuple[tuple[str, str, str], ...] = (
+    (
+        "             _______",
+        "                |",
+        "     --(+)-----(_)-----(+)--",
+    ),
+    (
+        "             _______",
+        "                |",
+        "   --(+)--(+)--(_)--(+)--(+)--",
+    ),
+)
+
+
+def banner_lines(version: str, campaign: str, points: int, chooser: random.Random) -> list[str]:
+    """Return the run banner: one of the two aircraft, its wing line carrying the text."""
+    top, mast, wing = chooser.choice(RUN_BANNERS)
+    return [
+        top,
+        mast,
+        f"{wing}   cfdbender {version}: campaign {campaign}, {points} point(s) to run",
+    ]
+
+
+def row_lines(planned: Mapping[str, Sequence[str]], recorded: Collection[str]) -> list[str]:
+    """Return one line per row: all its planned points executed, or how many were not attempted.
+
+    ``planned`` maps a row's id to its planned point ids; a point is executed when ``recorded``
+    holds it, from this call or an earlier one.
+    """
+    lines = []
+    for row, points in planned.items():
+        missing = [point for point in points if point not in recorded]
+        if not missing:
+            lines.append(f"row {row}: all {len(points)} executed")
+        else:
+            lines.append(
+                f"row {row}: {len(points) - len(missing)} of {len(points)} point(s) executed, "
+                f"{len(missing)} not attempted"
+            )
+    return lines

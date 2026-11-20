@@ -1,0 +1,31 @@
+exit 0
+--- stdout
+wrote post/full/campaign_summary.json
+wrote post/full/polars/FAM-DIM-P7001.csv
+wrote post/full/polars/FAM-ACOEF-P7001.csv
+wrote post/full/polars/P7001-TOTAL-DIM.csv
+wrote post/full/polars/P7001-TOTAL-ACOEF.csv
+wrote post/full/polars/P7001-AIRFRAME-DIM.csv
+wrote post/full/polars/P7001-AIRFRAME-ACOEF.csv
+post read 2, failed 0, outstanding 0
+--- stderr
+cfd-matrix post
+  purpose: rebuild every product under post/<matrix>/ from runs.json and the saved
+           outputs, without running anything
+  workspace: <ROOT>
+  live log: logs/post-<STAMP>.log
+
+
+#################################################################################
+#                                                                               #
+#                                          .-"-.               .-"-.            #
+# Let now COALA do its magic              / .-. \   _.---._   / .-. \           #
+#                                        | (   ) |.'       '.| (   ) |          #
+#                                         \ '-' /  o       o  \ '-' /           #
+#                                          '-._|      ___      |_.-'            #
+#                                               \    (___)    /                 #
+# geoversegoddess sees you                       '.    V    .'                  #
+#                                                  '-.___.-'                    #
+#                                                                               #
+#################################################################################
+

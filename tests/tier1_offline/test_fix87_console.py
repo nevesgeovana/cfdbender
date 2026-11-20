@@ -42,12 +42,12 @@ def test_u04_u11_resume_says_how_to_redo_a_failed_point_and_a_refusal_says_what_
     root = _failed_mock(tmp_path)
     assert local(root) == 2
     out = capsys.readouterr()
-    assert "FAILED" in out.out and "COMPLETED failed" not in out.out
+    assert "FAILED" in out.err and "COMPLETED failed" not in out.err
     assert local(root) == 2
     err = capsys.readouterr().err
     assert "--resume" in err and "--force-rerun POINT" in err, err
     assert local(root, "--resume") == 0
-    out = capsys.readouterr().out
+    out = capsys.readouterr().err
     assert "skipped: COMPLETED failed; redo it with --force-rerun 7001/" in out
     assert main(["status", "--workspace", str(root), "--points"]) == 0
     status = capsys.readouterr().out
