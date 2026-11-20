@@ -212,8 +212,20 @@ def test_p0000_item4_su2_plan_without_mock_or_real_solver(installed):
     assert receipt in after and receipt not in before
     assert before == {name: data for name, data in after.items() if name != receipt}
     # Fake execution verifies that planning wasn't quietly satisfied by the mock adapter.
-    output = run([matrix, "run", "smoke", "--local"], cwd=folder / "smoke", env=env)
-    assert "COMPLETED converged" in output
+    # run reports on stderr since the 0.8.0 console (the point line says COMPLETED, never the
+    # classification), so the convergence is read from the record the fake solver's run left.
+    result = subprocess.run(
+        [str(matrix), "run", "smoke", "--local"],
+        cwd=folder / "smoke",
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "COMPLETED" in result.stderr
+    records = json.loads((folder / "smoke" / "runs.json").read_text(encoding="utf-8"))
+    assert "COMPLETED" in json.dumps(records) and "converged" in json.dumps(records)
     run([matrix, "collect", "smoke", "--local"], cwd=folder / "smoke", env=env)
     summary = json.loads((folder / "smoke/post/smoke/campaign_summary.json").read_text())
     assert summary["solver"] == "su2"
