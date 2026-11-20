@@ -266,8 +266,9 @@ def test_a_setup_and_zone_files_that_disagree_on_the_turning_zone_are_refused(tm
 def test_a_family_naming_a_marker_the_history_lacks_is_refused(tmp_path):
     post = POST_A.replace('["wing", "wing_te"]', '["wing", "nothing"]')
     _, point, _ = _point(tmp_path, post)
-    with pytest.raises(ValueError, match="nothing"):
+    with pytest.raises(ValueError, match="nothing") as refused:
         _collect(point)
+    assert "BLADE_1" in str(refused.value) and "fuselage" in str(refused.value)
 
 
 @pytest.mark.parametrize("multizone", [True, False])
@@ -527,3 +528,90 @@ def test_a_hover_has_no_free_stream_pressure_so_mixed_coefficients_are_absent(
     # both zones: no free-stream reference for the coefficient
     assert "CL_MRP_TOTAL" not in means
     assert "free-stream" in result["plots"]["absent"]["CL_MRP_TOTAL"]
+
+
+# ---- authoring errors and edge cases of the groups
+
+HEAD = "history = true" + NL + "[plots]" + NL + 'parameters = ["CL"]' + NL
+
+
+def _rewrite_header(folder, change):
+    lines = (folder / "su2.csv").read_text(encoding="ascii").splitlines()
+    cells = [change(c.strip('"')) for c in lines[0].split(",")]
+    header = ",".join(f'"{c}"' for c in cells)
+    (folder / "su2.csv").write_text(NL.join([header, *lines[1:]]) + NL, encoding="ascii")
+
+
+def test_a_misspelt_word_makes_its_group_absent_with_the_reason_and_the_rest_goes_on(tmp_path):
+    post = (
+        HEAD
+        + '[[plots.groups]]\nname = "MRP_TOTAL"\nfamilies = "all"\n'.replace("\n", NL)
+        + '[[plots.groups]]\nname = "A"\nfamilies = ["wing", "fuselag"]\n'.replace("\n", NL)
+    )
+    _, point, _ = _point(tmp_path, post)
+    result = _collect(point)
+    assert "CL_A" not in _means(result) and "CL_MRP_TOTAL" in _means(result)
+    (skipped,) = result["plots"]["skipped"]
+    assert skipped["group"] == "A"
+    assert "'fuselag'" in skipped["reason"] and "fuselage" in skipped["reason"]
+
+
+def test_a_family_named_like_an_unclaimed_marker_is_refused(tmp_path):
+    post = (
+        HEAD
+        + '[plots.families]\nwing = ["fuselage"]\n'.replace("\n", NL)
+        + '[[plots.groups]]\nname = "M_{family}"\nfamilies = "each"\n'.replace("\n", NL)
+    )
+    _, point, _ = _point(tmp_path, post)
+    with pytest.raises(ValueError, match="wall marker 'wing'"):
+        _collect(point)
+
+
+def test_each_on_a_history_without_per_surface_columns_says_why(tmp_path):
+    post = HEAD + '[[plots.groups]]\nname = "M_{family}"\nfamilies = "each"\n'.replace("\n", NL)
+    _, point, folder = _point(tmp_path, post)
+    lines = (folder / "su2.csv").read_text(encoding="ascii").splitlines()
+    keep = [i for i, c in enumerate(lines[0].split(",")) if "(" not in c]
+    rows = [",".join(line.split(",")[i] for i in keep) for line in lines]
+    (folder / "su2.csv").write_text(NL.join(rows) + NL, encoding="ascii")
+    result = _collect(point)
+    (skipped,) = result["plots"]["skipped"]
+    assert "before per-surface output" in skipped["reason"]
+    assert "CL_MRP_TOTAL" in _means(result)
+
+
+def test_an_unclaimed_marker_that_cannot_name_a_plot_is_skipped_from_each(tmp_path):
+    post = HEAD + '[[plots.groups]]\nname = "M_{family}"\nfamilies = "each"\n'.replace("\n", NL)
+    _, point, folder = _point(tmp_path, post)
+    _rewrite_header(folder, lambda c: c.replace("(fuselage)", "(fuse-lage)"))
+    result = _collect(point)
+    means = _means(result)
+    assert "CL_M_wing" in means and not any("fuse" in name for name in means)
+    (skipped,) = result["plots"]["skipped"]
+    assert "'fuse-lage'" in skipped["reason"] and "[plots.families]" in skipped["reason"]
+
+
+def test_a_family_word_of_several_markers_sums_them_all(tmp_path):
+    post = (
+        HEAD
+        + '[plots.families]\nW = ["wing", "wing_te"]\n'.replace("\n", NL)
+        + '[[plots.groups]]\nname = "WF"\nfamilies = ["W", "fuselage"]\n'.replace("\n", NL)
+    )
+    _, point, _ = _point(tmp_path, post)
+    means = _means(_collect(point))
+    assert means["CL_WF"] == pytest.approx(_mean(["wing", "wing_te", "fuselage"], "CL"))
+
+
+def test_a_run_never_takes_the_option_and_the_others_inputs_stay_checked(tmp_path, capsys):
+    from test_p0000_item3c2_collect import executed
+    from test_p0000_item3c2_run import cli
+
+    executed(tmp_path)
+    assert cli(["run", "study", "--workspace", str(tmp_path), "--new-pproc"]) == 2
+    for name in ("references/r001", "setups/s001"):
+        path = tmp_path / f"inputs/{name}.toml"
+        original = path.read_text(encoding="ascii")
+        path.write_text(original + NL + "# edited" + NL, encoding="ascii")
+        assert cli(["collect", "--workspace", str(tmp_path), "--new-pproc"]) == 1
+        path.write_text(original, encoding="ascii")
+    capsys.readouterr()

@@ -96,6 +96,13 @@ def _family_map(
                 f"holds no per-surface column of (it holds: {', '.join(monitored) or 'none'})"
             )
     claimed = {m for markers in declared.values() for m in markers}
+    for name in declared:
+        if name in monitored and name not in claimed:
+            raise _refuse(
+                f"family {name!r} has the name of the wall marker {name!r}, which no family "
+                'claims, so "each" would hide that marker; rename the family or put the '
+                "marker in a family"
+            )
     families = dict(declared)
     for marker in monitored:
         if marker not in claimed and marker not in families:
@@ -207,31 +214,58 @@ def _expand(
     monitored: Sequence[str],
 ) -> list[Group]:
     if entry.families == "each":
-        bad = [name for name in families if re.fullmatch(r"[A-Za-z0-9_]+", name) is None]
-        if bad:
-            raise _refuse(
-                f"family name(s) {', '.join(bad)} cannot be part of a plot name: letters, "
-                "digits and underscores only"
+        if not families:
+            skipped.append(
+                (
+                    entry.name,
+                    "families = 'each' has no family to expand over: the history holds no "
+                    "per-surface columns (a point planned before per-surface output)",
+                )
             )
-        return [
-            Group(entry.name.replace("{family}", name), parameters, markers)
-            for name, markers in families.items()
-        ]
+            return []
+        groups: list[Group] = []
+        for name, held in families.items():
+            if re.fullmatch(r"[A-Za-z0-9_]+", name) is None:
+                skipped.append(
+                    (
+                        entry.name.replace("{family}", name),
+                        f"the marker {name!r} is in no family and its name is not letters, "
+                        "digits and underscores, so it cannot name a plot: put it in a family "
+                        "of [plots.families]",
+                    )
+                )
+                continue
+            groups.append(Group(entry.name.replace("{family}", name), parameters, held))
+        return groups
     words = [entry.families] if isinstance(entry.families, str) else list(entry.families)
     if words == ["all"]:
         return [Group(entry.name, parameters, None)]
     markers: list[str] = []
+    unknown: list[str] = []
     for word in words:
-        resolved = [
-            m
-            for name in (_word(word, families, reference, (), monitored) or [])
-            for m in (families[name] if name in families else (name,))
-        ]
+        if word == "all":
+            resolved = list(monitored)
+        else:
+            resolved = [
+                m
+                for name in (_word(word, families, reference, (), monitored) or [])
+                for m in (families[name] if name in families else (name,))
+            ]
         if not resolved:
-            skipped.append((entry.name, f"families {word!r} name no family of this point"))
+            unknown.append(word)
             continue
         markers += [m for m in resolved if m not in markers]
-    return [Group(entry.name, parameters, tuple(markers))] if markers else []
+    if unknown:
+        skipped.append(
+            (
+                entry.name,
+                f"families {', '.join(map(repr, unknown))} name no family or wall marker of this "
+                f"point (families: {', '.join(families) or 'none'}; wall markers: "
+                f"{', '.join(monitored) or 'none'})",
+            )
+        )
+        return []
+    return [Group(entry.name, parameters, tuple(markers))]
 
 
 def needs_surface_columns(groups: Sequence[Group]) -> bool:
