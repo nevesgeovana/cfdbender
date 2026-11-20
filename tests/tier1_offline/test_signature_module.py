@@ -38,6 +38,21 @@ def drawn(err: str) -> tuple[str, str] | None:
     return None
 
 
+def without_signature(err: str) -> str:
+    """Return ``err`` with the signature box, or the one-line help and version text, removed."""
+    found = drawn(err)
+    if found is not None:
+        err = err.replace("\n" + _signature.box(*found) + "\n\n", "", 1)
+    return "".join(
+        line for line in err.splitlines(keepends=True) if not line.rstrip().endswith(SEES_YOU)
+    )
+
+
+def after_opening(err: str) -> str:
+    """Return what a command printed on stderr after its opening block."""
+    return err.split("\n\n", 1)[1]
+
+
 def outcome_of(err: str) -> str:
     """Return the outcome whose pool the box in ``err`` was drawn from."""
     found = drawn(err)
@@ -94,6 +109,29 @@ def test_pick_draws_a_drawing_of_the_outcome_with_one_of_its_phrases():
             name, phrase = _signature.pick(outcome, chooser)
             assert name in names
             assert phrase in _signature.PHRASES[name]
+
+
+def test_the_drawings_equal_pyflightstreams_but_for_the_tool_name_inside_three_of_them():
+    """The only text that differs is the program name drawn on three screens, at equal width."""
+    sister = pytest.importorskip("pyflightstream._signature")
+    assert _signature.PHRASES == sister.PHRASES
+    assert _signature.OUTCOME_DRAWINGS == sister.OUTCOME_DRAWINGS
+    assert (_signature.WIDTH, _signature.TEXT_COLUMN, _signature.SEES_YOU) == (
+        sister.WIDTH,
+        sister.TEXT_COLUMN,
+        sister.SEES_YOU,
+    )
+    assert set(_signature.DRAWINGS) == set(sister.DRAWINGS)
+    changed = set()
+    for name, art in sister.DRAWINGS.items():
+        ours = _signature.DRAWINGS[name]
+        if ours != art:
+            changed.add(name)
+            assert ours == art.replace("pyfs-matrix run     |", "cfd-matrix run      |").replace(
+                "|  pyfs  |", "|  cfdb  |"
+            )
+            assert [len(r) for r in ours.split("\n")] == [len(r) for r in art.split("\n")]
+    assert changed == {"terminal", "disquete", "segfault"}
 
 
 def test_the_signature_module_imports_nothing_from_the_package():

@@ -42,7 +42,7 @@ def test_list_and_bare_setups_print_names_and_descriptions(tmp_path, capsys):
     init(tmp_path)
     listed = run(capsys, "setups", "--list", "--workspace", str(tmp_path))
     bare = run(capsys, "setups", "--workspace", str(tmp_path))
-    assert listed == bare
+    assert listed[:2] == bare[:2]
     code, out, _ = listed
     assert code == 0
     description = setup_templates.describe("mock", "converged")

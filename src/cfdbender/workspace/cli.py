@@ -7,6 +7,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from cfdbender._cli import cli_entrypoint
 from cfdbender.core import WorkspaceError, init_workspace, input_kinds
 from cfdbender.core.refusals import warning_refusals
 from cfdbender.core.registry import RegistryError, RunRegistry
@@ -113,6 +114,7 @@ def _campaign_root(args: argparse.Namespace) -> str:
     return named
 
 
+@cli_entrypoint
 def main(argv: list[str] | None = None) -> int:
     """Initialize a workspace from command-line arguments.
 

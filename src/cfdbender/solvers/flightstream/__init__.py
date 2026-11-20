@@ -11,7 +11,7 @@ import sys
 from collections.abc import Collection
 from pathlib import Path
 
-from cfdbender import _pyfs
+from cfdbender import _cli, _pyfs
 from cfdbender.core import WorkspaceError, read_init
 from cfdbender.core import init_workspace as write_init
 from cfdbender.core.plan import reads_large_inputs
@@ -136,6 +136,8 @@ def dispatch(argv: list[str], *, workspace: bool, matrix_verbs: Collection[str] 
         if any(word in ignored for word in options):
             argv = [word for word in options if word not in ignored] + argv[boundary:]
         verb = next((word for word in argv if not word.startswith("-")), None)
+        # pyflightstream's own entry point signs the invocation; cfdbender does not sign twice.
+        _cli.note_forwarded()
         if workspace and verb not in matrix_verbs:
             return _pyfs.workspace_main(argv)
         return _pyfs.matrix_main(argv)

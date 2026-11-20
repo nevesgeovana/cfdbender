@@ -74,7 +74,7 @@ DRAWINGS: dict[str, str] = {
 """,
     "terminal": r"""
    .-----------------------.
-   | $ pyfs-matrix run     |
+   | $ cfd-matrix run      |
    | [##########] 100%     |
    | > all points done_    |
    '-----------------------'
@@ -85,7 +85,7 @@ DRAWINGS: dict[str, str] = {
     ________________
    | |  ________  | |
    | | |        | | |
-   | | |  pyfs  | | |
+   | | |  cfdb  | | |
    | |  --------  | |
    |    ______      |
    |   | |    |     |
@@ -127,7 +127,7 @@ DRAWINGS: dict[str, str] = {
 """,
     "segfault": r"""
    .-----------------------.
-   | $ pyfs-matrix run     |
+   | $ cfd-matrix run      |
    | Traceback (...)       |
    | Error: see the log    |
    '-----------------------'

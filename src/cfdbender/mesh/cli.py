@@ -15,6 +15,7 @@ import argparse
 import sys
 from types import ModuleType
 
+from cfdbender._cli import cli_entrypoint
 from cfdbender.mesh import _cli_airfoil2d, _cli_edges, _cli_refine, _cli_rotor, _cli_surface
 
 __all__ = ["build_parser", "main"]
@@ -54,6 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+@cli_entrypoint
 def main(argv: list[str] | None = None) -> int:
     """Run one cfd-mesh verb from command-line arguments.
 
