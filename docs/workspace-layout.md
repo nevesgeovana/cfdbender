@@ -220,6 +220,7 @@ Everything derived from a matrix is under `post/<matrix>/`:
 | `polars/P<POL>_<matrix>_uns_avg.csv` | `collect`, `post` | pyflightstream's unsteady polar: one row per time-accurate point, the means over its averaging window. |
 | `sections/P<POL>/<point>_cp_<name>.csv`, `sections/P<POL>/<point>_sloads_<name>.csv` | `collect`, `post` | The Cp and the sectional loads of each `[[sections.distributions]]` entry of the PPROC file; see [SU2](su2-workspaces.md#post-processing-products). |
 | `fields/P<POL>/<point>_vsec.vtk` or `.dat` | `collect`, `post` | The `[volume_section]` of the PPROC file, one file per exported step of a time-accurate point (`_step_<STEP>`), each with its `.provenance.json`. |
+| `fields/P<POL>/<point>_vsec_<name>.vtk` or `.dat` | `collect`, `post` | Each cut named in `[[volume_sections]]` of the PPROC file (provisional name), laid out as the single cut, with its `.provenance.json`. |
 | `probes/P<POL>/<point>_probes.csv` | `collect`, `post` | The `[[probes]]` of the PPROC file; `_probes_history.csv` beside it on a time-accurate row that mixes the two kinds of entry. |
 | `products.json` | `collect`, `post` | Every product written, and every one skipped with the reason. |
 | `post.log` | `collect`, `post` | The same, as text. |

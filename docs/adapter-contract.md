@@ -395,7 +395,7 @@ tests cover both supporting adapters and unknown-marker diagnostics.
 
 ## Product declarations
 
-The PPROC file's `[sections]`, `[volume_section]` and `[[probes]]` are read by the
+The PPROC file's `[sections]`, `[volume_section]` (or the provisional `[[volume_sections]]`, supplied wherever `volume_section` is) and `[[probes]]` are read by the
 core (`cfdbender.core.pproc`) with pyflightstream's keys; the products are computed
 and written by the core and `cfdbender.post`. An adapter only says what it supplies.
 
