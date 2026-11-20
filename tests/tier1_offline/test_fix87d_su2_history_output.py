@@ -21,18 +21,18 @@ def _text(root, history=None):
 
 def test_no_history_output_writes_the_default_groups(tmp_path):
     text, messages = _text(tmp_path)
-    assert "HISTORY_OUTPUT= ( ITER, RMS_RES, AERO_COEFF )" in text
+    assert "HISTORY_OUTPUT= ( ITER, RMS_RES, AERO_COEFF, AERO_COEFF_SURF )" in text
     assert not any("HISTORY_OUTPUT" in m for m in messages)
 
 
 def test_a_history_output_missing_a_group_is_extended_with_a_warning(tmp_path):
     text, messages = _text(tmp_path, '["ITER", "RMS_RES"]')
-    assert "HISTORY_OUTPUT= ( ITER, RMS_RES, AERO_COEFF )" in text
+    assert "HISTORY_OUTPUT= ( ITER, RMS_RES, AERO_COEFF, AERO_COEFF_SURF )" in text
     assert any("HISTORY_OUTPUT lacks AERO_COEFF" in m for m in messages)
 
 
 @pytest.mark.parametrize("history", ['["aero_coeff", "rms_res", "iter"]'])
 def test_a_complete_history_output_is_kept_without_a_warning(tmp_path, history):
     text, messages = _text(tmp_path, history)
-    assert "HISTORY_OUTPUT= ( aero_coeff, rms_res, iter )" in text
+    assert "HISTORY_OUTPUT= ( aero_coeff, rms_res, iter, AERO_COEFF_SURF )" in text
     assert not any("HISTORY_OUTPUT" in m for m in messages)

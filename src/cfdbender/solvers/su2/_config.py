@@ -465,12 +465,27 @@ def config(
         if "AERO_COEFF_SURF" not in history_groups:
             history_groups.append("AERO_COEFF_SURF")
         values["HISTORY_OUTPUT"] = history_groups
+    _surface_history(values)
     if precursor:
         from cfdbender.solvers.su2._precursor import stage_one
 
         sliding = cast(Mapping[str, object], setup["sliding"])
         values.update(stage_one(values, setup, cast(int, sliding["rotating_zone"])))
     return values
+
+
+def _surface_history(values: dict[str, object]) -> None:
+    """Ask for the per-surface coefficients of every monitored marker, on every point.
+
+    The loads of a part of the model are summed at post time from the per-marker columns
+    (``CFx(wing)``), so the run writes them for every wall marker whatever the groups of a post
+    file are: a new grouping needs only a new post. A multizone history names the group per
+    zone, ``AERO_COEFF_SURF[<zone>]``.
+    """
+    groups = [str(group) for group in cast(list[object], values["HISTORY_OUTPUT"])]
+    zones = len(cast(list[object], values["CONFIG_LIST"])) if values.get("MULTIZONE") else 0
+    wanted = [f"AERO_COEFF_SURF[{i}]" for i in range(zones)] if zones else ["AERO_COEFF_SURF"]
+    values["HISTORY_OUTPUT"] = [*groups, *(name for name in wanted if name not in groups)]
 
 
 #: The SU2 markers that are walls: their names are plotted and monitored by default.
