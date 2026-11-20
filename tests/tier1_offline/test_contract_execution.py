@@ -14,7 +14,13 @@ import time
 from pathlib import Path
 
 import pytest
-from test_conformance_workspace import case, local, prepared, staging_case, state_no_build  # noqa: F401
+from test_conformance_workspace import (  # noqa: F401
+    case,
+    local,
+    prepared,
+    staging_case,
+    state_no_build,
+)
 
 from cfdbender import testing
 from cfdbender.core.adapter import load_point

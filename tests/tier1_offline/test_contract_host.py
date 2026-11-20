@@ -13,7 +13,14 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from test_conformance_workspace import SOLVERS, case, local, prepared, staging_case, state_no_build  # noqa: F401
+from test_conformance_workspace import (  # noqa: F401
+    SOLVERS,
+    case,
+    local,
+    prepared,
+    staging_case,
+    state_no_build,
+)
 
 from cfdbender.core.adapter import load_point
 from cfdbender.core.executables import bind_executable
