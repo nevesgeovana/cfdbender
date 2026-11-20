@@ -71,6 +71,7 @@ Everything is under `post/<matrix>/`.
 | `sections/P<POL>/<point>_sections.csv` | The sectional distribution of a point, for a solver that prints one (QPROP's radial table). |
 | `sections/P<POL>/<point>_cp_<name>.csv`, `sections/P<POL>/<point>_sloads_<name>.csv` | The Cp and the sectional loads of each `[[sections.distributions]]` entry of the PPROC file; see [SU2](su2-workspaces.md#post-processing-products). |
 | `fields/P<POL>/<point>_vsec.vtk` (or `.dat`) | The `[volume_section]` of the PPROC file, with its `.provenance.json`. |
+| `fields/P<POL>/<point>_vsec_<name>.vtk` (or `.dat`) | Each cut of `[[volume_sections]]` (provisional name), with its `.provenance.json`; `products.json` lists it with its `cut` name. |
 | `probes/P<POL>/<point>_probes.csv` | The `[[probes]]` of the PPROC file. |
 | `campaign_summary.json` | Every recorded point with its record and its full result: each coefficient with its axis, the reference values, and the iteration history. |
 | `products.json` | Every file written (with its kind, and its polar and group for a polar file) and every product skipped, with the reason; `complete` is true only when every point has a result. It also states the units, frames, quantities and signs of every column (`kinds`), the run block (`run_block`), the frames with the rotor angles used (`frames`), the families, the groups and their members, the run type of each polar, and any earlier-layout file left in place (`migrated`). |

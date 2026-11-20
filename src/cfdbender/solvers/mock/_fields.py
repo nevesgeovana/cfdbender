@@ -174,5 +174,5 @@ def write_fields(folder: Path, post: Mapping[str, object]) -> None:
     """Write the files the p file's declared products are read from, and only those."""
     if "sections" in post:
         (folder / SURFACE_FILE).write_text(_box_surface(), encoding="ascii")
-    if "volume_section" in post or "probes" in post:
+    if "volume_section" in post or "volume_sections" in post or "probes" in post:
         (folder / VOLUME_FILE).write_text(_block_volume(), encoding="ascii")

@@ -7,6 +7,9 @@ solver's surface and volume files, solver agnostic:
   ``planes``, ``count``, ``plot_direction``, ``integrate``); the table states ``count``
   (50), ``plot_direction`` (1) and ``include_symmetry`` (false) for every entry that states
   none;
+* several named cuts as ``[[volume_sections]]`` (provisional name): each entry takes the keys of
+  ``[volume_section]`` plus ``name`` and, on a circle, ``center_m``; both forms in one file are
+  refused;
 * one ``[volume_section]``: a rectangle (``corners_m``, ``refinement_layers``) or a circle
   (``radii_m``, ``points``) in a ``plane`` of a ``frame`` (``MRP``) at ``offset_m``, written
   as ``vtk`` or ``tecplot``; ``kind`` is ``instantaneous`` (every exported step) or
@@ -51,6 +54,9 @@ __all__ = [
     "PROBE_KINDS",
     "SECTIONS",
     "VOLUME_SECTION",
+    "VOLUME_SECTIONS",
+    "DECLARING_TABLES",
+    "support_key",
     "PostDeclarations",
     "PprocError",
     "ProbeCircle",
@@ -68,6 +74,19 @@ VOLUME_SECTION = "volume_section"
 PROBES = "probes"
 #: The p-file tables that declare a product, in the order the post writes them.
 PRODUCT_TABLES: tuple[str, ...] = (SECTIONS, VOLUME_SECTION, PROBES)
+#: ``[[volume_sections]]`` (provisional name): several named volume cuts, supplied wherever
+#: ``[volume_section]`` is.
+VOLUME_SECTIONS = "volume_sections"
+#: Every p-file key that declares a product.
+DECLARING_TABLES: tuple[str, ...] = (*PRODUCT_TABLES, VOLUME_SECTIONS)
+_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,23}")
+
+
+def support_key(table: str) -> str:
+    """Return the product an adapter must supply for a p-file key."""
+    return VOLUME_SECTION if table == VOLUME_SECTIONS else table
+
+
 #: The planes of a frame, named by the two axes they hold.
 PLANES: tuple[str, ...] = ("XY", "XZ", "YZ")
 #: How a time-accurate row samples a probe entry or a volume section.
@@ -162,6 +181,8 @@ class VolumeSection:
     radii_m: tuple[float, float] | None = None
     points: tuple[int, int] | None = None
     format: str = "vtk"
+    name: str = ""
+    center_m: tuple[float, float] = (0.0, 0.0)
 
 
 @dataclass(frozen=True)
@@ -217,13 +238,14 @@ class PostDeclarations:
     volume_section: VolumeSection | None = None
     probes: tuple[Probes, ...] = ()
     skipped: tuple[str, ...] = field(default=())
+    volume_sections: tuple[VolumeSection, ...] = ()
 
     @property
     def products(self) -> tuple[str, ...]:
         """The product tables declared and kept, in :data:`PRODUCT_TABLES` order."""
         kept = {
             SECTIONS: self.sections is not None,
-            VOLUME_SECTION: self.volume_section is not None,
+            VOLUME_SECTION: self.volume_section is not None or bool(self.volume_sections),
             PROBES: bool(self.probes),
         }
         return tuple(name for name in PRODUCT_TABLES if kept[name])
@@ -422,7 +444,7 @@ def _as_int(value: object) -> int:
 
 
 def _volume_section(
-    value: object, loc: str, warn: Callable[[str, str], None]
+    value: object, loc: str, warn: Callable[[str, str], None], *, named: bool = False
 ) -> VolumeSection | None:
     table = _table(value, loc)
     keys = (
@@ -438,7 +460,19 @@ def _volume_section(
         "format",
         "attach",
     )
-    _known(table, keys, loc)
+    _known(table, (*keys, "name", "center_m") if named else keys, loc)
+    name = ""
+    if named:
+        if "name" not in table:
+            raise _fail(f"{loc}.name", "Field required")
+        raw = table["name"]
+        if not isinstance(raw, str) or not _NAME.fullmatch(raw):
+            raise _fail(
+                f"{loc}.name",
+                f"name = {raw!r} is not a short word: a letter, then letters, digits or "
+                "underscores, at most 24 characters. It names the cut in its output files.",
+            )
+        name = raw
     for required in ("shape", "plane"):
         if required not in table:
             raise _fail(f"{loc}.{required}", "Field required")
@@ -464,6 +498,16 @@ def _volume_section(
         first, second = (_int(v, f"{loc}.points.{i}", 1) for i, v in enumerate(raw))
         points = (first, second)
     fmt = str(_choice(table.get("format", "vtk"), f"{loc}.format", ("vtk", "tecplot")))
+    center = (0.0, 0.0)
+    if table.get("center_m") is not None:
+        if shape != "circle":
+            raise _fail(
+                f"{loc}.center_m",
+                f"center_m is a circle's: the centre in the plane's own coordinates; a {shape} "
+                "states its place by corners_m",
+            )
+        c_u, c_v = _numbers(table["center_m"], f"{loc}.center_m", 2)
+        center = (c_u, c_v)
     if points is not None and (min(points) < 2 or (shape == "circle" and points[1] < 3)):
         raise _fail(
             loc,
@@ -529,7 +573,28 @@ def _volume_section(
         None if radii is None else (radii[0], radii[1]),
         points,
         fmt,
+        name,
+        center,
     )
+
+
+def _volume_sections(
+    value: object, loc: str, warn: Callable[[str, str], None]
+) -> tuple[VolumeSection, ...]:
+    if not isinstance(value, list | tuple) or not value:
+        raise _fail(loc, "Input should be a non-empty array of tables, one per cut")
+    kept: list[VolumeSection] = []
+    for index, item in enumerate(value, 1):
+        entry = _volume_section(item, f"{loc}.{index}", warn, named=True)
+        if entry is not None:
+            if any(entry.name == other.name for other in kept):
+                raise _fail(
+                    f"{loc}.{index}.name",
+                    f"name = {entry.name!r} is used twice; each cut's name is unique, because "
+                    "it names the cut's output files",
+                )
+            kept.append(entry)
+    return tuple(kept)
 
 
 def _vec3(value: object, loc: str) -> tuple[float, float, float]:
@@ -740,17 +805,32 @@ def read_post(
         else:
             warn(key, message)
 
-    loc = {SECTIONS: "[sections]", VOLUME_SECTION: "[volume_section]", PROBES: "[[probes]]"}
+    loc = {
+        SECTIONS: "[sections]",
+        VOLUME_SECTION: "[volume_section]",
+        VOLUME_SECTIONS: "[[volume_sections]]",
+        PROBES: "[[probes]]",
+    }
+    if VOLUME_SECTION in post and VOLUME_SECTIONS in post:
+        raise PprocError(
+            f"{where} [volume_section] and [[volume_sections]] are both declared; state one "
+            "cut as [volume_section] or several named cuts as [[volume_sections]], not both"
+        )
     found: dict[str, object] = {}
-    for table in PRODUCT_TABLES:
+    for table in DECLARING_TABLES:
         if table not in post:
             continue
-        reader = {SECTIONS: _sections, VOLUME_SECTION: _volume_section, PROBES: _probes}[table]
+        readers: dict[str, Callable[..., object]] = {
+            SECTIONS: _sections,
+            VOLUME_SECTION: _volume_section,
+            VOLUME_SECTIONS: _volume_sections,
+            PROBES: _probes,
+        }
         try:
-            found[table] = reader(post[table], loc[table], skip)
+            found[table] = readers[table](post[table], loc[table], skip)
         except PprocError as error:
             raise PprocError(f"{where} {error}") from None
-        if table not in supported:
+        if support_key(table) not in supported:
             offered = ", ".join(t for t in PRODUCT_TABLES if t in supported) or "none"
             skip(
                 f"{where}|{table}",
@@ -764,6 +844,7 @@ def read_post(
         found.get(VOLUME_SECTION),  # type: ignore[arg-type]
         probes,  # type: ignore[arg-type]
         tuple(said),
+        found.get(VOLUME_SECTIONS, ()),  # type: ignore[arg-type]
     )
 
 
