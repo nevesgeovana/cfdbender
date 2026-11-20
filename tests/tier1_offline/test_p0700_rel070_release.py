@@ -1,7 +1,5 @@
 """P0700: release coordinates and notes of 0.7.0."""
 
-import re
-import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,16 +12,6 @@ def _release() -> str:
     assert "## [0.6.1]" not in notes
     assert notes.index("## [Unreleased]") < notes.index(HEADING) < notes.index("## [0.6.0]")
     return notes.split(HEADING, 1)[1].split("## [0.6.0]", 1)[0]
-
-
-def test_p0700_version_coordinates():
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
-    assert project["version"] == "0.7.0"
-    init = (ROOT / "src/cfdbender/__init__.py").read_text(encoding="utf-8")
-    assert '__version__ = "0.7.0"' in init
-    citation = (ROOT / "CITATION.cff").read_text(encoding="utf-8")
-    assert re.search(r"(?m)^version: 0\.7\.0$", citation)
-    assert "date-released: 2026-11-19" in citation
 
 
 def test_p0700_changelog_sections_and_fragments():

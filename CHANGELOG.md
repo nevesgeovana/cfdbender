@@ -5,6 +5,8 @@ versions follow SemVer and are independent of solver versions.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-20
+
 ### Added
 
 - `cfd-matrix plan` and `cfd-matrix run` take `--batch-per-polar`: one scheduler job per polar (matrix row), its points running one after another in sweep order inside the job's own batch script, with the row's `NCPUS` and the sum of its points' `WALLTIME` (capped by the profile's `max_walltime` with the existing warning). It reuses what `--batch N` writes and refuses what `--batch` refuses (`--local`, `--resume`, `--restart`, `--force-rerun`), and it cannot be combined with `--batch N`.
@@ -32,6 +34,15 @@ versions follow SemVer and are independent of solver versions.
 - A sliding-mesh (two-zone) SU2 point now has its rotor row and rotor table (`CT`, `CQ`, `CP` and the rest): the rotor quantities looked for the grid motion at the top of the deck, where a two-zone point does not write it. They are now formed from the turning zone's own loads, rotation and `MACH_MOTION` dynamic pressure.
 - The kept copy of a post file made with `--new-pproc` is written atomically and rewritten when it differs, and the summary carries the new digest only for a point whose collect succeeds.
 - The completion wait list of a sliding-mesh (multizone) SU2 job names its driver history `su2.csv`, so a collect that waits on the job no longer starts on a partial or absent history.
+
+### Migration
+
+- Anything that reads `cfd-matrix status --json` must read the new document (`schema`, `workspace`, `read_at`, `sources`, `rows`, `freshness`) in place of the earlier list of rows; `--csv` gives the columns of the table.
+- The point lines of `cfd-matrix run` moved from standard output to standard error; a script that parsed them from standard output must read standard error or the live log.
+- A setup whose `MARKER_MONITORING` left a wall out now monitors every wall, so SU2's totals, the polar tables and `MRP_TOTAL` are those of the whole model. The rotor row and the `ROTOR_<alias>` group are formed from the rotor markers declared in the reference file (`families_blades`, `families_general`): declare the spinner in `families_general` to count it, and name the mesh's own markers in `families_blades`.
+- A point planned before 0.8.0 keeps its configuration and history without per-surface loads; plan again to get them. Collecting an already-run point picks up the per-zone output of a sliding-mesh point with no new run.
+- `[[volume_sections]]`, `name`, `center_m`, `RESTART_EVERY_REV` and `cfd-matrix run --continue` are provisional names and may change. `RESTART` = `MRF` runs a precursor stage through `run_mrf.sh` (POSIX shell and `cp`); a setup that cannot run it keeps `RESTART` = `-`.
+- A hand-edited product or table file that the manifest does not record still stops `collect` and `post`; pass `--overwrite` to replace it. An edited PPROC file is accepted by `post` and `collect` only with `--new-pproc`.
 
 ## [0.7.0] - 2026-11-19
 

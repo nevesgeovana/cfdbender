@@ -1,6 +1,6 @@
 # cfdbender
 
-cfdbender is an early Python project for CFD workspaces. Version 0.7.0 provides
+cfdbender is an early Python project for CFD workspaces. Version 0.8.0 provides
 workspace initialization, named setup, numerics, reference and post-processing
 files, read-only planning, local runs, neutral result collection, and HPC
 profiles with plan, run and collect. It includes a draft SRS and documentation.
