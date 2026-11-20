@@ -440,6 +440,12 @@ def _time_average(
     zone = sliding.get("rotating_zone") if isinstance(sliding, Mapping) else None
     clock = cast(Mapping[str, object], record["clock"])
     first, last = cast(list[int], record["averaging_window"])
+    if frame is not None and frame.zone is not None and zone is not None and frame.zone == zone:
+        raise ValueError(
+            f"sliding.rotating_zone is {zone}, but the zone files state the grid motion of "
+            f"zone_{1 - frame.zone}.cfg: the rotor and airframe columns would be read from "
+            "the same zone; make the setup and the zone files name the same turning zone"
+        )
     try:
         history = time_history(folder, zone=cast(int | None, zone), columns=columns)
     except (OSError, ValueError, StopIteration) as error:

@@ -109,6 +109,14 @@ def test_one_zero_column_or_a_zero_start_does_not_make_the_airframe_absent(tmp_p
     assert found.coefficients["CL"].value == pytest.approx(_value(0, "CL", STEPS))
 
 
+def test_a_setup_and_zone_files_that_disagree_on_the_turning_zone_are_refused(tmp_path):
+    point, folder = _point(tmp_path)
+    (folder / "zone_0.cfg").write_text("GRID_MOVEMENT= RIGID_MOTION\nROTATION_RATE= 1 0 0\n")
+    (folder / "zone_1.cfg").write_text("GRID_MOVEMENT= NONE\n")
+    with pytest.raises(ValueError, match=r"rotating_zone.*zone_0\.cfg"):
+        _collect(point)
+
+
 def test_a_single_zone_point_has_no_airframe_block(tmp_path):
     folder = tmp_path / "single"
     folder.mkdir()
