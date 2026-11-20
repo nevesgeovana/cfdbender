@@ -164,7 +164,7 @@ inside double quotes, and a cell without double quotes is split exactly as befor
 ### Row variables of the run types
 
 These variables go in `VAR_NAMES_VALUES`. They are never sent to the solver as
-setup keys, and all but `TURBULENCE_MODEL` and `hpc.<name>` are pyflightstream's.
+setup keys, and all but `TURBULENCE_MODEL`, `RESTART_EVERY_REV` and `hpc.<name>` are pyflightstream's.
 A variable of another run type than the row's is warned and skipped. See
 [SU2 run types](su2-workspaces.md#run-types).
 
@@ -182,6 +182,7 @@ A variable of another run type than the row's is warned and skipped. See
 | `EXPORT_UNSTEADY_AFTER_ITER` | The export window: begins at this step (counted from one) and runs to the last step. At most one export key is stated. |
 | `PERIODIC_COPIES` | Copies of the meshed sector that make the whole rotor; required with `SYMMETRY` `PERIODIC`. |
 | `TURBULENCE_MODEL` | `SA` or `SST`, always fully turbulent. |
+| `RESTART_EVERY_REV` | SU2 only: write the restart file every this many revolutions of the rotor clock, so a point stopped by its walltime can continue with `run --continue`. Refused beside a setup `OUTPUT_WRT_FREQ` or a PPROC `output_frequency`; warned and skipped on a row that turns no rotor. See [periodic restart files](su2-workspaces.md#periodic-restart-files). |
 | `hpc.<name>` | One value of the HPC profile, replaced for this row (see above). |
 
 ## Where the values go

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 import cfdbender
+from cfdbender.core.run_types import RESTART_KEYS
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -35,3 +36,8 @@ def test_guide_checks_find_checkout_when_package_is_installed(tmp_path, monkeypa
     )
     loaded = runpy.run_path(__file__)
     assert loaded["ROOT"] == Path(__file__).resolve().parents[2]
+
+
+def test_docs_matrix_columns_include_restart_keys():
+    text = (ROOT / "docs/matrix-columns.md").read_text(encoding="utf-8")
+    assert all(key in text for key in RESTART_KEYS)
