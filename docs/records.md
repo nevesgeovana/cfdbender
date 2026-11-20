@@ -298,6 +298,22 @@ nothing marked
 Your verdicts are kept in `marks.json` with their reason and their time, and
 `runs.json` as it was before the change is copied to `archive/<stamp>/`.
 
+## Collecting over a file you edited: `--overwrite`
+
+`collect` and `post` replace a table only when it is the file the manifest
+(`post/<matrix>/products.json`) recorded. A file you edited by hand, or one another tool left
+under `post/<matrix>/`, stops the command, and the message names the file:
+
+```text
+<workspace>/post/full/polars/P7001-TOTAL-DIM.csv: unrecorded or edited output; refusing overwrite; move it aside, or run the command again with --overwrite to replace it
+```
+
+`cfd-matrix collect --overwrite` and `cfd-matrix post --overwrite` replace every such file
+and go on through every point: nothing stops in the middle. The manifest is then written from
+the new files, so the recorded digest of a replaced file is that of the new bytes, and the
+next collect without the flag is clean. A linked file is still refused. `--archive` keeps a
+copy of what was replaced under `archive/<stamp>/`.
+
 ## Bringing a file back
 
 ```console

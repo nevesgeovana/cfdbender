@@ -21,7 +21,7 @@ import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from cfdbender.core.plan import workspace_path
+from cfdbender.core.plan import overwrite_allowed, workspace_path
 from cfdbender.core.refusals import warn_or_refuse
 from cfdbender.matrix._family_polar import PolarFiles
 from cfdbender.matrix._manifest_schema import SECTIONS_DIR, manifest_statement
@@ -56,7 +56,8 @@ def _digest(data: dict[str, object]) -> str:
 
 def _collision(path: Path) -> ValueError:
     return ValueError(
-        f"{path}: unrecorded or edited output; refusing overwrite; move it aside and collect again"
+        f"{path}: unrecorded or edited output; refusing overwrite; move it aside, or run the "
+        "command again with --overwrite to replace it"
     )
 
 
@@ -67,6 +68,8 @@ def _check_metadata(folder: Path, matrix: str, solver: str) -> tuple[bool, bool]
         if path.is_symlink():
             raise _collision(path)
     exists = manifest.exists(), log.exists()
+    if overwrite_allowed():
+        return exists
     if not exists[0]:
         if exists[1]:
             raise _collision(log)

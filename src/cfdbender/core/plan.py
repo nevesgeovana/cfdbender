@@ -196,6 +196,29 @@ _NEW_POST: contextvars.ContextVar[bool] = contextvars.ContextVar(
     "cfdbender_new_post_file", default=False
 )
 
+_OVERWRITE: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "cfdbender_overwrite_outputs", default=False
+)
+
+
+@contextmanager
+def overwrite_outputs(enabled: bool = True) -> Iterator[None]:
+    """Let ``collect`` and ``post`` replace a product or table file the manifest does not record.
+
+    A file edited by hand, or left by another tool, otherwise stops the command; inside the
+    block it is replaced and the manifest records the new bytes. A linked file is still refused.
+    """
+    token = _OVERWRITE.set(enabled)
+    try:
+        yield
+    finally:
+        _OVERWRITE.reset(token)
+
+
+def overwrite_allowed() -> bool:
+    """Return whether the running command replaces product files it did not record."""
+    return _OVERWRITE.get()
+
 
 @contextmanager
 def new_post_file(enabled: bool = True) -> Iterator[None]:

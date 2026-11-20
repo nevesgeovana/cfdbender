@@ -26,7 +26,7 @@ from typing import cast
 
 from cfdbender.core.convergence import Verdict
 from cfdbender.core.flight import FlightConditionError, resolve_flow
-from cfdbender.core.plan import workspace_path
+from cfdbender.core.plan import overwrite_allowed, workspace_path
 from cfdbender.matrix._family_columns import SOLVER_ROTORS
 from cfdbender.matrix._family_polar import Point, PolarFiles, point_loads, polar_files
 from cfdbender.matrix._rotor_table import rotor_table
@@ -149,7 +149,7 @@ def _replaceable(target: Path, data: bytes) -> bool:
     if not target.exists():
         return False
     original = target.read_bytes()
-    if original == data:
+    if original == data or overwrite_allowed():
         return True
     for folder in target.parents:
         if folder.parent.name != "post":
@@ -171,7 +171,7 @@ def _replaceable(target: Path, data: bytes) -> bool:
         break
     raise ValueError(
         f"{target}: unrecorded or edited output; refusing overwrite; "
-        "move it aside and collect again"
+        "move it aside, or run the command again with --overwrite to replace it"
     )
 
 

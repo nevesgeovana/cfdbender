@@ -16,7 +16,7 @@ from cfdbender import __version__, _cli
 from cfdbender._cli import cli_entrypoint, note_post_ran
 from cfdbender.core.adapter import SolverAdapter, capabilities
 from cfdbender.core.executables import check_builds, check_local_executables
-from cfdbender.core.plan import large_input_check, new_post_file, rehash_inputs
+from cfdbender.core.plan import large_input_check, new_post_file, overwrite_outputs, rehash_inputs
 from cfdbender.core.progress import sink as progress_sink
 from cfdbender.core.refusals import warn_or_refuse, warning_refusals
 from cfdbender.core.registry import RunRecord, RunRegistry
@@ -265,6 +265,13 @@ def build_parser() -> tuple[
     add_console_options(post_parser)
     for command_parser in (collect_parser, post_parser):
         command_parser.add_argument(
+            "--overwrite",
+            action="store_true",
+            help="replace a product or table file that the manifest does not record (edited by "
+            "hand or left by another tool) and go on through every point; without it such a "
+            "file stops the command, which names the file",
+        )
+        command_parser.add_argument(
             "--new-pproc",
             action="store_true",
             help="accept a PPROC file that differs from the planned one, so a new grouping of "
@@ -435,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
             warning_refusals(refuse),
             rehash_inputs(getattr(args, "rehash_inputs", False)),
             new_post_file(getattr(args, "new_pproc", False)),
+            overwrite_outputs(getattr(args, "overwrite", False)),
             large_input_check("identity" if no_read else None),
         ):
             code = _execute(args, verbs, console)
