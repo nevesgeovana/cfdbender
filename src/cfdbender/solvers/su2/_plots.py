@@ -259,6 +259,44 @@ def unfillable(groups: Sequence[Group]) -> dict[str, str]:
     }
 
 
+def _steady_table(folder: Path) -> tuple[list[str], list[list[str]]]:
+    """Return the header and the rows of a steady point's ``history.csv``."""
+    import csv
+
+    from cfdbender.solvers.su2._history import history_headers
+
+    path = folder / "history.csv"
+    with path.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.reader(stream, skipinitialspace=True)
+        headers = history_headers(next(reader), path)
+        rows = [cells for cells in reader if cells]
+    if not rows:
+        raise ValueError(f"{path}: history has no data rows")
+    return headers, rows
+
+
+def _steady_history(folder: Path, names: Sequence[str], marker: str | None) -> Any:
+    """Return the last row of a steady history as a one-step history of ``names``."""
+    import math
+
+    import numpy as np
+
+    from cfdbender.post.time_average import TimeHistory
+
+    headers, rows = _steady_table(folder)
+    wanted = {name: name if marker is None else f"{name}({marker})" for name in names}
+    missing = [column for column in wanted.values() if column not in headers]
+    if missing:
+        raise ValueError(f"{folder / 'history.csv'}: no column {', '.join(missing)}")
+    last = dict(zip(headers, rows[-1], strict=False))
+    values = {name: float(last[column]) for name, column in wanted.items()}
+    if not all(math.isfinite(v) for v in values.values()):
+        raise ValueError(f"{folder / 'history.csv'}: the last row holds a value that is not finite")
+    return TimeHistory(
+        np.array([1], dtype=int), {name: np.array([value]) for name, value in values.items()}
+    )
+
+
 def plot_series(
     folder: Path,
     groups: Sequence[Group],
@@ -266,6 +304,7 @@ def plot_series(
     *,
     turning_zone: int | None,
     zones: int,
+    steady: bool = False,
 ) -> tuple[Any, dict[str, str]]:
     """Read the plot columns of the groups from the history of a point.
 
@@ -280,6 +319,8 @@ def plot_series(
         dimensional parameter; None when the run states no free stream.
     turning_zone, zones : int
         The turning zone and the zone count of a multizone point; ``zones`` is 1 otherwise.
+    steady : bool, optional
+        Read ``history.csv`` of a steady point and keep its last row, the steady reduction.
 
     Returns
     -------
@@ -293,7 +334,7 @@ def plot_series(
     from cfdbender.solvers.su2._history import history_table
     from cfdbender.solvers.su2._time_history import time_history, zone_column
 
-    headers, _ = history_table(folder)
+    headers = _steady_table(folder)[0] if steady else history_table(folder)[0]
     names = tuple(COEFFICIENT.values())
     steps = None
     columns: dict[str, Any] = {}
@@ -304,7 +345,11 @@ def plot_series(
 
     def series(zone: int | None, marker: str | None) -> Any:
         if (zone, marker) not in cache:
-            cache[(zone, marker)] = time_history(folder, zone=zone, columns=names, marker=marker)
+            cache[(zone, marker)] = (
+                _steady_history(folder, names, marker)
+                if steady
+                else time_history(folder, zone=zone, columns=names, marker=marker)
+            )
         return cache[(zone, marker)]
 
     for group in groups:

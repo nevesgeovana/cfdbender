@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import warnings
 
 import pytest
 import test_runtypes_b1_workflows as rt
 
 from cfdbender.core.adapter import load_point
-from cfdbender.core.plan import workspace_path
+from cfdbender.core.plan import new_post_file, workspace_path
 from cfdbender.core.pproc import PprocError, read_plots
+from cfdbender.matrix._steady_plots import steady_plot_polars
 from cfdbender.matrix._unsteady_polar import plots_absent, unsteady_polars
 from cfdbender.matrix.exports import _cell
 from cfdbender.solvers import load_solver
@@ -186,7 +188,8 @@ def test_a_new_post_file_regroups_the_same_run_and_the_total_is_the_same(tmp_pat
     (tmp_path / "inputs/pproc/p001.toml").write_text(POST_B, encoding="ascii")
     with pytest.raises(ValueError, match="input changed after planning"):
         load_point(tmp_path, plan_point, solver="su2")
-    again = load_point(tmp_path, plan_point, solver="su2", post_may_change=True)
+    with new_post_file():
+        again = load_point(tmp_path, plan_point, solver="su2")
     second = _means(_collect(again))
     assert (folder / "su2.csv").read_bytes() == history
     for name in ("CL_MRP_TOTAL", "CD_MRP_TOTAL", "FX_MRP_TOTAL"):
@@ -279,3 +282,148 @@ def test_every_point_asks_for_the_per_surface_loads_of_all_its_markers(tmp_path,
     )
     wanted = ["AERO_COEFF_SURF[0]", "AERO_COEFF_SURF[1]"] if multizone else ["AERO_COEFF_SURF"]
     assert [g for g in keys["HISTORY_OUTPUT"] if "AERO_COEFF_SURF" in str(g)] == wanted
+
+
+# ---- a steady point: the same groups, the same names, from the last row of its history
+
+STEADY_MARKERS = ["wing", "wing_te", "fuselage", "tail"]
+ITERATIONS = 12
+
+
+def _steady_value(marker, column, iteration):
+    base = 0.01 * (1 + STEADY_MARKERS.index(marker)) * (1 + LOADS.index(column))
+    return round(base + 0.001 * iteration, 6)
+
+
+def _steady(root, post, *, dead=()):
+    rt.workspace(root, setup="", condition="MACH:0.0529, ALPHA:0, BETA:0")
+    (root / "inputs/pproc/p001.toml").write_text(post, encoding="ascii")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        plan = plan_workspace(root, "rt")
+    point = load_point(root, plan.points[0], solver="su2")
+    folder = workspace_path(root, plan.points[0].directory)
+    folder.mkdir(parents=True)
+    (folder / "su2.cfg").write_text(
+        f"ITER= {ITERATIONS}\nREF_AREA= 1\nREF_LENGTH= 0.5\n"
+        "REF_ORIGIN_MOMENT_X= 0\nREF_ORIGIN_MOMENT_Y= 0\nREF_ORIGIN_MOMENT_Z= 0\n"
+    )
+    columns = ["rms[Rho]", *LOADS, *[f"{c}({m})" for m in STEADY_MARKERS for c in LOADS]]
+    rows = [",".join(f'"{h}"' for h in ["Inner_Iter", *columns])]
+    for it in range(ITERATIONS):
+        cells = [it]
+        for column in columns:
+            if column.startswith("rms"):
+                cells.append(-8.0)
+            elif "(" in column:
+                marker = column.split("(")[1][:-1]
+                name = column.split("(")[0]
+                cells.append(0.0 if marker in dead else _steady_value(marker, name, it))
+            else:
+                live = [m for m in STEADY_MARKERS if m not in dead]
+                cells.append(round(sum(_steady_value(m, column, it) for m in live), 6))
+        rows.append(",".join(str(c) for c in cells))
+    (folder / "history.csv").write_text("\n".join(rows) + "\n", encoding="ascii")
+    return plan.points[0], point
+
+
+def _steady_table(root, result):
+    row = {"pol": "7001", "point_id": "7001/DP", "condition": {}, "result": result}
+    written = {}
+    steady_plot_polars(
+        root / "post/rt", [row], write=lambda p, t: written.setdefault(p.name, t), cell=_cell
+    )
+    return written, row
+
+
+STEADY_POST = """history = true
+[plots]
+parameters = ["CL", "CDI", "CD", "FX", "MY"]
+[plots.families]
+Wing = ["wing", "wing_te"]
+[[plots.groups]]
+name = "MRP_TOTAL"
+families = "all"
+[[plots.groups]]
+name = "MRP_{family}"
+families = "each"
+"""
+
+
+def test_a_steady_point_gets_the_same_columns_from_the_last_row(tmp_path):
+    _, point = _steady(tmp_path, STEADY_POST)
+    result = _collect(point)
+    last = ITERATIONS - 1
+    values = result["plots"]["values"]
+    wing = sum(_steady_value(m, "CL", last) for m in ("wing", "wing_te"))
+    assert values["CL_MRP_Wing"] == pytest.approx(wing)
+    assert values["CD_MRP_tail"] == pytest.approx(_steady_value("tail", "CD", last))
+    assert not any(name.startswith("CDI_") for name in values)
+    assert "induced" in result["plots"]["absent"]["CDI"]
+    written, row = _steady_table(tmp_path, result)
+    (text,) = written.values()
+    header = text.splitlines()[0].split(",")
+    assert header[:2] == ["POL", "ITER"] and "CL_MRP_TOTAL" in header and "CL_MRP_Wing" in header
+    assert any("#plots:CDI,point=7001/DP" in p for p, _ in plots_absent([row], "rt"))
+    # the steady coefficients are those of a point without plots
+    total = sum(_steady_value(m, "CL", last) for m in STEADY_MARKERS)
+    assert result["coefficients"]["CL"]["value"] == pytest.approx(total)
+
+
+def test_the_total_is_the_histories_total_within_the_rounding_of_its_digits(tmp_path):
+    """SU2 prints the total and each marker's value apart, each to six significant digits.
+
+    The sum of the markers then differs from the total by at most half a unit of the sixth
+    digit per marker: four markers differ by less than 2e-6, and the test allows 5e-6.
+    """
+    _, point = _steady(tmp_path, STEADY_POST)
+    values = _collect(point)["plots"]["values"]
+    for parameter in ("CL", "CD"):
+        parts = sum(values[f"{parameter}_MRP_{f}"] for f in ("Wing", "fuselage", "tail"))
+        assert values[f"{parameter}_MRP_TOTAL"] == pytest.approx(parts, abs=5e-6)
+
+
+def test_a_new_post_regroups_a_steady_point_and_its_total_is_unchanged(tmp_path):
+    plan_point, point = _steady(tmp_path, STEADY_POST)
+    first = _collect(point)["plots"]["values"]
+    other = (
+        'history = true\n[plots]\nparameters = ["CL"]\n'
+        '[[plots.groups]]\nname = "MRP_TOTAL"\nfamilies = "all"\n'
+        '[[plots.groups]]\nname = "MRP_BODY"\nfamilies = ["fuselage", "tail"]\n'
+    )
+    (tmp_path / "inputs/pproc/p001.toml").write_text(other, encoding="ascii")
+    with new_post_file():
+        again = load_point(tmp_path, plan_point, solver="su2")
+    second = _collect(again)["plots"]["values"]
+    assert first["CL_MRP_TOTAL"] == second["CL_MRP_TOTAL"]
+    assert "CL_MRP_BODY" in second and "CL_MRP_BODY" not in first
+
+
+def test_a_steady_group_whose_markers_carry_no_load_is_absent(tmp_path):
+    _, point = _steady(tmp_path, STEADY_POST, dead=("tail",))
+    result = _collect(point)
+    assert "CL_MRP_tail" not in result["plots"]["values"]
+    assert "no load" in result["plots"]["absent"]["MRP_tail"]
+
+
+def test_a_steady_point_without_plots_is_unchanged(tmp_path):
+    _, point = _steady(tmp_path, "history = true\n")
+    result = _collect(point)
+    assert "plots" not in result
+    written, _ = _steady_table(tmp_path, result)
+    assert written == {}
+
+
+def test_collect_and_post_take_an_edited_post_file_only_with_the_option(tmp_path, capsys):
+    from test_p0000_item3c2_collect import executed
+    from test_p0000_item3c2_run import cli
+
+    executed(tmp_path)
+    assert cli(["collect", "--workspace", str(tmp_path)]) == 0
+    (tmp_path / "inputs/pproc/p001.toml").write_text("history = false", encoding="ascii")
+    assert cli(["collect", "--workspace", str(tmp_path)]) == 1
+    capsys.readouterr()
+    assert cli(["collect", "--workspace", str(tmp_path), "--new-pproc"]) == 0
+    assert cli(["post", "--workspace", str(tmp_path), "--new-pproc"]) == 0
+    summary = json.loads((tmp_path / "post/study/campaign_summary.json").read_bytes())
+    assert not summary["points"][0]["error"]

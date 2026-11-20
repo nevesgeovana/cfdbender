@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, cast
@@ -464,6 +464,53 @@ def _plot_groups(
     return history, record
 
 
+def _steady_plots(
+    point: AdapterPoint, folder: Path, history: Sequence[Any]
+) -> dict[str, object] | None:
+    """Read the ``[plots]`` groups of a steady point from the last row of its history.
+
+    The same groups, names and rules as a time-accurate point's, reduced as the steady
+    coefficients are: the last row. None without a ``[plots]`` table.
+    """
+    from cfdbender.solvers.su2._plots import (
+        _steady_table,
+        history_markers,
+        plot_groups,
+        plot_series,
+    )
+
+    if "plots" not in point.post or not (folder / "history.csv").is_file():
+        return None
+    values = config(
+        point.setup,
+        point.reference,
+        point.post,
+        point.point.condition,
+        geometry=point.geometry,
+        run_type=point.point.run_type,
+        restarted=point.point.restart_from is not None,
+        precursor=point.point.precursor,
+    )
+    headers, _ = _steady_table(folder)
+    groups, skipped = plot_groups(
+        point.reference, point.post, history_markers(headers), multizone=False
+    )
+    loads = rotor_loads(values, (1.0, 1.0, 1.0), (1.0, 1.0, 1.0))
+    scale = None if loads is None else (loads.force_n[0], loads.moment_nm[0])
+    found, absent = plot_series(folder, groups, scale, turning_zone=None, zones=1, steady=True)
+    columns = {} if found is None else {n: float(v[0]) for n, v in found.columns.items()}
+    return {
+        "groups": [g.name for g in groups],
+        "columns": list(columns),
+        "values": columns,
+        "absent": absent,
+        "skipped": [{"group": name, "reason": reason} for name, reason in skipped],
+        "iteration": history[-1].iteration if history else None,
+        "condition": condition_cells(values),
+        "absent_condition": list(ABSENT_CONDITION_COLUMNS),
+    }
+
+
 def _time_average(
     point: AdapterPoint,
     folder: Path,
@@ -592,6 +639,8 @@ def collect(point: AdapterPoint) -> NeutralResult:
         found = dimensions(folder)
     averaged: dict[str, object] | None = None
     plots: dict[str, object] | None = None
+    if point.point.run_type not in TIME_ACCURATE:
+        plots = _steady_plots(point, folder, result.history)
     if point.point.run_type in TIME_ACCURATE:
         record: dict[str, object] = {}
         values = config(
