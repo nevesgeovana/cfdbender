@@ -216,15 +216,39 @@ def history_names(folder: Path) -> list[str]:
     The files of a continued point's earlier runs are named with their folder,
     ``continued/1/su2.csv``.
     """
-    configs = _run_configs(folder, required=False)
+    configs = _kept_configs(folder)
     return list(dict.fromkeys(prefix + history_name(keys) for prefix, keys in configs))
+
+
+def _restart_at(keys: Mapping[str, str]) -> int:
+    if _yes(keys, "RESTART_SOL"):
+        return int(keys.get("RESTART_ITER", "0"))
+    return 0
+
+
+def _kept_configs(folder: Path) -> list[tuple[str, dict[str, str]]]:
+    """Return the configurations whose history the point keeps, in the order they ran.
+
+    An earlier run of a continued point that left no history and that the next run restarts
+    at the same iteration (a continuation whose submission failed, or that was killed before
+    its first row) marched nothing the point keeps; it is left out instead of making the whole
+    history unreadable.
+    """
+    configs = _run_configs(folder, required=False)
+    prefixes = list(dict.fromkeys(prefix for prefix, _ in configs))
+    dropped: set[str] = set()
+    for here, after in zip(prefixes, prefixes[1:], strict=False):
+        own = [keys for prefix, keys in configs if prefix == here]
+        following = next(keys for prefix, keys in configs if prefix == after)
+        if here and not any((folder / (here + history_name(k))).is_file() for k in own):
+            if _restart_at(following) <= _restart_at(own[0]):
+                dropped.add(here)
+    return [(prefix, keys) for prefix, keys in configs if prefix not in dropped]
 
 
 def _runs_of(folder: Path) -> dict[str, str]:
     """Map each history file of the point to the folder of the run that wrote it."""
-    return {
-        prefix + history_name(keys): prefix for prefix, keys in _run_configs(folder, required=False)
-    }
+    return {prefix + history_name(keys): prefix for prefix, keys in _kept_configs(folder)}
 
 
 def history_table(folder: Path, counter: str = "Time_Iter") -> tuple[list[str], list[list[str]]]:
