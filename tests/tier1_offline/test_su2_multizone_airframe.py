@@ -90,6 +90,25 @@ def test_the_stationary_zones_last_loads_are_read_under_the_single_zone_names(tm
     assert found.coefficients["CMy"].axis == "y" and found.coefficients["CMy"].kind == "moment"
 
 
+def test_one_zero_column_or_a_zero_start_does_not_make_the_airframe_absent(tmp_path):
+    _, folder = _point(tmp_path)
+    lines = (folder / "su2.csv").read_text(encoding="ascii").splitlines()
+    header = [cell.strip('"') for cell in lines[0].split(",")]
+    loads = [header.index(f"{name}[0]") for name in LOADS]
+    rows = [line.split(",") for line in lines[1:]]
+    for number, cells in enumerate(rows):
+        for at in loads:
+            if number < 4 or header[at] == "CMz[0]":
+                cells[at] = "0.0"
+    (folder / "su2.csv").write_text(
+        "\n".join([lines[0], *(",".join(cells) for cells in rows)]) + "\n", encoding="ascii"
+    )
+    found = airframe(folder)
+    assert found is not None and found.absent is None
+    assert found.coefficients["CMz"].value == 0.0
+    assert found.coefficients["CL"].value == pytest.approx(_value(0, "CL", STEPS))
+
+
 def test_a_single_zone_point_has_no_airframe_block(tmp_path):
     folder = tmp_path / "single"
     folder.mkdir()
