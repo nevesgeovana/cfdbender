@@ -114,6 +114,7 @@
 \item \fl{--watch} keep sweeping until no submitted point is outstanding
 \item \fl{--watch-interval S} seconds between sweeps (default 60); \fl{--rounds N} stop the watch after N sweeps
 \item \fl{--interval S} seconds between the two looks that decide an output is settled
+\item \fl{--ended POINT [POINT ...]} seal these submitted points (\texttt{POL/DP-name}) failed, files kept, when their cluster job ended without \texttt{job.exit}; a rerun or continued run can then follow
 \item \fl{--archive} keep a copy of each replaced file under \texttt{archive/<stamp>/}; \fl{--overwrite} replace an unrecorded product; \fl{--new-pproc} accept an edited PPROC file
 \item \fl{--rehash-inputs} read every input again; \fl{--no-read-large-inputs} never open one above 8 MiB
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
