@@ -359,6 +359,8 @@ def batch_plans(
             seconds = _clock(pol, member.walltime, True)[0]
             weight += seconds if seconds is not None else 1.0
         units.append(RowUnit(pol, order, (profile.path.as_posix(), str(ncpus), str(build)), weight))
+    runs: list[tuple[RowUnit, ...]]
+    warnings: list[str]
     if per_polar:
         runs, warnings = [(unit,) for unit in units], []
         n = len(runs)
