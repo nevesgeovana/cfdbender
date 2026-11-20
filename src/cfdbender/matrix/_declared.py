@@ -14,7 +14,7 @@ from typing import cast
 from cfdbender.core.adapter import load_point
 from cfdbender.core.contract import product_support
 from cfdbender.core.plan import InputSession, Point, owned_path, workspace_path
-from cfdbender.core.pproc import PRODUCT_TABLES, read_post
+from cfdbender.core.pproc import DECLARING_TABLES, read_post
 
 
 def matrix_products(
@@ -52,7 +52,7 @@ def matrix_products(
         moment = cast(Sequence[float], references.get("moment_origin") or (0.0, 0.0, 0.0))
         try:
             point = load_point(root, planned[point_id], solver=solver, session=session)
-            if not any(table in point.post for table in PRODUCT_TABLES):
+            if not any(table in point.post for table in DECLARING_TABLES):
                 continue
             if not support:
                 declared = read_post(point.post, supported=(), warn=lambda key, text: None)

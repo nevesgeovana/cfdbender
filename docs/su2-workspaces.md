@@ -396,6 +396,7 @@ The PPROC file declares sections, a volume cut and probes with pyflightstream's 
 | `sections/P<POL>/<point>_cp_<name>.csv` | `surface_flow.vtu` | One row per section and chordwise station: `POL, STEP, time_s, FAMILY, PLANE, ROTOR, AZIMUTH`, the condition block, `SECTION` and the Cp columns. |
 | `sections/P<POL>/<point>_sloads_<name>.csv` | `surface_flow.vtu` | One row per section: the same leading columns, `Offset, Chord, X_QC, Z_QC, Fx, Fz, Moment`, and with `integrate = true` `Strip_length, Fx_int, Fz_int, My_int`; then the pressure and friction parts (below). |
 | `fields/P<POL>/<point>_vsec.vtk` or `.dat` | `flow.vtu` | The velocity interpolated at the laid points of the cut, with its `.provenance.json`. |
+| `fields/P<POL>/<point>_vsec_<name>.vtk` or `.dat` | `flow.vtu` | The same for each cut of `[[volume_sections]]` (provisional name), with its `.provenance.json`. |
 | `probes/P<POL>/<point>_probes.csv` | `flow.vtu` | `POL, PROBE, X, Y, Z, FRAME, STEP`, the condition block, then the sampled parameters; a sampled `MACH` is `MACH_LOCAL`. |
 
 `<name>` is the entry's `families` word, as pyflightstream names it. A section is cut by cfdbender from the surface file and its loads integrated there, the same way for every solver; a volume cut and probes are interpolated inside the cells of the volume file at the exact declared positions. A probe point that lies in no cell keeps its row, and its value cells hold `NA`; a volume cut drops such a point. The frames a declaration may name are built from the reference file: `REFERENCE`, `MRP` (at the moment origin), and for the declared rotor `<ALIAS>_SMRP` (the hub frame: the shaft letter along the installed shaft, the `blade1.zero` letter toward that direction projected onto the disc), `<ALIAS>_BMRP`, `<ALIAS>_RMRP`, `<ALIAS>_RMRP<k>`, `SMRP` and `RMRP`. A probe entry with no `frame` is in the rotor's hub frame.
@@ -429,6 +430,37 @@ parameters = ["VX", "VY", "VZ", "MACH", "CP_FREE"]
 start = [0.05, 0.08, 0.0]
 end = [0.05, 0.16, 0.0]
 ```
+
+### Several volume cuts, and an annulus at a disc (provisional names)
+
+A PPROC file may hold several volume cuts as `[[volume_sections]]` entries; the single `[volume_section]` stays valid and unchanged, and declaring both forms in one file is refused. Each entry takes the keys of `[volume_section]` (`kind`, `shape`, `frame`, `plane`, `offset_m`, `corners_m` or `radii_m`, `points`, `format`) plus `name`, required, a short word (a letter, then letters, digits or underscores, at most 24 characters) unique in the file, and `center_m`, the circle's centre `[u, v]` in the plane's own coordinates of the declared frame (default `[0, 0]`; refused on a rectangle). The output files are `fields/P<POL>/<point>_vsec_<name>.vtk` (or `.dat`), with `_step_<STEP>` on a time-accurate point as for the single cut, and `products.json` lists each file with `"cut": "<name>"`; the single table keeps `<point>_vsec`.
+
+An annulus is a circle with `radii_m = [inner, outer]` and `inner > 0`: no point lies inside the inner radius. A power-off reference has no rotor, so the annulus at the propeller disc is declared in the `REFERENCE` frame, in plane `YZ` at the disc's `x` as `offset_m`, with `center_m` the rotor centre's `[y, z]`:
+
+```toml
+history = true
+
+[[volume_sections]]
+name = "plane"
+shape = "rectangle"
+frame = "REFERENCE"
+plane = "XZ"
+offset_m = 0.5
+corners_m = [0.0, -0.5, 1.0, 0.5]
+points = [3, 3]
+
+[[volume_sections]]
+name = "disc"
+shape = "circle"
+frame = "REFERENCE"
+plane = "YZ"
+offset_m = 0.5          # the disc's x
+center_m = [0.5, 0.0]   # the rotor centre's y, z
+radii_m = [0.2, 0.8]    # inner > 0: an annulus
+points = [3, 8]
+```
+
+A finished point whose volume files exist gets new cuts without running anything: edit the PPROC file and run `cfd-matrix post <matrix> --new-pproc` (a steady point's `flow.vtu`; a time-accurate point's last-step, or export-window, volume files, per zone on a sliding-mesh point). The summary records the new PPROC digest and a copy of the file is kept in `post/<matrix>/pproc/`.
 
 On a `steady` or `qsteady_rotor` point each product is one instant, and `STEP` of a sections file is the solver iteration of the files. On a time-accurate point with an export window, the sections files and a probes entry of `kind = "instantaneous"` hold every exported step in order (`products.json` says `"kind": "history"`), and the volume cut is one file per step, `_step_<STEP>` before the extension; an entry of `kind = "default"` samples the last step. Without an export window a time-accurate point writes its last step, one instant. A turning frame (`<ALIAS>_RMRP`, `<ALIAS>_RMRP<k>`) follows blade one's azimuth at each step, and `AZIMUTH` states where the block's blade is.
 

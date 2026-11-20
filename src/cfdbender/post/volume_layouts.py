@@ -63,6 +63,7 @@ def volume_section_points(
     points: Sequence[int] | None = None,
     refinement_layers: int = 1,
     offset_m: float = 0.0,
+    center_m: Sequence[float] | None = None,
 ) -> NDArray[np.float64]:
     """Lay the points of a volume cut, in the declared frame, in meters.
 
@@ -83,6 +84,10 @@ def volume_section_points(
         Rectangle: each extra layer bisects every interval.
     offset_m : float, default 0
         Distance along the remaining axis of the plane.
+    center_m : sequence of two floats, optional
+        Circle: the centre in the plane's own coordinates (``u, v``); ``(0, 0)`` by default.
+        With ``0 < r1`` the cut is an annulus: no point lies inside the inner radius. A rectangle
+        takes none.
 
     Returns
     -------
@@ -103,6 +108,8 @@ def volume_section_points(
     if plane not in ("XY", "XZ", "YZ"):
         raise LayoutError(f"the plane is {plane!r}; it is one of 'XY', 'XZ' or 'YZ'")
     if shape == "rectangle":
+        if center_m is not None:
+            raise LayoutError("a rectangle takes corners_m; center_m is a circle's")
         if radii_m is not None:
             raise LayoutError("a rectangle takes corners_m; radii_m is a circle's")
         if corners_m is None or len(corners_m) != 4:
@@ -135,16 +142,22 @@ def volume_section_points(
         inner, outer = float(radii_m[0]), float(radii_m[1])
         if not 0.0 <= inner < outer:
             raise LayoutError(f"radii_m {list(radii_m)} are not 0 <= r1 < r2")
+        if center_m is None:
+            centre_u, centre_v = 0.0, 0.0
+        elif len(center_m) != 2 or not all(math.isfinite(float(x)) for x in center_m):
+            raise LayoutError(f"center_m is {list(center_m)!r}; it is two finite numbers")
+        else:
+            centre_u, centre_v = float(center_m[0]), float(center_m[1])
         pairs = []
         for i in range(radial):
             radius = inner + (outer - inner) * i / (radial - 1)
             if radius == 0:
-                pairs.append((0.0, 0.0))
+                pairs.append((centre_u, centre_v))
             else:
                 pairs.extend(
                     (
-                        radius * math.cos(2 * math.pi * j / azimuth),
-                        radius * math.sin(2 * math.pi * j / azimuth),
+                        centre_u + radius * math.cos(2 * math.pi * j / azimuth),
+                        centre_v + radius * math.sin(2 * math.pi * j / azimuth),
                     )
                     for j in range(azimuth)
                 )

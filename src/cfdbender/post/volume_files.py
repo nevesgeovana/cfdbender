@@ -318,6 +318,7 @@ def write_volume_section(
     *,
     format: str = "vtk",
     description: Mapping[str, object] | None = None,
+    cut: str = "",
 ) -> SectionReport:
     """Write ``fields/<point>_vsec[_step_<STEP>].vtk`` (or ``.dat``) for each volume.
 
@@ -340,6 +341,9 @@ def write_volume_section(
         The file format.
     description : mapping, optional
         Declaration facts (shape, plane, ...) copied into each provenance record.
+    cut : str, optional
+        The name of a cut of ``[[volume_sections]]``: the files are
+        ``fields/<point>_vsec_<cut>[_step_<STEP>]``; empty, the single table's ``_vsec``.
 
     Returns
     -------
@@ -351,7 +355,8 @@ def write_volume_section(
     VolumeError
         If the format is unknown or a column name or shape cannot be written.
     """
-    _check_product_name(f"{point}_vsec.vtk")
+    tag = f"_vsec_{cut}" if cut else "_vsec"
+    _check_product_name(f"{point}{tag}.vtk")
     if format not in ("vtk", "tecplot"):
         raise VolumeError(f"the format is {format!r}; it is 'vtk' or 'tecplot'")
     _check_names(columns)
@@ -369,7 +374,7 @@ def write_volume_section(
         if result.n_found:
             kept = {name: values[found] for name, values in resolved.items()}
             text = (_vtk_text if format == "vtk" else _tecplot_text)(placed[found], kept)
-            file = folder / f"{point}_vsec{_step_suffix(volume.step)}{extension}"
+            file = folder / f"{point}{tag}{_step_suffix(volume.step)}{extension}"
             write_text(file, text)
             source_name, source_hash = volume.source_name_and_hash()
             write_json(

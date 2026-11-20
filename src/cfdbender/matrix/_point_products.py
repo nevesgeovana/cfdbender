@@ -544,7 +544,8 @@ def _volume_section(
     target: Callable[[str], Path],
 ) -> None:
     extension = "vtk" if entry.format == "vtk" else "dat"
-    label = f"fields/P{ctx.pol}/{ctx.name}_vsec.{extension}"
+    tag = f"_vsec_{entry.name}" if entry.name else "_vsec"
+    label = f"fields/P{ctx.pol}/{ctx.name}{tag}.{extension}"
     frame = ctx.frames.get(entry.frame)
     chosen = list(volumes)
     if inputs.time_accurate and (entry.kind == "default" or not inputs.windowed):
@@ -587,6 +588,7 @@ def _volume_section(
             points=entry.points,
             refinement_layers=entry.refinement_layers,
             offset_m=entry.offset_m,
+            center_m=entry.center_m if entry.shape == "circle" else None,
         )
         report = write_volume_section(
             stage,
@@ -596,7 +598,13 @@ def _volume_section(
             chosen,
             cast(Mapping[str, Any], columns),
             format=entry.format,
-            description={"shape": entry.shape, "plane": entry.plane, "kind": entry.kind},
+            description={
+                "shape": entry.shape,
+                "plane": entry.plane,
+                "kind": entry.kind,
+                **({"cut": entry.name, "center_m": list(entry.center_m)} if entry.name else {}),
+            },
+            cut=entry.name,
         )
     except (OSError, ValueError) as error:
         out.skipped.append((label, str(error)))
@@ -620,6 +628,7 @@ def _volume_section(
             "kind": "instant",
             "steps_tabled": [step.step],
             "frame": entry.frame,
+            **({"cut": entry.name} if entry.name else {}),
             "declared_points": step.n_points,
             "points_found": step.n_found,
             "absent_columns": {
@@ -807,16 +816,14 @@ def point_products(
                 target,
             )
         volumes = _volumes(inputs, root)
-        if declared.volume_section is not None:
+        cuts = (
+            declared.volume_sections
+            if declared.volume_sections
+            else ((declared.volume_section,) if declared.volume_section is not None else ())
+        )
+        for cut in cuts:
             _volume_section(
-                ctx,
-                declared.volume_section,
-                support["volume_section"],
-                inputs,
-                volumes,
-                stage,
-                out,
-                target,
+                ctx, cut, support["volume_section"], inputs, volumes, stage, out, target
             )
         if declared.probes:
             _probes(ctx, declared.probes, support["probes"], inputs, volumes, stage, out, target)
