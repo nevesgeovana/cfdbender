@@ -84,6 +84,7 @@ from cfdbender.solvers.su2._execute import run
 from cfdbender.solvers.su2._execute import stage as _stage
 from cfdbender.solvers.su2._history import (
     AIRFRAME_SUFFIX,
+    MULTIZONE_HISTORY_STEM,
     Airframe,
     airframe,
     dimensions,
@@ -125,14 +126,17 @@ def job_output_files(point: object) -> tuple[str, ...]:
     """Name the files a cluster job writes: the solver log and every history the point declares.
 
     A restarted time-accurate run writes ``history_<RESTART_ITER>.csv`` instead of
-    ``history.csv``, and a point with an export window one history per segment.
+    ``history.csv``, a point with an export window one history per segment, and a multizone
+    point its driver history ``su2.csv``.
     """
     directory = str(getattr(point, "directory", "")).rstrip("/") + "/"
     names = (name.removeprefix(directory) for name in getattr(point, "outputs", ()))
     return tuple(
         name
         for name in names
-        if name == "stdout.log" or (name.startswith("history") and name.endswith(".csv"))
+        if name == "stdout.log"
+        or name == f"{MULTIZONE_HISTORY_STEM}.csv"
+        or (name.startswith("history") and name.endswith(".csv"))
     )
 
 

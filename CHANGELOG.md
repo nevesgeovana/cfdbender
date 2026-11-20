@@ -12,6 +12,10 @@ versions follow SemVer and are independent of solver versions.
 
 - `RESTART` = `MRF` on a time-accurate sliding rotor row (SU2) runs a steady frozen-rotor stage in the same point folder and job, at the same condition, and starts the time-accurate stage from its solution. The stage is `precursor.cfg` with `pre_zone_<i>.cfg` (the turning zone in a rotating frame), written with the point at submission; the job (`run_mrf.sh`, POSIX shell and `cp` only) runs the point's command once per stage with the stage's configuration file as its last argument, copies each zone's restart file to the names a second-order (or first-order) dual-time restart reads, and starts the time-accurate stage from them. `-` stays a cold start. A new setup table `[precursor]` (`iterations`, default 300, and optional `converge_to`) sets the stage. A stage that fails never starts the time-accurate one: the point's `job.exit` is 91 (non-zero status, or the command ran no precursor), 92 (NaN in its history), 93 (a restart file missing) or 94 (staging failed), with one line in `stderr.log`; reaching the iteration cap without `converge_to` is a warning line in `stdout.log`. `run_mrf.sh` works under `--batch` with or without an `hpc.application_id` wrapper, and a local `run` does the same stages. The clock, the windows and the history keep the row's own steps. On a row that is not time-accurate the keyword is warned and skipped; on a time-accurate row that cannot take the stage it is refused.
 
+### Fixed
+
+- The completion wait list of a sliding-mesh (multizone) SU2 job names its driver history `su2.csv`, so a collect that waits on the job no longer starts on a partial or absent history.
+
 ## [0.7.0] - 2026-11-19
 
 ### Added
