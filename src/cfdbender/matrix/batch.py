@@ -46,6 +46,12 @@ from .submission import (
 BATCH_DIR = "sims/batch"
 #: The file each run of a batch writes in its own folder: the exit status of its command.
 STATUS_FILE = "job.exit"
+#: The walltime advice of a --batch n job, and what a --batch-per-polar job is told instead.
+_BATCH_N_ADVICE = "a larger --batch n makes shorter jobs"
+_PER_POLAR_ADVICE = (
+    "under --batch-per-polar a polar is one job, so split the polar into rows of fewer "
+    "points or raise the profile's max_walltime"
+)
 #: How a script the row names as its application is started on the job's machine.
 INTERPRETERS = {".py": "python3", ".sh": "sh", ".bash": "bash"}
 _BATCH_FOLDER = re.compile(r"^(?P<matrix>.+)_b(?P<id>\d+)$")
@@ -437,6 +443,15 @@ def batch_plans(
         submission = plan_submission(
             values_list, profile, workdir=folder, job_name=label, grouped=True
         )
+        if per_polar:
+            # One job per polar: --batch n cannot shorten it, so advise what can.
+            submission = replace(
+                submission,
+                warnings=tuple(
+                    text.replace(_BATCH_N_ADVICE, _PER_POLAR_ADVICE)
+                    for text in submission.warnings
+                ),
+            )
         batches.append(
             BatchPlan(
                 batch_id,
