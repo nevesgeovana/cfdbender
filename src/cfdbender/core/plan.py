@@ -1718,11 +1718,11 @@ def _post_products(
     A malformed table is refused with pyflightstream's message. A skipped table is removed
     from the row's p file as the adapter sees it, so the adapter never warns about it again.
     """
-    from cfdbender.core.pproc import PRODUCT_TABLES, read_plots, read_post
+    from cfdbender.core.pproc import DECLARING_TABLES, read_plots, read_post, support_key
 
     if solver == "su2":
         read_plots(inputs.post, where=f"inputs/pproc/{row.post_id}.toml")
-    if not any(table in inputs.post for table in PRODUCT_TABLES):
+    if not any(table in inputs.post for table in DECLARING_TABLES):
         return
     supported = frozenset(getattr(hook, "post_products", ()))
     where = f"inputs/pproc/{row.post_id}.toml"
@@ -1738,7 +1738,7 @@ def _post_products(
     inputs.post = {
         key: value
         for key, value in inputs.post.items()
-        if key not in PRODUCT_TABLES or key in supported
+        if key not in DECLARING_TABLES or support_key(key) in supported
     }
 
 
