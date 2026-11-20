@@ -54,9 +54,11 @@ from cfdbender.matrix.batch import (
     submit_batches,
 )
 from cfdbender.matrix.collection import collect_workspace
+from cfdbender.matrix.continuation import begin as begin_continuation
+from cfdbender.matrix.continuation import prepare as prepare_continuation
 from cfdbender.matrix.post import post_workspace
 from cfdbender.matrix.receipt import require_receipt, write_receipt
-from cfdbender.matrix.rerun import decide
+from cfdbender.matrix.rerun import RerunDecision, decide
 from cfdbender.matrix.restart import prepare as prepare_restart
 from cfdbender.matrix.selection import select_plan, split_ids
 from cfdbender.matrix.submission import (
@@ -201,6 +203,15 @@ def build_parser() -> tuple[
         action="store_true",
         help="continue every selected point from its own last solution, "
         "archiving its previous run first",
+    )
+    run_parser.add_argument(
+        "--continue",
+        dest="continue_run",
+        action="store_true",
+        help="continue every selected time-accurate point in place from its latest restart "
+        "files, after its REVOLUTIONS (or TIME_ITERATIONS) grew in the matrix row or its run "
+        "was killed; the earlier run's configuration, history and logs move to "
+        "continued/<n>/ in the point folder and its record joins the runs.json history",
     )
     run_parser.add_argument(
         "--one-run-at-a-time",
@@ -647,6 +658,7 @@ def _execute_inner(
                 restart=getattr(args, "restart", False),
                 resume=getattr(args, "resume", False),
                 force_rerun=getattr(args, "force_rerun", None),
+                continue_run=getattr(args, "continue_run", False),
             )
             if refusal is None and not cluster:
                 refusal = "--batch submits rows as scheduler jobs, and no HPC profile is selected"
@@ -691,20 +703,35 @@ def _execute_inner(
                 raise WorkspaceError(
                     "--restart cannot be combined with --resume or --force-rerun options"
                 )
-            plan = prepare_restart(plan, adapter, own=args.restart, local=not submitting)
-            planned = plan
-            decision = decide(
-                plan,
-                resume=args.resume,
-                force=args.force_rerun,
-                force_all=args.force_rerun_all or args.restart,
-                submitting=submitting,
-                # A local run this machine would refuse must refuse before a point is
-                # archived, not after: the refusal leaves the records as they were.
-                before_archive=None
-                if submitting
-                else lambda chosen: judge_environment(chosen, adapter),
-            )
+            continuing = getattr(args, "continue_run", False)
+            if continuing and (
+                args.restart or args.resume or args.force_rerun or args.force_rerun_all
+            ):
+                raise WorkspaceError(
+                    "--continue cannot be combined with --restart, --resume or the "
+                    "--force-rerun options: it runs on the recorded points it selects"
+                )
+            if continuing:
+                plan, earlier = prepare_continuation(plan, adapter)
+                if not submitting:
+                    judge_environment(plan, adapter)
+                planned = plan
+                decision = RerunDecision(plan, (), begin_continuation(plan, earlier))
+            else:
+                plan = prepare_restart(plan, adapter, own=args.restart, local=not submitting)
+                planned = plan
+                decision = decide(
+                    plan,
+                    resume=args.resume,
+                    force=args.force_rerun,
+                    force_all=args.force_rerun_all or args.restart,
+                    submitting=submitting,
+                    # A local run this machine would refuse must refuse before a point is
+                    # archived, not after: the refusal leaves the records as they were.
+                    before_archive=None
+                    if submitting
+                    else lambda chosen: judge_environment(chosen, adapter),
+                )
             if decision.archive is not None:
                 console.chatter(f"archived previous evidence: {decision.archive}")
             for point_id, reason in decision.skipped:

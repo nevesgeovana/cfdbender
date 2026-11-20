@@ -332,6 +332,34 @@ What a time-accurate point writes to disk. SU2 8.6.0 writes each file of `OUTPUT
 
 A point killed by its walltime keeps no restart file when the restart file is written at the last step only. The row variable `RESTART_EVERY_REV: r` (a provisional name: pyflightstream has none) writes the restart file every `r` revolutions of the rotor clock, `ceil(r S)` time iterations with `S` the steps per revolution, and leaves the volume and surface files at their own frequency: the `RESTART` entry of `OUTPUT_WRT_FREQ` becomes that count. `DELTA_THETA: 10 / REVOLUTIONS: 1 / RESTART_EVERY_REV: 0.25` writes `OUTPUT_WRT_FREQ= ( 9, 36, 36 )`; SU2 counts the multiples on its own time iteration and, under second-order dual time stepping, writes the iteration before each multiple too, so the run keeps the pairs 8 and 9, 17 and 18, 26 and 27, and its last two. With an export window both segments use the count for their restart file, and segment one still ends on the pair segment two reads. A value that is not a positive number is refused, as is the key beside a setup `OUTPUT_WRT_FREQ` or a PPROC `output_frequency` (both set the restart frequency; state one); on a row that turns no rotor the key is warned and skipped. A killed point continues from its latest pair: see "Continuing a point" below.
 
+#### Continuing a point
+
+A finished time-accurate point runs on with more revolutions: raise `REVOLUTIONS` (or `TIME_ITERATIONS`) in its row, plan the matrix, and run it with `--continue`:
+
+```console
+cfd-matrix plan polar
+cfd-matrix run polar --continue --sims 2001
+```
+
+The point continues in its own folder from its latest restart files instead of starting again, on this machine or through the HPC profile as a run of one point (`--continue` is not taken with `--batch`). SU2 8.6.0 continues a dual-time run as a restart at `RESTART_ITER= R`, reading the restart files of the `restart_order` iterations before it (`R - 2` and `R - 1` under second-order dual time stepping), `<RESTART_FILENAME stem>_<k>.dat` for one zone and `<stem>_<zone>_<k>.dat` for each zone of a sliding-mesh run; a finished run keeps its last two (a two-zone run with `TIME_ITER= 14` keeps `restart_flow_0_00012.dat`, `restart_flow_0_00013.dat`, `restart_flow_1_00012.dat` and `restart_flow_1_00013.dat`). cfdbender finds the latest iteration `k` whose files are present and not empty for every zone and writes `RESTART_SOL= YES`, `RESTART_ITER= k + 1`, `SOLUTION_FILENAME` the earlier run's `RESTART_FILENAME` (the files are read in place, nothing is copied) and `READ_BINARY_RESTART` from the format it wrote. `TIME_ITER` is the new total of the whole run, with the offset of a point that started from a steady or frozen-rotor solution, and the frozen-rotor stage of an `MRF` row does not run again. The averaging window and the export window keep their meaning over the whole run: `LAST_REVS_AVG` counts back from the new last step, and `EXPORT_UNSTEADY_*` counts from step 1 of the first segment. An export window that begins after the continuation's first step runs in two segments as on a first run (`su2.cfg` to the step before the window, writing restart files only, then `su2_segment2.cfg`); one that began earlier writes every remaining step. `WINDOW_START_ITER` is not below `RESTART_ITER`, which SU2 refuses.
+
+A two-zone `MRF` point of `DELTA_THETA: 10 / REVOLUTIONS: 1 / LAST_REVS_AVG: 0.25` raised to `REVOLUTIONS: 2` differs from its first `su2.cfg` in these keys only:
+
+| Key | First segment | Continuation |
+|---|---|---|
+| `RESTART_ITER` | `2` | `38` |
+| `SOLUTION_FILENAME` | `solution.dat` | `restart_flow.dat` |
+| `READ_BINARY_RESTART` | not written | `YES` |
+| `TIME_ITER` | `38` | `74` |
+| `WINDOW_START_ITER` | `29` | `65` |
+| `OUTPUT_WRT_FREQ` | `( 38, 38, 38 )` | `( 74, 74, 74 )` |
+
+The zone files are the same; `precursor.cfg`, `pre_zone_<i>.cfg` and `run_mrf.sh` are not written again, and the job runs `SU2_CFD su2.cfg` (or `run_segments.sh`) rather than `run_mrf.sh`.
+
+Nothing of the first segment is overwritten. Before the continuation runs, the files a new run writes again move to `continued/<n>/` in the point folder (`continued/1/` for the first continuation): `su2.cfg` (and `su2_segment2.cfg`, `run_segments.sh`), the history of each configuration (`su2.csv` of a sliding-mesh run, which SU2 names after the master configuration and would overwrite; `history.csv` or `history_<k>.csv` of one zone), `stdout.log`, `stderr.log`, `execution.json`, `job.exit`, the submission captures and the descriptor of a per-point job. The restart files, the mesh link, the zone files and the frozen-rotor stage's files stay. `collect` joins every segment's history in step order (the first segment's from `continued/1/`), so the tables, the time average and the per-revolution rows cover the whole run; a killed segment's rows after the restart it is continued from are dropped, because the continuation marches those steps again.
+
+A point killed by its walltime continues the same way with the same `REVOLUTIONS`, from its latest periodic restart (`RESTART_EVERY_REV`, above), once `collect` has recorded it. `--continue` is refused, changing nothing, for a point with no record or not `COMPLETED` (collect a cluster job first), a row that is not time-accurate, a row whose other keys changed since it ran (only the run length may grow; `WALLTIME`, `NCPUS` and the `hpc.` overrides may change), a run length that fell, a point with no restart files to continue from (the message names the missing files), and a point that has nothing left to march (`REVOLUTIONS did not grow`). [Records](records.md#continue-a-time-accurate-point-continue) shows what the record keeps.
+
 #### Turbulence model
 
 The row variable `TURBULENCE_MODEL` (a provisional name: pyflightstream has none) names the model, `SA` or `SST`, and SU2 writes `KIND_TURB_MODEL` (with the SA-neg options below for `SA`). Every model is fully turbulent: cfdbender never writes a transition model. A setup that states its own `KIND_TURB_MODEL` wins, with one warning when the two differ; another name is refused, listing `SA` and `SST`.

@@ -101,26 +101,50 @@ CONV_COLUMNS = {
 LARGEST_RMS = "largest rms"
 
 
+#: The folder of a point that keeps each earlier run of a continued point, ``continued/<n>/``.
+CONTINUED = "continued"
+
+
+def run_prefixes(folder: Path) -> list[str]:
+    """Return the folders of the runs of a point, oldest first, as prefixes of its folder.
+
+    A point continued in place (``run --continue``) keeps each earlier run's configuration,
+    history and logs in ``continued/<n>/`` (1 the first); the current run is the folder itself.
+    """
+    base = folder / CONTINUED
+    numbers = (
+        sorted(int(p.name) for p in base.iterdir() if p.is_dir() and p.name.isdigit())
+        if base.is_dir()
+        else []
+    )
+    return [f"{CONTINUED}/{n}/" for n in numbers] + [""]
+
+
+def _keys(path: Path) -> dict[str, str]:
+    lines = path.read_text().splitlines()
+    return {key.strip(): value.strip() for key, value in (line.split("=", 1) for line in lines)}
+
+
+def _run_configs(folder: Path, *, required: bool = True) -> list[tuple[str, dict[str, str]]]:
+    """Return ``(prefix, keys)`` of every configuration the point ran, in the order it ran."""
+    if not required and not (folder / "su2.cfg").is_file():
+        return [("", {})]
+    found: list[tuple[str, dict[str, str]]] = []
+    for prefix in run_prefixes(folder):
+        for name in ("su2.cfg", "su2_segment2.cfg"):
+            path = folder / f"{prefix}{name}"
+            if (name == "su2.cfg" and prefix == "") or path.is_file():
+                found.append((prefix, _keys(path)))
+    return found
+
+
 def _segment_configs(folder: Path, *, required: bool = True) -> list[dict[str, str]]:
     """Return the keys of each configuration the point ran, in order: su2.cfg, then segment two.
 
-    A folder without ``su2.cfg`` is refused, or, with ``required=False``, read as one cold
-    configuration.
+    A continued point's earlier runs come first, from ``continued/<n>/``. A folder without
+    ``su2.cfg`` is refused, or, with ``required=False``, read as one cold configuration.
     """
-    if not required and not (folder / "su2.cfg").is_file():
-        return [{}]
-    found: list[dict[str, str]] = []
-    for name in ("su2.cfg", "su2_segment2.cfg"):
-        path = folder / name
-        if name == "su2.cfg" or path.is_file():
-            lines = path.read_text().splitlines()
-            found.append(
-                {
-                    key.strip(): value.strip()
-                    for key, value in (line.split("=", 1) for line in lines)
-                }
-            )
-    return found
+    return [keys for _, keys in _run_configs(folder, required=required)]
 
 
 def _cfg(folder: Path) -> dict[str, str]:
@@ -187,9 +211,20 @@ def step_offset(folder: Path) -> int:
 
 
 def history_names(folder: Path) -> list[str]:
-    """Return the history files of a point's configurations, in the order they ran."""
-    configs = _segment_configs(folder, required=False)
-    return list(dict.fromkeys(history_name(keys) for keys in configs))
+    """Return the history files of a point's configurations, in the order they ran.
+
+    The files of a continued point's earlier runs are named with their folder,
+    ``continued/1/su2.csv``.
+    """
+    configs = _run_configs(folder, required=False)
+    return list(dict.fromkeys(prefix + history_name(keys) for prefix, keys in configs))
+
+
+def _runs_of(folder: Path) -> dict[str, str]:
+    """Map each history file of the point to the folder of the run that wrote it."""
+    return {
+        prefix + history_name(keys): prefix for prefix, keys in _run_configs(folder, required=False)
+    }
 
 
 def history_table(folder: Path, counter: str = "Time_Iter") -> tuple[list[str], list[list[str]]]:
@@ -198,9 +233,12 @@ def history_table(folder: Path, counter: str = "Time_Iter") -> tuple[list[str], 
     Each configuration's history (:func:`history_name`) is read; the segments must share their
     columns and continue each other: the first ``counter`` of a segment is the last of the one
     before plus one. A gap or an overlap is refused naming both files, and a missing history
-    names every file looked for.
+    names every file looked for. Between two runs of a continued point the earlier run's rows
+    from the continuation's first ``counter`` on are dropped: a point killed after its latest
+    periodic restart is continued from that restart, and those rows are marched again.
     """
     names = history_names(folder)
+    runs = _runs_of(folder)
     missing = [name for name in names if not (folder / name).is_file()]
     if missing:
         raise ValueError(
@@ -229,6 +267,10 @@ def history_table(folder: Path, counter: str = "Time_Iter") -> tuple[list[str], 
             index = headers.index(counter)
             try:
                 first, last = int(float(own_rows[0][index])), int(float(own_rows[-1][index]))
+                if previous is not None and runs[previous[0]] != runs[name]:
+                    rows = [cells for cells in rows if int(float(cells[index])) < first]
+                    if rows:
+                        previous = (previous[0], int(float(rows[-1][index])))
             except (ValueError, IndexError, OverflowError) as error:
                 raise ValueError(f"{path}: {counter} is not a whole number") from error
             if previous is not None and first != previous[1] + 1:

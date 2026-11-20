@@ -225,7 +225,7 @@ def product_inputs(point: AdapterPoint) -> ProductInputs:
     file of each kind per zone and step, ``flow_<zone>_<iteration>.vtu`` (the order of SU2 8.3.0's
     files), listed in zone order with their ``zone``.
     """
-    from cfdbender.solvers.su2._config import config, free_stream, gas_state
+    from cfdbender.solvers.su2._config import config, continued_at, free_stream, gas_state
 
     record: dict[str, object] = {}
     values = config(
@@ -237,6 +237,7 @@ def product_inputs(point: AdapterPoint) -> ProductInputs:
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
         precursor=point.point.precursor,
+        continue_from=continued_at(point),
         record=record,
     )
     folder = workspace_path(point.root, point.point.directory)

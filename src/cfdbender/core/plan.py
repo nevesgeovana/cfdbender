@@ -1493,6 +1493,9 @@ class Point:
     origins: Mapping[str, str] = field(default_factory=dict, compare=False, repr=False)
     #: How the adapter set the point up, as the record states it; empty when it says nothing.
     provenance: Mapping[str, object] = field(default_factory=_empty)
+    #: A time-accurate point continued in place (``run --continue``): the solver iteration it
+    #: restarts at, its segments and where the earlier run's evidence was kept; empty otherwise.
+    continuation: Mapping[str, object] = field(default_factory=_empty)
 
 
 #: Point fields beyond the original record, with the value an older record implies.
@@ -1515,6 +1518,7 @@ POINT_EXTRAS: Mapping[str, object] = MappingProxyType(
         "numerics_id": "",
         "run_type": "steady",
         "provenance": {},
+        "continuation": {},
     }
 )
 

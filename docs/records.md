@@ -210,6 +210,36 @@ exists with no record is data the registry does not know, so it refuses with
 `existing output; refusing overwrite`; move or delete it yourself and run again. The option cannot be combined with
 `--resume`, and cannot be combined with `--force-rerun`.
 
+### Continue a time-accurate point: `--continue`
+
+```console
+cfd-matrix plan polar
+cfd-matrix run polar --continue --sims 2001
+```
+
+After you raise `REVOLUTIONS` (or `TIME_ITERATIONS`) in the row of a finished time-accurate
+point, or when its run was killed by its walltime, `--continue` runs each selected point on
+from its latest restart files, in its own folder. It is a separate option because a recorded
+point refuses a second run unless an option says what to do with it: `--resume` keeps skipping
+it, and `--force-rerun` starts it again from step 1.
+
+- `runs.json` is copied to `archive/<stamp>/runs.json`;
+- the earlier record joins the history with `continued` true (`cfd-workspace history` lists it
+  as `continued`);
+- the files the new run writes again (its configuration, history, logs and job files) move to
+  `continued/<n>/` in the point folder, `continued/1/` the first time; the restart files and
+  the mesh stay where they are;
+- the new record carries a `continuation` mapping: `restart_iter`, the solver iteration it
+  restarts at, `kept`, the folder of the earlier evidence, `moved`, the files moved there, and
+  `segments`, every segment's `first_step`, `last_step` and `folder` (`.` for the current one).
+
+`collect` joins every segment's history in step order. The option cannot be combined with
+`--restart`, `--resume`, the force-rerun options or `--batch`. It refuses, changing nothing, a
+point with no record or not `COMPLETED`, a row that is not time-accurate, a row whose other keys
+changed (only the run length may grow, and the scheduler's `WALLTIME`, `NCPUS` and `hpc.`
+overrides), a run length that fell, a point with no restart files, and a point with nothing
+left to march. See [SU2 workspaces](su2-workspaces.md#continuing-a-point) for the solver keys.
+
 ## Reading the records
 
 These commands change nothing. Each takes `--json` or `--csv` to print its rows

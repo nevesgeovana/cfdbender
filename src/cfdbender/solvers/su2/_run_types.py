@@ -283,6 +283,7 @@ def apply_run_type(
     motion: Mapping[str, float],
     restarted: bool = False,
     precursor: bool = False,
+    continue_from: int | None = None,
 ) -> dict[str, object]:
     """Write the SU2 keys run type ``run_type`` carries; return what the point records.
 
@@ -297,7 +298,10 @@ def apply_run_type(
     starts the point from a steady frozen-rotor solution of its own mesh, staged as the same
     iterations before ``RESTART_ITER`` (:mod:`cfdbender.solvers.su2._precursor`): the point is
     ``restarted`` in every other respect. Stage 1's files are written by ``config`` once every
-    key of the point is final, so both stages share one flow model.
+    key of the point is final, so both stages share one flow model. ``continue_from`` (a point
+    continued in place, ``run --continue``) is SU2's time iteration the continuation restarts at
+    (:func:`continue_keys`); the clock and the windows stay those of the whole run, and no
+    frozen-rotor stage runs again.
     """
     record: dict[str, object] = {"run_type": run_type}
     if run_type == STEADY:
@@ -305,7 +309,16 @@ def apply_run_type(
     before = set(values)
     try:
         return _carried(
-            values, run_type, record, setup, rotor, periodic, motion, restarted, precursor
+            values,
+            run_type,
+            record,
+            setup,
+            rotor,
+            periodic,
+            motion,
+            restarted,
+            precursor,
+            continue_from,
         )
     finally:
         # The keys the run type wrote that no file or row stated: their origin is the run type.
@@ -322,6 +335,7 @@ def _carried(
     motion: Mapping[str, float],
     restarted: bool = False,
     precursor: bool = False,
+    continue_from: int | None = None,
 ) -> dict[str, object]:
     needs_rotor = run_type in (QSTEADY_ROTOR, UNSTEADY_ROTOR)
     rps: float | None = None
@@ -372,11 +386,13 @@ def _carried(
             write_rotation(values, rotor, rps)
         else:
             _zones(values, sliding, rotor, rps)
+    if continue_from is not None:
+        continue_keys(values, continue_from)
     if exports is not None:
-        export_segments(values, exports, offset, every=every)
+        export_segments(values, exports, offset, every=every, start=continue_from)
     else:
         last_step_outputs(values, every=every)
-    if precursor:
+    if precursor and continue_from is None:
         values["SOLUTION_FILENAME"] = SOLUTION_NAME
     record.update(
         clock=clock.record(),
@@ -387,6 +403,8 @@ def _carried(
         record["restart_every"] = {"revolutions": setup[RESTART_EVERY_REV], "steps": every}
     if offset:
         record["step_offset"] = offset
+    if continue_from is not None:
+        record["continue_from"] = continue_from
     return record
 
 
@@ -433,6 +451,28 @@ def restart_every(
             "states OUTPUT_WRT_FREQ: both set how often the restart file is written; state one"
         )
     return max(1, revolution_steps(value, clock.steps_per_revolution))
+
+
+def continue_keys(values: MutableMapping[str, object], start: int) -> None:
+    """Restart a finished or killed point in place at SU2's time iteration ``start``.
+
+    The continuation reads the files the earlier run wrote under its ``RESTART_FILENAME``
+    (``<stem>_<k>``, and ``<stem>_<zone>_<k>`` for each zone of a multizone run) for the
+    ``restart_order`` iterations before ``start``, so ``SOLUTION_FILENAME`` is that name, read
+    in the format it was written. ``TIME_ITER`` stays the whole run's total; SU2 refuses a
+    ``WINDOW_START_ITER`` below ``RESTART_ITER`` (measured), so its own average starts no earlier
+    than the continuation, while cfdbender averages the joined history.
+    """
+    values["RESTART_SOL"] = True
+    values["RESTART_ITER"] = start
+    values["SOLUTION_FILENAME"] = values.get("RESTART_FILENAME", SU2_RESTART_FILENAME)
+    written = values.get("WRT_BINARY_RESTART")
+    values["READ_BINARY_RESTART"] = not (
+        written is False or str(written).strip().upper() in ("NO", "FALSE")
+    )
+    window = values.get("WINDOW_START_ITER")
+    if isinstance(window, int) and window < start:
+        values["WINDOW_START_ITER"] = start
 
 
 def _refuse_appending(values: Mapping[str, object]) -> None:

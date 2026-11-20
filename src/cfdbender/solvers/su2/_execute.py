@@ -25,6 +25,7 @@ from cfdbender.solvers._host._mesh import link_mesh
 from cfdbender.solvers._host._version import refuse_wrong_build
 from cfdbender.solvers.su2._config import (
     config,
+    continued_at,
     extra_files,
     mesh_name,
     number,
@@ -79,8 +80,9 @@ def job_command(point: AdapterPoint) -> list[str]:
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
         precursor=point.point.precursor,
+        continue_from=continued_at(point),
     )
-    if point.point.precursor:
+    if job_wrapper(point):
         return [*job_wrapper(point), *command]
     if SEGMENT_TWO in extra_files(values):
         return ["sh", SEGMENTS_SCRIPT, *command]
@@ -92,16 +94,28 @@ def job_wrapper(point: AdapterPoint) -> list[str]:
 
     A batch script puts it in front of a row's own command (an application wrapper script
     included), without that command's last argument: the script appends the configuration
-    file of each stage. A point without a precursor has none.
+    file of each stage. A point without a precursor has none, and so has a continued point,
+    whose frozen-rotor stage ran with its first segment.
     """
+    if continued_at(point) is not None:
+        return []
     return ["sh", PRECURSOR_SCRIPT] if point.point.precursor else []
 
 
 def stage_files(point: AdapterPoint, values: Mapping[str, object], folder: Path) -> None:
     """Create the point folder, write su2.cfg and link the mesh into it.
 
-    A local run and a cluster submission stage the same files.
+    A local run and a cluster submission stage the same files. A continued point
+    (``run --continue``) runs on in its existing folder, whose earlier configuration, history
+    and logs were moved aside: only its configuration files are written again.
     """
+    if continued_at(point) is not None:
+        if not folder.is_dir():
+            raise ValueError(f"{folder}: the folder of the point to continue is missing")
+        (folder / "su2.cfg").write_bytes(render(values).encode("ascii"))
+        for name, text in extra_files(values).items():
+            (folder / name).write_bytes(text.encode("ascii"))
+        return
     solution = restart_files(point) if point.point.restart_from is not None else {}
     values = restart_values(point, dict(values))
     folder.mkdir(parents=True, exist_ok=False)
@@ -134,9 +148,10 @@ def stage(point: AdapterPoint) -> None:
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
         precursor=point.point.precursor,
+        continue_from=continued_at(point),
     )
     folder = workspace_path(point.root, point.point.directory)
-    if folder.exists():
+    if folder.exists() and continued_at(point) is None:
         raise ValueError("existing SU2 point directory; refusing overwrite")
     stage_files(point, values, folder)
 
@@ -154,6 +169,7 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
         precursor=point.point.precursor,
+        continue_from=continued_at(point),
     )
     raw_path = opts.get("pysu2_path") or os.environ.get("CFDBENDER_PYSU2_PATH")
     wrapper_path = None
@@ -187,7 +203,7 @@ def run(point: AdapterPoint, check_ram: Callable[[], None]) -> None:
     check_ram()
     _ram.require_ram(number(opts["ram_estimate_gib"], "ram_estimate_gib"), solver="SU2")
     folder = workspace_path(point.root, point.point.directory)
-    if folder.exists():
+    if folder.exists() and continued_at(point) is None:
         raise ValueError("existing SU2 point directory; refusing overwrite")
     _run_owned(point, check_ram, opts, values, argv, timeout, folder, route, env)
 
