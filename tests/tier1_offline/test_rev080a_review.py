@@ -24,3 +24,8 @@ def test_rev080a_001_a_continuation_that_marched_nothing_does_not_block_the_retr
     current = RunRegistry(tmp_path).read()[-1]
     assert current.classification != "failed", current.error
     assert collected(tmp_path, current)["history"][-1]["iteration"] == 72
+    segments = current.point.continuation["segments"]
+    assert [(s["first_step"], s["last_step"], s["folder"]) for s in segments] == [
+        (1, 36, "continued/1"),
+        (37, 72, "."),
+    ]

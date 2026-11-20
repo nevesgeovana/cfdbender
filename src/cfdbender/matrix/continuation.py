@@ -94,7 +94,8 @@ def _earlier_segments(recorded: Point, first_step: int, number: int) -> list[dic
     segments = [dict(segment) for segment in before] or [{"first_step": 1, "folder": "."}]
     segments[-1]["last_step"] = first_step - 1
     segments[-1]["folder"] = f"{CONTINUED}/{number}"
-    return segments
+    # A run that kept no step (a continuation that marched nothing) is no segment.
+    return [s for s in segments if cast(int, s["last_step"]) >= cast(int, s["first_step"])]
 
 
 def prepare(plan: RunPlan, adapter: object) -> tuple[RunPlan, dict[str, RunRecord]]:
