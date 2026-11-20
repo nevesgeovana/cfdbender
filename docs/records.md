@@ -220,22 +220,25 @@ cfd-matrix status --points
 ```
 
 ```text
-sim   matrix  point               status     classification  error
-1001  polar   1001/DP-M200AL+000  COMPLETED  converged
-1001  polar   1001/DP-M200AL+020  COMPLETED  converged
-1001  polar   1001/DP-M200AL+040  COMPLETED  converged
+SIM   POINT       MATRIX  STATUS     WAS  ITER  RESIDUAL  WALL  BUILD   WHERE
+1001  M200AL+000  polar   COMPLETED       2     0.01      0.03  mock-1  local
+1001  M200AL+020  polar   COMPLETED       2     0.01      0.03  mock-1  local
+1001  M200AL+040  polar   COMPLETED       2     0.01      0.03  mock-1  local
+3 datapoint(s): COMPLETED
+plan/polar: made from the matrix on disk
+post/polar: no post yet
 ```
 
 | Command | Prints |
 |---|---|
-| `cfd-matrix status` | One line per sim with the count of its points in each status. `--points` gives one line per point. `--failed` keeps the sims with a failed point. `--status WORD` keeps the sims with a point in that status or verdict; `fail*` matches every word that starts with `fail`. |
+| `cfd-matrix status` | One row per polar, the points of one simulation of one matrix, as `pyfs-matrix status` prints it: `SIM`, `POLAR` (the name of its points with the swept field written `+sweep`), `SWEEP` (what varies), `POINTS` (recorded out of planned, `3/4`; only the recorded count when the matrix has no plan receipt), `MATRIX` and `STATUS`: the one word when every point shares it, otherwise the count of each (`COMPLETED 2, FAILED_MARKED 1, planned 1`). A point the plan receipt `post/<matrix>/plan.json` names and no record carries reads `planned`, in lower case because no recorded status is written so. Then the totals, and for each matrix one line on its plan (`made from the matrix on disk`, or `made from another revision of the matrix; plan it again`) and one on its post (when it was written, whether it is complete, how many recorded runs it does not hold yet). `--points` gives one row per point: `SIM POINT MATRIX STATUS WAS ITER RESIDUAL WALL BUILD WHERE`, with a trailing `ERROR` column when a shown point has one; `WAS` is what a marked point was before you marked it. `--failed` keeps the polars with a failed point. `--status WORD` keeps the polars with a point in that status or verdict, repeatable, and refuses a word no status takes; `FAILED_*` matches every word that starts with `FAILED_`. `--sims`, `--matrix`, `--json` (one document with the rows and the freshness) and `--csv` select and print the same rows. A sim that holds no record and no planned point is named on standard error; the exit code is 1 only when every sim named holds nothing. |
 | `cfd-workspace show 1001/DP-M200AL+020` | The card of one point: status and verdict, solver and version, flight condition, iterations and coefficients once collected, folder, times and error if any. `show 1001` lists the points of the sim, one line each. `--verbose` prints the whole record: inputs, fingerprints, every field that has a value. |
 | `cfd-workspace history 1001` | The current and the earlier records of a sim or a point, with the archive folder of each earlier one. |
 | `cfd-workspace log` | What happened, in time order: the commands and, for each point, `registered`, `started` and `finished`. `--problems` keeps the failures, `--since 2h` the last two hours, `--open` the runs that started and have no end. |
 | `cfd-workspace diff RUN_A RUN_B` | Two records, field by field. The exit code is 1 when they differ. The fingerprints and output paths, which differ whenever two points do, are folded into one line; `--verbose` lists them. |
 | `cfd-workspace trace post/polar/polars/P1001-TOTAL-ACOEF.csv` | The runs behind a collected file, with the number of input files each was made from; `--verbose` lists the fingerprints. |
 
-An empty answer says why: `no recorded sim yet: run a matrix first`, `no
+An empty answer keeps its heading and totals and says why: `no recorded sim yet: run a matrix first`, `no
 failed point`, or `no recorded point matches the selection`. The times are
 printed in the time of this machine, to the second; the records keep the full
 UTC time, which `--json` prints.

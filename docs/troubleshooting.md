@@ -31,7 +31,7 @@ A `cfd-matrix` command was started in a folder that is not a workspace. Every
 command refuses it in these words, also `status`, `log` and `history`. Change to
 the workspace folder, or name it with `--workspace PATH`.
 
-An empty answer from `cfd-matrix status` says why: `no recorded sim yet: run a
+An empty answer from `cfd-matrix status` keeps its heading and totals and says why: `no recorded sim yet: run a
 matrix first`, or `no failed point` for `--failed`. `cfd-matrix plan` and `run`
 say `no active row: every row of polar.fs has RUN = 0` when there is nothing to
 plan.

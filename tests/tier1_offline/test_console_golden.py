@@ -25,7 +25,16 @@ from cfdbender import _cli
 from cfdbender.matrix.cli import main
 
 GOLDEN = Path(__file__).resolve().parents[1] / "fixtures" / "console"
-COMMANDS = ("plan", "run", "collect", "post")
+COMMANDS = ("plan", "run", "collect", "post", "status", "status-points")
+#: The arguments of each command after its name; a status takes no matrix.
+ARGUMENTS = {
+    "plan": ["full"],
+    "run": ["full", "--local"],
+    "collect": ["full"],
+    "post": ["full"],
+    "status": [],
+    "status-points": ["--points"],
+}
 
 
 def normal(text: str, root: Path) -> str:
@@ -33,9 +42,16 @@ def normal(text: str, root: Path) -> str:
     for form in (str(root.resolve()), root.resolve().as_posix()):
         text = text.replace(form, "<ROOT>")
     text = text.replace(cfdbender.__version__, "<V>")
+    text = re.sub(r"written \d{4}-\d\d-\d\dT[\d:]+\+00:00", "written <TIME>", text)
+    text = re.sub(r"(?m)(?<=  )[\d.]+(?= +mock-1  local$)", "<WALL>", text)
     text = re.sub(r"\b\d+:\d\d:\d\d\b", "<CLOCK>", text)
     text = re.sub(
         r"(logs[/\\](?:run|collect|post|plan))-\d{8}T\d{6}Z(-\d+)?\.log", r"\1-<STAMP>.log", text
+    )
+    # The width of the WALL column follows the time measured, so the table's spacing does too.
+    text = "\n".join(
+        re.sub(r" {2,}", "  ", line) if "<WALL>" in line or (line.startswith("SIM  ") and "WALL" in line) else line
+        for line in text.split("\n")
     )
     return text.replace("\r\n", "\n")
 
@@ -54,9 +70,7 @@ def transcripts(tmp_path_factory):
     found = {}
     patch = pytest.MonkeyPatch()
     for command in COMMANDS:
-        argv = [command, "full", "--workspace", str(root)]
-        if command == "run":
-            argv.append("--local")
+        argv = [command.split("-")[0], *ARGUMENTS[command], "--workspace", str(root)]
         patch.setattr(_cli, "_RNG", random.Random(20261120))
         out, err = StringIO(), StringIO()
         real = sys.stdout, sys.stderr
