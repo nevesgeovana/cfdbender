@@ -46,12 +46,15 @@ def test_both_segments_of_an_export_window_write_the_periodic_restart(tmp_path):
     assert flat(second["OUTPUT_WRT_FREQ"]) == "(9,1,1)"
 
 
-def test_the_key_is_recorded_with_its_steps(tmp_path):
+def test_the_key_is_a_row_control_never_forwarded_to_su2(tmp_path):
     rt.workspace(tmp_path, workflow="unsteady_rotor", var=EVERY)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         (point,) = plan_workspace(tmp_path, "rt").points
     assert point.variables["RESTART_EVERY_REV"] in (0.25, "0.25")
+    _, cfg, _ = rt.deck(tmp_path)
+    assert "RESTART_EVERY_REV" not in cfg
+    assert flat(cfg["OUTPUT_WRT_FREQ"]) == "(9,36,36)"
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "x"])
