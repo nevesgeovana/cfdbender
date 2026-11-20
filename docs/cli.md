@@ -165,6 +165,7 @@ cfd-matrix plan MATRIX [options]
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
 | `--local` | Keep work on THIS machine instead of submitting it |
 | `--batch N` | Submit the rows as N scheduler jobs, rows split across them in matrix order; cfdbender writes the shell script each job runs, one run after another with no warm start. Needs an HPC profile; not with --local |
+| `--batch-per-polar` | Submit one scheduler job per polar (a matrix row, POL): its points run one after another inside the job in sweep order, with the row's NCPUS and the sum of its points' WALLTIME (capped by the profile's max_walltime, with its warning). Needs an HPC profile; not with --local, --resume, --restart or --force-rerun; a selection (--sims, --points) plans only the polars it touches |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
 
@@ -195,6 +196,7 @@ cfd-matrix run MATRIX [options]
 | `--hpc NAME` | The HPC profile inputs/hpc/&lt;NAME&gt;.toml to use when the workspace holds several |
 | `--local` | Keep work on THIS machine instead of submitting it |
 | `--batch N` | Submit the rows as N scheduler jobs, rows split across them in matrix order; cfdbender writes the shell script each job runs, one run after another with no warm start. Needs an HPC profile; not with --local |
+| `--batch-per-polar` | Submit one scheduler job per polar (a matrix row, POL): its points run one after another inside the job in sweep order, with the row's NCPUS and the sum of its points' WALLTIME (capped by the profile's max_walltime, with its warning). Needs an HPC profile; not with --local, --resume, --restart or --force-rerun; a selection (--sims, --points) plans only the polars it touches |
 | `--no-local` | The opposite of --local: submit when a profile exists (the default) |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
@@ -203,7 +205,7 @@ cfd-matrix run MATRIX [options]
 
 ### `cfd-matrix status`
 
-List every recorded sim per matrix with its states, filterable.
+Reads the run records, the plans and the posts, and changes no file: no record, log or lock is written. A polar whose datapoints share one status shows that word; a mixed polar shows the count of each. A point a plan names and no record carries is shown as `planned`, in lower case because no recorded status is written so.
 
 ```text
 cfd-matrix status [options]
@@ -211,11 +213,11 @@ cfd-matrix status [options]
 
 | Argument or option | Meaning |
 |---|---|
-| `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
-| `--matrix MATRIX` | Only this recorded matrix |
-| `--status WORD` | Only sims with a point in this status or classification (repeatable; a trailing * matches every word it begins) |
-| `--failed` | Only sims with a failed point |
-| `--points` | One row per point |
+| `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated, with or without brackets: 1001,1002 or [1001,1002] |
+| `--matrix STEM` | Only the polars of this matrix, by its stem (found in the workspace root or inputs/matrices/) |
+| `--status WORD` | Only the polars with a datapoint in this status or verdict, as shown (repeatable; a trailing * matches every word it begins, for example FAILED_*) |
+| `--failed` | Only the polars with at least one failed datapoint |
+| `--points` | One row per datapoint instead of one per polar |
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--runs NAME` | Another run manifest in the workspace root (default: runs.json) |
 | `--json` | Print a JSON document of the rows |
@@ -339,6 +341,7 @@ cfd-matrix collect [MATRIX] [options]
 | `--workspace WORKSPACE` | Campaign workspace (default: the current directory) |
 | `--rehash-inputs` | Read every input again instead of trusting the digest cache of large files (.input-digests.cache); without it a file is read again when its file identity, size or timestamps changed, so a file rewritten with the same size and timestamps goes unnoticed. On a FlightStream workspace the option is ignored with a warning |
 | `--no-read-large-inputs` | Do not open any input larger than 8 MiB (a mesh): record its size and modification time instead of its SHA-256, check it by those two, and skip with a warning the checks that need its contents; the same as large_input_check = "identity" in init.toml or CFDBENDER_NO_READ_LARGE_INPUTS=1; a mesh changed in place or replaced by a different file with the same size and modification time goes unnoticed; ignored with a warning on the FlightStream route |
+| `--overwrite` | Replace a product or table file that the manifest does not record (edited by hand or left by another tool) and go on through every point; without it such a file stops the command, which names the file |
 | `--new-pproc` | Accept a PPROC file that differs from the planned one, so a new grouping of the products (an edited [plots] table) needs no new plan and no new run |
 | `--sims POL [POL ...]` | Only these simulations, by POL, space or comma separated (--sims 1001 1002 or --sims 1001,1002); an id the matrix lacks is refused |
 | `--points NAME [NAME ...]` | Only these points, named DP-name or POL/DP-name, within --sims when given; a name no point carries is refused |
@@ -371,6 +374,7 @@ cfd-matrix post [MATRIX] [options]
 | `--archive` | Keep a copy of each replaced product under archive/&lt;stamp&gt;/ |
 | `--verbose` | Print details too; the same as --log-level verbose |
 | `--log-level {quiet,normal,verbose}` | Console verbosity: quiet prints errors and the final summary, normal adds progress and per-point lines (default), verbose adds details |
+| `--overwrite` | Replace a product or table file that the manifest does not record (edited by hand or left by another tool) and go on through every point; without it such a file stops the command, which names the file |
 | `--new-pproc` | Accept a PPROC file that differs from the planned one, so a new grouping of the products (an edited [plots] table) needs no new plan and no new run |
 
 ## Correct the records

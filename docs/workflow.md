@@ -135,8 +135,9 @@ cfd-workspace history 1001
 cfd-workspace log
 ```
 
-These commands only read the records. `status` gives one line per sim, or one
-line per point with `--points`. `show` prints the card of a point, and the whole
+These commands only read the records. `status` gives one row per polar, with its points
+recorded and planned, or one row per point with `--points`, and says whether the plan and
+the post of each matrix are current. `show` prints the card of a point, and the whole
 record with `--verbose`. `history` lists the current and the earlier runs of a
 sim or a point. `log` lists what happened in time order. Times are printed in
 the time of the machine, to the second.

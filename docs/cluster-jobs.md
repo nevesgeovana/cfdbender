@@ -212,6 +212,24 @@ the batch folder numbers moved, and the new batch gets a new folder), and
 without a command line of its own (`job_command`) is grouped only for rows that state
 `hpc.application_id`.
 
+### One job per polar: `--batch-per-polar`
+
+`cfd-matrix plan study --batch-per-polar` and `cfd-matrix run study --batch-per-polar` submit
+one job per polar, a matrix row (POL) with all its points. Nothing is split or merged: row
+1001 is `study_b1`, row 1002 is `study_b2`, and so on, each in its own `sims/batch/<matrix>_b<ID>/`
+with its own `BATCH-<POL>-<POL>.sh`. Inside a job the points of the row run one after another
+in the order of the sweep, each in its own point folder, so a polar whose points follow one
+another keeps its sequence in its own script. The job takes the row's `NCPUS`, its solver
+build and its `hpc.<name>` values; its wall clock is the sum of the `WALLTIME` of its points,
+capped by the profile's `max_walltime` with the warning that cap already gives. The
+descriptor, the script, the status files and `collect` are those of `--batch`.
+
+It is the same grouping as `--batch N` with one row per job, and the same refusals apply: an
+HPC profile is needed, and it cannot be combined with `--local`, `--resume`, `--restart` or
+`--force-rerun` (`--force-rerun-all` is accepted), nor with `--batch N`. `run
+--batch-per-polar` needs a `plan --batch-per-polar`. A selection (`--sims`, `--points`) plans
+the polars it touches, each holding only the selected points.
+
 A row whose `RESTART` names a point of the same job, earlier in it, is not refused although the
 source has not run: the script stages the source's restart file after the source ends with
 status 0, before the dependent's command (or its `hpc.application_id` wrapper) is called, with

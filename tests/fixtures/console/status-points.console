@@ -1,0 +1,27 @@
+exit 0
+--- stdout
+SIM  POINT  MATRIX  STATUS  WAS  ITER  RESIDUAL  WALL  BUILD  WHERE
+7001  M200AL+000  full  COMPLETED  2  0.01  <WALL>  mock-1  local
+7001  M200AL+020  full  COMPLETED  2  0.01  <WALL>  mock-1  local
+2 datapoint(s): COMPLETED
+plan/full: made from the matrix on disk
+post/full: written <TIME>, complete
+--- stderr
+cfd-matrix status
+  purpose: one row per polar: simulation, polar, sweep, datapoints, matrix and status
+           (reads only)
+  workspace: <ROOT>
+
+
+#################################################################################
+#                                                                               #
+#                                                 _                             #
+# Good to go                                     ( )                            #
+#                                            .---' '-.                          #
+#                                           (___      '----.                    #
+#                                           (___           |                    #
+# geoversegoddess sees you                  (___           |                    #
+#                                            (__.__________'                    #
+#                                                                               #
+#################################################################################
+

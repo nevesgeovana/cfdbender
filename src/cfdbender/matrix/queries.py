@@ -8,9 +8,12 @@ archived or deleted earlier record of it is named ``POL/DP-name@<archive folder>
 from __future__ import annotations
 
 import argparse
-import fnmatch
+import csv
+import io
 import json
 import re
+import sys
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -26,6 +29,7 @@ from cfdbender.core.registry import (
     decode_record,
     encode_record,
 )
+from cfdbender.core.settings import WorkspaceError
 from cfdbender.matrix._console import (
     SIMS_HELP,
     WORKSPACE_HELP,
@@ -36,8 +40,19 @@ from cfdbender.matrix._console import (
     level_of,
     read_activity,
     status_word,
+    table,
 )
 from cfdbender.matrix._journal import MARKS, STORAGE, read_journal
+from cfdbender.matrix._status import (
+    HEADINGS,
+    POINT_COLUMNS,
+    STATUS_COLUMNS,
+    Status,
+    check_status_words,
+    freshness_lines,
+    listed_sims,
+    status_text,
+)
 from cfdbender.matrix._tree_migration import refuse_retired
 from cfdbender.matrix.selection import split_ids
 
@@ -107,32 +122,15 @@ def find_runs(runs: list[Run], target: str, point: str | None = None) -> list[Ru
     return found
 
 
-def _words(record: RunRecord) -> set[str]:
-    words = {record.status}
-    if record.classification:
-        words.add(record.classification.upper())
-        if record.classification == "failed":
-            words.add("FAILED")
-    return words
-
-
-def _wanted(record: RunRecord, patterns: list[str]) -> bool:
-    return not patterns or any(
-        fnmatch.fnmatchcase(word, pattern.upper())
-        for word in _words(record)
-        for pattern in patterns
-    )
-
-
 def _open(args: argparse.Namespace) -> RunRegistry:
     return RunRegistry(Path(args.workspace).resolve(), args.runs)
 
 
-def _say_empty(rows: list[Any], records: list[RunRecord], args: argparse.Namespace) -> None:
+def _say_empty(rows: list[Any], recorded: bool, args: argparse.Namespace) -> None:
     """Say why a table of the console is empty, so a header alone never stands for an answer."""
     if rows or getattr(args, "json", False) or getattr(args, "csv", False):
         return
-    if not records:
+    if not recorded:
         print("no recorded sim yet: run a matrix first")
     elif args.failed:
         print("no failed point")
@@ -140,57 +138,89 @@ def _say_empty(rows: list[Any], records: list[RunRecord], args: argparse.Namespa
         print("no recorded point matches the selection")
 
 
-def run_status(args: argparse.Namespace) -> int:
-    """List each sim of each matrix with its states, or each point with ``--points``."""
-    registry = _open(args)
-    records = list(registry.read())
-    if args.matrix:
-        stem = matrix_stem(args.matrix)
-        records = [r for r in records if matrix_stem(r.matrix) == stem]
-    sims = split_ids(args.sims)
-    if sims:
-        records = [r for r in records if r.point.pol in sims]
-    if args.per_point:
-        rows = [
-            {
-                "sim": r.point.pol,
-                "matrix": matrix_stem(r.matrix),
-                "point": r.point_id,
-                "status": r.status,
-                "classification": r.classification,
-                "error": r.error,
-            }
-            for r in records
-            if _wanted(r, args.statuses) and (not args.failed or r.classification == "failed")
+def _csv_cell(value: object) -> str:
+    return repr(value) if isinstance(value, float) else "" if value is None else str(value)
+
+
+def _cell(value: object) -> str:
+    """Return one cell; a float shows six significant digits, a CSV cell keeps them all."""
+    return f"{value:.6g}" if isinstance(value, float) else _csv_cell(value)
+
+
+def _footer(
+    status: Status, rows: list[dict[str, object]], *, per_point: bool, matrix: str | None
+) -> list[str]:
+    """Return the totals, then per matrix whether its plan and its post are current."""
+    stems = {str(row["matrix"]) for row in rows}
+    if per_point:
+        counts = Counter(str(row["status"]) for row in rows)
+        lines = [f"{len(rows)} datapoint(s): {status_text(counts) or 'none'}"]
+    else:
+        counts = Counter()
+        for row in rows:
+            polar = row.get("counts")
+            if isinstance(polar, Mapping):
+                counts.update({str(word): int(count) for word, count in polar.items()})
+        lines = [
+            f"{len(rows)} polar(s), {sum(counts.values())} datapoint(s): "
+            f"{status_text(counts) or 'none'}"
         ]
-        emit_rows(rows, ["sim", "matrix", "point", "status", "classification", "error"], args)
-        _say_empty(rows, records, args)
-        return 0
-    groups: dict[tuple[str, str], list[RunRecord]] = {}
-    for record in records:
-        groups.setdefault((record.point.pol, matrix_stem(record.matrix)), []).append(record)
-    rows2: list[dict[str, object]] = []
-    for (pol, stem), members in sorted(groups.items()):
-        if args.statuses and not any(_wanted(m, args.statuses) for m in members):
-            continue
-        failed = sum(m.classification == "failed" for m in members)
-        if args.failed and not failed:
-            continue
-        states: dict[str, int] = {}
-        for member in members:
-            states[member.status] = states.get(member.status, 0) + 1
-        rows2.append(
-            {
-                "sim": pol,
-                "matrix": stem,
-                "points": len(members),
-                "status": ", ".join(f"{k}={v}" for k, v in sorted(states.items())),
-                "failed": failed,
-            }
+    for item in status.freshness(stems):
+        lines += freshness_lines(item)
+    return lines
+
+
+def run_status(args: argparse.Namespace) -> int:
+    """List each polar (a sim of a matrix) with its points and states, or each point.
+
+    The table, its totals and the plan and post lines are those of ``pyfs-matrix status``;
+    ``--json`` and ``--csv`` print the same rows, and the opening block stays on standard error.
+    """
+    try:
+        check_status_words(args.statuses)
+        sims = listed_sims(args.sims) if args.sims else None
+        if sims is not None and not sims:
+            raise RegistryError("--sims names no simulation; give the ids, for example --sims 1001")
+        snapshot = Status(Path(args.workspace).resolve(), args.runs)
+    except WorkspaceError as error:
+        print(str(error), file=sys.stderr)
+        return 2
+    select: dict[str, Any] = {
+        "sims": sims,
+        "matrix": args.matrix,
+        "statuses": args.statuses,
+        "failed": args.failed,
+    }
+    rows = snapshot.points(**select) if args.per_point else snapshot.status(**select)
+    columns = list(POINT_COLUMNS if args.per_point else STATUS_COLUMNS)
+    if args.per_point and any(row.get("error") for row in rows):
+        columns.append("error")
+    unmatched = snapshot.unmatched(sims or ())
+    for sim in unmatched:
+        print(
+            f"--sims: simulation {sim} holds no record and no planned point", file=sys.stderr
         )
-    emit_rows(rows2, ["sim", "matrix", "points", "status", "failed"], args)
-    _say_empty(rows2, records, args)
-    return 0
+    if args.json:
+        stems = {str(row["matrix"]) for row in rows}
+        document = snapshot.document(rows, snapshot.freshness(stems))
+        print(json.dumps(document, indent=2))
+    elif args.csv:
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, lineterminator="\n")
+        writer.writerow(columns)
+        for row in rows:
+            writer.writerow([_csv_cell(row.get(c)) for c in columns])
+        print(buffer.getvalue(), end="")
+    else:
+        heads = [HEADINGS.get(c, c.upper()) for c in columns]
+        for line in table([heads, *([_cell(row.get(c)) for c in columns] for row in rows)]):
+            print(line)
+        for line in _footer(snapshot, rows, per_point=args.per_point, matrix=args.matrix):
+            print(line)
+        _say_empty(rows, bool(snapshot.entries), args)
+    # An id that matches nothing is named on standard error; the exit status is 1 only when
+    # every simulation named holds nothing, as pyfs-matrix status does.
+    return 1 if sims and len(unmatched) == len(set(sims)) else 0
 
 
 def _outcome(root: Path, run: Run) -> dict[str, Any]:
@@ -556,22 +586,48 @@ def register(commands: Any) -> dict[str, Any]:
     """Add the matrix-level read verb (status) to the cfd-matrix subparsers."""
     status = commands.add_parser(
         "status",
-        help="list every recorded sim per matrix with its states, filterable",
+        help="one row per polar: simulation, polar, sweep, datapoints, matrix and status "
+        "(reads only)",
+        description=(
+            "Reads the run records, the plans and the posts, and changes no file: no "
+            "record, log or lock is written. A polar whose datapoints share one status "
+            "shows that word; a mixed polar shows the count of each. A point a plan names "
+            "and no record carries is shown as `planned`, in lower case because no "
+            "recorded status is written so."
+        ),
         allow_abbrev=False,
     )
-    status.add_argument("--sims", nargs="+", metavar="POL", help=SIMS_HELP)
-    status.add_argument("--matrix", help="only this recorded matrix")
+    status.add_argument(
+        "--sims",
+        nargs="+",
+        metavar="POL",
+        help="only these simulations, by POL, space or comma separated, with or without "
+        "brackets: 1001,1002 or [1001,1002]",
+    )
+    status.add_argument(
+        "--matrix",
+        metavar="STEM",
+        help="only the polars of this matrix, by its stem (found in the workspace root or "
+        "inputs/matrices/)",
+    )
     status.add_argument(
         "--status",
         dest="statuses",
         action="append",
         default=[],
         metavar="WORD",
-        help="only sims with a point in this status or classification (repeatable; a "
-        "trailing * matches every word it begins)",
+        help="only the polars with a datapoint in this status or verdict, as shown "
+        "(repeatable; a trailing * matches every word it begins, for example FAILED_*)",
     )
-    status.add_argument("--failed", action="store_true", help="only sims with a failed point")
-    status.add_argument("--points", dest="per_point", action="store_true", help="one row per point")
+    status.add_argument(
+        "--failed", action="store_true", help="only the polars with at least one failed datapoint"
+    )
+    status.add_argument(
+        "--points",
+        dest="per_point",
+        action="store_true",
+        help="one row per datapoint instead of one per polar",
+    )
     _common(status)
     return {"status": run_status}
 
