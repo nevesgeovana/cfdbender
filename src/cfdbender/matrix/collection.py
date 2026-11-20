@@ -392,8 +392,8 @@ def collect_workspace(
             if record.status == "SUBMITTED" and any(
                 not workspace_path(target, name).is_file() for name in _job_outputs(record, target)
             ):
-                ended = batch_exit_written(target, record)
-                if ended is None or ended == 0:
+                exit_status = batch_exit_written(target, record)
+                if exit_status is None or exit_status == 0:
                     outstanding += 1
                     continue
                 # The job script ended this run with a failure and left no solver output (a
@@ -402,7 +402,7 @@ def collect_workspace(
                     record.point_id,
                     "COMPLETED",
                     classification="failed",
-                    error="FAILED_EXECUTION: " + _ended_reason(target, record, ended),
+                    error="FAILED_EXECUTION: " + _ended_reason(target, record, exit_status),
                 )
                 row.update(
                     status=record.status,
