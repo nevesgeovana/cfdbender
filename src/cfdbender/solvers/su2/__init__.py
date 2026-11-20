@@ -225,6 +225,13 @@ def validate_row(row: MatrixRow, workspace: RowInputs) -> RowRequirements:
             precursor=row.precursor and kind in TIME_ACCURATE,
         )
         validate_tracked_groups(workspace.setup, workspace, mesh_name(values))
+    if added := cast(list[str], record.get("monitoring_added", [])):
+        # A note, never a refusal: every wall is monitored, whatever the setup lists.
+        workspace.warn(
+            f"monitoring|{row.setup_id}",
+            f"setup {row.setup_id}: MARKER_MONITORING misses the wall marker(s) "
+            f"{', '.join(added)}; every wall is monitored, so they are added",
+        )
     extra = tuple(extra_files(values))
     return RowRequirements(
         ("write SU2 cfg", "stage mesh", "run SU2", "read SU2 history"),
