@@ -44,7 +44,7 @@
 \item \fl{--sims POL [POL ...]} only these simulations, by POL, space or comma separated; an id the matrix lacks is refused
 \item \fl{--points NAME [NAME ...]} only these points, named \texttt{DP-name} or \texttt{POL/DP-name}, within \fl{--sims} when given
 \item \fl{--hpc NAME} the profile \texttt{inputs/hpc/<NAME>.toml}, when the workspace holds several
-\item \fl{--batch N} the rows as N scheduler jobs, each with a generated script
+\item \fl{--batch N} the rows as N scheduler jobs, each with a generated script; \fl{--batch-per-polar} one job per polar
 \item \fl{--rehash-inputs} read every input again; \fl{--no-read-large-inputs} never open one above 8 MiB
 \item \fl{--local} plan for THIS machine, not for a submission; \fl{--warning-refusals} refuse unused cluster values
 \item \fl{--workspace DIR} campaign root (default: the current folder)
@@ -60,7 +60,7 @@
 \item \fl{--restart} continue each selected point from its last solution, archiving the previous run first; SU2, OpenFOAM and PyFR support it
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
 \item \fl{--hpc NAME} the HPC profile to use, as in \cmd{plan}; \fl{--warning-refusals} refuse unused cluster values
-\item \fl{--batch N} submit the rows as N scheduler jobs, as in \cmd{plan}
+\item \fl{--batch N} submit the rows as N scheduler jobs, as in \cmd{plan}; \fl{--batch-per-polar} one job per polar; \fl{--continue} go on from the latest restart after the run length grew (SU2)
 \item \fl{--rehash-inputs} read every input again; \fl{--no-read-large-inputs} never open one above 8 MiB
 \item \fl{--one-run-at-a-time} refuse a local run while another guarded run holds the machine
 \item \fl{--local} keep the work on THIS machine; \fl{--no-local} submit when a profile exists (the default)
@@ -114,7 +114,7 @@
 \item \fl{--watch} keep sweeping until no submitted point is outstanding
 \item \fl{--watch-interval S} seconds between sweeps (default 60); \fl{--rounds N} stop the watch after N sweeps
 \item \fl{--interval S} seconds between the two looks that decide an output is settled
-\item \fl{--archive} keep a copy of each replaced file under \texttt{archive/<stamp>/}
+\item \fl{--archive} keep a copy of each replaced file under \texttt{archive/<stamp>/}; \fl{--overwrite} replace an unrecorded product; \fl{--new-pproc} accept an edited PPROC file
 \item \fl{--rehash-inputs} read every input again; \fl{--no-read-large-inputs} never open one above 8 MiB
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} part of the matrix, as in \cmd{plan}
 \item \fl{--hpc NAME}, \fl{--local} the profile to use; this machine only
@@ -123,7 +123,7 @@
 \sub{post [matrix]}{rebuild the same products from \texttt{runs.json} and the saved outputs alone, running nothing}
 \begin{flags}
 \item \fl{--sims POL [POL ...]}, \fl{--points NAME [NAME ...]} only these
-\item \fl{--archive} keep a copy of each replaced product
+\item \fl{--archive} keep a copy of each replaced product; \fl{--overwrite}, \fl{--new-pproc} as in \cmd{collect}
 \item \fl{--workspace DIR}, \fl{--runs NAME}, \fl{--verbose}, \fl{--log-level LEVEL} as in \cmd{status}
 \end{flags}
 
