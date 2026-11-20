@@ -261,13 +261,16 @@ def config(
     record: dict[str, object] | None = None,
     restarted: bool = False,
     precursor: bool = False,
+    continue_from: int | None = None,
 ) -> dict[str, object]:
     """Return the SU2 keys of one point: the s/r/p files, the row and its run type's keys.
 
     ``record``, when given, receives what the run type resolved (its clock and windows).
     ``restarted`` states that the point starts from a saved solution (the row's RESTART).
     ``precursor`` states that it starts from a steady frozen-rotor stage of its own (the row's
-    RESTART is ``MRF``): the stage's files are keys written ``<file>/<KEY>``.
+    RESTART is ``MRF``): the stage's files are keys written ``<file>/<KEY>``. ``continue_from``
+    continues a finished or killed time-accurate point in place at that SU2 time iteration
+    (``run --continue``): its stage 1, if any, is not written again.
     """
     from cfdbender.solvers.su2._products import product_outputs
     from cfdbender.solvers.su2._run_types import SETUP_KEYS, apply_run_type, turbulence
@@ -441,6 +444,7 @@ def config(
             motion=motion,
             restarted=restarted,
             precursor=precursor,
+            continue_from=continue_from,
         )
         if record is not None:
             record.update(resolved)
@@ -466,7 +470,7 @@ def config(
             history_groups.append("AERO_COEFF_SURF")
         values["HISTORY_OUTPUT"] = history_groups
     _surface_history(values)
-    if precursor:
+    if precursor and continue_from is None:
         from cfdbender.solvers.su2._precursor import stage_one
 
         sliding = cast(Mapping[str, object], setup["sliding"])
@@ -940,6 +944,13 @@ def _history_output(values: dict[str, object]) -> None:
 
 def mesh_name(values: Mapping[str, object]) -> str:
     return cast(str, values["MESH_FILENAME"])
+
+
+def continued_at(point: object) -> int | None:
+    """Return the SU2 time iteration a continued point restarts at, or None for a fresh run."""
+    planned = getattr(point, "point", point)
+    value = getattr(planned, "continuation", {}).get("restart_iter")
+    return value if type(value) is int else None
 
 
 def staged_mesh(values: Mapping[str, object]) -> str:

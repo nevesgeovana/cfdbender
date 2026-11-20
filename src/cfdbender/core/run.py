@@ -175,7 +175,8 @@ def execute_plan(
                 raise RegistryError(
                     f"point {point.point_id!r}: registered proposal differs; plan again"
                 )
-        for name in (point.directory, *point.outputs):
+        # A continued point (run --continue) runs on in its own folder.
+        for name in () if point.continuation else (point.directory, *point.outputs):
             if workspace_path(plan.root, name).exists():
                 raise RegistryError(f"{name}: existing output; refusing overwrite")
         # A row's SOLVER_BUILD selects its executable here, refusing an undeclared build.

@@ -531,7 +531,13 @@ def grouping_receipt(
 
 
 def grouped_options_refusal(
-    *, local: bool, restart: bool, resume: bool, force_rerun: object, flag: str = "--batch"
+    *,
+    local: bool,
+    restart: bool,
+    resume: bool,
+    force_rerun: object,
+    continue_run: bool = False,
+    flag: str = "--batch",
 ) -> str | None:
     """Say why ``--batch`` (or ``--batch-per-polar``) may not be combined with an option."""
     if local:
@@ -545,6 +551,7 @@ def grouped_options_refusal(
             ("--force-rerun", bool(force_rerun)),
             ("--resume", resume),
             ("--restart", restart),
+            ("--continue", continue_run),
         )
         if present
     ]

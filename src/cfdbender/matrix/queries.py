@@ -90,7 +90,8 @@ def load_runs(registry: RunRegistry) -> list[Run]:
                 Run(
                     f"{record.point_id}@{Path(folder).name}",
                     record,
-                    "archived",
+                    # An earlier segment of a point continued in place (run --continue).
+                    "continued" if entry.get("continued") is True else "archived",
                     str(entry.get("archived_at")),
                     folder,
                 )
@@ -473,7 +474,9 @@ def _events(root: Path, runs: list[Run]) -> list[dict[str, Any]]:
                 {
                     **base,
                     "time": run.when,
-                    "stage": {"archived": "archive", "deleted": "delete"}[run.kind],
+                    "stage": {"archived": "archive", "deleted": "delete", "continued": "continue"}[
+                        run.kind
+                    ],
                     "event": run.kind,
                     "detail": run.archive,
                 }

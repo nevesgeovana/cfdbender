@@ -145,7 +145,7 @@ def staged_solution(files: dict[str, Path], values: Mapping[str, object]) -> dic
 
 def restart_values(point: AdapterPoint, values: dict[str, object]) -> dict[str, object]:
     """Set the SU2 restart keys to the copied solution, overriding a cold-start setting."""
-    if point.point.restart_from is not None:
+    if point.point.restart_from is not None and not point.point.continuation:
         solution = next(iter(restart_files(point)))
         saved = (
             point.restart_source_cfg

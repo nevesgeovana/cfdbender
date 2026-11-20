@@ -48,10 +48,17 @@ from cfdbender.core.run_types import (
     UNSTEADY,
     UNSTEADY_ROTOR,
 )
-from cfdbender.core.unsteady_clock import TimeStepping, rotor_time_stepping, unsteady_time_stepping
+from cfdbender.core.unsteady_clock import (
+    TimeStepping,
+    revolution_steps,
+    rotor_time_stepping,
+    unsteady_time_stepping,
+)
 from cfdbender.core.unsteady_window import LAST_ITERS_AVG, LAST_REVS_AVG, averaging_span, stated_key
 from cfdbender.solvers.su2._precursor import SOLUTION_NAME
 
+#: The row key that writes the restart file every so many revolutions (PROVISIONAL name).
+RESTART_EVERY_REV = "RESTART_EVERY_REV"
 #: The setup keys of this module that are not SU2's own (PROVISIONAL names).
 SETUP_KEYS = ("periodic_markers", "sliding", "precursor")
 #: The neutral turbulence model names SU2 offers through cfdbender, and their keys.
@@ -276,6 +283,7 @@ def apply_run_type(
     motion: Mapping[str, float],
     restarted: bool = False,
     precursor: bool = False,
+    continue_from: int | None = None,
 ) -> dict[str, object]:
     """Write the SU2 keys run type ``run_type`` carries; return what the point records.
 
@@ -290,7 +298,10 @@ def apply_run_type(
     starts the point from a steady frozen-rotor solution of its own mesh, staged as the same
     iterations before ``RESTART_ITER`` (:mod:`cfdbender.solvers.su2._precursor`): the point is
     ``restarted`` in every other respect. Stage 1's files are written by ``config`` once every
-    key of the point is final, so both stages share one flow model.
+    key of the point is final, so both stages share one flow model. ``continue_from`` (a point
+    continued in place, ``run --continue``) is SU2's time iteration the continuation restarts at
+    (:func:`continue_keys`); the clock and the windows stay those of the whole run, and no
+    frozen-rotor stage runs again.
     """
     record: dict[str, object] = {"run_type": run_type}
     if run_type == STEADY:
@@ -298,7 +309,16 @@ def apply_run_type(
     before = set(values)
     try:
         return _carried(
-            values, run_type, record, setup, rotor, periodic, motion, restarted, precursor
+            values,
+            run_type,
+            record,
+            setup,
+            rotor,
+            periodic,
+            motion,
+            restarted,
+            precursor,
+            continue_from,
         )
     finally:
         # The keys the run type wrote that no file or row stated: their origin is the run type.
@@ -315,6 +335,7 @@ def _carried(
     motion: Mapping[str, float],
     restarted: bool = False,
     precursor: bool = False,
+    continue_from: int | None = None,
 ) -> dict[str, object]:
     needs_rotor = run_type in (QSTEADY_ROTOR, UNSTEADY_ROTOR)
     rps: float | None = None
@@ -356,6 +377,7 @@ def _carried(
         steps_per_revolution=clock.steps_per_revolution,
     )
     offset = _time_keys(values, clock, window, restarted=restarted or precursor)
+    every = restart_every(values, setup, clock)
     if run_type == UNSTEADY_ROTOR:
         assert rotor is not None and rps is not None
         sliding = setup.get("sliding")
@@ -364,20 +386,93 @@ def _carried(
             write_rotation(values, rotor, rps)
         else:
             _zones(values, sliding, rotor, rps)
+    if continue_from is not None:
+        continue_keys(values, continue_from)
     if exports is not None:
-        export_segments(values, exports, offset)
+        export_segments(values, exports, offset, every=every, start=continue_from)
     else:
-        last_step_outputs(values)
-    if precursor:
+        last_step_outputs(values, every=every)
+    if precursor and continue_from is None:
         values["SOLUTION_FILENAME"] = SOLUTION_NAME
     record.update(
         clock=clock.record(),
         averaging_window=list(window),
         export_window=None if exports is None else exports.record(),
     )
+    if every is not None:
+        record["restart_every"] = {"revolutions": setup[RESTART_EVERY_REV], "steps": every}
     if offset:
         record["step_offset"] = offset
+    if continue_from is not None:
+        record["continue_from"] = continue_from
     return record
+
+
+def restart_every(
+    values: Mapping[str, object], setup: Mapping[str, object], clock: TimeStepping
+) -> int | None:
+    """Return the time iterations between periodic restart files, or None when not stated.
+
+    ``RESTART_EVERY_REV: r`` (a PROVISIONAL name) writes the restart file every ``r``
+    revolutions of the rotor clock, ``ceil(r S)`` time iterations with ``S`` the steps per
+    revolution, and leaves the volume and surface files at their own frequency. SU2 counts the
+    multiples on its own time iteration and, under second-order dual time stepping, also
+    writes the iteration before each multiple, so a killed point keeps a pair to continue from.
+
+    Raises
+    ------
+    ValueError
+        A value that is not a positive number, or a setup (or PPROC ``output_frequency``) that
+        states ``OUTPUT_WRT_FREQ`` itself.
+    """
+    if RESTART_EVERY_REV not in setup:
+        return None
+    raw = setup[RESTART_EVERY_REV]
+    try:
+        value = float(str(raw))
+    except ValueError:
+        value = math.nan
+    if isinstance(raw, bool) or not math.isfinite(value) or value <= 0.0:
+        raise ValueError(
+            f"the row states {RESTART_EVERY_REV} as {raw!r}; it is how many revolutions apart "
+            "the restart files are written, so it is a positive number"
+        )
+    if not clock.steps_per_revolution:
+        warn_or_refuse(
+            f"{RESTART_EVERY_REV} is skipped: the row turns no rotor, so a count of revolutions "
+            "has no length in solver steps; the restart file is written at the last step only",
+            UserWarning,
+            stacklevel=3,
+        )
+        return None
+    if "OUTPUT_WRT_FREQ" in values:
+        raise ValueError(
+            f"the row states {RESTART_EVERY_REV} and the setup (or the PPROC output_frequency) "
+            "states OUTPUT_WRT_FREQ: both set how often the restart file is written; state one"
+        )
+    return max(1, revolution_steps(value, clock.steps_per_revolution))
+
+
+def continue_keys(values: MutableMapping[str, object], start: int) -> None:
+    """Restart a finished or killed point in place at SU2's time iteration ``start``.
+
+    The continuation reads the files the earlier run wrote under its ``RESTART_FILENAME``
+    (``<stem>_<k>``, and ``<stem>_<zone>_<k>`` for each zone of a multizone run) for the
+    ``restart_order`` iterations before ``start``, so ``SOLUTION_FILENAME`` is that name, read
+    in the format it was written. ``TIME_ITER`` stays the whole run's total; SU2 refuses a
+    ``WINDOW_START_ITER`` below ``RESTART_ITER`` (measured), so its own average starts no earlier
+    than the continuation, while cfdbender averages the joined history.
+    """
+    values["RESTART_SOL"] = True
+    values["RESTART_ITER"] = start
+    values["SOLUTION_FILENAME"] = values.get("RESTART_FILENAME", SU2_RESTART_FILENAME)
+    written = values.get("WRT_BINARY_RESTART")
+    values["READ_BINARY_RESTART"] = not (
+        written is False or str(written).strip().upper() in ("NO", "FALSE")
+    )
+    window = values.get("WINDOW_START_ITER")
+    if isinstance(window, int) and window < start:
+        values["WINDOW_START_ITER"] = start
 
 
 def _refuse_appending(values: Mapping[str, object]) -> None:
@@ -491,7 +586,12 @@ def _zones(
 
 
 def export_segments(
-    values: MutableMapping[str, object], exports: ExportWindow, offset: int = 0
+    values: MutableMapping[str, object],
+    exports: ExportWindow,
+    offset: int = 0,
+    *,
+    every: int | None = None,
+    start: int | None = None,
 ) -> None:
     """Realise the export window: the ONE function a different mechanism replaces.
 
@@ -505,36 +605,41 @@ def export_segments(
     and it reads them as binary, the format ``RESTART`` writes. The hand-over continues to the
     run-to-run noise of the solver. A window whose first step leaves segment one fewer marched
     steps than the restart reads (``restart_order``) is one segment writing every step.
-    ``offset`` is the step offset of a point started from a saved solution.
+    ``offset`` is the step offset of a point started from a saved solution. ``every`` is the
+    periodic restart frequency (:func:`restart_every`), None for the end of each segment only.
+    ``start`` is SU2's first time iteration of a continuation (:func:`continue_keys`): a window
+    that began before it writes every remaining step in one segment.
     """
     outputs = _outputs(values)
     total = int(str(values["TIME_ITER"]))
-    if exports.first_step - 1 < restart_order(values):
-        values["OUTPUT_FILES"] = outputs
-        values["OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=total, other=1)
-        return
+    first = offset if start is None else start
     handover = exports.first_step - 1 + offset
+    if handover - first < restart_order(values):
+        values["OUTPUT_FILES"] = outputs
+        values["OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=every or total, other=1)
+        return
     values["TIME_ITER"] = handover
     values["OUTPUT_FILES"] = ["RESTART"]
     # Only the restart files segment two reads. SU2 8.6.0 writes a file at every multiple of
     # its frequency and at its last time iteration, and under second-order dual time a restart
     # file also before each multiple and before the last (CFlowOutput, measured): with the
     # frequency equal to TIME_ITER that is handover - 2 and handover - 1 (handover - 1 alone
-    # under first order), plus time iteration 0 of a cold start.
-    values["OUTPUT_WRT_FREQ"] = handover
+    # under first order), plus time iteration 0 of a cold start. A periodic frequency adds
+    # its multiples and keeps the last two.
+    values["OUTPUT_WRT_FREQ"] = every or handover
     target = f"{SEGMENT_TWO}/"
     values[f"{target}TIME_ITER"] = total
     values[f"{target}RESTART_SOL"] = True
     values[f"{target}RESTART_ITER"] = handover
     # SU2 refuses a restart whose WINDOW_START_ITER is below RESTART_ITER (measured), so its
     # own time average, a cross-check, starts at segment two; cfdbender's reads the history.
-    start = values.get("WINDOW_START_ITER")
-    if isinstance(start, int) and start < handover:
+    window = values.get("WINDOW_START_ITER")
+    if isinstance(window, int) and window < handover:
         values[f"{target}WINDOW_START_ITER"] = handover
     values[f"{target}SOLUTION_FILENAME"] = values.get("RESTART_FILENAME", SU2_RESTART_FILENAME)
     values[f"{target}READ_BINARY_RESTART"] = True
     values[f"{target}OUTPUT_FILES"] = outputs
-    values[f"{target}OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=total, other=1)
+    values[f"{target}OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=every or total, other=1)
 
 
 def _outputs(values: Mapping[str, object]) -> list[str]:
@@ -549,7 +654,7 @@ def _frequencies(outputs: list[str], *, restart: int, other: int) -> list[int]:
     return [restart if item.upper().startswith("RESTART") else other for item in outputs]
 
 
-def last_step_outputs(values: MutableMapping[str, object]) -> None:
+def last_step_outputs(values: MutableMapping[str, object], *, every: int | None = None) -> None:
     """Write a time-accurate row's files at its last step only, when it has no export window.
 
     pyflightstream's meaning: an unsteady point with no ``EXPORT_UNSTEADY_*`` key exports its
@@ -559,14 +664,15 @@ def last_step_outputs(values: MutableMapping[str, object]) -> None:
     last step (and the step before it for a second-order restart file, which SU2 writes in
     pairs), and on a cold start also time iteration 0 (step 1), which every frequency
     divides. A setup that states ``OUTPUT_WRT_FREQ`` (or the PPROC ``output_frequency``) keeps
-    its own frequency.
+    its own frequency. ``every`` (:func:`restart_every`) writes the restart file at its
+    multiples too.
     """
     if "OUTPUT_WRT_FREQ" in values:
         return
     outputs = _outputs(values)
     total = int(str(values["TIME_ITER"]))
     values["OUTPUT_FILES"] = outputs
-    values["OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=total, other=total)
+    values["OUTPUT_WRT_FREQ"] = _frequencies(outputs, restart=every or total, other=total)
 
 
 def time_accurate(run_type: str) -> bool:

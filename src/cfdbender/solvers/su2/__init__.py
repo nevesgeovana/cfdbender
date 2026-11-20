@@ -71,6 +71,7 @@ from cfdbender.solvers._host._groups import groups, point_markers, validate_trac
 from cfdbender.solvers.su2._config import (
     NEUTRAL_KEYS,
     config,
+    continued_at,
     extra_files,
     mesh_name,
     options,
@@ -324,6 +325,7 @@ def translate(point: AdapterPoint) -> str:
             run_type=point.point.run_type,
             restarted=point.point.restart_from is not None,
             precursor=point.point.precursor,
+            continue_from=continued_at(point),
         )
         point_markers(point, mesh_name(values))
     return render(
@@ -338,6 +340,7 @@ def translate(point: AdapterPoint) -> str:
                 run_type=point.point.run_type,
                 restarted=point.point.restart_from is not None,
                 precursor=point.point.precursor,
+                continue_from=continued_at(point),
             ),
         )
     )
@@ -371,6 +374,16 @@ def execute(point: AdapterPoint, *, check_ram: Callable[[], None]) -> ExecutionR
     """
     run(point, check_ram)
     return read(workspace_path(point.root, point.point.directory))[0]
+
+
+def continuation(point: AdapterPoint) -> dict[str, object]:
+    """Resolve how a recorded time-accurate point continues in place (``run --continue``).
+
+    See :func:`cfdbender.solvers.su2._continuation.continuation`.
+    """
+    from cfdbender.solvers.su2._continuation import continuation as resolve
+
+    return resolve(point)
 
 
 def check_executable(point: AdapterPoint) -> None:
@@ -490,6 +503,7 @@ def _steady_plots(
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
         precursor=point.point.precursor,
+        continue_from=continued_at(point),
     )
     headers, _ = _steady_table(folder)
     groups, skipped = plot_groups(
@@ -598,6 +612,7 @@ def _rotor(
         run_type=point.point.run_type,
         restarted=point.point.restart_from is not None,
         precursor=point.point.precursor,
+        continue_from=continued_at(point),
     )
     values = _turning_zone_values(point, values)
     if averaged is not None and "skipped" in averaged:
@@ -645,6 +660,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
                     run_type=point.point.run_type,
                     restarted=point.point.restart_from is not None,
                     precursor=point.point.precursor,
+                    continue_from=continued_at(point),
                 )
             )
             files.warn(
@@ -670,6 +686,7 @@ def collect(point: AdapterPoint) -> NeutralResult:
             run_type=point.point.run_type,
             restarted=point.point.restart_from is not None,
             precursor=point.point.precursor,
+            continue_from=continued_at(point),
             record=record,
         )
         averaged = _time_average(point, folder, record, tuple(coefficients), values)

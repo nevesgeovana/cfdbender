@@ -46,6 +46,8 @@ EXPORT_KEYS = (
     "EXPORT_UNSTEADY_AFTER_REV",
     "EXPORT_UNSTEADY_AFTER_ITER",
 )
+#: The row variable that writes the restart file periodically (PROVISIONAL name).
+RESTART_KEYS = ("RESTART_EVERY_REV",)
 #: Row variables of the run types that every run type reads.
 COMMON_KEYS = ("SYMMETRY", "SYMMETRY_LOADS", "symmetry_loads", "PERIODIC_COPIES", TURBULENCE_MODEL)
 
@@ -70,11 +72,20 @@ DECLARATIONS: Mapping[str, RunTypeDeclaration] = {
     STEADY: RunTypeDeclaration(STEADY, COMMON_KEYS),
     QSTEADY_ROTOR: RunTypeDeclaration(QSTEADY_ROTOR, (*COMMON_KEYS, "PASSAGE_POSITIONS")),
     UNSTEADY: RunTypeDeclaration(
-        UNSTEADY, (*COMMON_KEYS, *CLOCK_KEYS, *WINDOW_KEYS, "CLOCK_MOTION", *EXPORT_KEYS)
+        UNSTEADY,
+        (*COMMON_KEYS, *CLOCK_KEYS, *WINDOW_KEYS, "CLOCK_MOTION", *EXPORT_KEYS, *RESTART_KEYS),
     ),
     UNSTEADY_ROTOR: RunTypeDeclaration(
         UNSTEADY_ROTOR,
-        (*COMMON_KEYS, *CLOCK_KEYS, *WINDOW_KEYS, "CLOCK_MOTION", "MOTIONS", *EXPORT_KEYS),
+        (
+            *COMMON_KEYS,
+            *CLOCK_KEYS,
+            *WINDOW_KEYS,
+            "CLOCK_MOTION",
+            "MOTIONS",
+            *EXPORT_KEYS,
+            *RESTART_KEYS,
+        ),
     ),
 }
 #: Row variables of pyflightstream's vocabulary this package does not offer yet, and why.

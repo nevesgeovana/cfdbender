@@ -80,6 +80,9 @@ def write_pending(folder: Path, point: AdapterPoint, staged: Mapping[str, Path])
 
 def check_restart(point: AdapterPoint, adapter: object) -> Mapping[str, Path]:
     """Check an adapter's selected solution before any record or archive is written."""
+    if point.point.continuation:
+        # A continued point reads its own restart files in place; its source is not staged again.
+        return {}
     if point.point.restart_in_job:
         if not getattr(adapter, "RESTART_IN_JOB", False):
             raise ValueError(

@@ -287,7 +287,7 @@ def _extras(row: Mapping[str, object]) -> dict[str, Any]:
                 raise RegistryError("defaults_omitted must be a list of setup key names")
             found[key] = tuple(value)
             continue
-        if key in {"variables", "restart_sha256", "provenance"}:
+        if key in {"variables", "restart_sha256", "provenance", "continuation"}:
             found[key] = MappingProxyType(dict(_object(value)))
             continue
         if key in {"geometry", "solver_build", "restart_from", "restart_directory"}:
@@ -516,7 +516,7 @@ def _encode(record: RunRecord) -> dict[str, object]:
     # a matrix without them keeps its earlier bytes.
     for key, default in POINT_EXTRAS.items():
         value = getattr(point, key)
-        if key in {"variables", "restart_sha256", "provenance"}:
+        if key in {"variables", "restart_sha256", "provenance", "continuation"}:
             value = dict(value)
         if value != default:
             row[key] = value
@@ -693,8 +693,11 @@ class RunRegistry:
                             continue
                         if not self._inputs.files().agrees(name, digest):
                             raise RegistryError(f"input changed after planning: {name}; plan again")
+                    # A continued point runs on in its own folder, whose earlier evidence
+                    # was moved aside when the continuation was registered.
+                    fresh = not previous.point.continuation
                     for name in (previous.point.directory, *previous.point.outputs):
-                        if workspace_path(self.root, name).exists():
+                        if fresh and workspace_path(self.root, name).exists():
                             raise RegistryError(f"{name}: existing output; refusing overwrite")
                     updated = replace(
                         previous,
