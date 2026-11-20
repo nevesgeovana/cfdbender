@@ -699,3 +699,36 @@ def test_a_zone_moderately_faster_than_the_free_stream_is_weighted_not_summed(
     expected = (Q * 1.21 * _mean(ZONES[1], "CL") + Q * _mean(ZONES[0], "CL")) / Q
     assert means["CL_MRP_TOTAL"] == pytest.approx(expected, rel=1e-9, abs=0)
     assert means["CL_MRP_TOTAL"] != pytest.approx(_mean(MARKERS, "CL"), rel=1e-4)
+
+
+def test_the_kept_post_file_copy_is_repaired_when_it_is_truncated(tmp_path):
+    import hashlib
+
+    from test_p0000_item3c2_collect import executed
+    from test_p0000_item3c2_run import cli
+
+    executed(tmp_path)
+    name = "inputs/pproc/p001.toml"
+    edited = b"history = true" + NL.encode() + b"# a new grouping" + NL.encode()
+    (tmp_path / name).write_bytes(edited)
+    assert cli(["collect", "--workspace", str(tmp_path), "--new-pproc"]) == 0
+    kept = tmp_path / f"post/study/pproc/{hashlib.sha256(edited).hexdigest()}.toml"
+    kept.write_bytes(edited[:5])
+    assert cli(["collect", "--workspace", str(tmp_path), "--new-pproc"]) == 0
+    assert kept.read_bytes() == edited
+    assert not list(kept.parent.glob(".collect-*"))
+
+
+def test_a_point_whose_collect_fails_carries_no_new_digest_and_leaves_no_copy(tmp_path):
+    from test_p0000_item3c2_collect import executed
+    from test_p0000_item3c2_run import cli
+
+    plan = executed(tmp_path)
+    name = "inputs/pproc/p001.toml"
+    (tmp_path / name).write_bytes(b"history = true" + NL.encode() + b"# edited" + NL.encode())
+    with (tmp_path / plan.points[0].outputs[1]).open("ab") as stream:
+        stream.write(b"changed")
+    assert cli(["collect", "--workspace", str(tmp_path), "--new-pproc"]) == 1
+    row = json.loads((tmp_path / "post/study/campaign_summary.json").read_bytes())["points"][0]
+    assert row["error"] and row["inputs_sha256"][name] == dict(plan.points[0].inputs_sha256)[name]
+    assert not (tmp_path / "post/study/pproc").exists()

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import stat
 import time
 import warnings
@@ -358,12 +359,6 @@ def collect_workspace(
                 continue
             point = load_point(target, record.point, solver=config.solver, session=session)
             _verify_submission(target, record)
-            if new_post_file_allowed():
-                name = f"inputs/pproc/{record.point.post_id}.toml"
-                data = workspace_path(target, name).read_bytes()
-                digest = hashlib.sha256(data).hexdigest()
-                row["inputs_sha256"] = {**cast(dict[str, str], row["inputs_sha256"]), name: digest}
-                post_files.setdefault(record.matrix, {})[digest] = data
             measured = record
             if record.status == "SUBMITTED":
                 measured = replace(
@@ -417,6 +412,17 @@ def collect_workspace(
                     f"{record.point_id}: collected classification differs from record"
                 )
             row["result"] = result.to_dict()
+            if new_post_file_allowed():
+                # the digest and the copy are those of the bytes the point was parsed from
+                name = f"inputs/pproc/{record.point.post_id}.toml"
+                files = session.files()
+                data = files.read_bytes(name)  # the first-read bytes the point parsed
+                files.track(name)
+                digest = files.digests()[name]
+                if hashlib.sha256(data).hexdigest() != digest:
+                    raise ValueError(f"{name} changed while it was read")
+                row["inputs_sha256"] = {**cast(dict[str, str], row["inputs_sha256"]), name: digest}
+                post_files.setdefault(record.matrix, {})[digest] = data
             if record.classification == "failed":
                 failed += 1
                 failed_ids.add(record.point_id)
@@ -434,9 +440,11 @@ def collect_workspace(
         _check_metadata(workspace_path(target, f"post/{Path(name).stem}"), name, config.solver)
         for digest, data in post_files.get(name, {}).items():
             kept = workspace_path(target, f"post/{Path(name).stem}/pproc/{digest}.toml")
-            if not kept.exists():
+            if not kept.is_file() or kept.read_bytes() != data:
                 kept.parent.mkdir(parents=True, exist_ok=True)
-                kept.write_bytes(data)
+                temporary = kept.with_name(".collect-" + kept.name)
+                temporary.write_bytes(data)
+                os.replace(temporary, kept)
         summary = _write_summary(target, name, config.solver, rows)
         migrated = warn_retired(workspace_path(target, f"post/{Path(name).stem}"))
         by_rule = judge_rows(target, rows, config.solver) if config.solver in JUDGED else None
