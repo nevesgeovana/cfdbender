@@ -452,7 +452,7 @@ def config(
     _dimensionalization(values)
     _sa_variant(values)
     _heatflux_values(values)
-    _wall_outputs(values)
+    _wall_outputs(values, record)
     if requested := groups(setup):
         monitored = values.get("MARKER_MONITORING", [])
         monitoring = (
@@ -496,21 +496,59 @@ def _surface_history(values: dict[str, object]) -> None:
 WALL_MARKERS = ("MARKER_EULER", "MARKER_HEATFLUX", "MARKER_ISOTHERMAL")
 
 
-def _wall_outputs(values: dict[str, object]) -> None:
-    """Default MARKER_PLOTTING and MARKER_MONITORING to the wall markers.
+def _marker_items(given: object) -> list[object]:
+    """Return a marker option as a list: a list as it is, a string split on SU2's separators."""
+    if isinstance(given, list):
+        return list(given)
+    if given is None:
+        return []
+    if isinstance(given, str):
+        return [item for item in re.split(r"[\s,()]+", given.strip()) if item]
+    return [given]
+
+
+def wall_markers(values: Mapping[str, object]) -> list[str]:
+    """Return every wall marker of a deck: the names of its :data:`WALL_MARKERS` options.
+
+    ``MARKER_EULER``, ``MARKER_HEATFLUX`` and ``MARKER_ISOTHERMAL`` in that order, the values
+    paired with a name (a heat flux, a temperature) left out, then the walls a file of the deck
+    states on its own (``zone_1.cfg/MARKER_HEATFLUX``).
+    """
+    keys = [
+        *(key for key in WALL_MARKERS if key in values),
+        *sorted(key for key in values if "/" in key and key.rpartition("/")[2] in WALL_MARKERS),
+    ]
+    found = (str(item) for key in keys for item in _marker_items(values[key]))
+    return list(dict.fromkeys(name for name in found if not _is_value(name)))
+
+
+def _wall_outputs(values: dict[str, object], record: dict[str, object] | None = None) -> None:
+    """Default MARKER_PLOTTING to the wall markers, and monitor every wall marker.
 
     SU2 integrates the forces only over MARKER_MONITORING and writes surface rows only
     for MARKER_PLOTTING; without them the coefficients are zero and surface.csv holds a
-    header alone. A list of the user wins.
+    header alone. A plotting list of the user wins. Every wall is monitored whatever the
+    setup lists: a monitoring list that misses a wall is completed after its own markers, and
+    so is the list a file of the deck states (``zone_1.cfg/MARKER_MONITORING``); the walls
+    added go to ``record["monitoring_added"]`` for the plan's note.
     """
-    walls: list[object] = []
-    for key in WALL_MARKERS:
-        given = values.get(key)
-        items = given if isinstance(given, list) else [] if given is None else [given]
-        walls.extend(item for item in items if not _is_value(item) and item not in walls)
-    if walls:
-        values.setdefault("MARKER_PLOTTING", list(walls))
-        values.setdefault("MARKER_MONITORING", list(walls))
+    walls = wall_markers(values)
+    if not walls:
+        return
+    values.setdefault("MARKER_PLOTTING", list(walls))
+    added: list[str] = []
+    stated = [key for key in values if key.endswith("/MARKER_MONITORING")]
+    for key in ["MARKER_MONITORING", *stated]:
+        if key not in values:
+            values[key] = list(walls)
+            continue
+        listed = _marker_items(values[key])
+        names = {str(item) for item in listed}
+        missing = [wall for wall in walls if wall not in names]
+        values[key] = [*listed, *missing]
+        added.extend(wall for wall in missing if wall not in added)
+    if record is not None and added:
+        record["monitoring_added"] = added
 
 
 def _is_value(item: object) -> bool:

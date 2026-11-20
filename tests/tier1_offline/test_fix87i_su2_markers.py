@@ -1,4 +1,5 @@
-"""FIX87I: SU2 wall markers are plotted and monitored by default; the user's lists win."""
+"""FIX87I: SU2 wall markers are plotted and monitored by default; a plotting list of the user
+wins, a monitoring list is completed with every wall (0.8.0)."""
 
 from __future__ import annotations
 
@@ -18,10 +19,11 @@ def test_euler_wall_is_plotted_and_monitored_by_default(tmp_path):
     assert "MARKER_MONITORING= ( airfoil )" in lines
 
 
-def test_user_plotting_and_monitoring_win(tmp_path):
+def test_user_monitoring_is_completed_with_every_wall(tmp_path):
+    # 0.8.0: every wall is monitored; a list that misses one is completed after its own
     extra = 'MARKER_HEATFLUX = ["main", "flap"]\nMARKER_MONITORING = ["main"]'
     lines = _lines(tmp_path, extra)
-    assert "MARKER_MONITORING= ( main )" in lines
+    assert "MARKER_MONITORING= ( main, flap )" in lines
     assert "MARKER_PLOTTING= ( main, flap )" in lines
 
 
