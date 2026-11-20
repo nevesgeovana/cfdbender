@@ -18,6 +18,8 @@ versions follow SemVer and are independent of solver versions.
 
 ### Fixed
 
+- A sliding-mesh (two-zone) SU2 point now has its rotor row and rotor table (`CT`, `CQ`, `CP` and the rest): the rotor quantities looked for the grid motion at the top of the deck, where a two-zone point does not write it. They are now formed from the turning zone's own loads, rotation and `MACH_MOTION` dynamic pressure.
+- The kept copy of a post file made with `--new-pproc` is written atomically and rewritten when it differs, and the summary carries the new digest only for a point whose collect succeeds.
 - The completion wait list of a sliding-mesh (multizone) SU2 job names its driver history `su2.csv`, so a collect that waits on the job no longer starts on a partial or absent history.
 
 ## [0.7.0] - 2026-11-19

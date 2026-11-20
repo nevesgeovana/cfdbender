@@ -558,6 +558,24 @@ def _time_average(
     return reduced
 
 
+def _turning_zone_values(point: AdapterPoint, values: Mapping[str, object]) -> dict[str, object]:
+    """Return the deck as the turning zone of a sliding-mesh point sees it.
+
+    The grid motion of a two-zone point is written in the turning zone's file only
+    (``zone_<i>.cfg/GRID_MOVEMENT``, ``ROTATION_RATE``, ``MOTION_ORIGIN``, ``MACH_MOTION``), where
+    the rotor quantities do not look for it. They are lifted to the top of the deck, so the zone's
+    own loads, its rotation and the dynamic pressure of its ``MACH_MOTION`` give the rotor row.
+    """
+    sliding = point.setup.get("sliding")
+    found = dict(values)
+    if isinstance(sliding, Mapping) and "rotating_zone" in sliding:
+        prefix = f"zone_{sliding['rotating_zone']}.cfg/"
+        for key in ("GRID_MOVEMENT", "ROTATION_RATE", "MOTION_ORIGIN", "MACH_MOTION"):
+            if prefix + key in values:
+                found[key] = values[prefix + key]
+    return found
+
+
 def _rotor(
     point: AdapterPoint,
     coefficients: Mapping[str, Coefficient],
@@ -581,6 +599,7 @@ def _rotor(
         restarted=point.point.restart_from is not None,
         precursor=point.point.precursor,
     )
+    values = _turning_zone_values(point, values)
     if averaged is not None and "skipped" in averaged:
         return {"rotor": rotor.alias, "skipped": averaged["skipped"]}
     found = rotor_point(

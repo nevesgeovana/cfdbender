@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sys
 import warnings
 
@@ -635,3 +636,66 @@ def test_tables_made_with_a_new_post_file_name_it_and_keep_a_copy(tmp_path):
     row = json.loads(summary.read_bytes())["points"][0]
     assert row["inputs_sha256"][name] == digest != planned
     assert (tmp_path / f"post/study/pproc/{digest}.toml").read_bytes() == edited
+
+
+# ---- the rotor quantities of a sliding two-zone point come from its turning zone
+
+SPEED = 0.0529 * 340.2970287557621
+RHO = 1.2249781262066513
+DIAMETER = 0.4064
+
+
+def _expected_rotor(cfx, cmx, advance=0.4):
+    """CT, CQ, CP by independent arithmetic from the turning zone's mean CFx and CMx."""
+    n = -SPEED / (advance * DIAMETER)  # the reference file's rpm_sign is -1
+    thrust = Q * 1.0 * cfx  # reference area 1.0, shaft along +x
+    torque = Q * 1.0 * 0.5 * cmx  # reference length 0.5, moment origin at the hub
+    ct = thrust / (RHO * n**2 * DIAMETER**4)
+    cq = torque / (RHO * n**2 * DIAMETER**5)
+    return thrust, torque, ct, cq, 2.0 * math.pi * cq * math.copysign(1.0, n)
+
+
+def test_a_two_zone_point_has_the_rotor_row_of_its_turning_zone(tmp_path):
+    _, point, _ = _point(tmp_path, "history = true" + NL)
+    rotor = _collect(point)["rotor"]
+    thrust, torque, ct, cq, cp = _expected_rotor(_mean(ZONES[1], "CFx"), _mean(ZONES[1], "CMx"))
+    row = rotor["row"]
+    assert (row["T"], row["Q"]) == (pytest.approx(thrust), pytest.approx(torque))
+    assert row["CT"] == pytest.approx(ct) and row["CQ"] == pytest.approx(cq)
+    assert row["CP"] == pytest.approx(cp)
+    assert row["RPM"] == pytest.approx(-SPEED / (0.4 * DIAMETER) * 60.0)
+    assert rotor["window"] == {"FIRST_STEP": 28, "LAST_STEP": 36, "STEPS": 9}
+
+
+def test_the_rotor_row_has_the_sign_of_the_force_along_the_shaft(tmp_path):
+    _, point, folder = _point(tmp_path, "history = true" + NL)
+    lines = (folder / "su2.csv").read_text(encoding="ascii").splitlines()
+    header = [c.strip('"') for c in lines[0].split(",")]
+    flip = [i for i, c in enumerate(header) if c.startswith("CFx[1]")]
+    rows = []
+    for line in lines[1:]:
+        cells = line.split(",")
+        for i in flip:
+            cells[i] = str(-float(cells[i]))
+        rows.append(",".join(cells))
+    (folder / "su2.csv").write_text(NL.join([lines[0], *rows]) + NL, encoding="ascii")
+    row = _collect(point)["rotor"]["row"]
+    _, _, ct, _, _ = _expected_rotor(-_mean(ZONES[1], "CFx"), _mean(ZONES[1], "CMx"))
+    assert row["CT"] < 0.0 and row["CT"] == pytest.approx(ct)
+
+
+def test_the_rotor_row_uses_the_turning_zones_own_dynamic_pressure(tmp_path, monkeypatch):
+    point = _moving(monkeypatch, tmp_path, 0.1)
+    row = _collect(point)["rotor"]["row"]
+    q_motion = Q * (0.1 / 0.0529) ** 2
+    assert row["T"] == pytest.approx(q_motion * _mean(ZONES[1], "CFx"))
+
+
+def test_a_zone_moderately_faster_than_the_free_stream_is_weighted_not_summed(
+    tmp_path, monkeypatch
+):
+    point = _moving(monkeypatch, tmp_path, 0.0529 * 1.1)
+    means = _means(_collect(point))
+    expected = (Q * 1.21 * _mean(ZONES[1], "CL") + Q * _mean(ZONES[0], "CL")) / Q
+    assert means["CL_MRP_TOTAL"] == pytest.approx(expected, rel=1e-9, abs=0)
+    assert means["CL_MRP_TOTAL"] != pytest.approx(_mean(MARKERS, "CL"), rel=1e-4)

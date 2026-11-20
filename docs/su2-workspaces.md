@@ -351,6 +351,8 @@ CN, CS = F_w . N, F_w . S over rho n^2 D^4    CMN, CMS = M_w . N, M_w . S over r
 
 `N` is the part of the mesh frame's up (`+z`) square to the shaft and `S = N x a`; the four in-plane coefficients are `NA` for a shaft along up. With `SYMMETRY = PERIODIC` and `SYMMETRY_LOADS` true the whole-rotor loads are the vector sum over `m = PERIODIC_COPIES` copies, never a multiplication; with `SYMMETRY_LOADS` false they are the sector's. Thrust is counted along the declared shaft, so with `axis = "X"` and the flow along +x a pulling propeller has a negative `CT`, as in pyflightstream; `ETA` is `NA` where `CP` is zero or the free stream is. The density `rho` is `FREESTREAM_DENSITY` under `FREESTREAM_OPTION = "DENSITY_FS"`; for a viscous deck that SU2 initializes from `REYNOLDS_NUMBER` it is `Re mu / (V L)`; otherwise `p / (R T)`.
 
+A sliding-mesh (two-zone) point has the same `rotor` mapping and rotor table: its grid motion is written in the turning zone's file, and the rotor quantities are formed from that zone's own loads (the bare `CFx` to `CMz` columns of the point), its rotation and the dynamic pressure of its `MACH_MOTION`, with the window means of a time-accurate point. The thrust is counted along the declared shaft as above.
+
 The same quantities hold for a `steady` point whose rotation you typed by hand (`GRID_MOVEMENT` and `ROTATION_RATE` in the setup), as long as the reference file declares the rotor.
 
 ### Post-processing products
